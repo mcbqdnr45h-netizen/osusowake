@@ -8,6 +8,9 @@ import BagDetail from "./pages/BagDetail";
 import Checkout from "./pages/Checkout";
 import MyReservations from "./pages/MyReservations";
 import StoreDashboard from "./pages/StoreDashboard";
+import SearchPage from "./pages/SearchPage";
+import FavoritesPage from "./pages/FavoritesPage";
+import MyPage from "./pages/MyPage";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -24,6 +27,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/search" component={SearchPage} />
+      <Route path="/favorites" component={FavoritesPage} />
+      <Route path="/mypage" component={MyPage} />
       <Route path="/bags/:id" component={BagDetail} />
       <Route path="/checkout/:id" component={Checkout} />
       <Route path="/my-reservations" component={MyReservations} />

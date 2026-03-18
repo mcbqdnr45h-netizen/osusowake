@@ -3,118 +3,164 @@ import { Layout } from '@/components/Layout';
 import { MapView } from '@/components/Map';
 import { BagCard } from '@/components/BagCard';
 import { useListAllBags, useListStores } from '@workspace/api-client-react';
-import { MapPin, Search, Sparkles } from 'lucide-react';
+import { Search, Map as MapIcon, List } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+const CATEGORIES = ['全て', 'ベーカリー', 'レストラン', 'カフェ', 'スーパー', 'コンビニ'];
+
 export default function Home() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<'both' | 'map' | 'list'>('both');
+  const [activeCategory, setActiveCategory] = useState('全て');
   
   const { data: bags, isLoading: isLoadingBags } = useListAllBags();
   const { data: stores, isLoading: isLoadingStores } = useListStores();
 
-  const filteredBags = bags?.filter(bag => 
-    bag.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    bag.store.name.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const getCategoryKey = (label: string) => {
+    switch(label) {
+      case 'ベーカリー': return 'bakery';
+      case 'レストラン': return 'restaurant';
+      case 'カフェ': return 'cafe';
+      case 'スーパー': return 'supermarket';
+      case 'コンビニ': return 'convenience';
+      default: return 'all';
+    }
+  };
+
+  const filteredBags = bags?.filter(bag => {
+    if (activeCategory !== '全て') {
+      if (bag.store.category !== getCategoryKey(activeCategory)) return false;
+    }
+    return true;
+  }) || [];
 
   return (
     <Layout>
-      <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] md:h-[calc(100vh-64px)] overflow-hidden relative">
+      <div className="flex flex-col h-[calc(100vh-64px)] md:h-[calc(100vh-64px)] overflow-hidden">
         
-        {/* Mobile Search Bar - Absolute over map */}
-        <div className="md:hidden absolute top-4 left-4 right-4 z-10">
-          <div className="bg-background/90 backdrop-blur-xl border border-border rounded-2xl shadow-lg p-2 flex items-center gap-2">
-            <Search className="w-5 h-5 text-muted-foreground ml-2" />
-            <input 
-              type="text" 
-              placeholder="お店や食事を探す..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm placeholder:text-muted-foreground"
-            />
+        {/* Top View Toggle & Filters (Desktop) */}
+        <div className="hidden md:flex items-center justify-between p-4 border-b border-border bg-background z-10 shadow-sm">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black text-foreground">大阪エリアの出品</h1>
+            <span className="bg-primary/10 text-primary px-2 py-1 rounded font-bold text-sm ml-2">
+              {filteredBags.length}件
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex bg-muted rounded-lg p-1">
+              <button 
+                onClick={() => setViewMode('both')}
+                className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'both' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                両方
+              </button>
+              <button 
+                onClick={() => setViewMode('map')}
+                className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'map' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                地図のみ
+              </button>
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                リストのみ
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Map Section - Top half on mobile, left half on desktop */}
-        <div className="h-[40vh] md:h-full md:w-1/2 lg:w-[55%] relative flex-shrink-0 z-0 bg-muted">
-          {!isLoadingStores && stores ? (
-            <MapView stores={stores} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        {/* Mobile View Toggle */}
+        <div className="md:hidden flex bg-background border-b border-border z-10">
+          <button 
+            onClick={() => setViewMode('list')}
+            className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${viewMode !== 'map' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+          >
+            <List className="w-4 h-4" /> 一覧
+          </button>
+          <button 
+            onClick={() => setViewMode('map')}
+            className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${viewMode === 'map' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+          >
+            <MapIcon className="w-4 h-4" /> 地図
+          </button>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex flex-1 overflow-hidden relative bg-background">
+          
+          {/* MAP VIEW */}
+          {(viewMode === 'both' || viewMode === 'map') && (
+            <div className={`${viewMode === 'map' ? 'w-full' : 'hidden md:block w-1/2'} h-full relative z-0 bg-muted`}>
+              {!isLoadingStores && stores ? (
+                <MapView stores={stores} />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
             </div>
           )}
-        </div>
 
-        {/* List Section - Bottom half on mobile, right half on desktop */}
-        <div className="flex-1 bg-secondary/30 rounded-t-3xl md:rounded-none -mt-6 md:mt-0 relative z-20 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)] md:shadow-none overflow-y-auto hide-scrollbar">
-          <div className="p-4 md:p-6 lg:p-8">
-            
-            {/* Desktop Header */}
-            <div className="hidden md:flex justify-between items-center mb-8">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                  レスキューを待っている食事 <Sparkles className="w-5 h-5 text-accent" />
-                </h1>
-                <p className="text-muted-foreground mt-1">現在地周辺のサプライズバッグ</p>
-              </div>
-              <div className="bg-background border border-border rounded-xl shadow-sm p-2 flex items-center gap-2 w-64">
-                <Search className="w-4 h-4 text-muted-foreground ml-2" />
-                <input 
-                  type="text" 
-                  placeholder="検索..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm placeholder:text-muted-foreground"
-                />
-              </div>
-            </div>
-
-            {/* Mobile Drag Indicator */}
-            <div className="w-12 h-1.5 bg-border rounded-full mx-auto mb-4 md:hidden" />
-
-            <div className="md:hidden flex items-center gap-2 mb-4">
-              <MapPin className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-bold">現在地周辺</h2>
-            </div>
-
-            {/* Bags Grid */}
-            {isLoadingBags ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="h-64 bg-card rounded-2xl animate-pulse border border-border" />
+          {/* LIST VIEW */}
+          {(viewMode === 'both' || viewMode === 'list') && (
+            <div className={`${viewMode === 'list' ? 'w-full' : 'w-full md:w-1/2'} h-full flex flex-col relative z-10 bg-background md:border-l border-border`}>
+              
+              {/* Category Filter Chips */}
+              <div className="flex overflow-x-auto hide-scrollbar gap-2 p-4 border-b border-border/50 shrink-0 bg-background/80 backdrop-blur">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all shadow-sm
+                      ${activeCategory === cat 
+                        ? 'bg-primary text-primary-foreground shadow-primary/20' 
+                        : 'bg-card text-foreground border border-border hover:bg-secondary'
+                      }`}
+                  >
+                    {cat}
+                  </button>
                 ))}
               </div>
-            ) : filteredBags.length > 0 ? (
-              <motion.div 
-                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-                initial="hidden"
-                animate="show"
-                variants={{
-                  hidden: { opacity: 0 },
-                  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
-                }}
-              >
-                {filteredBags.map(bag => (
-                  <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-                    <BagCard bag={bag} />
+
+              {/* Bags List */}
+              <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-secondary/10">
+                {isLoadingBags ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                    {[1, 2, 3, 4].map(i => (
+                      <div key={i} className="h-64 bg-card rounded-2xl animate-pulse border border-border" />
+                    ))}
+                  </div>
+                ) : filteredBags.length > 0 ? (
+                  <motion.div 
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-8"
+                    initial="hidden"
+                    animate="show"
+                    variants={{
+                      hidden: { opacity: 0 },
+                      show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+                    }}
+                  >
+                    {filteredBags.map(bag => (
+                      <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                        <BagCard bag={bag} />
+                      </motion.div>
+                    ))}
                   </motion.div>
-                ))}
-              </motion.div>
-            ) : (
-              <div className="text-center py-16 px-4">
-                <img 
-                  src={`${import.meta.env.BASE_URL}images/empty-bag.png`} 
-                  alt="No bags found" 
-                  className="w-32 h-32 mx-auto mb-4 opacity-80"
-                />
-                <h3 className="text-lg font-bold text-foreground">バッグが見つかりません</h3>
-                <p className="text-muted-foreground mt-2 text-sm">
-                  条件を変えて検索するか、後でもう一度チェックしてください。
-                </p>
+                ) : (
+                  <div className="text-center py-20 px-4">
+                    <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Search className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground">該当するバッグがありません</h3>
+                    <p className="text-muted-foreground mt-2 text-sm">
+                      別のカテゴリーを選択するか、後でもう一度チェックしてください。
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </Layout>
