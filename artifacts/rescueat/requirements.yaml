@@ -1,0 +1,28 @@
+packages:
+  "leaflet": "Map rendering for local store discovery"
+  "react-leaflet": "React bindings for Leaflet maps"
+  "@types/leaflet": "TypeScript definitions for Leaflet"
+  "@stripe/stripe-js": "Stripe payments integration"
+  "@stripe/react-stripe-js": "Stripe React components"
+  "framer-motion": "Smooth page transitions and micro-interactions"
+  "uuid": "Mock user ID generation for session management"
+  "@types/uuid": "TypeScript definitions for uuid"
+  "date-fns": "Human-readable date and time formatting"
+  "lucide-react": "Beautiful consistent iconography"
+
+images:
+  - path: "artifacts/rescueat/public/images/logo.png"
+    description: "A clean, modern, minimalist logo for an eco-friendly food rescue app named 'RescuEat', featuring a fresh green leaf intertwined with a subtle shopping bag icon. Pure white background, high resolution."
+    aspect_ratio: "1:1"
+  - path: "artifacts/rescueat/public/images/empty-bag.png"
+    description: "A cute, modern flat vector illustration of an empty eco-friendly grocery bag looking slightly sad but hopeful. Soft green and pastel colors, minimal clean design, transparent or white background."
+    aspect_ratio: "1:1"
+  - path: "artifacts/rescueat/public/images/hero-bg.png"
+    description: "A vibrant, soft abstract gradient background blending fresh emerald greens, warm yellow-greens, and subtle teal tones. Gives a healthy, natural, and eco-friendly vibe."
+    aspect_ratio: "16:9"
+
+notes:
+  - "Using Leaflet for maps to avoid Google Maps API key requirement."
+  - "Stripe payment flow falls back to a simulated mock payment if VITE_STRIPE_PUBLIC_KEY is not configured."
+  - "Assuming @workspace/api-client-react exports TanStack Query hooks and types directly."
+  - "Implemented a local mock session via UUID in localStorage to simulate user authentication for the MVP."

@@ -1,22 +1,28 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: RescuEat API - Food rescue platform
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: stores
+    description: Store operations
+  - name: bags
+    description: Surprise bag operations
+  - name: reservations
+    description: Reservation operations
+  - name: auth
+    description: Authentication operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +30,372 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /stores:
+    get:
+      operationId: listStores
+      tags: [stores]
+      summary: List all active stores with available bags
+      parameters:
+        - name: lat
+          in: query
+          schema:
+            type: number
+        - name: lng
+          in: query
+          schema:
+            type: number
+        - name: radius
+          in: query
+          description: Radius in km
+          schema:
+            type: number
+      responses:
+        "200":
+          description: List of stores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Store"
+    post:
+      operationId: createStore
+      tags: [stores]
+      summary: Create a new store (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStoreRequest"
+      responses:
+        "201":
+          description: Store created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+
+  /stores/{storeId}:
+    get:
+      operationId: getStore
+      tags: [stores]
+      summary: Get store details
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Store details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateStore
+      tags: [stores]
+      summary: Update store info
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStoreRequest"
+      responses:
+        "200":
+          description: Updated store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+
+  /stores/{storeId}/bags:
+    get:
+      operationId: listStoreBags
+      tags: [bags]
+      summary: List bags for a store
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of bags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SurpriseBag"
+    post:
+      operationId: createBag
+      tags: [bags]
+      summary: Create a surprise bag listing
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBagRequest"
+      responses:
+        "201":
+          description: Bag created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurpriseBag"
+
+  /bags:
+    get:
+      operationId: listAllBags
+      tags: [bags]
+      summary: List all available surprise bags
+      responses:
+        "200":
+          description: List of available bags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SurpriseBagWithStore"
+
+  /bags/{bagId}:
+    get:
+      operationId: getBag
+      tags: [bags]
+      summary: Get bag details
+      parameters:
+        - name: bagId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bag details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurpriseBagWithStore"
+    put:
+      operationId: updateBag
+      tags: [bags]
+      summary: Update bag stock or info
+      parameters:
+        - name: bagId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBagRequest"
+      responses:
+        "200":
+          description: Updated bag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurpriseBag"
+
+  /reservations:
+    get:
+      operationId: listReservations
+      tags: [reservations]
+      summary: List reservations (filter by query params)
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: storeId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, picked_up, cancelled]
+      responses:
+        "200":
+          description: List of reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+    post:
+      operationId: createReservation
+      tags: [reservations]
+      summary: Reserve a surprise bag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReservationRequest"
+      responses:
+        "201":
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: No stock available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reservations/{reservationId}:
+    get:
+      operationId: getReservation
+      tags: [reservations]
+      summary: Get reservation details
+      parameters:
+        - name: reservationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reservation details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+    put:
+      operationId: updateReservationStatus
+      tags: [reservations]
+      summary: Update reservation status (store dashboard)
+      parameters:
+        - name: reservationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReservationStatusRequest"
+      responses:
+        "200":
+          description: Updated reservation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+
+  /reservations/{reservationId}/cancel:
+    post:
+      operationId: cancelReservation
+      tags: [reservations]
+      summary: Cancel a reservation
+      parameters:
+        - name: reservationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled reservation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+
+  /payment/create-intent:
+    post:
+      operationId: createPaymentIntent
+      tags: [reservations]
+      summary: Create Stripe payment intent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentIntentRequest"
+      responses:
+        "200":
+          description: Payment intent created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntentResponse"
+
+  /payment/confirm:
+    post:
+      operationId: confirmPayment
+      tags: [reservations]
+      summary: Confirm payment and finalize reservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmPaymentRequest"
+      responses:
+        "200":
+          description: Payment confirmed, reservation finalized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user info (from session)
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +406,337 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [user, store_owner, admin]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - role
+
+    Store:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        category:
+          type: string
+          enum: [restaurant, bakery, cafe, supermarket, convenience, other]
+        lat:
+          type: number
+        lng:
+          type: number
+        imageUrl:
+          type: string
+        phone:
+          type: string
+        openTime:
+          type: string
+        closeTime:
+          type: string
+        rating:
+          type: number
+        isActive:
+          type: boolean
+        ownerId:
+          type: string
+        totalBagsAvailable:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - address
+        - city
+        - category
+        - lat
+        - lng
+        - isActive
+        - totalBagsAvailable
+        - createdAt
+
+    CreateStoreRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        category:
+          type: string
+          enum: [restaurant, bakery, cafe, supermarket, convenience, other]
+        lat:
+          type: number
+        lng:
+          type: number
+        imageUrl:
+          type: string
+        phone:
+          type: string
+        openTime:
+          type: string
+        closeTime:
+          type: string
+      required:
+        - name
+        - address
+        - city
+        - category
+        - lat
+        - lng
+
+    UpdateStoreRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        category:
+          type: string
+          enum: [restaurant, bakery, cafe, supermarket, convenience, other]
+        imageUrl:
+          type: string
+        phone:
+          type: string
+        openTime:
+          type: string
+        closeTime:
+          type: string
+        isActive:
+          type: boolean
+
+    SurpriseBag:
+      type: object
+      properties:
+        id:
+          type: integer
+        storeId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        originalPrice:
+          type: number
+        discountedPrice:
+          type: number
+        stockCount:
+          type: integer
+        pickupStart:
+          type: string
+        pickupEnd:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - storeId
+        - title
+        - originalPrice
+        - discountedPrice
+        - stockCount
+        - isActive
+        - createdAt
+
+    SurpriseBagWithStore:
+      allOf:
+        - $ref: "#/components/schemas/SurpriseBag"
+        - type: object
+          properties:
+            store:
+              $ref: "#/components/schemas/Store"
+          required:
+            - store
+
+    CreateBagRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        originalPrice:
+          type: number
+        discountedPrice:
+          type: number
+        stockCount:
+          type: integer
+        pickupStart:
+          type: string
+        pickupEnd:
+          type: string
+      required:
+        - title
+        - originalPrice
+        - discountedPrice
+        - stockCount
+
+    UpdateBagRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        originalPrice:
+          type: number
+        discountedPrice:
+          type: number
+        stockCount:
+          type: integer
+        pickupStart:
+          type: string
+        pickupEnd:
+          type: string
+        isActive:
+          type: boolean
+
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        bagId:
+          type: integer
+        storeId:
+          type: integer
+        quantity:
+          type: integer
+        totalPrice:
+          type: number
+        status:
+          type: string
+          enum: [pending, confirmed, picked_up, cancelled]
+        paymentIntentId:
+          type: string
+        paymentStatus:
+          type: string
+          enum: [unpaid, paid, refunded]
+        pickupCode:
+          type: string
+        bag:
+          $ref: "#/components/schemas/SurpriseBag"
+        store:
+          $ref: "#/components/schemas/Store"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - bagId
+        - storeId
+        - quantity
+        - totalPrice
+        - status
+        - paymentStatus
+        - createdAt
+
+    CreateReservationRequest:
+      type: object
+      properties:
+        bagId:
+          type: integer
+        quantity:
+          type: integer
+        userId:
+          type: string
+      required:
+        - bagId
+        - quantity
+        - userId
+
+    UpdateReservationStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, confirmed, picked_up, cancelled]
+      required:
+        - status
+
+    CreatePaymentIntentRequest:
+      type: object
+      properties:
+        reservationId:
+          type: integer
+        bagId:
+          type: integer
+        quantity:
+          type: integer
+      required:
+        - reservationId
+
+    PaymentIntentResponse:
+      type: object
+      properties:
+        clientSecret:
+          type: string
+        paymentIntentId:
+          type: string
+        amount:
+          type: integer
+        currency:
+          type: string
+      required:
+        - clientSecret
+        - paymentIntentId
+        - amount
+        - currency
+
+    ConfirmPaymentRequest:
+      type: object
+      properties:
+        reservationId:
+          type: integer
+        paymentIntentId:
+          type: string
+      required:
+        - reservationId
+        - paymentIntentId
