@@ -1,9 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { useCreateStore, useCreateBag } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
-import { Store, ChevronLeft, CheckCircle, Camera, MapPin, RefreshCw, Info } from 'lucide-react';
+import { Store, ChevronLeft, CheckCircle, Camera, MapPin, RefreshCw, Info, Move } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const CATEGORY_OPTIONS = [
   { value: 'bakery', label: 'ベーカリー', emoji: '🥐' },
@@ -34,20 +37,103 @@ interface BagForm {
   description: string;
 }
 
+// ── Image compression ──────────────────────────────────────────────────────
+async function compressImage(file: File, maxPx = 1200, quality = 0.75): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+          else { width = Math.round(width * maxPx / height); height = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Geocoding with multi-strategy fallback ─────────────────────────────────
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const q = encodeURIComponent(address + ' Japan');
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
-      headers: { 'Accept-Language': 'ja' }
-    });
-    const data = await res.json();
-    if (data && data.length > 0) {
-      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-    }
-    return null;
-  } catch {
-    return null;
+  const strategies = [
+    address + ' Japan',
+    address,
+    // Strip street number for area-level match
+    address.replace(/\d+-\d+-?\d*/g, '').trim() + ' Japan',
+  ];
+  for (const q of strategies) {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=jp`,
+        { headers: { 'Accept-Language': 'ja', 'User-Agent': 'taberos-app/1.0' } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+    } catch { /* try next */ }
   }
+  return null;
+}
+
+// ── Draggable pin map ──────────────────────────────────────────────────────
+const pinIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:36px;height:36px;background:#2D5A51;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.3)"></div>`,
+  iconSize: [36, 36],
+  iconAnchor: [18, 36],
+});
+
+function MapClickHandler({ onMove }: { onMove: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) { onMove(e.latlng.lat, e.latlng.lng); }
+  });
+  return null;
+}
+
+function PinMap({
+  lat, lng, onMove
+}: { lat: number; lng: number; onMove: (lat: number, lng: number) => void }) {
+  return (
+    <div className="relative w-full h-52 rounded-xl overflow-hidden border-2 border-primary/30 shadow-sm">
+      <MapContainer
+        center={[lat, lng]}
+        zoom={16}
+        scrollWheelZoom={false}
+        className="w-full h-full"
+        key={`${lat.toFixed(4)}-${lng.toFixed(4)}`}
+      >
+        <TileLayer
+          attribution='&copy; OpenStreetMap'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <Marker
+          position={[lat, lng]}
+          icon={pinIcon}
+          draggable
+          eventHandlers={{
+            dragend: (e) => {
+              const m = e.target as L.Marker;
+              const pos = m.getLatLng();
+              onMove(pos.lat, pos.lng);
+            }
+          }}
+        />
+        <MapClickHandler onMove={onMove} />
+      </MapContainer>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 pointer-events-none z-[1000]">
+        <Move className="w-3 h-3" />
+        ピンをドラッグして位置を微調整
+      </div>
+    </div>
+  );
 }
 
 export default function RegisterStore() {
@@ -58,60 +144,69 @@ export default function RegisterStore() {
   const [step, setStep] = useState<'store' | 'bag' | 'done'>('store');
   const [geocoding, setGeocoding] = useState(false);
   const [createdStoreId, setCreatedStoreId] = useState<number | null>(null);
+  const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
 
   const createStore = useCreateStore();
   const createBag = useCreateBag();
 
   const [storeForm, setStoreForm] = useState<StoreForm>({
-    name: '',
-    address: '',
-    city: '',
-    category: 'restaurant',
-    phone: '',
-    imageUrl: '',
-    imagePreview: '',
+    name: '', address: '', city: '', category: 'restaurant',
+    phone: '', imageUrl: '', imagePreview: '',
   });
 
   const [bagForm, setBagForm] = useState<BagForm>({
-    title: '',
-    originalPrice: 1500,
-    discountedPrice: 500,
-    stockCount: 5,
-    pickupStart: '18:00',
-    pickupEnd: '21:00',
-    description: '',
+    title: '', originalPrice: 1500, discountedPrice: 500,
+    stockCount: 5, pickupStart: '18:00', pickupEnd: '21:00', description: '',
   });
 
   const discountPct = bagForm.originalPrice > 0
-    ? Math.round((1 - bagForm.discountedPrice / bagForm.originalPrice) * 100)
-    : 0;
+    ? Math.round((1 - bagForm.discountedPrice / bagForm.originalPrice) * 100) : 0;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setStoreForm(f => ({ ...f, imageUrl: result, imagePreview: result }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file);
+      setStoreForm(f => ({ ...f, imageUrl: compressed, imagePreview: compressed }));
+      const sizeKB = Math.round(compressed.length * 0.75 / 1024);
+      toast({ title: `画像を圧縮しました（${sizeKB} KB）` });
+    } catch {
+      toast({ title: '画像の読み込みに失敗しました', variant: 'destructive' });
+    }
+  };
+
+  // Auto-geocode when user stops typing address
+  const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleAddressChange = (value: string) => {
+    setStoreForm(f => ({ ...f, address: value }));
+    if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
+    if (value.length < 6) return;
+    geocodeTimer.current = setTimeout(async () => {
+      setGeocoding(true);
+      const result = await geocodeAddress(value);
+      setGeocoding(false);
+      if (result) setPinPos(result);
+    }, 1200);
   };
 
   const handleStoreSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setGeocoding(true);
+    let geoResult = pinPos;
 
-    const fullAddress = `${storeForm.address}`;
-    const geo = await geocodeAddress(fullAddress);
-    setGeocoding(false);
+    if (!geoResult) {
+      setGeocoding(true);
+      geoResult = await geocodeAddress(storeForm.address);
+      setGeocoding(false);
 
-    if (!geo) {
-      toast({
-        title: '住所を確認してください',
-        description: '住所から位置情報を取得できませんでした。より詳しい住所を入力してください。',
-        variant: 'destructive'
-      });
-      return;
+      if (!geoResult) {
+        toast({
+          title: '住所を確認してください',
+          description: '位置情報を取得できませんでした。より詳しい住所（都道府県から）を入力してください。',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setPinPos(geoResult);
     }
 
     try {
@@ -119,10 +214,10 @@ export default function RegisterStore() {
         data: {
           name: storeForm.name,
           address: storeForm.address,
-          city: storeForm.city || '大阪',
+          city: storeForm.city || storeForm.address.split('市')[0] + '市',
           category: storeForm.category as any,
-          lat: geo.lat,
-          lng: geo.lng,
+          lat: geoResult.lat,
+          lng: geoResult.lng,
           phone: storeForm.phone || undefined,
           imageUrl: storeForm.imageUrl || undefined,
         }
@@ -176,7 +271,7 @@ export default function RegisterStore() {
           </div>
         </div>
 
-        {/* Steps Indicator */}
+        {/* Step indicator */}
         {step !== 'done' && (
           <div className="flex items-center gap-2 mb-6">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold transition-all ${step === 'store' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
@@ -189,26 +284,29 @@ export default function RegisterStore() {
           </div>
         )}
 
-        {/* Fee Info Banner */}
+        {/* Fee banner */}
         {step !== 'done' && (
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6 flex gap-3">
             <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div className="text-sm">
               <div className="font-bold text-foreground mb-1">完全成果報酬型</div>
               <div className="text-muted-foreground leading-relaxed">
-                <span className="font-bold text-foreground">初期費用・月額0円</span>。売れた場合のみ手数料20%が発生する成果報酬型です。売れなければ完全無料です。
+                <span className="font-bold text-foreground">初期費用・月額0円</span>。売れた場合のみ手数料20%。売れなければ完全無料です。
               </div>
             </div>
           </div>
         )}
 
-        {/* STEP 1: Store Form */}
+        {/* ── STEP 1: Store form ── */}
         {step === 'store' && (
           <form onSubmit={handleStoreSubmit} className="space-y-5">
 
-            {/* Photo Upload */}
+            {/* Photo */}
             <div>
-              <label className="block text-sm font-bold text-muted-foreground mb-2">店舗写真（任意）</label>
+              <label className="block text-sm font-bold text-muted-foreground mb-2">
+                店舗写真（任意）
+                <span className="text-xs font-normal ml-2 text-muted-foreground/60">自動圧縮されます</span>
+              </label>
               <div
                 onClick={() => fileRef.current?.click()}
                 className="relative w-full h-40 bg-secondary/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-secondary/80 transition-colors overflow-hidden"
@@ -219,7 +317,7 @@ export default function RegisterStore() {
                   <>
                     <Camera className="w-8 h-8 text-muted-foreground mb-2" />
                     <span className="text-sm text-muted-foreground font-medium">タップして写真を追加</span>
-                    <span className="text-xs text-muted-foreground/70 mt-1">JPG・PNG対応</span>
+                    <span className="text-xs text-muted-foreground/70 mt-1">JPG・PNG・HEIC対応</span>
                   </>
                 )}
                 {storeForm.imagePreview && (
@@ -231,52 +329,71 @@ export default function RegisterStore() {
               <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
             </div>
 
+            {/* Store name */}
             <div>
               <label className="block text-sm font-bold text-muted-foreground mb-1.5">店名 <span className="text-destructive">*</span></label>
               <input
-                required
-                value={storeForm.name}
+                required value={storeForm.name}
                 onChange={e => setStoreForm(f => ({ ...f, name: e.target.value }))}
                 className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-bold text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
                 placeholder="例: 渋谷ベーカリー 幸福堂"
               />
             </div>
 
+            {/* Address with auto-geocode */}
             <div>
               <label className="block text-sm font-bold text-muted-foreground mb-1.5">
                 住所 <span className="text-destructive">*</span>
-                <span className="text-xs font-normal ml-2 text-muted-foreground/70">（地図表示に使用されます）</span>
+                {geocoding && <span className="text-xs font-normal ml-2 text-primary animate-pulse">位置情報を検索中...</span>}
+                {!geocoding && pinPos && <span className="text-xs font-normal ml-2 text-emerald-600">✓ 位置を確認しました</span>}
               </label>
               <div className="relative">
                 <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
-                  required
-                  value={storeForm.address}
-                  onChange={e => setStoreForm(f => ({ ...f, address: e.target.value }))}
+                  required value={storeForm.address}
+                  onChange={e => handleAddressChange(e.target.value)}
                   className="w-full bg-background border border-input rounded-xl pl-10 pr-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-                  placeholder="例: 大阪府吹田市江坂町1-2-3"
+                  placeholder="例: 大阪府高槻市城西町1-1"
                 />
               </div>
+              <p className="text-xs text-muted-foreground/60 mt-1">都道府県から入力すると精度が上がります</p>
             </div>
 
+            {/* Draggable pin map */}
+            {pinPos && (
+              <div>
+                <label className="block text-sm font-bold text-muted-foreground mb-2">
+                  ピンの位置確認・微調整
+                </label>
+                <PinMap
+                  lat={pinPos.lat}
+                  lng={pinPos.lng}
+                  onMove={(lat, lng) => setPinPos({ lat, lng })}
+                />
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  緯度: {pinPos.lat.toFixed(5)} / 経度: {pinPos.lng.toFixed(5)}
+                </p>
+              </div>
+            )}
+
+            {/* City */}
             <div>
               <label className="block text-sm font-bold text-muted-foreground mb-1.5">市区町村 <span className="text-destructive">*</span></label>
               <input
-                required
-                value={storeForm.city}
+                required value={storeForm.city}
                 onChange={e => setStoreForm(f => ({ ...f, city: e.target.value }))}
                 className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-                placeholder="例: 大阪市、吹田市"
+                placeholder="例: 大阪市、高槻市"
               />
             </div>
 
+            {/* Category grid */}
             <div>
               <label className="block text-sm font-bold text-muted-foreground mb-2">ジャンル <span className="text-destructive">*</span></label>
               <div className="grid grid-cols-3 gap-2">
                 {CATEGORY_OPTIONS.map(opt => (
                   <button
-                    key={opt.value}
-                    type="button"
+                    key={opt.value} type="button"
                     onClick={() => setStoreForm(f => ({ ...f, category: opt.value }))}
                     className={`py-3 px-2 rounded-xl border-2 font-bold text-sm flex flex-col items-center gap-1 transition-all active:scale-95 ${
                       storeForm.category === opt.value
@@ -291,11 +408,11 @@ export default function RegisterStore() {
               </div>
             </div>
 
+            {/* Phone */}
             <div>
               <label className="block text-sm font-bold text-muted-foreground mb-1.5">電話番号（任意）</label>
               <input
-                type="tel"
-                value={storeForm.phone}
+                type="tel" value={storeForm.phone}
                 onChange={e => setStoreForm(f => ({ ...f, phone: e.target.value }))}
                 className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
                 placeholder="06-xxxx-xxxx"
@@ -307,27 +424,25 @@ export default function RegisterStore() {
               disabled={createStore.isPending || geocoding}
               className="w-full bg-primary text-primary-foreground font-black text-lg py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-70 min-h-[56px]"
             >
-              {(createStore.isPending || geocoding) ? (
-                <><RefreshCw className="w-5 h-5 animate-spin" /> 処理中...</>
-              ) : (
-                '次へ：サプライズバッグを設定'
-              )}
+              {(createStore.isPending || geocoding)
+                ? <><RefreshCw className="w-5 h-5 animate-spin" /> 処理中...</>
+                : '次へ：サプライズバッグを設定'
+              }
             </button>
           </form>
         )}
 
-        {/* STEP 2: Bag Form */}
+        {/* ── STEP 2: Bag form ── */}
         {step === 'bag' && (
           <form onSubmit={handleBagSubmit} className="space-y-5">
             <div className="bg-secondary/50 rounded-xl p-4 text-sm text-muted-foreground font-medium">
-              💡 サプライズバッグは、閉店前に余った食品をまとめて安価に販売する商品です。内容は「お楽しみ」でOKです。
+              💡 サプライズバッグは閉店前の余り食品をまとめて販売する商品です。内容は「お楽しみ」でOKです。
             </div>
 
             <div>
               <label className="block text-sm font-bold text-muted-foreground mb-1.5">バッグ名 <span className="text-destructive">*</span></label>
               <input
-                required
-                value={bagForm.title}
+                required value={bagForm.title}
                 onChange={e => setBagForm(f => ({ ...f, title: e.target.value }))}
                 className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-bold text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
                 placeholder="例: 本日のパン詰め合わせ"
@@ -385,15 +500,13 @@ export default function RegisterStore() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-bold text-muted-foreground mb-1.5">受取開始</label>
-                <input type="time" required
-                  value={bagForm.pickupStart}
+                <input type="time" required value={bagForm.pickupStart}
                   onChange={e => setBagForm(f => ({ ...f, pickupStart: e.target.value }))}
                   className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-bold text-base focus:ring-2 focus:ring-primary/40 outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-bold text-muted-foreground mb-1.5">受取終了</label>
-                <input type="time" required
-                  value={bagForm.pickupEnd}
+                <input type="time" required value={bagForm.pickupEnd}
                   onChange={e => setBagForm(f => ({ ...f, pickupEnd: e.target.value }))}
                   className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-bold text-base focus:ring-2 focus:ring-primary/40 outline-none" />
               </div>
@@ -405,14 +518,12 @@ export default function RegisterStore() {
                 value={bagForm.description}
                 onChange={e => setBagForm(f => ({ ...f, description: e.target.value }))}
                 className="w-full bg-background border border-input rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/40 outline-none resize-none text-base"
-                rows={3}
-                placeholder="アレルギー情報、内容の例など"
+                rows={3} placeholder="アレルギー情報、内容の例など"
               />
             </div>
 
             <button
-              type="submit"
-              disabled={createBag.isPending}
+              type="submit" disabled={createBag.isPending}
               className="w-full bg-primary text-primary-foreground font-black text-lg py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-70 min-h-[56px]"
             >
               {createBag.isPending
@@ -423,23 +534,23 @@ export default function RegisterStore() {
           </form>
         )}
 
-        {/* STEP 3: Done */}
+        {/* ── STEP 3: Done ── */}
         {step === 'done' && (
           <div className="text-center py-12">
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5">
               <CheckCircle className="w-10 h-10 text-primary" />
             </div>
-            <h2 className="text-2xl font-black mb-3">登録完了！</h2>
+            <h2 className="text-2xl font-black mb-3">申請を受け付けました！</h2>
             <p className="text-muted-foreground mb-2 text-base leading-relaxed">
-              お店の情報とサプライズバッグが登録されました。<br />
-              地図上にピンが表示されます。
+              ご申請ありがとうございます。<br />
+              運営が内容を確認し、承認後に地図へ掲載されます。
             </p>
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-8 text-sm text-left mt-6">
-              <div className="font-bold mb-2 text-foreground">次のステップ</div>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>✅ 予約が入るとメールでお知らせします</li>
-                <li>✅ 店舗ダッシュボードから予約を管理できます</li>
-                <li>✅ 毎日の閉店前に在庫数を更新してください</li>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 text-sm text-left mt-6">
+              <div className="font-bold mb-2 text-amber-800">📋 審査について</div>
+              <ul className="space-y-1 text-amber-700/80">
+                <li>・通常1〜2営業日以内に審査を行います</li>
+                <li>・承認されると自動的に地図に表示されます</li>
+                <li>・ご不明な点は「ヘルプ・お問い合わせ」からご連絡ください</li>
               </ul>
             </div>
             <div className="flex flex-col gap-3">
@@ -447,7 +558,7 @@ export default function RegisterStore() {
                 onClick={() => navigate('/')}
                 className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl text-lg hover:bg-primary/90 active:scale-[0.99] transition-all min-h-[56px]"
               >
-                地図で確認する
+                トップページへ戻る
               </button>
               <button
                 onClick={() => navigate('/store-dashboard')}
