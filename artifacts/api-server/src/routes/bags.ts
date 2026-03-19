@@ -96,8 +96,17 @@ router.post("/stores/:storeId/bags", async (req, res) => {
   try {
     const { storeId } = CreateBagParams.parse(req.params);
     const body = CreateBagBody.parse(req.body);
-    const parsed = insertBagSchema.parse({ ...body, storeId });
-    const [bag] = await db.insert(surpriseBagsTable).values(parsed).returning();
+    const [bag] = await db.insert(surpriseBagsTable).values({
+      storeId,
+      title: body.title,
+      description: body.description ?? null,
+      originalPrice: Number(body.originalPrice),
+      discountedPrice: Number(body.discountedPrice),
+      stockCount: Number(body.stockCount),
+      pickupStart: body.pickupStart ?? null,
+      pickupEnd: body.pickupEnd ?? null,
+      isActive: true,
+    }).returning();
     res.status(201).json(bag);
   } catch (err) {
     console.error(err);

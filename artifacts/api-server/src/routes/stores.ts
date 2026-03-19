@@ -51,8 +51,20 @@ router.get("/stores", async (req, res) => {
 router.post("/stores", async (req, res) => {
   try {
     const body = CreateStoreBody.parse(req.body);
-    const parsed = insertStoreSchema.parse(body);
-    const [store] = await db.insert(storesTable).values(parsed).returning();
+    const [store] = await db.insert(storesTable).values({
+      name: body.name,
+      description: body.description ?? null,
+      address: body.address,
+      city: body.city,
+      category: body.category,
+      lat: Number(body.lat),
+      lng: Number(body.lng),
+      imageUrl: body.imageUrl ?? null,
+      phone: body.phone ?? null,
+      openTime: body.openTime ?? null,
+      closeTime: body.closeTime ?? null,
+      isActive: true,
+    }).returning();
     res.status(201).json({ ...store, totalBagsAvailable: 0 });
   } catch (err) {
     console.error(err);

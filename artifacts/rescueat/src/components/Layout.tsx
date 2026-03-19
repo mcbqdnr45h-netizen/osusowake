@@ -70,6 +70,32 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
         </AnimatePresence>
       </main>
 
+      {/* Desktop Footer */}
+      <footer className="hidden md:block bg-background border-t border-border mt-auto">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="font-black text-lg text-primary">食べロス</span>
+              <span className="text-xs text-muted-foreground">フードロスを減らし、美味しい食品を救う</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
+              <Link href="/register-store" className="hover:text-primary transition-colors font-medium">お店を登録する</Link>
+              <span>·</span>
+              <a href="#tokusho" className="hover:text-primary transition-colors">特定商取引法に基づく表記</a>
+              <span>·</span>
+              <a href="#privacy" className="hover:text-primary transition-colors">プライバシーポリシー</a>
+              <span>·</span>
+              <a href="#terms" className="hover:text-primary transition-colors">利用規約</a>
+              <span>·</span>
+              <span className="text-muted-foreground/60">© 2025 食べロス. All rights reserved.</span>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground/60 text-center">
+            初期費用・月額0円。売れた場合のみ手数料20%が発生する成果報酬型。手数料は決済額から自動控除されます。
+          </div>
+        </div>
+      </footer>
+
       {/* Mobile Bottom Nav */}
       {showBottomNav && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-10px_30px_rgba(0,0,0,0.05)] pb-safe">
