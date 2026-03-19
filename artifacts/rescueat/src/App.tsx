@@ -16,6 +16,9 @@ import RegisterStore from "./pages/RegisterStore";
 import AdminVerifyShops from "./pages/AdminVerifyShops";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import Welcome from "./pages/Welcome";
+import SignUp from "./pages/SignUp";
+import Login from "./pages/Login";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -32,6 +35,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/welcome" component={Welcome} />
+      <Route path="/signup" component={SignUp} />
+      <Route path="/login" component={Login} />
       <Route path="/search" component={SearchPage} />
       <Route path="/favorites" component={FavoritesPage} />
       <Route path="/mypage" component={MyPage} />
