@@ -12,6 +12,7 @@ import SearchPage from "./pages/SearchPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import MyPage from "./pages/MyPage";
 import RegisterStore from "./pages/RegisterStore";
+import AdminVerifyShops from "./pages/AdminVerifyShops";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/my-reservations" component={MyReservations} />
       <Route path="/store-dashboard" component={StoreDashboard} />
       <Route path="/register-store" component={RegisterStore} />
+      <Route path="/admin-verify-shops" component={AdminVerifyShops} />
       <Route component={NotFound} />
     </Switch>
   );

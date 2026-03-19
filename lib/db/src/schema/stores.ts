@@ -11,6 +11,12 @@ export const storeCategoryEnum = pgEnum("store_category", [
   "other",
 ]);
 
+export const storeStatusEnum = pgEnum("store_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
 export const storesTable = pgTable("stores", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -26,6 +32,7 @@ export const storesTable = pgTable("stores", {
   closeTime: text("close_time"),
   rating: real("rating"),
   isActive: boolean("is_active").notNull().default(true),
+  status: storeStatusEnum("status").notNull().default("pending"),
   ownerId: text("owner_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

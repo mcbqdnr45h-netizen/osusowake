@@ -81,6 +81,8 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
             <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
               <Link href="/register-store" className="hover:text-primary transition-colors font-medium">お店を登録する</Link>
               <span>·</span>
+              <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors font-medium">ヘルプ・お問い合わせ</a>
+              <span>·</span>
               <a href="#tokusho" className="hover:text-primary transition-colors">特定商取引法に基づく表記</a>
               <span>·</span>
               <a href="#privacy" className="hover:text-primary transition-colors">プライバシーポリシー</a>
