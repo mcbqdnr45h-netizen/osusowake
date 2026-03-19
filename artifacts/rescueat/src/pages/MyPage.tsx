@@ -4,6 +4,7 @@ import { useUserId } from '@/hooks/use-user';
 import { useListReservations } from '@workspace/api-client-react';
 import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, X, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
+import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
 
 function LimitedModal({ onClose }: { onClose: () => void }) {
   return (
@@ -51,7 +52,9 @@ export default function MyPage() {
   });
 
   const pickedUpCount = reservations?.filter(r => r.status === 'picked_up').length || 0;
-  const co2Saved = pickedUpCount * 2.5;
+  const co2Saved = +(pickedUpCount * 2.5).toFixed(1);
+  const ecoRank = getUserEcoRank(co2Saved);
+  const progress = getUserProgress(co2Saved, ecoRank);
 
   return (
     <Layout>
@@ -61,7 +64,7 @@ export default function MyPage() {
         <h1 className="text-2xl font-black mb-6 text-foreground">マイページ</h1>
 
         {/* Profile Card */}
-        <div className="bg-card border border-border rounded-2xl p-6 flex items-center gap-4 mb-6 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-6 flex items-center gap-4 mb-5 shadow-sm">
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0 border border-primary/30">
             <User className="w-8 h-8" />
           </div>
@@ -71,26 +74,57 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* Impact Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-5 text-center shadow-sm">
+        {/* Impact Stats Row */}
+        <div className="mb-5">
+          {/* Rescue count */}
+          <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-5 text-center shadow-sm mb-3">
             <ShoppingBag className="w-8 h-8 text-primary mx-auto mb-2" />
             <div className="text-3xl font-black text-primary">{pickedUpCount}</div>
             <div className="text-xs font-bold text-primary/80 mt-1">レスキューした食事</div>
           </div>
-          <div className="bg-gradient-to-br from-emerald-500/10 to-green-500/5 border border-emerald-500/20 rounded-2xl p-5 text-center shadow-sm">
-            <Leaf className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-            <div className="text-3xl font-black text-emerald-700">
-              {co2Saved}<span className="text-lg font-bold ml-0.5">kg</span>
+
+          {/* Eco rank CO2 card — dynamic by rank */}
+          <div className={`border-2 rounded-2xl p-5 shadow-sm transition-all duration-500 ${ecoRank.sectionBg} ${ecoRank.sectionBorder}`}>
+            {/* Rank badge + icon */}
+            <div className="flex items-center justify-between mb-3">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black ${ecoRank.badgeBg} ${ecoRank.badgeText}`}>
+                <span className="text-base leading-none">{ecoRank.icon}</span>
+                {ecoRank.label}
+              </div>
+              <div className={`text-xs font-bold px-2 py-1 rounded-lg ${ecoRank.valueBg} ${ecoRank.labelText}`}>
+                Lv.{ecoRank.rank}
+              </div>
             </div>
-            <div className="text-xs font-bold text-emerald-700/80 mt-1">削減したCO2排出量</div>
+
+            {/* CO2 value */}
+            <div className="flex items-end gap-1 mb-1">
+              <Leaf className={`w-6 h-6 mb-1 ${ecoRank.valueText}`} />
+              <span className={`text-4xl font-black leading-none ${ecoRank.valueText}`}>{co2Saved}</span>
+              <span className={`text-base font-bold mb-0.5 ${ecoRank.labelText}`}>kg</span>
+              <span className={`text-xs font-bold mb-1 ml-1 ${ecoRank.labelText}`}>CO2削減</span>
+            </div>
+
+            {/* Progress bar to next rank */}
+            {ecoRank.rank < 3 && (
+              <div className="mt-3">
+                <div className={`w-full h-2 rounded-full ${ecoRank.rank === 1 ? 'bg-green-200 dark:bg-green-800' : 'bg-emerald-300 dark:bg-emerald-700'} overflow-hidden`}>
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${ecoRank.progressColor}`}
+                    style={{ width: `${Math.max(4, progress)}%` }}
+                  />
+                </div>
+                <p className={`text-[10px] font-bold mt-1.5 ${ecoRank.labelText}`}>{ecoRank.sublabel}</p>
+              </div>
+            )}
+            {ecoRank.rank === 3 && (
+              <p className={`text-xs font-bold mt-2 ${ecoRank.labelText}`}>{ecoRank.sublabel}</p>
+            )}
           </div>
         </div>
 
         {/* Menu List */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
 
-          {/* 店舗管理ダッシュボード → 承認ページへ */}
           <Link
             href="/admin-verify-shops"
             className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
@@ -102,7 +136,6 @@ export default function MyPage() {
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Link>
 
-          {/* アカウント設定 → 制限ポップアップ */}
           <button
             onClick={() => setShowLimited(true)}
             className="w-full flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border text-left"
@@ -114,7 +147,6 @@ export default function MyPage() {
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
 
-          {/* ヘルプ → 制限ポップアップ */}
           <button
             onClick={() => setShowLimited(true)}
             className="w-full flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border text-left"
@@ -126,7 +158,6 @@ export default function MyPage() {
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
 
-          {/* ログアウト */}
           <button
             onClick={() => setShowLimited(true)}
             className="w-full flex items-center gap-4 p-4 hover:bg-destructive/5 transition-colors text-left text-destructive"

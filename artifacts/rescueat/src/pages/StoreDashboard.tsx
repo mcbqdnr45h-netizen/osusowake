@@ -6,12 +6,13 @@ import {
   useCreateBag, 
   useUpdateReservationStatus 
 } from '@workspace/api-client-react';
-import { Plus, Check, Store as StoreIcon, RefreshCw, Box } from 'lucide-react';
+import { Plus, Check, Store as StoreIcon, RefreshCw, Box, Leaf } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { getStoreEcoRank, getStoreProgress } from '@/lib/eco-rank';
 
 export default function StoreDashboard() {
-  const STORE_ID = 1; // Fixed for MVP purposes
+  const STORE_ID = 1;
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -36,6 +37,11 @@ export default function StoreDashboard() {
 
   const discountPercent = formData.originalPrice > 0 ? Math.round((1 - formData.discountedPrice / formData.originalPrice) * 100) : 0;
 
+  const pickedUpCount = reservations?.filter(r => r.status === 'picked_up').length ?? 0;
+  const co2Saved = +(pickedUpCount * 2.5).toFixed(1);
+  const ecoRank = getStoreEcoRank(co2Saved);
+  const progress = getStoreProgress(co2Saved, ecoRank);
+
   const handleCreateBag = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -45,11 +51,7 @@ export default function StoreDashboard() {
       });
       toast({ title: "出品しました！" });
       setIsCreating(false);
-      setFormData({
-        ...formData,
-        title: '',
-        description: ''
-      });
+      setFormData({ ...formData, title: '', description: '' });
       queryClient.invalidateQueries({ queryKey: ['/api/stores/1/bags'] });
     } catch (err: any) {
       toast({ title: "エラー", description: err.message, variant: "destructive" });
@@ -73,7 +75,8 @@ export default function StoreDashboard() {
     <Layout>
       <div className="max-w-3xl mx-auto py-8 px-4">
         
-        <div className="flex items-center gap-4 mb-8 bg-card border border-border p-5 rounded-2xl shadow-sm">
+        {/* Store header */}
+        <div className="flex items-center gap-4 mb-5 bg-card border border-border p-5 rounded-2xl shadow-sm">
           <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
             <StoreIcon className="w-6 h-6" />
           </div>
@@ -83,6 +86,46 @@ export default function StoreDashboard() {
           </div>
         </div>
 
+        {/* Eco rank section */}
+        <div className={`border-2 rounded-2xl p-5 mb-5 shadow-sm transition-all duration-500 ${ecoRank.sectionBg} ${ecoRank.sectionBorder}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black ${ecoRank.badgeBg} ${ecoRank.badgeText}`}>
+              <span className="text-base leading-none">{ecoRank.icon}</span>
+              {ecoRank.label}
+            </div>
+            <div className={`text-xs font-bold px-2.5 py-1 rounded-lg ${ecoRank.valueBg} ${ecoRank.labelText}`}>
+              Lv.{ecoRank.rank}
+            </div>
+          </div>
+
+          <div className="flex items-end gap-1 mb-1">
+            <Leaf className={`w-6 h-6 mb-1 ${ecoRank.valueText}`} />
+            <span className={`text-4xl font-black leading-none ${ecoRank.valueText}`}>{co2Saved}</span>
+            <span className={`text-base font-bold mb-0.5 ${ecoRank.labelText}`}>kg</span>
+            <span className={`text-xs font-bold mb-1 ml-1 ${ecoRank.labelText}`}>累計CO2削減</span>
+          </div>
+
+          <p className={`text-[10px] font-bold ${ecoRank.labelText}`}>
+            {pickedUpCount}食をレスキュー済み（1食 = 2.5kg換算）
+          </p>
+
+          {ecoRank.rank < 3 && (
+            <div className="mt-3">
+              <div className={`w-full h-2 rounded-full ${ecoRank.rank === 1 ? 'bg-green-200 dark:bg-green-800' : 'bg-emerald-300 dark:bg-emerald-700'} overflow-hidden`}>
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${ecoRank.progressColor}`}
+                  style={{ width: `${Math.max(4, progress)}%` }}
+                />
+              </div>
+              <p className={`text-[10px] font-bold mt-1.5 ${ecoRank.labelText}`}>{ecoRank.sublabel}</p>
+            </div>
+          )}
+          {ecoRank.rank === 3 && (
+            <p className={`text-xs font-bold mt-2 ${ecoRank.labelText}`}>{ecoRank.sublabel}</p>
+          )}
+        </div>
+
+        {/* Tabs */}
         <div className="flex bg-muted p-1 rounded-xl mb-6 shadow-inner">
           <button 
             className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${activeTab === 'reservations' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
