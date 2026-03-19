@@ -15,6 +15,7 @@ export const storeStatusEnum = pgEnum("store_status", [
   "pending",
   "approved",
   "rejected",
+  "pending_review",
 ]);
 
 export const storesTable = pgTable("stores", {
