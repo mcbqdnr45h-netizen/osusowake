@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { storesTable, surpriseBagsTable, insertStoreSchema } from "@workspace/db/schema";
+import { storesTable, surpriseBagsTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import {
   ListStoresQueryParams,
