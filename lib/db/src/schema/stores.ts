@@ -33,7 +33,7 @@ export const storesTable = pgTable("stores", {
   closeTime: text("close_time"),
   rating: real("rating"),
   isActive: boolean("is_active").notNull().default(true),
-  status: storeStatusEnum("status").notNull().default("pending"),
+  status: storeStatusEnum("status").notNull().default("approved"),
   ownerId: text("owner_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

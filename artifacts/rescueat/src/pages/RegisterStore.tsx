@@ -537,20 +537,21 @@ export default function RegisterStore() {
         {/* ── STEP 3: Done ── */}
         {step === 'done' && (
           <div className="text-center py-12">
-            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5 relative">
               <CheckCircle className="w-10 h-10 text-primary" />
+              <span className="absolute -top-1 -right-1 text-2xl animate-bounce">🎉</span>
             </div>
-            <h2 className="text-2xl font-black mb-3">申請を受け付けました！</h2>
+            <h2 className="text-2xl font-black mb-3">店舗登録が完了しました！</h2>
             <p className="text-muted-foreground mb-2 text-base leading-relaxed">
-              ご申請ありがとうございます。<br />
-              運営が内容を確認し、承認後に地図へ掲載されます。
+              ご登録ありがとうございます。<br />
+              <span className="text-primary font-bold">今すぐ地図に公開されました！</span>
             </p>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 text-sm text-left mt-6">
-              <div className="font-bold mb-2 text-amber-800">📋 審査について</div>
-              <ul className="space-y-1 text-amber-700/80">
-                <li>・通常1〜2営業日以内に審査を行います</li>
-                <li>・承認されると自動的に地図に表示されます</li>
-                <li>・ご不明な点は「ヘルプ・お問い合わせ」からご連絡ください</li>
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-8 text-sm text-left mt-6">
+              <div className="font-bold mb-2 text-primary">🚀 即時公開について</div>
+              <ul className="space-y-1 text-foreground/70">
+                <li>✅ 登録と同時に地図へ自動掲載されます</li>
+                <li>✅ すぐにサプライズバッグの出品が可能です</li>
+                <li>✅ ダッシュボードから在庫・予約を管理できます</li>
               </ul>
             </div>
             <div className="flex flex-col gap-3">

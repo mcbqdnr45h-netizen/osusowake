@@ -46,14 +46,14 @@ async function fetchAllReports(): Promise<AdminReport[]> {
   if (!res.ok) throw new Error('Failed to fetch reports');
   return res.json();
 }
-async function approveStore(storeId: number): Promise<AdminStore> {
-  const res = await fetch(`${BASE}/api/admin/stores/${storeId}/approve`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to approve');
-  return res.json();
-}
 async function rejectStore(storeId: number): Promise<AdminStore> {
   const res = await fetch(`${BASE}/api/admin/stores/${storeId}/reject`, { method: 'POST' });
   if (!res.ok) throw new Error('Failed to reject');
+  return res.json();
+}
+async function reactivateStore(storeId: number): Promise<AdminStore> {
+  const res = await fetch(`${BASE}/api/admin/stores/${storeId}/approve`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to reactivate');
   return res.json();
 }
 async function dismissReports(storeId: number) {
@@ -81,18 +81,18 @@ const REPORT_TYPE_LABELS: Record<string, string> = {
 
 const STATUS_CONFIG = {
   pending: { label: '審査待ち', bg: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-400' },
-  approved: { label: '承認済み', bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
-  rejected: { label: '却下', bg: 'bg-red-100 text-red-800 border-red-200', dot: 'bg-red-500' },
+  approved: { label: '公開中', bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
+  rejected: { label: '非公開', bg: 'bg-red-100 text-red-800 border-red-200', dot: 'bg-red-500' },
   pending_review: { label: '要確認', bg: 'bg-orange-100 text-orange-800 border-orange-200', dot: 'bg-orange-500' },
 };
 
-type StoreFilter = 'pending' | 'approved' | 'rejected' | 'pending_review' | 'all';
+type StoreFilter = 'approved' | 'rejected' | 'pending_review' | 'all';
 type ViewTab = 'stores' | 'reports';
 
 export default function AdminVerifyShops() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<StoreFilter>('pending');
+  const [filter, setFilter] = useState<StoreFilter>('all');
   const [viewTab, setViewTab] = useState<ViewTab>('stores');
 
   const { data: stores, isLoading: storesLoading, refetch: refetchStores } = useQuery({
@@ -106,27 +106,28 @@ export default function AdminVerifyShops() {
     refetchInterval: 30000,
   });
 
-  const approveMutation = useMutation({
-    mutationFn: approveStore,
-    onSuccess: (store) => {
-      toast({ title: `✅ ${store.name} を承認しました`, description: '地図に表示されます' });
-      queryClient.invalidateQueries({ queryKey: ['admin-stores'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
-    },
-    onError: () => toast({ title: 'エラー', description: '承認に失敗しました', variant: 'destructive' }),
-  });
   const rejectMutation = useMutation({
     mutationFn: rejectStore,
     onSuccess: (store) => {
-      toast({ title: `❌ ${store.name} を却下しました` });
+      toast({ title: `🚫 ${store.name} を非公開にしました` });
       queryClient.invalidateQueries({ queryKey: ['admin-stores'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
     },
-    onError: () => toast({ title: 'エラー', description: '却下に失敗しました', variant: 'destructive' }),
+    onError: () => toast({ title: 'エラー', description: '操作に失敗しました', variant: 'destructive' }),
+  });
+  const reactivateMutation = useMutation({
+    mutationFn: reactivateStore,
+    onSuccess: (store) => {
+      toast({ title: `✅ ${store.name} を再公開しました`, description: '地図に表示されます' });
+      queryClient.invalidateQueries({ queryKey: ['admin-stores'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+    },
+    onError: () => toast({ title: 'エラー', description: '操作に失敗しました', variant: 'destructive' }),
   });
   const dismissMutation = useMutation({
     mutationFn: dismissReports,
     onSuccess: () => {
-      toast({ title: '確認済みにしました', description: '店舗を承認済みに戻しました' });
+      toast({ title: '確認済みにしました', description: '店舗を公開中に戻しました' });
       queryClient.invalidateQueries({ queryKey: ['admin-stores'] });
     },
     onError: () => toast({ title: 'エラー', description: '操作に失敗しました', variant: 'destructive' }),
@@ -134,13 +135,12 @@ export default function AdminVerifyShops() {
 
   const filtered = stores?.filter(s => filter === 'all' ? true : s.status === filter) ?? [];
   const counts = {
-    pending: stores?.filter(s => s.status === 'pending').length ?? 0,
     approved: stores?.filter(s => s.status === 'approved').length ?? 0,
     rejected: stores?.filter(s => s.status === 'rejected').length ?? 0,
     pending_review: stores?.filter(s => s.status === 'pending_review').length ?? 0,
+    total: stores?.length ?? 0,
   };
 
-  // Group reports by store for easy display
   const reportsByStore: Record<number, AdminReport[]> = {};
   reports?.forEach(r => {
     if (!reportsByStore[r.storeId]) reportsByStore[r.storeId] = [];
@@ -154,8 +154,8 @@ export default function AdminVerifyShops() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-black">店舗承認管理</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">申請店舗を審査して地図公開を制御します</p>
+            <h1 className="text-2xl font-black">店舗モニタリング</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">公開店舗の管理と報告の確認</p>
           </div>
           <button
             onClick={() => { refetchStores(); refetchReports(); }}
@@ -166,18 +166,14 @@ export default function AdminVerifyShops() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-2 mb-5">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-            <div className="text-2xl font-black text-amber-700">{counts.pending}</div>
-            <div className="text-[10px] font-bold text-amber-600 mt-0.5">審査待ち</div>
-          </div>
+        <div className="grid grid-cols-3 gap-2 mb-5">
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
             <div className="text-2xl font-black text-emerald-700">{counts.approved}</div>
-            <div className="text-[10px] font-bold text-emerald-600 mt-0.5">承認済み</div>
+            <div className="text-[10px] font-bold text-emerald-600 mt-0.5">公開中</div>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
             <div className="text-2xl font-black text-red-700">{counts.rejected}</div>
-            <div className="text-[10px] font-bold text-red-600 mt-0.5">却下</div>
+            <div className="text-[10px] font-bold text-red-600 mt-0.5">非公開</div>
           </div>
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center relative">
             <div className="text-2xl font-black text-orange-700">{counts.pending_review}</div>
@@ -216,11 +212,10 @@ export default function AdminVerifyShops() {
             {/* Filter Tabs */}
             <div className="flex bg-muted/50 p-1 rounded-xl mb-5 shadow-inner gap-1 overflow-x-auto">
               {([
-                { key: 'pending', label: `審査待ち (${counts.pending})` },
+                { key: 'all', label: `全て (${counts.total})` },
                 { key: 'pending_review', label: `要確認 (${counts.pending_review})` },
-                { key: 'approved', label: `承認済み (${counts.approved})` },
-                { key: 'rejected', label: `却下 (${counts.rejected})` },
-                { key: 'all', label: '全て' },
+                { key: 'approved', label: `公開中 (${counts.approved})` },
+                { key: 'rejected', label: `非公開 (${counts.rejected})` },
               ] as { key: StoreFilter; label: string }[]).map(tab => (
                 <button
                   key={tab.key}
@@ -240,16 +235,16 @@ export default function AdminVerifyShops() {
               <div className="text-center py-16 bg-card rounded-2xl border-2 border-dashed border-border">
                 <AlertCircle className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-muted-foreground font-medium">
-                  {filter === 'pending' ? '審査待ちの店舗はありません'
-                    : filter === 'pending_review' ? '要確認の店舗はありません'
-                    : '該当する店舗はありません'}
+                  {filter === 'pending_review' ? '要確認の店舗はありません'
+                    : filter === 'rejected' ? '非公開の店舗はありません'
+                    : '店舗が見つかりません'}
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {filtered.map(store => {
-                  const statusCfg = STATUS_CONFIG[store.status] ?? STATUS_CONFIG.pending;
-                  const isProcessing = approveMutation.isPending || rejectMutation.isPending || dismissMutation.isPending;
+                  const statusCfg = STATUS_CONFIG[store.status] ?? STATUS_CONFIG.approved;
+                  const isProcessing = rejectMutation.isPending || reactivateMutation.isPending || dismissMutation.isPending;
                   const storeReports = reportsByStore[store.id] ?? [];
                   return (
                     <div key={store.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -292,26 +287,12 @@ export default function AdminVerifyShops() {
                           )}
                           <div className="flex items-center gap-1 text-xs text-muted-foreground/60 mt-1">
                             <Clock className="w-3 h-3" />
-                            <span>申請: {new Date(store.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            <span>登録: {new Date(store.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      {store.status === 'pending' && (
-                        <div className="grid grid-cols-2 gap-0 border-t border-border">
-                          <button onClick={() => rejectMutation.mutate(store.id)} disabled={isProcessing}
-                            className="flex items-center justify-center gap-2 py-3.5 font-bold text-sm text-destructive hover:bg-destructive/5 transition-colors border-r border-border disabled:opacity-50 active:scale-[0.98]">
-                            <XCircle className="w-4 h-4" /> 却下する
-                          </button>
-                          <button onClick={() => approveMutation.mutate(store.id)} disabled={isProcessing}
-                            className="flex items-center justify-center gap-2 py-3.5 font-bold text-sm text-primary hover:bg-primary/5 transition-colors disabled:opacity-50 active:scale-[0.98]">
-                            {approveMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                            地図に公開する
-                          </button>
-                        </div>
-                      )}
-
+                      {/* pending_review: flagged by users */}
                       {store.status === 'pending_review' && (
                         <div className="border-t border-orange-200 bg-orange-50">
                           <div className="px-4 py-2 flex items-center gap-2">
@@ -331,7 +312,7 @@ export default function AdminVerifyShops() {
                         </div>
                       )}
 
-                      {store.status === 'approved' && (
+                      {(store.status === 'approved') && (
                         <div className="px-4 py-3 bg-emerald-50 border-t border-emerald-100 flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-emerald-600" />
                           <span className="text-xs font-bold text-emerald-700">地図に表示中</span>
@@ -342,11 +323,11 @@ export default function AdminVerifyShops() {
                         <div className="px-4 py-3 bg-red-50 border-t border-red-100 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <XCircle className="w-4 h-4 text-red-600" />
-                            <span className="text-xs font-bold text-red-700">却下済み</span>
+                            <span className="text-xs font-bold text-red-700">非公開中</span>
                           </div>
-                          <button onClick={() => approveMutation.mutate(store.id)} disabled={isProcessing}
+                          <button onClick={() => reactivateMutation.mutate(store.id)} disabled={isProcessing}
                             className="text-xs font-bold text-primary hover:underline">
-                            やはり承認する
+                            再公開する
                           </button>
                         </div>
                       )}
@@ -375,7 +356,6 @@ export default function AdminVerifyShops() {
               <>
                 <p className="text-xs text-muted-foreground mb-3">計 {reports.length} 件の報告</p>
                 <div className="space-y-3">
-                  {/* Group by store */}
                   {Object.entries(reportsByStore).map(([storeIdStr, storeReports]) => {
                     const storeId = Number(storeIdStr);
                     const storeName = storeReports[0].storeName ?? `店舗ID: ${storeId}`;
@@ -383,7 +363,6 @@ export default function AdminVerifyShops() {
                     const statusCfg = STATUS_CONFIG[storeStatus as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.approved;
                     return (
                       <div key={storeId} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-                        {/* Store header */}
                         <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <Store className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -397,7 +376,6 @@ export default function AdminVerifyShops() {
                             </span>
                           </div>
                         </div>
-                        {/* Report list */}
                         <div className="divide-y divide-border">
                           {storeReports.map(report => (
                             <div key={report.id} className="px-4 py-3">

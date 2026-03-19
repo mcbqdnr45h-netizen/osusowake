@@ -36,7 +36,7 @@ const storeSelectFields = {
   totalBagsAvailable: sql<number>`COALESCE(SUM(CASE WHEN ${surpriseBagsTable.isActive} = true THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
 
-// Public: list only approved stores with available bags
+// Public: list approved + pending_review stores (both are publicly visible)
 router.get("/stores", async (req, res) => {
   try {
     ListStoresQueryParams.parse(req.query);
@@ -45,7 +45,7 @@ router.get("/stores", async (req, res) => {
       .select(storeSelectFields)
       .from(storesTable)
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
-      .where(eq(storesTable.status, "approved"))
+      .where(sql`${storesTable.status} IN ('approved', 'pending_review')`)
       .groupBy(storesTable.id);
 
     res.json(stores);
@@ -55,7 +55,7 @@ router.get("/stores", async (req, res) => {
   }
 });
 
-// Public: create a new store (starts as 'pending' — awaiting admin approval)
+// Public: create a new store — immediately active (no manual approval needed)
 router.post("/stores", async (req, res) => {
   try {
     const body = CreateStoreBody.parse(req.body);
@@ -72,7 +72,7 @@ router.post("/stores", async (req, res) => {
       openTime: body.openTime ?? null,
       closeTime: body.closeTime ?? null,
       isActive: true,
-      status: "pending",
+      status: "approved",
     }).returning();
     res.status(201).json({ ...store, totalBagsAvailable: 0 });
   } catch (err) {
