@@ -1,38 +1,32 @@
-import React from 'react';
-import { Clock, Package } from 'lucide-react';
+import React, { useState } from 'react';
+import { Clock, Package, Heart } from 'lucide-react';
 import { Link } from 'wouter';
 import { SurpriseBagWithStore } from '@workspace/api-client-react';
+import { useFavorites } from '@/contexts/FavoritesContext';
+import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 
 interface BagCardProps {
   bag: SurpriseBagWithStore;
-}
-
-export function getCategoryIcon(category: string) {
-  switch (category) {
-    case 'restaurant': return '🍱';
-    case 'bakery': return '🥐';
-    case 'cafe': return '☕';
-    case 'supermarket': return '🛒';
-    case 'convenience': return '🏪';
-    default: return '📦';
-  }
-}
-
-export function getCategoryImage(category: string) {
-  switch (category) {
-    case 'restaurant': return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80';
-    case 'bakery': return 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&q=80';
-    case 'cafe': return 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&q=80';
-    case 'supermarket': return 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&q=80';
-    case 'convenience': return 'https://images.unsplash.com/photo-1581458925565-df0bd529a674?w=800&q=80';
-    default: return 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80';
-  }
 }
 
 export function BagCard({ bag }: BagCardProps) {
   const discountPercent = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
   const isSoldOut = bag.stockCount <= 0;
   const isLowStock = bag.stockCount > 0 && bag.stockCount < 3;
+  const { isFavorite, toggle } = useFavorites();
+  const storeId = bag.store.id;
+  const favorited = isFavorite(storeId);
+  const [burst, setBurst] = useState(false);
+
+  function handleFavorite(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggle(storeId);
+    if (!favorited) {
+      setBurst(true);
+      setTimeout(() => setBurst(false), 600);
+    }
+  }
 
   return (
     <Link 
@@ -58,22 +52,39 @@ export function BagCard({ bag }: BagCardProps) {
             <span className="truncate">{bag.store.name}</span>
           </div>
           
-          {isSoldOut ? (
-            <div className="bg-muted text-muted-foreground font-black px-3 py-1 rounded-full text-sm shadow-md">
-              完売
-            </div>
-          ) : (
-            <div className="flex flex-col items-end gap-2">
-              <div className="bg-accent text-accent-foreground font-black px-3 py-1 rounded-full text-sm shadow-md border border-accent/50 transform rotate-2">
-                {discountPercent}% OFF
+          <div className="flex flex-col items-end gap-2">
+            {/* Heart button */}
+            <button
+              onClick={handleFavorite}
+              className={`w-8 h-8 flex items-center justify-center rounded-full shadow-md transition-all duration-200 active:scale-90
+                ${favorited
+                  ? 'bg-rose-500 text-white'
+                  : 'bg-white/90 backdrop-blur-md text-rose-400 hover:bg-rose-50'
+                } ${burst ? 'scale-125' : ''}`}
+              aria-label={favorited ? 'お気に入りから削除' : 'お気に入りに追加'}
+            >
+              <Heart
+                className={`w-4 h-4 transition-all duration-200 ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`}
+              />
+            </button>
+
+            {isSoldOut ? (
+              <div className="bg-muted text-muted-foreground font-black px-3 py-1 rounded-full text-sm shadow-md">
+                完売
               </div>
-              {isLowStock && (
-                <div className="bg-destructive text-destructive-foreground font-bold px-2.5 py-0.5 rounded-full text-xs animate-pulse shadow-md">
-                  残りわずか!
+            ) : (
+              <>
+                <div className="bg-accent text-accent-foreground font-black px-3 py-1 rounded-full text-sm shadow-md border border-accent/50 transform rotate-2">
+                  {discountPercent}% OFF
                 </div>
-              )}
-            </div>
-          )}
+                {isLowStock && (
+                  <div className="bg-destructive text-destructive-foreground font-bold px-2.5 py-0.5 rounded-full text-xs animate-pulse shadow-md">
+                    残りわずか!
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Spacer to push content to bottom */}

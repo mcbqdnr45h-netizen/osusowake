@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation } from '@workspace/api-client-react';
-import { getCategoryImage, getCategoryIcon } from '@/components/BagCard';
-import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare } from 'lucide-react';
+import { getCategoryImage, getCategoryIcon } from '@/lib/category-utils';
+import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
+import { useFavorites } from '@/contexts/FavoritesContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
@@ -198,6 +199,7 @@ export default function BagDetail() {
   const bagId = params?.id ? parseInt(params.id) : 0;
   const userId = useUserId();
   const { toast } = useToast();
+  const { isFavorite, toggle } = useFavorites();
 
   const { data: bag, isLoading } = useGetBag(bagId);
   const createReservation = useCreateReservation();
@@ -373,9 +375,23 @@ export default function BagDetail() {
               <h3 className="font-bold text-lg mb-3">店舗情報</h3>
               <div className="flex items-start gap-3 text-muted-foreground">
                 <MapPin className="w-5 h-5 shrink-0 text-primary mt-0.5" />
-                <div>
-                  <div className="font-medium text-foreground">{bag.store.name}</div>
-                  <div className="text-sm">{bag.store.address}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-medium text-foreground">{bag.store.name}</div>
+                    <button
+                      onClick={() => toggle(bag.store.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shrink-0
+                        ${isFavorite(bag.store.id)
+                          ? 'bg-rose-500 text-white border-rose-500'
+                          : 'bg-card text-rose-500 border-rose-200 hover:bg-rose-50'
+                        }`}
+                      aria-label={isFavorite(bag.store.id) ? 'お気に入りから削除' : 'お気に入りに追加'}
+                    >
+                      <Heart className={`w-3.5 h-3.5 transition-all ${isFavorite(bag.store.id) ? 'fill-white stroke-white' : 'fill-none stroke-rose-500'}`} />
+                      {isFavorite(bag.store.id) ? 'フォロー中' : 'フォローする'}
+                    </button>
+                  </div>
+                  <div className="text-sm mt-0.5">{bag.store.address}</div>
                 </div>
               </div>
             </div>
