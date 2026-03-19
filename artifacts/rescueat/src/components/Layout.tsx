@@ -138,9 +138,27 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
         </AnimatePresence>
       </main>
 
-      {/* Desktop Footer */}
-      <footer className="hidden md:block bg-background border-t border-border mt-auto">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+      {/* Footer — mobile: compact, desktop: full */}
+      <footer className="bg-background border-t border-border mt-auto">
+        {/* Mobile footer */}
+        <div className="md:hidden px-5 py-4 pb-2">
+          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <Link href="/terms" className="hover:text-primary transition-colors font-medium py-1">利用規約</Link>
+            <span className="text-border">·</span>
+            <Link href="/privacy" className="hover:text-primary transition-colors font-medium py-1">プライバシーポリシー</Link>
+            <span className="text-border">·</span>
+            <button
+              onClick={() => setShowTokusho(true)}
+              className="hover:text-primary transition-colors py-1"
+            >
+              特定商取引法
+            </button>
+          </div>
+          <p className="text-center text-[10px] text-muted-foreground/50 mt-2">© 2025 食べロス</p>
+        </div>
+
+        {/* Desktop footer */}
+        <div className="hidden md:block max-w-7xl mx-auto px-6 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <span className="font-black text-lg text-primary">食べロス</span>
@@ -165,9 +183,9 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
                 特定商取引法に基づく表記
               </button>
               <span>·</span>
-              <a href="#privacy" className="hover:text-primary transition-colors">プライバシーポリシー</a>
+              <Link href="/privacy" className="hover:text-primary transition-colors">プライバシーポリシー</Link>
               <span>·</span>
-              <a href="#terms" className="hover:text-primary transition-colors">利用規約</a>
+              <Link href="/terms" className="hover:text-primary transition-colors">利用規約</Link>
               <span>·</span>
               <span className="text-muted-foreground/60">© 2025 食べロス. All rights reserved.</span>
             </div>

@@ -13,6 +13,8 @@ import FavoritesPage from "./pages/FavoritesPage";
 import MyPage from "./pages/MyPage";
 import RegisterStore from "./pages/RegisterStore";
 import AdminVerifyShops from "./pages/AdminVerifyShops";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -38,6 +40,8 @@ function Router() {
       <Route path="/store-dashboard" component={StoreDashboard} />
       <Route path="/register-store" component={RegisterStore} />
       <Route path="/admin-verify-shops" component={AdminVerifyShops} />
+      <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
       <Route component={NotFound} />
     </Switch>
   );
