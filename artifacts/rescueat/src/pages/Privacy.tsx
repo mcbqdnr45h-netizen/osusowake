@@ -7,7 +7,6 @@ export default function Privacy() {
   return (
     <Layout>
       <div className="max-w-2xl mx-auto px-5 py-8">
-        {/* Back */}
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors mb-6"
@@ -55,31 +54,58 @@ export default function Privacy() {
             </ul>
           </Section>
 
-          <Section title="4. 位置情報について">
+          <Section title="4. 外国にある第三者への提供">
+            <p>当社は、以下の外国にある第三者へ個人情報を提供することがあります。利用者はこの点についてあらかじめ同意するものとします。</p>
+            <ul>
+              <li>
+                <strong>Stripe, Inc.（米国）：</strong>クレジットカード決済の処理を目的として、決済に必要な情報を提供します。Stripe社は米国をはじめとする複数の国にサーバーを保有しており、情報が国外で処理される場合があります。詳細は
+                <a href="https://stripe.com/jp/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 mx-1">Stripe プライバシーポリシー</a>
+                をご参照ください。
+              </li>
+              <li>
+                <strong>OpenStreetMap Foundation（英国）・Nominatim（欧州）：</strong>地図表示および住所の座標変換（ジオコーディング）を目的として、住所情報等を送信することがあります。送信された情報は各サービスのプライバシーポリシーに従って取り扱われます。
+              </li>
+            </ul>
+            <p>これらの外国における個人情報の保護水準は日本と異なる場合がありますが、当社は各事業者が適切な保護措置を講じていることを確認の上、情報提供を行います。</p>
+          </Section>
+
+          <Section title="5. 位置情報について">
             <p>本サービスは、近くの店舗を表示するために位置情報（GPS）を使用します。位置情報の取得はお客様の許可を得た場合のみ行い、サービス提供の目的以外には使用しません。位置情報はサーバーに保存されません。</p>
           </Section>
 
-          <Section title="5. Cookieおよびローカルストレージ">
+          <Section title="6. Cookieおよびローカルストレージ">
             <p>本サービスはCookieおよびブラウザのローカルストレージを使用して、利用者の設定（お気に入り店舗、ユーザーID等）を保存します。これらはサービスの利便性向上のために使用され、広告目的には使用しません。</p>
           </Section>
 
-          <Section title="6. データの保管・セキュリティ">
+          <Section title="7. データの保管・セキュリティ">
             <p>当社は収集した個人情報を適切なセキュリティ対策のもと管理します。ただし、インターネットによるデータ送受信の完全な安全性を保証することはできません。万が一、情報漏洩等のセキュリティインシデントが発生した場合は、速やかに利用者へ通知します。</p>
           </Section>
 
-          <Section title="7. 個人情報の開示・修正・削除">
+          <Section title="8. 個人情報の保存期間と廃棄">
+            <p>当社は収集した個人情報を、利用目的の達成に必要な期間のみ保存します。具体的な保存期間の目安は以下のとおりです。</p>
+            <ul>
+              <li><strong>予約・取引履歴：</strong>取引完了日から5年間（法令上の保存義務に準拠）</li>
+              <li><strong>アクセスログ：</strong>取得日から最長6ヶ月間</li>
+              <li><strong>出品者登録情報：</strong>サービス退会または契約終了後、1年間</li>
+              <li><strong>お問い合わせ内容：</strong>対応完了から2年間</li>
+            </ul>
+            <p>保存期間が経過した個人情報は、復元できない方法で速やかに廃棄または匿名化処理を行います。ただし、法令により保存が義務付けられている情報については、当該法令の定める期間にわたり保存します。</p>
+            <p>ご自身の情報の削除を希望される場合は、お問い合わせフォームよりご連絡ください。法令上の保存義務がある情報を除き、合理的な期間内に対応いたします。</p>
+          </Section>
+
+          <Section title="9. 個人情報の開示・修正・削除">
             <p>利用者は自身の個人情報の開示・修正・削除を請求する権利を有します。ご要望の場合は、お問い合わせフォームよりご連絡ください。合理的な期間内に対応いたします。</p>
           </Section>
 
-          <Section title="8. 未成年者のプライバシー">
+          <Section title="10. 未成年者のプライバシー">
             <p>本サービスは13歳未満の方のご利用を想定しておりません。13歳未満の方の個人情報と認識した場合は、速やかに削除いたします。</p>
           </Section>
 
-          <Section title="9. プライバシーポリシーの変更">
+          <Section title="11. プライバシーポリシーの変更">
             <p>当社は必要に応じて本ポリシーを変更することがあります。重要な変更がある場合は、サービス上でお知らせします。変更後も本サービスを継続利用した場合は、変更後のポリシーに同意したものとみなします。</p>
           </Section>
 
-          <Section title="10. お問い合わせ">
+          <Section title="12. お問い合わせ">
             <p>
               本ポリシーに関するご質問・ご要望は、下記よりお問い合わせください。<br />
               <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
