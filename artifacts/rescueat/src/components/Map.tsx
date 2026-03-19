@@ -81,10 +81,33 @@ function UserMarker({ position }: { position: [number, number] }) {
   return null;
 }
 
+function isValidLatLng(pos: [number, number]): boolean {
+  return (
+    typeof pos[0] === 'number' && !isNaN(pos[0]) &&
+    typeof pos[1] === 'number' && !isNaN(pos[1]) &&
+    pos[0] >= -90 && pos[0] <= 90 &&
+    pos[1] >= -180 && pos[1] <= 180
+  );
+}
+
 function FlyToUser({ position }: { position: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(position, 14, { duration: 1.5 });
+    if (!isValidLatLng(position)) return;
+    let timer: ReturnType<typeof setTimeout>;
+    timer = setTimeout(() => {
+      try {
+        if (map && map.getContainer && map.getContainer()) {
+          map.flyTo(position, 14, { duration: 1.5 });
+        }
+      } catch {
+        // ignore LatLng errors during map initialization
+      }
+    }, 150);
+    return () => {
+      clearTimeout(timer);
+      try { map.stop(); } catch { /* ignore cleanup errors */ }
+    };
   }, [map, position]);
   return null;
 }
@@ -161,8 +184,8 @@ export function MapView({ stores, center = [34.7856, 135.4380], zoom = 12, userP
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <ClusteredMarkers stores={stores} />
-        {currentUserPos && <UserMarker position={currentUserPos} />}
-        {currentUserPos && !autoFlown && (
+        {currentUserPos && isValidLatLng(currentUserPos) && <UserMarker position={currentUserPos} />}
+        {currentUserPos && isValidLatLng(currentUserPos) && !autoFlown && (
           <FlyToUser position={currentUserPos} />
         )}
         <LocateControl onLocate={(pos) => { setCurrentUserPos(pos); setAutoFlown(true); }} />
