@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { MapView } from '@/components/Map';
 import { BagCard } from '@/components/BagCard';
@@ -16,18 +16,6 @@ export default function Home() {
 
   const { data: bags, isLoading: isLoadingBags } = useListAllBags();
   const { data: stores, isLoading: isLoadingStores } = useListStores();
-
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserPosition([pos.coords.latitude, pos.coords.longitude]);
-        },
-        () => {},
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-  }, []);
 
   const getCategoryKey = (label: string) => {
     switch (label) {

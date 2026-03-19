@@ -97,13 +97,16 @@ function FlyToUser({ position }: { position: [number, number] }) {
     let timer: ReturnType<typeof setTimeout>;
     timer = setTimeout(() => {
       try {
-        if (map && map.getContainer && map.getContainer()) {
-          map.flyTo(position, 14, { duration: 1.5 });
-        }
+        const container = map?.getContainer?.();
+        if (!container) return;
+        // Skip flyTo if map container is hidden (display:none → offsetWidth=0)
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
+        map.invalidateSize();
+        map.flyTo(position, 14, { duration: 1.5 });
       } catch {
         // ignore LatLng errors during map initialization
       }
-    }, 150);
+    }, 300);
     return () => {
       clearTimeout(timer);
       try { map.stop(); } catch { /* ignore cleanup errors */ }
