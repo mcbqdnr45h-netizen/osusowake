@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { storesTable, surpriseBagsTable, reportsTable } from "@workspace/db/schema";
-import { eq, sql, and, gte, count } from "drizzle-orm";
+import { storesTable, surpriseBagsTable, reportsTable, reviewsTable, reservationsTable } from "@workspace/db/schema";
+import { eq, sql, and, gte, count, desc } from "drizzle-orm";
 import {
   ListStoresQueryParams,
   CreateStoreBody,
@@ -310,6 +310,117 @@ router.post("/admin/stores/:storeId/dismiss-reports", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error", message: "Failed to dismiss reports" });
+  }
+});
+
+// Public: get reviews for a store (with avg rating + count)
+router.get("/stores/:storeId/reviews", async (req, res) => {
+  try {
+    const storeId = Number(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid store ID" });
+      return;
+    }
+    const reviews = await db
+      .select({
+        id: reviewsTable.id,
+        reservationId: reviewsTable.reservationId,
+        userId: reviewsTable.userId,
+        rating: reviewsTable.rating,
+        comment: reviewsTable.comment,
+        createdAt: reviewsTable.createdAt,
+      })
+      .from(reviewsTable)
+      .where(eq(reviewsTable.storeId, storeId))
+      .orderBy(desc(reviewsTable.createdAt));
+
+    const avgRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : null;
+
+    res.json({
+      reviews,
+      avgRating: avgRating !== null ? Math.round(avgRating * 10) / 10 : null,
+      count: reviews.length,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to fetch reviews" });
+  }
+});
+
+// User: post a review (must have a picked_up reservation for this store)
+router.post("/stores/:storeId/reviews", async (req, res) => {
+  try {
+    const storeId = Number(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid store ID" });
+      return;
+    }
+
+    const { userId, reservationId, rating, comment } = req.body as {
+      userId?: string;
+      reservationId?: number;
+      rating?: number;
+      comment?: string;
+    };
+
+    if (!userId || typeof userId !== "string" || userId.trim() === "") {
+      res.status(401).json({ error: "unauthorized", message: "userId is required" });
+      return;
+    }
+    if (!reservationId || typeof reservationId !== "number") {
+      res.status(400).json({ error: "bad_request", message: "reservationId is required" });
+      return;
+    }
+    if (!rating || typeof rating !== "number" || rating < 1 || rating > 5) {
+      res.status(400).json({ error: "bad_request", message: "rating must be 1-5" });
+      return;
+    }
+
+    // Verify reservation is picked_up and belongs to this user + store
+    const [reservation] = await db
+      .select({ id: reservationsTable.id, status: reservationsTable.status })
+      .from(reservationsTable)
+      .where(
+        and(
+          eq(reservationsTable.id, reservationId),
+          eq(reservationsTable.userId, userId),
+          eq(reservationsTable.storeId, storeId),
+          eq(reservationsTable.status, "picked_up")
+        )
+      )
+      .limit(1);
+
+    if (!reservation) {
+      res.status(403).json({ error: "forbidden", message: "No valid picked_up reservation found" });
+      return;
+    }
+
+    // Prevent duplicate reviews for the same reservation
+    const [existingReview] = await db
+      .select({ id: reviewsTable.id })
+      .from(reviewsTable)
+      .where(eq(reviewsTable.reservationId, reservationId))
+      .limit(1);
+
+    if (existingReview) {
+      res.status(409).json({ error: "conflict", message: "Review already submitted for this reservation" });
+      return;
+    }
+
+    const [review] = await db.insert(reviewsTable).values({
+      storeId,
+      reservationId,
+      userId,
+      rating,
+      comment: comment?.trim() || null,
+    }).returning();
+
+    res.status(201).json({ success: true, review });
+  } catch (err) {
+    console.error("Review error:", err);
+    res.status(500).json({ error: "internal_error", message: "Failed to save review" });
   }
 });
 

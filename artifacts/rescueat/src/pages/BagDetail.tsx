@@ -3,10 +3,12 @@ import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon } from '@/components/BagCard';
-import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown } from 'lucide-react';
+import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { format, parseISO } from 'date-fns';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -171,6 +173,26 @@ function ReportModal({ storeId, storeName, userId, onClose }: {
   );
 }
 
+function StarsDisplay({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md' | 'lg' }) {
+  const cls = size === 'lg' ? 'w-6 h-6' : size === 'md' ? 'w-5 h-5' : 'w-4 h-4';
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(n => (
+        <Star
+          key={n}
+          className={`${cls} ${n <= Math.round(rating) ? 'fill-amber-400 text-amber-400' : 'fill-none text-border'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+interface ReviewData {
+  reviews: Array<{ id: number; userId: string; rating: number; comment: string | null; createdAt: string }>;
+  avgRating: number | null;
+  count: number;
+}
+
 export default function BagDetail() {
   const [, params] = useRoute('/bags/:id');
   const bagId = params?.id ? parseInt(params.id) : 0;
@@ -183,6 +205,17 @@ export default function BagDetail() {
   const [, navigate] = useLocation();
   const [quantity, setQuantity] = useState(1);
   const [showReport, setShowReport] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+
+  const { data: reviewData } = useQuery<ReviewData>({
+    queryKey: ['store-reviews', bag?.store?.id],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/stores/${bag!.store.id}/reviews`);
+      if (!res.ok) throw new Error('failed');
+      return res.json();
+    },
+    enabled: !!bag?.store?.id,
+  });
 
   if (isLoading) {
     return (
@@ -354,6 +387,98 @@ export default function BagDetail() {
                 <p className="font-bold mb-1">アレルギーについて</p>
                 <p>サプライズバッグの内容は日によって異なります。重度のアレルギーをお持ちの方はご遠慮ください。</p>
               </div>
+            </div>
+
+            {/* Reviews Section */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-primary" /> 口コミ・評価
+                </h3>
+                {reviewData && reviewData.count > 0 && (
+                  <span className="text-xs text-muted-foreground">{reviewData.count}件</span>
+                )}
+              </div>
+
+              {/* Avg rating summary */}
+              {reviewData && reviewData.avgRating !== null ? (
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 mb-5">
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-5xl font-black text-amber-500 leading-none">{reviewData.avgRating.toFixed(1)}</div>
+                      <div className="mt-1.5"><StarsDisplay rating={reviewData.avgRating} size="md" /></div>
+                      <div className="text-xs text-muted-foreground mt-1">{reviewData.count}件の口コミ</div>
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      {[5, 4, 3, 2, 1].map(star => {
+                        const starCount = reviewData.reviews.filter(r => r.rating === star).length;
+                        const pct = reviewData.count > 0 ? (starCount / reviewData.count) * 100 : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-2 text-xs">
+                            <span className="w-3 text-right font-bold text-muted-foreground">{star}</span>
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+                            <div className="flex-1 h-2 bg-amber-100 dark:bg-amber-900/40 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="w-4 text-muted-foreground">{starCount}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : reviewData && reviewData.count === 0 ? (
+                <div className="border-2 border-dashed border-border rounded-2xl p-6 text-center mb-5">
+                  <Star className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground font-medium">まだ口コミがありません</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">購入して受け取った方が最初の口コミを投稿できます</p>
+                </div>
+              ) : (
+                <div className="h-20 bg-secondary/50 rounded-2xl animate-pulse mb-5" />
+              )}
+
+              {/* Review list */}
+              {reviewData && reviewData.reviews.length > 0 && (
+                <div className="space-y-3">
+                  {(showAllReviews ? reviewData.reviews : reviewData.reviews.slice(0, 3)).map((review, idx) => (
+                    <motion.div
+                      key={review.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="bg-secondary/30 rounded-2xl p-4 border border-border/50"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-xs font-black text-primary">
+                            {review.userId.slice(0, 2).toUpperCase()}
+                          </div>
+                          <StarsDisplay rating={review.rating} size="sm" />
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">
+                          {format(parseISO(review.createdAt), 'yyyy/MM/dd')}
+                        </span>
+                      </div>
+                      {review.comment && (
+                        <p className="text-sm text-foreground leading-relaxed pl-9">{review.comment}</p>
+                      )}
+                    </motion.div>
+                  ))}
+
+                  {reviewData.reviews.length > 3 && (
+                    <button
+                      onClick={() => setShowAllReviews(v => !v)}
+                      className="w-full flex items-center justify-center gap-1.5 py-3 text-sm font-bold text-primary hover:bg-primary/5 rounded-xl transition-colors border border-primary/20"
+                    >
+                      {showAllReviews ? '口コミを閉じる' : `すべての口コミを見る（${reviewData.reviews.length}件）`}
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showAllReviews ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Report Button */}
