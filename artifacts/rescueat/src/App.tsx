@@ -19,6 +19,7 @@ import Privacy from "./pages/Privacy";
 import Welcome from "./pages/Welcome";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
+import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/welcome" component={Welcome} />
       <Route path="/signup" component={SignUp} />
       <Route path="/login" component={Login} />
+      <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/search" component={SearchPage} />
       <Route path="/favorites" component={FavoritesPage} />
       <Route path="/mypage" component={MyPage} />

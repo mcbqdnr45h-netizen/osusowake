@@ -18,7 +18,7 @@ export default function SignUp() {
     e.preventDefault();
     if (!isValid) return;
     setSubmitted(true);
-    setTimeout(() => navigate('/'), 1200);
+    setTimeout(() => navigate('/verify-email'), 900);
   }
 
   if (submitted) {
@@ -30,11 +30,11 @@ export default function SignUp() {
           transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           className="flex flex-col items-center text-center"
         >
-          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-            <CheckCircle2 className="w-14 h-14 text-primary" />
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-5">
+            <span className="text-4xl">📧</span>
           </div>
-          <h2 className="text-2xl font-black text-foreground mb-2">登録完了！</h2>
-          <p className="text-muted-foreground text-sm">ようこそ、食べロスへ 🎉</p>
+          <h2 className="text-2xl font-black text-foreground mb-2">確認メールを送信しました</h2>
+          <p className="text-muted-foreground text-sm">メールアドレスの確認画面へ移動します...</p>
         </motion.div>
       </div>
     );
