@@ -113,6 +113,20 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
     async function init() {
       try {
+        // まず現在地を取得してからマップを初期化
+        const startCenter: { lat: number; lng: number } = await new Promise((resolve) => {
+          if (!navigator.geolocation) { resolve(mapCenter); return; }
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              if (!cancelled) setUserPos(latlng);
+              resolve(latlng);
+            },
+            () => resolve(mapCenter),
+            { enableHighAccuracy: true, timeout: 6000 }
+          );
+        });
+
         await loadGoogleMapsScript(API_KEY);
 
         if (cancelled || !containerRef.current) return;
@@ -120,8 +134,8 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
         const gMaps = (window as any).google.maps as typeof google.maps;
 
         const map = new gMaps.Map(containerRef.current, {
-          center: userPos ?? mapCenter,
-          zoom: zoom ?? 13,
+          center: startCenter,
+          zoom: zoom ?? 14,
           disableDefaultUI: true,
           zoomControl: true,
           gestureHandling: 'greedy',
