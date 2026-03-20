@@ -20,6 +20,7 @@ import Welcome from "./pages/Welcome";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
 import VerifyEmail from "./pages/VerifyEmail";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -49,6 +50,7 @@ function Router() {
       <Route path="/store-dashboard" component={StoreDashboard} />
       <Route path="/register-store" component={RegisterStore} />
       <Route path="/admin-verify-shops" component={AdminVerifyShops} />
+      <Route path="/settings" component={Settings} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
       <Route component={NotFound} />

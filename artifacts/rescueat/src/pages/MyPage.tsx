@@ -161,7 +161,7 @@ export default function MyPage() {
           </Link>
 
           <Link
-            href="/signup"
+            href="/settings"
             className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
           >
             <div className="w-10 h-10 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
