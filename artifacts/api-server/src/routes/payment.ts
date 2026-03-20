@@ -189,6 +189,9 @@ router.post("/checkout/session", async (req, res) => {
           quantity: 1,
         },
       ],
+      payment_intent_data: {
+        application_fee_amount: Math.floor(amountInYen * 0.2),
+      },
       success_url: successUrl.includes("{CHECKOUT_SESSION_ID}")
         ? successUrl
         : `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
