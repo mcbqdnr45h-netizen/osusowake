@@ -8,6 +8,9 @@ import { LocateFixed, AlertTriangle } from 'lucide-react';
 const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
 const API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
 
+// モジュールレベルで1度だけ設定（HMRでの重複呼び出しを防ぐ）
+setOptions({ apiKey: API_KEY, version: 'weekly', language: 'ja', region: 'JP' });
+
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
   { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
@@ -87,8 +90,6 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
     async function init() {
       try {
-        setOptions({ apiKey: API_KEY, version: 'weekly', language: 'ja', region: 'JP' });
-
         const mapsLib = await importLibrary('maps') as google.maps.MapsLibrary;
         const placesLib = await importLibrary('places') as google.maps.PlacesLibrary;
 
