@@ -2,7 +2,7 @@ import React from 'react';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
 
@@ -148,6 +148,28 @@ export default function MyPage() {
 
         {/* Menu List */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+
+          <Link
+            href="/orders"
+            className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+          >
+            <div className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+              <Receipt className="w-5 h-5" />
+            </div>
+            <div className="flex-1 font-bold text-foreground">購入履歴・領収書</div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </Link>
+
+          <Link
+            href="/payment-methods"
+            className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+          >
+            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0">
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <div className="flex-1 font-bold text-foreground">支払い管理センター</div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </Link>
 
           <Link
             href="/admin-verify-shops"
