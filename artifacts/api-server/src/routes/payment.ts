@@ -190,7 +190,11 @@ router.post("/checkout/session", async (req, res) => {
         },
       ],
       payment_intent_data: {
-        application_fee_amount: Math.floor(amountInYen * 0.2),
+        metadata: {
+          reservationId: String(reservation.id),
+          platformFeeAmount: String(Math.floor(amountInYen * 0.2)),
+          platformFeeRate: "20",
+        },
       },
       success_url: successUrl.includes("{CHECKOUT_SESSION_ID}")
         ? successUrl
