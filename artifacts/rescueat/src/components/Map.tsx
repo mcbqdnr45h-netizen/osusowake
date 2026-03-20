@@ -1,13 +1,56 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import React, { useEffect, useRef, useState } from 'react';
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import 'leaflet.markercluster';
-import { Navigation, LocateFixed } from 'lucide-react';
+import { LocateFixed, AlertTriangle } from 'lucide-react';
+
+const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
+const API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
+
+const MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#aaaaaa' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9e0e8' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#f8f8f8' }] },
+  { featureType: 'administrative', elementType: 'labels.text.fill', stylers: [{ color: '#888888' }] },
+];
+
+function makeStoreIconUrl(category: string, isPending: boolean): string {
+  const emoji = getCategoryIcon(category);
+  const bg = isPending ? '#F59E0B' : '#2D5A51';
+  const border = isPending ? '#D97706' : '#1E3F38';
+  const warn = isPending
+    ? `<circle cx="30" cy="9" r="8" fill="#EF4444" stroke="white" stroke-width="1.5"/>
+       <text x="30" y="13.5" text-anchor="middle" font-size="9" font-family="sans-serif" fill="white" font-weight="bold">!</text>`
+    : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="48" viewBox="0 0 40 48">
+    <ellipse cx="20" cy="45" rx="7" ry="2.5" fill="rgba(0,0,0,0.18)"/>
+    <circle cx="20" cy="20" r="18" fill="${bg}" stroke="${border}" stroke-width="2.5"/>
+    <text x="20" y="26" text-anchor="middle" font-size="17" font-family="serif">${emoji}</text>
+    ${warn}
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function makePlaceIconUrl(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="32" viewBox="0 0 26 32">
+    <ellipse cx="13" cy="29" rx="5" ry="2" fill="rgba(0,0,0,0.1)"/>
+    <circle cx="13" cy="13" r="11" fill="#E8F4F2" stroke="#9CC4BC" stroke-width="2"/>
+    <text x="13" y="18" text-anchor="middle" font-size="12" font-family="serif">🍽</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function makeUserIconUrl(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+    <circle cx="11" cy="11" r="10" fill="rgba(59,130,246,0.25)"/>
+    <circle cx="11" cy="11" r="6" fill="#3B82F6" stroke="white" stroke-width="2.5"/>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
 
 interface MapViewProps {
   stores: Store[];
@@ -16,183 +59,276 @@ interface MapViewProps {
   userPosition?: [number, number] | null;
 }
 
-function ClusteredMarkers({ stores }: { stores: Store[] }) {
-  const map = useMap();
+export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const clustererRef = useRef<MarkerClusterer | null>(null);
+  const userMarkerRef = useRef<google.maps.Marker | null>(null);
+  const placeMarkersRef = useRef<google.maps.Marker[]>([]);
+  const storeMarkersRef = useRef<google.maps.Marker[]>([]);
+  const storesPropRef = useRef<Store[]>(stores);
 
-  useEffect(() => {
-    // @ts-ignore
-    const markers = L.markerClusterGroup({
-      iconCreateFunction: (cluster: any) => {
-        const count = cluster.getChildCount();
-        const size = count >= 10 ? 48 : 40;
-        return L.divIcon({
-          html: `<div style="background:#2D5A51;color:white;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${count}</div>`,
-          className: '',
-          iconSize: [size, size],
-        });
-      },
-      maxClusterRadius: 60,
-    });
-
-    stores.forEach(store => {
-      const icon = L.divIcon({
-        className: 'custom-marker',
-        html: `<div style="width:40px;height:40px;background:white;border-radius:50%;border:2.5px solid #2D5A51;box-shadow:0 2px 8px rgba(45,90,81,0.4);display:flex;align-items:center;justify-content:center;font-size:18px">${getCategoryIcon(store.category)}</div>`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
-        popupAnchor: [0, -44],
-      });
-      const marker = L.marker([store.lat, store.lng], { icon });
-      marker.bindPopup(`
-        <div style="font-family:'Noto Sans JP',sans-serif;padding:8px;min-width:180px">
-          <strong style="font-size:14px;display:block;margin-bottom:4px;line-height:1.3">${store.name}</strong>
-          <div style="font-size:12px;color:#666;margin-bottom:8px">${store.address}</div>
-          <div style="font-size:12px;font-weight:bold;color:white;background:#2D5A51;padding:6px 10px;border-radius:6px;text-align:center">
-            ${store.totalBagsAvailable > 0 ? `🛍 バッグ ${store.totalBagsAvailable}個あり` : '現在完売'}
-          </div>
-        </div>
-      `);
-      markers.addLayer(marker);
-    });
-
-    map.addLayer(markers);
-    return () => { map.removeLayer(markers); };
-  }, [map, stores]);
-
-  return null;
-}
-
-function UserMarker({ position }: { position: [number, number] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    const icon = L.divIcon({
-      className: '',
-      html: `<div style="width:18px;height:18px;background:#3B82F6;border-radius:50%;border:3px solid white;box-shadow:0 0 0 4px rgba(59,130,246,0.3)"></div>`,
-      iconSize: [18, 18],
-      iconAnchor: [9, 9],
-    });
-    const marker = L.marker(position, { icon, zIndexOffset: 1000 });
-    marker.bindPopup('<div style="font-family:sans-serif;font-size:13px;font-weight:bold">📍 現在地</div>');
-    marker.addTo(map);
-    return () => { marker.remove(); };
-  }, [map, position]);
-
-  return null;
-}
-
-function isValidLatLng(pos: [number, number]): boolean {
-  return (
-    typeof pos[0] === 'number' && !isNaN(pos[0]) &&
-    typeof pos[1] === 'number' && !isNaN(pos[1]) &&
-    pos[0] >= -90 && pos[0] <= 90 &&
-    pos[1] >= -180 && pos[1] <= 180
-  );
-}
-
-function FlyToUser({ position }: { position: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!isValidLatLng(position)) return;
-    let timer: ReturnType<typeof setTimeout>;
-    timer = setTimeout(() => {
-      try {
-        const container = map?.getContainer?.();
-        if (!container) return;
-        // Skip flyTo if map container is hidden (display:none → offsetWidth=0)
-        if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
-        map.invalidateSize();
-        map.flyTo(position, 14, { duration: 1.5 });
-      } catch {
-        // ignore LatLng errors during map initialization
-      }
-    }, 300);
-    return () => {
-      clearTimeout(timer);
-      try { map.stop(); } catch { /* ignore cleanup errors */ }
-    };
-  }, [map, position]);
-  return null;
-}
-
-function LocateControl({ onLocate }: { onLocate: (pos: [number, number]) => void }) {
-  const map = useMap();
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [locating, setLocating] = useState(false);
-
-  const handleLocate = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLocating(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const latlng: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-          onLocate(latlng);
-          map.flyTo(latlng, 14, { duration: 1.5 });
-          setLocating(false);
-        },
-        () => {
-          map.locate().on('locationfound', (e: any) => {
-            const latlng: [number, number] = [e.latlng.lat, e.latlng.lng];
-            onLocate(latlng);
-            map.flyTo(latlng, 14, { duration: 1.5 });
-          });
-          setLocating(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-  };
-
-  return (
-    <button
-      onClick={handleLocate}
-      className="absolute bottom-6 right-6 z-[1000] w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 border border-gray-200 active:scale-95 transition-all"
-      style={{ touchAction: 'none' }}
-      title="現在地へ移動"
-    >
-      {locating
-        ? <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        : <LocateFixed className="w-5 h-5 text-primary" />
-      }
-    </button>
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(
+    userPosition ? { lat: userPosition[0], lng: userPosition[1] } : null
   );
-}
 
-export function MapView({ stores, center = [34.7856, 135.4380], zoom = 12, userPosition }: MapViewProps) {
-  const [mounted, setMounted] = useState(false);
-  const [currentUserPos, setCurrentUserPos] = useState<[number, number] | null>(userPosition ?? null);
-  const [autoFlown, setAutoFlown] = useState(false);
+  const mapCenter = center ? { lat: center[0], lng: center[1] } : OSAKA_CENTER;
 
-  useEffect(() => { setMounted(true); }, []);
+  // Update stores ref so idle handler can access latest
+  useEffect(() => { storesPropRef.current = stores; }, [stores]);
 
+  // ── Initialize Google Maps ──
   useEffect(() => {
-    if (userPosition) {
-      setCurrentUserPos(userPosition);
-    }
-  }, [userPosition]);
+    if (!containerRef.current) return;
+    let cancelled = false;
 
-  if (!mounted) return <div className="w-full h-full bg-muted animate-pulse rounded" />;
+    async function init() {
+      try {
+        setOptions({ apiKey: API_KEY, version: 'weekly', language: 'ja', region: 'JP' });
+
+        const mapsLib = await importLibrary('maps') as google.maps.MapsLibrary;
+        const placesLib = await importLibrary('places') as google.maps.PlacesLibrary;
+
+        if (cancelled || !containerRef.current) return;
+
+        const map = new mapsLib.Map(containerRef.current, {
+          center: userPos ?? mapCenter,
+          zoom: zoom ?? 13,
+          disableDefaultUI: true,
+          zoomControl: true,
+          gestureHandling: 'greedy',
+          styles: MAP_STYLES,
+          clickableIcons: false,
+        });
+
+        const infoWindow = new mapsLib.InfoWindow();
+        mapRef.current = map;
+        infoWindowRef.current = infoWindow;
+        clustererRef.current = new MarkerClusterer({ map });
+
+        setStatus('ready');
+
+        // Initial nearby search
+        const center0 = map.getCenter();
+        if (center0) fetchNearbyPlaces(placesLib, map, infoWindow, center0);
+
+        // Refresh places on idle
+        map.addListener('idle', () => {
+          const c = map.getCenter();
+          if (c) fetchNearbyPlaces(placesLib, map, infoWindow, c);
+        });
+
+      } catch (e) {
+        console.error('Google Maps load error:', e);
+        if (!cancelled) setStatus('error');
+      }
+    }
+
+    init();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Place registered store markers ──
+  useEffect(() => {
+    if (status !== 'ready') return;
+    const map = mapRef.current;
+    const gMaps = window.google?.maps;
+    if (!map || !gMaps) return;
+
+    storeMarkersRef.current.forEach(m => m.setMap(null));
+    if (clustererRef.current) clustererRef.current.clearMarkers();
+    storeMarkersRef.current = [];
+
+    const markers: google.maps.Marker[] = stores.map(store => {
+      const isPending = (store as any).status === 'pending_review';
+
+      const marker = new gMaps.Marker({
+        position: { lat: store.lat, lng: store.lng },
+        icon: {
+          url: makeStoreIconUrl(store.category, isPending),
+          scaledSize: new gMaps.Size(40, 48),
+          anchor: new gMaps.Point(20, 46),
+        },
+        title: store.name,
+        zIndex: isPending ? 10 : 5,
+      });
+
+      marker.addListener('click', () => {
+        const iw = infoWindowRef.current;
+        if (!iw) return;
+
+        const pendingBanner = isPending
+          ? `<div style="display:flex;align-items:center;gap:6px;background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:5px 8px;margin-bottom:8px">
+               <span>⚠️</span>
+               <span style="font-size:11px;color:#92400E;font-weight:bold">情報を確認中です</span>
+             </div>`
+          : '';
+        const hasBags = store.totalBagsAvailable > 0;
+        iw.setContent(`
+          <div style="font-family:'Noto Sans JP',sans-serif;min-width:195px;padding:6px 4px">
+            ${pendingBanner}
+            <strong style="font-size:14px;display:block;margin-bottom:3px;line-height:1.4">
+              ${getCategoryIcon(store.category)} ${store.name}
+            </strong>
+            <div style="font-size:11px;color:#888;margin-bottom:8px">${store.address}</div>
+            <div style="font-size:12px;font-weight:bold;color:white;background:${hasBags ? '#2D5A51' : '#999'};padding:7px 10px;border-radius:8px;text-align:center">
+              ${hasBags ? `🛍 バッグ ${store.totalBagsAvailable}個あり` : '現在完売中'}
+            </div>
+          </div>
+        `);
+        iw.open(map, marker);
+      });
+
+      return marker;
+    });
+
+    storeMarkersRef.current = markers;
+    clustererRef.current?.addMarkers(markers);
+  }, [stores, status]);
+
+  // ── User marker ──
+  useEffect(() => {
+    if (status !== 'ready') return;
+    const gMaps = window.google?.maps;
+    const map = mapRef.current;
+    if (!gMaps || !map) return;
+
+    userMarkerRef.current?.setMap(null);
+    if (userPos) {
+      userMarkerRef.current = new gMaps.Marker({
+        position: userPos,
+        map,
+        icon: { url: makeUserIconUrl(), scaledSize: new gMaps.Size(22, 22), anchor: new gMaps.Point(11, 11) },
+        title: '現在地',
+        zIndex: 999,
+      });
+    }
+  }, [userPos, status]);
+
+  // ── Nearby Places ──
+  function fetchNearbyPlaces(
+    placesLib: google.maps.PlacesLibrary,
+    map: google.maps.Map,
+    infoWindow: google.maps.InfoWindow,
+    center: google.maps.LatLng
+  ) {
+    const gMaps = window.google?.maps;
+    if (!gMaps?.places?.PlacesService) return;
+
+    const service = new gMaps.places.PlacesService(map);
+    service.nearbySearch(
+      { location: center, radius: 1500, type: 'restaurant' },
+      (results, statusCode) => {
+        if (statusCode !== gMaps.places.PlacesServiceStatus.OK || !results) return;
+
+        placeMarkersRef.current.forEach(m => m.setMap(null));
+        placeMarkersRef.current = [];
+
+        const registered = new Set(
+          storesPropRef.current.map(s => `${s.lat.toFixed(4)},${s.lng.toFixed(4)}`)
+        );
+
+        placeMarkersRef.current = results
+          .filter(r => r.geometry?.location)
+          .filter(r => {
+            const key = `${r.geometry!.location!.lat().toFixed(4)},${r.geometry!.location!.lng().toFixed(4)}`;
+            return !registered.has(key);
+          })
+          .slice(0, 15)
+          .map(r => {
+            const marker = new gMaps.Marker({
+              position: r.geometry!.location!,
+              map,
+              icon: { url: makePlaceIconUrl(), scaledSize: new gMaps.Size(26, 32), anchor: new gMaps.Point(13, 30) },
+              title: r.name,
+              zIndex: 1,
+              opacity: 0.7,
+            });
+            marker.addListener('click', () => {
+              infoWindow.setContent(`
+                <div style="font-family:'Noto Sans JP',sans-serif;min-width:165px;padding:4px 2px">
+                  <div style="background:#E8F4F2;color:#2D5A51;font-size:10px;font-weight:bold;border-radius:5px;padding:2px 7px;margin-bottom:6px;display:inline-block">Google Places</div>
+                  <strong style="font-size:13px;display:block;margin-bottom:2px">🍽 ${r.name}</strong>
+                  <div style="font-size:11px;color:#777">${r.vicinity ?? ''}</div>
+                  <div style="font-size:10px;color:#aaa;margin-top:4px">食べロスに登録していない店舗</div>
+                </div>
+              `);
+              infoWindow.open(map, marker);
+            });
+            return marker;
+          });
+      }
+    );
+  }
+
+  // ── GPS locate ──
+  function handleLocate() {
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserPos(latlng);
+        mapRef.current?.panTo(latlng);
+        mapRef.current?.setZoom(15);
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   return (
-    <div className="w-full h-full relative z-0">
-      <MapContainer
-        center={currentUserPos ?? center}
-        zoom={zoom}
-        scrollWheelZoom={false}
-        className="w-full h-full z-0"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <ClusteredMarkers stores={stores} />
-        {currentUserPos && isValidLatLng(currentUserPos) && <UserMarker position={currentUserPos} />}
-        {currentUserPos && isValidLatLng(currentUserPos) && !autoFlown && (
-          <FlyToUser position={currentUserPos} />
-        )}
-        <LocateControl onLocate={(pos) => { setCurrentUserPos(pos); setAutoFlown(true); }} />
-      </MapContainer>
+    <div className="w-full h-full relative">
+      <div ref={containerRef} className="w-full h-full" />
+
+      {status === 'loading' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted gap-3">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-muted-foreground font-medium">地図を読み込んでいます...</p>
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted gap-3 px-6 text-center">
+          <AlertTriangle className="w-10 h-10 text-amber-500" />
+          <p className="text-sm font-bold text-foreground">地図を読み込めませんでした</p>
+          <p className="text-xs text-muted-foreground">Google Maps APIキーを確認してください（Maps_API_KEY）</p>
+        </div>
+      )}
+
+      {status === 'ready' && (
+        <>
+          {/* Locate button */}
+          <button
+            onClick={handleLocate}
+            className="absolute bottom-6 right-4 z-10 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 border border-gray-200 active:scale-95 transition-all"
+          >
+            {locating
+              ? <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              : <LocateFixed className="w-5 h-5 text-primary" />
+            }
+          </button>
+
+          {/* Legend */}
+          <div className="absolute bottom-6 left-4 z-10 bg-white/90 backdrop-blur-sm rounded-xl shadow-md px-3 py-2.5 flex flex-col gap-1.5 border border-gray-100">
+            <div className="flex items-center gap-2 text-xs text-gray-700">
+              <div className="w-3 h-3 rounded-full bg-[#2D5A51] shrink-0" />
+              <span className="font-medium">登録店舗</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-amber-700">
+              <div className="w-3 h-3 rounded-full bg-amber-400 shrink-0" />
+              <span className="font-medium">確認中</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="w-3 h-3 rounded-full bg-[#E8F4F2] border border-[#9CC4BC] shrink-0" />
+              <span>Google Places</span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

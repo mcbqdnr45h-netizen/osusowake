@@ -27,3 +27,8 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+Maps_API_KEY = "AIzaSyCl7sEXd_R3l1cT29zRAAc570GTTAhW7cc"
