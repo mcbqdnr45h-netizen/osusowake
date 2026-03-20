@@ -331,7 +331,7 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
         <>
           <button
             onClick={handleLocate}
-            className={`absolute bottom-24 right-4 z-10 h-12 bg-white rounded-full shadow-lg flex items-center gap-2 px-4 border active:scale-95 transition-all
+            className={`absolute bottom-24 right-2 z-10 h-12 bg-white rounded-full shadow-lg flex items-center gap-2 px-4 border active:scale-95 transition-all
               ${userPos
                 ? 'border-primary/30 hover:bg-primary/5 text-primary'
                 : 'border-gray-200 hover:bg-gray-50 text-gray-600'
