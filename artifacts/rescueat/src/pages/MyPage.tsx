@@ -2,9 +2,11 @@ import React from 'react';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
+
+const POINT_RATE = 0.03;
 
 export default function MyPage() {
   const userId = useUserId();
@@ -14,10 +16,15 @@ export default function MyPage() {
     query: { enabled: !!userId }
   });
 
-  const pickedUpCount = reservations?.filter(r => r.status === 'picked_up').length || 0;
+  const pickedUpReservations = reservations?.filter(r => r.status === 'picked_up') || [];
+  const pickedUpCount = pickedUpReservations.length;
   const co2Saved = +(pickedUpCount * 2.5).toFixed(1);
   const ecoRank = getUserEcoRank(co2Saved);
   const progress = getUserProgress(co2Saved, ecoRank);
+
+  // Points calculation: 3% of total paid amount
+  const totalSpent = pickedUpReservations.reduce((sum, r) => sum + (r.totalPrice || 0), 0);
+  const totalPoints = Math.floor(totalSpent * POINT_RATE);
 
   function handleLogout() {
     navigate('/welcome');
@@ -25,11 +32,11 @@ export default function MyPage() {
 
   return (
     <Layout>
-      <div className="max-w-md mx-auto py-8 px-4">
+      <div className="max-w-md mx-auto py-8 px-4 pb-24">
         <h1 className="text-2xl font-black mb-6 text-foreground">マイページ</h1>
 
         {/* Profile Card */}
-        <div className="bg-card border border-border rounded-2xl p-6 flex items-center gap-4 mb-5 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4 mb-4 shadow-sm">
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0 border border-primary/30">
             <User className="w-8 h-8" />
           </div>
@@ -39,8 +46,63 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* Impact Stats Row */}
-        <div className="mb-5">
+        {/* ── Points Card ── */}
+        <div className="mb-4 rounded-2xl overflow-hidden shadow-sm border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
+          {/* Top: balance */}
+          <div className="px-5 pt-5 pb-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Coins className="w-5 h-5 text-amber-500" />
+                <span className="font-black text-amber-800 text-sm">保有ポイント</span>
+              </div>
+              <span className="text-xs text-amber-600 font-medium bg-amber-100 px-2 py-0.5 rounded-full">
+                {(POINT_RATE * 100).toFixed(0)}%還元
+              </span>
+            </div>
+            <div className="flex items-end gap-1.5 mt-2">
+              <span className="text-4xl font-black text-amber-500 leading-none">{totalPoints.toLocaleString()}</span>
+              <span className="text-lg font-bold text-amber-400 mb-0.5">pt</span>
+            </div>
+            {totalSpent > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                累計購入額 ¥{totalSpent.toLocaleString()} の {(POINT_RATE * 100).toFixed(0)}%分
+              </p>
+            )}
+          </div>
+
+          {/* Bottom: Coming Soon redemption */}
+          <div className="mx-4 mb-4 bg-white/70 backdrop-blur-sm border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
+              <Lock className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-black text-amber-700">ポイント利用</span>
+                <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  近日公開予定
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-600 mt-0.5 leading-relaxed">
+                今のうちにポイントを貯めておきましょう！
+              </p>
+            </div>
+          </div>
+
+          {/* Earn note */}
+          <div className="px-5 pb-5">
+            <div className="h-px bg-amber-200 mb-3" />
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <p className="text-xs text-amber-600">
+                購入のたびに <span className="font-black">{(POINT_RATE * 100).toFixed(0)}%</span> のポイントが貯まります
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Impact Stats */}
+        <div className="mb-4">
           {/* Rescue count */}
           <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-5 text-center shadow-sm mb-3">
             <ShoppingBag className="w-8 h-8 text-primary mx-auto mb-2" />
