@@ -23,6 +23,8 @@ import VerifyEmail from "./pages/VerifyEmail";
 import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
 import Orders from "./pages/Orders";
+import StoreOnboarding from "./pages/StoreOnboarding";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -55,6 +57,8 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/payment-methods" component={PaymentMethods} />
       <Route path="/orders" component={Orders} />
+      <Route path="/store-onboarding" component={StoreOnboarding} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
       <Route component={NotFound} />

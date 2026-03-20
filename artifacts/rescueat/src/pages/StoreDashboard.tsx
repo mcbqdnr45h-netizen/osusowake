@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { 
   useListStoreBags, 
@@ -9,7 +9,7 @@ import {
 import { 
   Plus, Check, Store as StoreIcon, RefreshCw, Box, Leaf, 
   Zap, ChevronUp, ChevronDown, BarChart2, Bell, Rocket,
-  Clock, TrendingUp
+  Clock, TrendingUp, Camera, Sparkles, ImagePlus,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,29 @@ import { getStoreEcoRank, getStoreProgress } from '@/lib/eco-rank';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
+
+// ─── 画像圧縮 ────────────────────────────────────────────────────────────────
+async function compressImage(file: File, maxPx = 1200, quality = 0.75): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+          else { width = Math.round(width * maxPx / height); height = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 // ─── テンプレート定義 ────────────────────────────────────────────────────────
 const TEMPLATES = [
@@ -119,6 +142,73 @@ export default function StoreDashboard() {
   const [notifyVisible, setNotifyVisible] = useState(false);
   const [notifyCount, setNotifyCount] = useState(0);
   const [notifyTitle, setNotifyTitle] = useState('');
+
+  // Photo-first quick list state
+  const photoFileRef = useRef<HTMLInputElement>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [photoTitle, setPhotoTitle] = useState('本日のサプライズバッグ');
+  const [photoOriginal, setPhotoOriginal] = useState(1500);
+  const [photoDiscounted, setPhotoDiscounted] = useState(500);
+  const [photoQty, setPhotoQty] = useState(1);
+  const now = new Date();
+  const defaultPickupStart = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const defaultPickupEnd = `${String((now.getHours() + 2) % 24).padStart(2,'0')}:00`;
+  const [photoPickupStart, setPhotoPickupStart] = useState(defaultPickupStart);
+  const [photoPickupEnd, setPhotoPickupEnd] = useState(defaultPickupEnd);
+  const [photoSubmitting, setPhotoSubmitting] = useState(false);
+  const [photoPublished, setPhotoPublished] = useState(false);
+
+  const photoDiscountPct = photoOriginal > 0 ? Math.round((1 - photoDiscounted / photoOriginal) * 100) : 0;
+
+  const handlePhotoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const c = await compressImage(file);
+    setPhotoPreview(c);
+    setPhotoUrl(c);
+    toast({ title: `写真を追加しました！あとは値段と数量を設定するだけ ✓` });
+  };
+
+  const handlePhotoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPhotoSubmitting(true);
+    try {
+      await createBag.mutateAsync({
+        storeId: STORE_ID,
+        data: {
+          title: photoTitle,
+          description: '本日の余り食材をたっぷり詰め合わせました',
+          originalPrice: photoOriginal,
+          discountedPrice: photoDiscounted,
+          stockCount: photoQty,
+          pickupStart: photoPickupStart,
+          pickupEnd: photoPickupEnd,
+          imageUrl: photoUrl || undefined,
+        }
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores/1/bags'] });
+      setPhotoPublished(true);
+      const count = Math.floor(Math.random() * 60) + 20;
+      setNotifyCount(count);
+      setNotifyTitle(photoTitle);
+      setNotifyVisible(true);
+      // Reset form
+      setTimeout(() => {
+        setPhotoPublished(false);
+        setPhotoPreview('');
+        setPhotoUrl('');
+        setPhotoTitle('本日のサプライズバッグ');
+        setPhotoOriginal(1500);
+        setPhotoDiscounted(500);
+        setPhotoQty(1);
+      }, 2500);
+    } catch (err: any) {
+      toast({ title: 'エラー', description: err.message, variant: 'destructive' });
+    } finally {
+      setPhotoSubmitting(false);
+    }
+  };
 
   // Manual create state
   const [isCreating, setIsCreating] = useState(false);
@@ -265,6 +355,134 @@ export default function StoreDashboard() {
         ══════════════════════════════════════ */}
         {activeTab === 'quick' && (
           <div>
+
+            {/* ══ 超速フォト出品 ══ */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-black">超速フォト出品</h2>
+                <span className="text-[10px] bg-primary/10 text-primary font-black px-2 py-1 rounded-full">写真を載せるだけ！</span>
+              </div>
+
+              <form onSubmit={handlePhotoSubmit} className="space-y-3">
+                {/* Photo area — takes center stage */}
+                <div
+                  onClick={() => photoFileRef.current?.click()}
+                  className={`relative w-full rounded-2xl overflow-hidden cursor-pointer group transition-all
+                    ${photoPreview ? 'h-56' : 'h-52 border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10'}`}
+                >
+                  {photoPreview ? (
+                    <>
+                      <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="text-white text-center">
+                          <Camera className="w-8 h-8 mx-auto mb-1" />
+                          <span className="text-sm font-bold">写真を変更</span>
+                        </div>
+                      </div>
+                      {photoPublished && (
+                        <div className="absolute inset-0 bg-primary/90 flex flex-col items-center justify-center">
+                          <div className="text-white text-center">
+                            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <Zap className="w-8 h-8" />
+                            </div>
+                            <p className="text-xl font-black">公開しました！</p>
+                            <p className="text-sm opacity-80 mt-1">ホーム画面に即時反映されました</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mb-3">
+                        <ImagePlus className="w-8 h-8 text-primary" />
+                      </div>
+                      <p className="font-black text-primary">タップして写真を追加</p>
+                      <p className="text-xs text-primary/60 mt-1">カメラロール・撮影どちらでも OK</p>
+                    </div>
+                  )}
+                </div>
+                <input ref={photoFileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
+
+                {/* Title */}
+                <input
+                  value={photoTitle}
+                  onChange={e => setPhotoTitle(e.target.value)}
+                  className="w-full bg-background border border-input rounded-xl px-4 py-3 font-black text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none"
+                  placeholder="例: 本日のサプライズバッグ"
+                />
+
+                {/* Price row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1">定価</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
+                      <input type="number" min="100" value={photoOriginal} onChange={e => setPhotoOriginal(Number(e.target.value))}
+                        className="w-full bg-background border border-input rounded-xl pl-7 pr-3 py-3 font-bold text-base focus:ring-2 focus:ring-primary/40 outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1">
+                      販売価格
+                      {photoDiscountPct > 0 && <span className="ml-1.5 text-amber-600 font-black">{photoDiscountPct}% OFF</span>}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
+                      <input type="number" min="100" value={photoDiscounted} onChange={e => setPhotoDiscounted(Number(e.target.value))}
+                        className="w-full bg-background border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary text-base focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pickup time */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1">受取開始</label>
+                    <input type="time" value={photoPickupStart} onChange={e => setPhotoPickupStart(e.target.value)}
+                      className="w-full bg-background border border-input rounded-xl px-3 py-3 font-bold focus:ring-2 focus:ring-primary/40 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1">受取終了</label>
+                    <input type="time" value={photoPickupEnd} onChange={e => setPhotoPickupEnd(e.target.value)}
+                      className="w-full bg-background border border-input rounded-xl px-3 py-3 font-bold focus:ring-2 focus:ring-primary/40 outline-none" />
+                  </div>
+                </div>
+
+                {/* Quantity */}
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-bold text-muted-foreground shrink-0">数量</span>
+                  <div className="flex items-center bg-background border border-input rounded-xl overflow-hidden h-12">
+                    <button type="button" onClick={() => setPhotoQty(q => Math.max(1, q - 1))}
+                      className="w-11 h-full flex items-center justify-center bg-secondary hover:bg-secondary/80 font-bold text-xl active:scale-90 transition-transform text-foreground">−</button>
+                    <span className="w-12 text-center font-black text-lg text-foreground">{photoQty}</span>
+                    <button type="button" onClick={() => setPhotoQty(q => q + 1)}
+                      className="w-11 h-full flex items-center justify-center bg-secondary hover:bg-secondary/80 font-bold text-xl active:scale-90 transition-transform text-foreground">＋</button>
+                  </div>
+                  <span className="text-xs text-muted-foreground">個</span>
+                </div>
+
+                {/* Submit */}
+                <button type="submit" disabled={photoSubmitting || photoPublished}
+                  className="w-full bg-primary text-primary-foreground font-black text-lg py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-70 min-h-[58px]"
+                >
+                  {photoSubmitting
+                    ? <><RefreshCw className="w-5 h-5 animate-spin" /> 公開中...</>
+                    : photoPublished
+                    ? <><Zap className="w-5 h-5" /> 公開しました！</>
+                    : <><Zap className="w-5 h-5" /> 今すぐ出品する</>
+                  }
+                </button>
+                <p className="text-center text-xs text-muted-foreground">即時公開 — ユーザーのホーム画面に反映されます</p>
+              </form>
+            </div>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs font-bold text-muted-foreground">またはテンプレートから</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
             <div className="flex items-center gap-2 mb-4">
               <Zap className="w-5 h-5 text-amber-500" />
               <h2 className="text-lg font-black">30秒クイック出品</h2>

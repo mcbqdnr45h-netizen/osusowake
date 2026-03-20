@@ -32,6 +32,10 @@ const storeSelectFields = {
   isActive: storesTable.isActive,
   status: storesTable.status,
   ownerId: storesTable.ownerId,
+  licenseNumber: storesTable.licenseNumber,
+  licenseImageUrl: storesTable.licenseImageUrl,
+  idImageUrl: storesTable.idImageUrl,
+  pledgeSigned: storesTable.pledgeSigned,
   createdAt: storesTable.createdAt,
   totalBagsAvailable: sql<number>`COALESCE(SUM(CASE WHEN ${surpriseBagsTable.isActive} = true THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
@@ -77,6 +81,37 @@ router.post("/stores", async (req, res) => {
     res.status(201).json({ ...store, totalBagsAvailable: 0 });
   } catch (err) {
     console.error("Store creation error:", err);
+    res.status(400).json({ error: "bad_request", message: "Invalid store data" });
+  }
+});
+
+// Public: apply for store registration — sets status to "pending" for admin review
+router.post("/stores/apply", async (req, res) => {
+  try {
+    const body = req.body;
+    if (!body.name || !body.address || !body.city || body.lat == null || body.lng == null) {
+      return res.status(400).json({ error: "bad_request", message: "Missing required fields" });
+    }
+    const [store] = await db.insert(storesTable).values({
+      name: body.name,
+      description: body.description ?? null,
+      address: body.address,
+      city: body.city,
+      category: body.category ?? "other",
+      lat: Number(body.lat),
+      lng: Number(body.lng),
+      imageUrl: body.imageUrl ?? null,
+      phone: body.phone ?? null,
+      isActive: false,
+      status: "pending",
+      licenseNumber: body.licenseNumber ?? null,
+      licenseImageUrl: body.licenseImageUrl ?? null,
+      idImageUrl: body.idImageUrl ?? null,
+      pledgeSigned: body.pledgeSigned === true,
+    }).returning();
+    res.status(201).json({ ...store, totalBagsAvailable: 0 });
+  } catch (err) {
+    console.error("Store apply error:", err);
     res.status(400).json({ error: "bad_request", message: "Invalid store data" });
   }
 });

@@ -35,6 +35,11 @@ export const storesTable = pgTable("stores", {
   isActive: boolean("is_active").notNull().default(true),
   status: storeStatusEnum("status").notNull().default("approved"),
   ownerId: text("owner_id"),
+  // Onboarding compliance fields
+  licenseNumber: text("license_number"),
+  licenseImageUrl: text("license_image_url"),
+  idImageUrl: text("id_image_url"),
+  pledgeSigned: boolean("pledge_signed").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
