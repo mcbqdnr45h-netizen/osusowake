@@ -288,6 +288,12 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
   // ── GPS locate ──
   function handleLocate() {
+    // すでに現在地が取得済みなら即座にパン
+    if (userPos) {
+      mapRef.current?.panTo(userPos);
+      mapRef.current?.setZoom(15);
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -325,12 +331,19 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
         <>
           <button
             onClick={handleLocate}
-            className="absolute bottom-6 right-4 z-10 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 border border-gray-200 active:scale-95 transition-all"
+            className={`absolute bottom-6 right-4 z-10 h-12 bg-white rounded-full shadow-lg flex items-center gap-2 px-4 border active:scale-95 transition-all
+              ${userPos
+                ? 'border-primary/30 hover:bg-primary/5 text-primary'
+                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+              }`}
           >
             {locating
               ? <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              : <LocateFixed className="w-5 h-5 text-primary" />
+              : <LocateFixed className={`w-5 h-5 ${userPos ? 'text-primary' : 'text-gray-500'}`} />
             }
+            <span className="text-sm font-bold whitespace-nowrap">
+              {locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地'}
+            </span>
           </button>
 
           <div className="absolute bottom-6 left-4 z-10 bg-white/90 backdrop-blur-sm rounded-xl shadow-md px-3 py-2.5 flex flex-col gap-1.5 border border-gray-100">
