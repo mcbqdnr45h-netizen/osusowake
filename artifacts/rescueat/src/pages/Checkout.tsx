@@ -1,95 +1,22 @@
 import React, { useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
-import { useGetReservation, useCreatePaymentIntent, useConfirmPayment } from '@workspace/api-client-react';
-import { CheckCircle2, ShieldCheck, CreditCard, Coins, Lock, Sparkles, ChevronLeft } from 'lucide-react';
+import { useGetReservation } from '@workspace/api-client-react';
+import { CheckCircle2, ShieldCheck, CreditCard, Coins, Lock, Sparkles, ChevronLeft, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 
 const POINT_RATE = 0.03;
-
-function PointsSuccessScreen({ points, totalPrice, onDone }: {
-  points: number;
-  totalPrice: number;
-  onDone: () => void;
-}) {
-  React.useEffect(() => {
-    const t = setTimeout(onDone, 3200);
-    return () => clearTimeout(t);
-  }, [onDone]);
-
-  return (
-    <div className="min-h-dvh flex flex-col items-center justify-center bg-background px-6 text-center">
-      <motion.div
-        initial={{ scale: 0.7, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 240, damping: 20 }}
-        className="flex flex-col items-center"
-      >
-        {/* Success Icon */}
-        <div className="relative mb-6">
-          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center">
-            <CheckCircle2 className="w-14 h-14 text-primary" />
-          </div>
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: [0, 1.2, 1], opacity: [0, 1, 1] }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="absolute -top-1 -right-1 w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center shadow-lg"
-          >
-            <Sparkles className="w-4 h-4 text-white" />
-          </motion.div>
-        </div>
-
-        <h2 className="text-2xl font-black text-foreground mb-1">レスキュー完了！</h2>
-        <p className="text-muted-foreground text-sm mb-8">ご予約が確定しました 🎉</p>
-
-        {/* Points earned card */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="w-full max-w-xs bg-gradient-to-br from-amber-400 to-orange-400 rounded-3xl p-5 shadow-lg shadow-amber-200 mb-4"
-        >
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Coins className="w-5 h-5 text-white" />
-            <span className="text-white font-bold text-sm">今回のレスキューで獲得</span>
-          </div>
-          <div className="text-white text-center">
-            <span className="text-5xl font-black">+{points}</span>
-            <span className="text-xl font-bold ml-1">pt</span>
-          </div>
-          <p className="text-white/80 text-xs text-center mt-2">
-            ¥{totalPrice.toLocaleString()} × {(POINT_RATE * 100).toFixed(0)}% = {points}ポイント
-          </p>
-        </motion.div>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.2 }}
-          className="text-xs text-muted-foreground"
-        >
-          予約一覧へ移動します...
-        </motion.p>
-      </motion.div>
-    </div>
-  );
-}
 
 export default function Checkout() {
   const [, params] = useRoute('/checkout/:id');
   const reservationId = params?.id ? parseInt(params.id) : 0;
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const { data: reservation, isLoading } = useGetReservation(reservationId);
-  const createPayment = useCreatePaymentIntent();
-  const confirmPayment = useConfirmPayment();
-
-  const [, navigate] = useLocation();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [earnedPoints, setEarnedPoints] = useState<number | null>(null);
 
   if (isLoading || !reservation) {
     return (
@@ -103,35 +30,38 @@ export default function Checkout() {
 
   const pointsToEarn = Math.floor(reservation.totalPrice * POINT_RATE);
 
-  const handleMockPayment = async () => {
-    setIsProcessing(true);
+  const handleStripeCheckout = async () => {
+    setIsRedirecting(true);
     try {
-      const intent = await createPayment.mutateAsync({ data: { reservationId } });
-      await new Promise(res => setTimeout(res, 1500));
-      await confirmPayment.mutateAsync({
-        data: { reservationId, paymentIntentId: intent.paymentIntentId }
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+      const origin = window.location.origin;
+      const successUrl = `${origin}${base}/success?session_id={CHECKOUT_SESSION_ID}&reservation_id=${reservationId}`;
+      const cancelUrl = `${origin}${base}/cancel?reservation_id=${reservationId}`;
+
+      const res = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservationId, successUrl, cancelUrl }),
       });
-      setEarnedPoints(pointsToEarn);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'セッション作成に失敗しました');
+      }
+
+      const { url } = await res.json();
+      if (!url) throw new Error('Stripe URLが取得できませんでした');
+
+      window.location.href = url;
     } catch (err: any) {
       toast({
         title: '決済エラー',
         description: err.message || 'やり直してください。',
         variant: 'destructive',
       });
-      setIsProcessing(false);
+      setIsRedirecting(false);
     }
   };
-
-  // Show success screen with points animation
-  if (earnedPoints !== null) {
-    return (
-      <PointsSuccessScreen
-        points={earnedPoints}
-        totalPrice={reservation.totalPrice}
-        onDone={() => navigate('/my-reservations')}
-      />
-    );
-  }
 
   return (
     <Layout showBottomNav={false}>
@@ -180,7 +110,7 @@ export default function Checkout() {
             </div>
           </motion.div>
 
-          {/* Points Accrual Preview */}
+          {/* Points Preview */}
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
             className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 shadow-sm"
@@ -205,7 +135,6 @@ export default function Checkout() {
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="bg-card border border-border rounded-2xl p-5 shadow-sm relative overflow-hidden"
           >
-            {/* Frosted overlay */}
             <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-10 rounded-2xl" />
             <div className="absolute inset-0 flex flex-col items-center justify-center z-20 gap-2">
               <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full">
@@ -216,8 +145,6 @@ export default function Checkout() {
                 ポイント利用機能は準備中です。<br />今のうちにポイントを貯めておきましょう！
               </p>
             </div>
-
-            {/* Background content (blurred/disabled) */}
             <div className="pointer-events-none select-none opacity-40">
               <h2 className="text-base font-black mb-3 flex items-center gap-2">
                 <Coins className="w-4 h-4 text-amber-500" />
@@ -242,36 +169,39 @@ export default function Checkout() {
           >
             <h2 className="text-base font-black mb-4">お支払い方法</h2>
 
-            <div className="border border-primary bg-primary/5 rounded-xl p-4 flex items-center gap-4 cursor-pointer relative overflow-hidden">
+            <div className="border border-primary bg-primary/5 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden">
               <div className="w-10 h-10 bg-primary/20 text-primary rounded-full flex items-center justify-center">
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <div className="font-bold">クレジットカード (Mock)</div>
-                <div className="text-xs text-muted-foreground">テスト環境です。実際の請求はされません。</div>
+                <div className="font-bold">クレジットカード / その他</div>
+                <div className="text-xs text-muted-foreground">Stripe Checkout で安全に決済</div>
               </div>
               <div className="absolute top-0 right-0 bottom-0 w-1 bg-primary" />
             </div>
 
             <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
               <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <p>決済は安全に処理されます。店舗で商品を受け取れなかった場合、自動的に返金されます。</p>
+              <p>決済はStripeの安全なページで処理されます。カード情報が当アプリに保存されることはありません。</p>
             </div>
           </motion.div>
 
-          {/* Pay Button */}
+          {/* Stripe Pay Button */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <button
-              onClick={handleMockPayment}
-              disabled={isProcessing}
-              className="w-full h-14 bg-foreground text-background rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-foreground/90 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
+              onClick={handleStripeCheckout}
+              disabled={isRedirecting}
+              className="w-full h-14 bg-[#635BFF] hover:bg-[#5851e8] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2.5 transition-colors shadow-lg shadow-[#635BFF]/30 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isProcessing ? (
-                <div className="w-6 h-6 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+              {isRedirecting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Stripeへ移動中...
+                </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  ¥{reservation.totalPrice.toLocaleString()} を支払う
+                  <ExternalLink className="w-5 h-5" />
+                  ¥{reservation.totalPrice.toLocaleString()} を Stripe で支払う
                 </>
               )}
             </button>
@@ -279,6 +209,9 @@ export default function Checkout() {
             <p className="text-center text-xs text-amber-600 font-bold mt-2.5 flex items-center justify-center gap-1">
               <Sparkles className="w-3.5 h-3.5" />
               決済後に {pointsToEarn}pt を獲得できます
+            </p>
+            <p className="text-center text-[11px] text-muted-foreground mt-1">
+              Stripeのテスト環境です。カード番号: 4242 4242 4242 4242
             </p>
           </motion.div>
         </div>

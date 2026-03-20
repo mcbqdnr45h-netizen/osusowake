@@ -129,4 +129,130 @@ router.post("/payment/confirm", async (req, res) => {
   }
 });
 
+// ─── Stripe Checkout Session ───────────────────────────────────────────────
+router.post("/checkout/session", async (req, res) => {
+  try {
+    const { reservationId, successUrl, cancelUrl } = req.body as {
+      reservationId: number;
+      successUrl: string;
+      cancelUrl: string;
+    };
+
+    if (!reservationId || !successUrl || !cancelUrl) {
+      res.status(400).json({ error: "bad_request", message: "reservationId, successUrl, cancelUrl are required" });
+      return;
+    }
+
+    const [reservation] = await db
+      .select({
+        id: reservationsTable.id,
+        totalPrice: reservationsTable.totalPrice,
+        paymentStatus: reservationsTable.paymentStatus,
+        bagId: reservationsTable.bagId,
+      })
+      .from(reservationsTable)
+      .where(eq(reservationsTable.id, reservationId));
+
+    if (!reservation) {
+      res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+
+    if (reservation.paymentStatus === "paid") {
+      res.status(409).json({ error: "already_paid", message: "This reservation is already paid" });
+      return;
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      res.status(503).json({ error: "stripe_not_configured", message: "Stripe is not configured" });
+      return;
+    }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    const amountInYen = Math.round(reservation.totalPrice);
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "jpy",
+            product_data: {
+              name: "食べロス レスキュー商品",
+              description: "食品ロスを減らすサプライズバッグ",
+              images: ["https://images.unsplash.com/photo-1542838132-92c53300491e?w=400"],
+            },
+            unit_amount: amountInYen,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: successUrl.includes("{CHECKOUT_SESSION_ID}")
+        ? successUrl
+        : `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl,
+      metadata: {
+        reservationId: String(reservation.id),
+      },
+      locale: "ja",
+    });
+
+    await db
+      .update(reservationsTable)
+      .set({ paymentIntentId: session.id })
+      .where(eq(reservationsTable.id, reservation.id));
+
+    res.json({ sessionId: session.id, url: session.url });
+  } catch (err) {
+    console.error("Stripe Checkout error:", err);
+    res.status(500).json({ error: "stripe_error", message: "Failed to create checkout session" });
+  }
+});
+
+// ─── Stripe Checkout Verify (after redirect) ────────────────────────────────
+router.get("/checkout/verify", async (req, res) => {
+  try {
+    const { session_id, reservation_id } = req.query as { session_id?: string; reservation_id?: string };
+
+    if (!session_id || !reservation_id) {
+      res.status(400).json({ error: "bad_request", message: "session_id and reservation_id required" });
+      return;
+    }
+
+    const reservationId = parseInt(reservation_id);
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+
+    if (stripeKey) {
+      const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+      const session = await stripe.checkout.sessions.retrieve(session_id);
+
+      if (session.payment_status === "paid") {
+        await db
+          .update(reservationsTable)
+          .set({ paymentStatus: "paid", status: "confirmed", paymentIntentId: session.payment_intent as string })
+          .where(eq(reservationsTable.id, reservationId));
+
+        res.json({ status: "paid", reservationId });
+        return;
+      }
+
+      res.json({ status: session.payment_status, reservationId });
+      return;
+    }
+
+    // Stripe未設定のフォールバック
+    await db
+      .update(reservationsTable)
+      .set({ paymentStatus: "paid", status: "confirmed" })
+      .where(eq(reservationsTable.id, reservationId));
+
+    res.json({ status: "paid", reservationId });
+  } catch (err) {
+    console.error("Verify error:", err);
+    res.status(500).json({ error: "verify_error", message: "Failed to verify session" });
+  }
+});
+
 export default router;
