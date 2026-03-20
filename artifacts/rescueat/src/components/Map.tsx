@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
@@ -7,9 +6,34 @@ import { LocateFixed, AlertTriangle } from 'lucide-react';
 
 const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
 const API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
+const MAPS_SCRIPT_ID = 'rescueat-google-maps';
 
-// モジュールレベルで1度だけ設定（HMRでの重複呼び出しを防ぐ）
-setOptions({ apiKey: API_KEY, version: 'weekly', language: 'ja', region: 'JP' });
+// ── スクリプトタグを直接挿入してAPIキーをURLに埋め込む ──
+function loadGoogleMapsScript(apiKey: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // すでに読み込み済み
+    if ((window as any).google?.maps?.Map) { resolve(); return; }
+
+    // スクリプトタグがすでにある場合はロード完了を待つ
+    if (document.getElementById(MAPS_SCRIPT_ID)) {
+      const t = setInterval(() => {
+        if ((window as any).google?.maps?.Map) { clearInterval(t); resolve(); }
+      }, 80);
+      setTimeout(() => { clearInterval(t); reject(new Error('timeout')); }, 15000);
+      return;
+    }
+
+    // スクリプトタグを生成してAPIキーをURLに直接埋め込む
+    const script = document.createElement('script');
+    script.id = MAPS_SCRIPT_ID;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,places&v=weekly&language=ja&region=JP`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = (e) => reject(new Error(`Maps script load failed: ${e}`));
+    document.head.appendChild(script);
+  });
+}
 
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
@@ -80,7 +104,6 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
   const mapCenter = center ? { lat: center[0], lng: center[1] } : OSAKA_CENTER;
 
-  // Update stores ref so idle handler can access latest
   useEffect(() => { storesPropRef.current = stores; }, [stores]);
 
   // ── Initialize Google Maps ──
@@ -90,12 +113,13 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
     async function init() {
       try {
-        const mapsLib = await importLibrary('maps') as google.maps.MapsLibrary;
-        const placesLib = await importLibrary('places') as google.maps.PlacesLibrary;
+        await loadGoogleMapsScript(API_KEY);
 
         if (cancelled || !containerRef.current) return;
 
-        const map = new mapsLib.Map(containerRef.current, {
+        const gMaps = (window as any).google.maps as typeof google.maps;
+
+        const map = new gMaps.Map(containerRef.current, {
           center: userPos ?? mapCenter,
           zoom: zoom ?? 13,
           disableDefaultUI: true,
@@ -105,21 +129,19 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
           clickableIcons: false,
         });
 
-        const infoWindow = new mapsLib.InfoWindow();
+        const infoWindow = new gMaps.InfoWindow();
         mapRef.current = map;
         infoWindowRef.current = infoWindow;
         clustererRef.current = new MarkerClusterer({ map });
 
         setStatus('ready');
 
-        // Initial nearby search
         const center0 = map.getCenter();
-        if (center0) fetchNearbyPlaces(placesLib, map, infoWindow, center0);
+        if (center0) fetchNearbyPlaces(map, infoWindow, center0);
 
-        // Refresh places on idle
         map.addListener('idle', () => {
           const c = map.getCenter();
-          if (c) fetchNearbyPlaces(placesLib, map, infoWindow, c);
+          if (c) fetchNearbyPlaces(map, infoWindow, c);
         });
 
       } catch (e) {
@@ -136,7 +158,7 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
   useEffect(() => {
     if (status !== 'ready') return;
     const map = mapRef.current;
-    const gMaps = window.google?.maps;
+    const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
     if (!map || !gMaps) return;
 
     storeMarkersRef.current.forEach(m => m.setMap(null));
@@ -193,7 +215,7 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
   // ── User marker ──
   useEffect(() => {
     if (status !== 'ready') return;
-    const gMaps = window.google?.maps;
+    const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
     const map = mapRef.current;
     if (!gMaps || !map) return;
 
@@ -211,18 +233,17 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
   // ── Nearby Places ──
   function fetchNearbyPlaces(
-    placesLib: google.maps.PlacesLibrary,
     map: google.maps.Map,
     infoWindow: google.maps.InfoWindow,
     center: google.maps.LatLng
   ) {
-    const gMaps = window.google?.maps;
+    const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
     if (!gMaps?.places?.PlacesService) return;
 
     const service = new gMaps.places.PlacesService(map);
     service.nearbySearch(
       { location: center, radius: 1500, type: 'restaurant' },
-      (results, statusCode) => {
+      (results: google.maps.places.PlaceResult[] | null, statusCode: google.maps.places.PlacesServiceStatus) => {
         if (statusCode !== gMaps.places.PlacesServiceStatus.OK || !results) return;
 
         placeMarkersRef.current.forEach(m => m.setMap(null));
@@ -302,7 +323,6 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
       {status === 'ready' && (
         <>
-          {/* Locate button */}
           <button
             onClick={handleLocate}
             className="absolute bottom-6 right-4 z-10 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 border border-gray-200 active:scale-95 transition-all"
@@ -313,7 +333,6 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
             }
           </button>
 
-          {/* Legend */}
           <div className="absolute bottom-6 left-4 z-10 bg-white/90 backdrop-blur-sm rounded-xl shadow-md px-3 py-2.5 flex flex-col gap-1.5 border border-gray-100">
             <div className="flex items-center gap-2 text-xs text-gray-700">
               <div className="w-3 h-3 rounded-full bg-[#2D5A51] shrink-0" />
