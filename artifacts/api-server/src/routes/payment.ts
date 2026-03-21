@@ -215,15 +215,17 @@ router.post("/checkout/session", async (req, res) => {
       locale: "ja" as const,
     };
 
-    // Stripe Connect: on_behalf_of（店舗負担の決済手数料）+ application_fee_amount（25%）+ transfer_data
+    // Stripe Connect: Destination Charge モード
+    // - on_behalf_of は card_payments capability が必要なため使用しない
+    // - transfer_data.destination のみ指定 → transfers capability だけで動作
+    // - application_fee_amount で 25% をプラットフォームが受け取り、残額を店舗へ自動送金
     let session;
     let connectUsed = false;
     try {
       session = await stripe.checkout.sessions.create({
         ...commonParams,
         payment_intent_data: {
-          on_behalf_of: destinationAccountId,              // 決済手数料を店舗側に負担させる
-          application_fee_amount: applicationFeeAmount,   // 25% プラットフォーム手数料
+          application_fee_amount: applicationFeeAmount,         // 25% プラットフォーム手数料
           transfer_data: { destination: destinationAccountId }, // 残額を店舗へ送金
           metadata: {
             reservationId:      String(reservation.id),
@@ -234,15 +236,16 @@ router.post("/checkout/session", async (req, res) => {
         },
       });
       connectUsed = true;
-      console.log(`✅ Stripe Connect 成功: amount=${amountInYen}JPY, fee=${applicationFeeAmount}JPY (25%), on_behalf_of=${destinationAccountId}`);
+      console.log(`✅ Stripe Destination Charge 成功: amount=${amountInYen}JPY, fee=${applicationFeeAmount}JPY (25%), destination=${destinationAccountId}`);
     } catch (connectErr: any) {
-      // テスト環境でのクロスリージョン制限の場合のみフォールバック
-      // 本番環境では同リージョンの Connected Account を使用するため発生しない
-      if (connectErr?.code === "transfers_not_allowed" || connectErr?.code === "account_invalid") {
+      // Connect が使えない場合はプラットフォーム直接決済にフォールバック
+      const isConnectError =
+        connectErr?.code === "transfers_not_allowed" ||
+        connectErr?.code === "account_invalid" ||
+        connectErr?.type === "StripeInvalidRequestError";
+      if (isConnectError) {
         console.warn(
-          `⚠️  Stripe Connect クロスリージョン制限のためフォールバック (${connectErr.code})\n` +
-          `   destination=${destinationAccountId} はプラットフォームと異なるリージョンです\n` +
-          `   本番環境では日本リージョンの Connected Account を使用してください`
+          `⚠️  Stripe Connect フォールバック (${connectErr.code ?? connectErr.type}): ${connectErr.message}`
         );
         session = await stripe.checkout.sessions.create({
           ...commonParams,
@@ -252,7 +255,7 @@ router.post("/checkout/session", async (req, res) => {
               platformFeeAmount:  String(applicationFeeAmount),
               platformFeeRate:    "25",
               destinationAccount: destinationAccountId,
-              connectStatus:      "fallback_cross_region",
+              connectStatus:      "fallback",
             },
           },
         });
