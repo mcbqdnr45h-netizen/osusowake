@@ -10,6 +10,7 @@ import BagDetail from "./pages/BagDetail";
 import Checkout from "./pages/Checkout";
 import MyReservations from "./pages/MyReservations";
 import StoreDashboard from "./pages/StoreDashboard";
+import StoreOwnerDashboard from "./pages/StoreOwnerDashboard";
 import SearchPage from "./pages/SearchPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import MyPage from "./pages/MyPage";
@@ -63,6 +64,7 @@ function Router() {
       <Route path="/my-reservations" component={MyReservations} />
       <Route path="/orders/:id" component={OrderTicket} />
       <Route path="/store-dashboard" component={StoreDashboard} />
+      <Route path="/store/dashboard" component={StoreOwnerDashboard} />
       <Route path="/register-store" component={RegisterStore} />
       <Route path="/admin-verify-shops" component={AdminVerifyShops} />
       <Route path="/settings" component={Settings} />

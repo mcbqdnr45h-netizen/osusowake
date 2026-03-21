@@ -22,7 +22,7 @@ export default function Login() {
     setError('');
     setIsLoading(true);
 
-    const { error: err } = await signIn(email, password);
+    const { error: err, role } = await signIn(email, password);
 
     setIsLoading(false);
 
@@ -31,7 +31,11 @@ export default function Login() {
       return;
     }
 
-    navigate('/mypage');
+    if (role === 'store_owner') {
+      navigate('/store/dashboard');
+    } else {
+      navigate('/mypage');
+    }
   }
 
   return (

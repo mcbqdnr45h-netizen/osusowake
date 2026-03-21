@@ -8,7 +8,7 @@ interface AuthContextValue {
   session: Session | null;
   isLoading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; role: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -73,9 +73,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: translateError(error.message) };
-    return { error: null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: translateError(error.message), role: null };
+
+    let role: string | null = 'customer';
+    if (data.user) {
+      const { data: prof } = await supabase
+        .from('users')
+        .select('role, points_balance, email')
+        .eq('id', data.user.id)
+        .single();
+      if (prof) {
+        role = prof.role;
+        setProfile({ id: data.user.id, email: prof.email, role: prof.role, points_balance: prof.points_balance, created_at: data.user.created_at });
+      }
+    }
+
+    return { error: null, role };
   }
 
   async function signOut() {
