@@ -78,7 +78,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
       {!hideFooter && <footer className="bg-background border-t border-border mt-auto">
         {/* Mobile footer */}
         <div className="md:hidden px-5 py-3">
-          <p className="text-center text-[10px] text-muted-foreground/50">© 2025 食べロス</p>
+          <p className="text-center text-[10px] text-muted-foreground/50">© 2026 食べロス</p>
         </div>
 
         {/* Desktop footer */}
@@ -104,7 +104,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
                 ヘルプ・お問い合わせ
               </a>
               <span>·</span>
-              <span className="text-muted-foreground/60">© 2025 食べロス. All rights reserved.</span>
+              <span className="text-muted-foreground/60">© 2026 食べロス. All rights reserved.</span>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground/60 text-center">
