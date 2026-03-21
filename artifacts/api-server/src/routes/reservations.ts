@@ -105,6 +105,18 @@ router.post("/reservations", async (req, res) => {
       return;
     }
 
+    // 受取時間チェック（JST基準）
+    if (bag.pickupEnd) {
+      const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+      const createdJST = new Date(bag.createdAt.getTime() + 9 * 60 * 60 * 1000);
+      const isToday = nowJST.toISOString().slice(0, 10) === createdJST.toISOString().slice(0, 10);
+      const currentTime = nowJST.toISOString().slice(11, 16); // "HH:MM"
+      if (!isToday || currentTime > bag.pickupEnd) {
+        res.status(410).json({ error: "expired", message: "この商品の受取時間が過ぎています" });
+        return;
+      }
+    }
+
     if (bag.stockCount < body.quantity) {
       res.status(400).json({ error: "out_of_stock", message: "Not enough stock available" });
       return;

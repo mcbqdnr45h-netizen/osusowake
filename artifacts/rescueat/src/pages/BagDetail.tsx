@@ -201,13 +201,23 @@ export default function BagDetail() {
   const { toast } = useToast();
   const { isFavorite, toggle } = useFavorites();
 
-  const { data: bag, isLoading } = useGetBag(bagId);
+  const { data: bag, isLoading, error } = useGetBag(bagId);
   const createReservation = useCreateReservation();
 
   const [, navigate] = useLocation();
   const [quantity, setQuantity] = useState(1);
   const [showReport, setShowReport] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
+
+  // 受取時間が過ぎているか判定（JST基準）
+  const isExpired = React.useMemo(() => {
+    if (!bag?.pickupEnd) return false;
+    const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const createdJST = new Date(new Date(bag.createdAt as string).getTime() + 9 * 60 * 60 * 1000);
+    const isToday = nowJST.toISOString().slice(0, 10) === createdJST.toISOString().slice(0, 10);
+    const currentTime = nowJST.toISOString().slice(11, 16); // "HH:MM"
+    return !isToday || currentTime > bag.pickupEnd;
+  }, [bag]);
 
   const { data: reviewData } = useQuery<ReviewData>({
     queryKey: ['store-reviews', bag?.store?.id],
@@ -231,16 +241,39 @@ export default function BagDetail() {
     );
   }
 
+  // 410 (期限切れ) または 404 (存在しない)
   if (!bag) {
+    const isExpiredError = (error as any)?.status === 410;
     return (
       <Layout>
-        <div className="p-8 text-center">バッグが見つかりません</div>
+        <div className="flex flex-col items-center justify-center p-12 text-center gap-4">
+          {isExpiredError ? (
+            <>
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                <Clock className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold mb-2">受取時間が終了しました</h2>
+                <p className="text-sm text-muted-foreground">この商品の受取時間は既に過ぎています。<br />他の商品をお探しください。</p>
+              </div>
+              <button
+                onClick={() => window.history.back()}
+                className="mt-2 px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-bold text-sm hover:bg-primary/90 transition-colors"
+              >
+                戻る
+              </button>
+            </>
+          ) : (
+            <p className="text-muted-foreground">バッグが見つかりません</p>
+          )}
+        </div>
       </Layout>
     );
   }
 
   const discountPercent = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
   const isSoldOut = bag.stockCount <= 0;
+  const isUnavailable = isExpired || isSoldOut;
 
   const handleReserve = () => {
     if (!userId) return;
@@ -523,7 +556,7 @@ export default function BagDetail() {
             <div className="bg-secondary rounded-2xl flex items-center p-1 h-14 border border-border/50">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                disabled={quantity <= 1 || isSoldOut}
+                disabled={quantity <= 1 || isUnavailable}
                 className="w-12 h-full flex items-center justify-center rounded-xl text-foreground hover:bg-background disabled:opacity-50 transition-colors"
               >
                 <Minus className="w-5 h-5" />
@@ -533,7 +566,7 @@ export default function BagDetail() {
               </div>
               <button
                 onClick={() => setQuantity(Math.min(bag.stockCount, quantity + 1))}
-                disabled={quantity >= bag.stockCount || isSoldOut}
+                disabled={quantity >= bag.stockCount || isUnavailable}
                 className="w-12 h-full flex items-center justify-center rounded-xl text-foreground hover:bg-background disabled:opacity-50 transition-colors"
               >
                 <Plus className="w-5 h-5" />
@@ -542,15 +575,20 @@ export default function BagDetail() {
 
             <button
               onClick={handleReserve}
-              disabled={isSoldOut || createReservation.isPending}
+              disabled={isUnavailable || createReservation.isPending}
               className={`flex-1 h-14 rounded-2xl font-bold text-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2
-                ${isSoldOut
+                ${isUnavailable
                   ? 'bg-muted text-muted-foreground shadow-none cursor-not-allowed'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-1 hover:shadow-primary/30 active:translate-y-0 active:shadow-sm'
                 }`}
             >
               {createReservation.isPending ? (
                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : isExpired ? (
+                <span className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  受取時間が終了しました
+                </span>
               ) : isSoldOut ? (
                 '完売しました'
               ) : (
@@ -558,9 +596,15 @@ export default function BagDetail() {
               )}
             </button>
           </div>
-          {!isSoldOut && (
+          {!isUnavailable && (
             <div className="text-center mt-3 text-xs text-muted-foreground md:hidden">
               残りわずか{bag.stockCount}個！お早めに。
+            </div>
+          )}
+          {isExpired && (
+            <div className="text-center mt-3 text-xs text-muted-foreground md:hidden flex items-center justify-center gap-1">
+              <Clock className="w-3 h-3" />
+              本日の受取時間（〜{bag.pickupEnd}）が終了しました
             </div>
           )}
         </div>
