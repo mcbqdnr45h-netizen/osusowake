@@ -20,7 +20,6 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
     }
     const script = document.createElement('script');
     script.id = MAPS_SCRIPT_ID;
-    // placesライブラリを削除
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps&v=weekly&language=ja&region=JP`;
     script.async = true;
     script.defer = true;
@@ -31,24 +30,19 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
 }
 
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { featureType: 'poi',          stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit',      stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'road',         elementType: 'geometry',          stylers: [{ color: '#f5f5f5' }] },
-  { featureType: 'road',         elementType: 'labels.text.fill',  stylers: [{ color: '#aaaaaa' }] },
-  { featureType: 'water',        elementType: 'geometry',          stylers: [{ color: '#c9e0e8' }] },
-  { featureType: 'landscape',    elementType: 'geometry',          stylers: [{ color: '#f8f8f8' }] },
-  { featureType: 'administrative', elementType: 'labels.text.fill', stylers: [{ color: '#888888' }] },
+  { featureType: 'poi',            stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit',        stylers: [{ visibility: 'simplified' }] },
+  { featureType: 'road',           elementType: 'geometry',          stylers: [{ color: '#f5f5f5' }] },
+  { featureType: 'road',           elementType: 'labels.text.fill',  stylers: [{ color: '#aaaaaa' }] },
+  { featureType: 'water',          elementType: 'geometry',          stylers: [{ color: '#c9e0e8' }] },
+  { featureType: 'landscape',      elementType: 'geometry',          stylers: [{ color: '#f8f8f8' }] },
+  { featureType: 'administrative', elementType: 'labels.text.fill',  stylers: [{ color: '#888888' }] },
 ];
 
-/**
- * 出品中（在庫あり）→ グラデーション緑 + バッジ
- * 登録のみ（在庫なし）→ グレーピン
- */
 function makeStoreIconUrl(category: string, isListing: boolean, bagCount: number): string {
   const emoji = getCategoryIcon(category);
 
   if (isListing) {
-    // 出品中: 濃いグリーン グラデーション + 個数バッジ
     const badge = bagCount > 0
       ? `<rect x="22" y="2" width="20" height="15" rx="7.5" fill="#F59E0B"/>
          <text x="32" y="13.5" text-anchor="middle" font-size="9" font-family="sans-serif" fill="white" font-weight="bold">${bagCount}</text>`
@@ -67,7 +61,6 @@ function makeStoreIconUrl(category: string, isListing: boolean, bagCount: number
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   } else {
-    // 登録のみ: グレー
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
       <defs>
         <radialGradient id="g2" cx="40%" cy="35%" r="65%">
@@ -96,15 +89,16 @@ interface MapViewProps {
   center?: [number, number];
   zoom?: number;
   userPosition?: [number, number] | null;
+  onStoreSelect?: (store: Store) => void;
 }
 
-export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
-  const containerRef  = useRef<HTMLDivElement>(null);
-  const mapRef        = useRef<google.maps.Map | null>(null);
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-  const clustererRef  = useRef<MarkerClusterer | null>(null);
-  const userMarkerRef = useRef<google.maps.Marker | null>(null);
+export function MapView({ stores, center, zoom, userPosition, onStoreSelect }: MapViewProps) {
+  const containerRef    = useRef<HTMLDivElement>(null);
+  const mapRef          = useRef<google.maps.Map | null>(null);
+  const clustererRef    = useRef<MarkerClusterer | null>(null);
+  const userMarkerRef   = useRef<google.maps.Marker | null>(null);
   const storeMarkersRef = useRef<google.maps.Marker[]>([]);
+  const onStoreSelectRef = useRef(onStoreSelect);
 
   const [status,   setStatus]  = useState<'loading' | 'ready' | 'error'>('loading');
   const [locating, setLocating] = useState(false);
@@ -114,7 +108,10 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
   const mapCenter = center ? { lat: center[0], lng: center[1] } : OSAKA_CENTER;
 
-  // 承認済み店舗のみを表示
+  // コールバックを常に最新に保つ
+  useEffect(() => { onStoreSelectRef.current = onStoreSelect; }, [onStoreSelect]);
+
+  // 承認済み店舗のみ
   const approvedStores = stores.filter(s => (s as any).status === 'approved' || !(s as any).status);
 
   // ── マップ初期化 ──────────────────────────────────────────────────────────
@@ -152,11 +149,8 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
           clickableIcons: false,
         });
 
-        const infoWindow = new gMaps.InfoWindow();
         mapRef.current = map;
-        infoWindowRef.current = infoWindow;
         clustererRef.current = new MarkerClusterer({ map });
-
         setStatus('ready');
       } catch (e) {
         console.error('Google Maps load error:', e);
@@ -168,7 +162,7 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
     return () => { cancelled = true; };
   }, []);
 
-  // ── 登録店舗マーカー（承認済みのみ） ────────────────────────────────────
+  // ── 登録店舗マーカー ────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
     const map   = mapRef.current;
@@ -195,34 +189,20 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
       });
 
       marker.addListener('click', () => {
-        const iw = infoWindowRef.current;
-        if (!iw) return;
-
-        const statusChip = isListing
-          ? `<div style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#2D5A51,#4AAF96);color:white;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:bold;margin-bottom:8px">
-               🛍 出品中 · ${bagCount}個あり
-             </div>`
-          : `<div style="display:inline-flex;align-items:center;gap:4px;background:#F3F4F6;color:#6B7280;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:bold;margin-bottom:8px">
-               😴 現在出品なし
-             </div>`;
-
-        const actionBtn = isListing
-          ? `<a href="/bags" style="display:block;background:linear-gradient(135deg,#2D5A51,#4AAF96);color:white;padding:8px 12px;border-radius:10px;text-align:center;font-size:12px;font-weight:bold;text-decoration:none;margin-top:6px">
-               バッグを見る →
-             </a>`
-          : '';
-
-        iw.setContent(`
-          <div style="font-family:'Noto Sans JP',sans-serif;min-width:200px;padding:8px 4px">
-            ${statusChip}
-            <strong style="font-size:14px;display:block;margin-bottom:3px;line-height:1.4">
-              ${getCategoryIcon(store.category)} ${store.name}
-            </strong>
-            <div style="font-size:11px;color:#888;margin-bottom:4px">${store.address ?? ''}</div>
-            ${actionBtn}
-          </div>
-        `);
-        iw.open(map, marker);
+        // マップを少し上にパンしてボトムシートに隠れないよう調整
+        const pos = marker.getPosition();
+        if (pos) {
+          const projection = map.getProjection();
+          if (projection) {
+            const point = projection.fromLatLngToPoint(pos);
+            if (point) {
+              const offsetPoint = new (window as any).google.maps.Point(point.x, point.y + 0.006);
+              const newLatLng = projection.fromPointToLatLng(offsetPoint);
+              if (newLatLng) map.panTo(newLatLng);
+            }
+          }
+        }
+        onStoreSelectRef.current?.(store);
       });
 
       return marker;
@@ -232,7 +212,7 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
     clustererRef.current?.addMarkers(markers);
   }, [approvedStores.map(s => `${s.id}-${s.totalBagsAvailable}`).join(','), status]);
 
-  // ── 現在地マーカー ────────────────────────────────────────────────────────
+  // ── 現在地マーカー ────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
     const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
@@ -251,7 +231,7 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
     }
   }, [userPos, status]);
 
-  // ── GPS ──────────────────────────────────────────────────────────────────
+  // ── GPS ──────────────────────────────────────────────────────────────
   function handleLocate() {
     if (userPos) {
       mapRef.current?.panTo(userPos);
@@ -272,7 +252,6 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
     );
   }
 
-  // 出品中・登録のみの件数
   const listingCount  = approvedStores.filter(s => (s.totalBagsAvailable ?? 0) > 0).length;
   const registedCount = approvedStores.filter(s => (s.totalBagsAvailable ?? 0) === 0).length;
 
@@ -280,7 +259,6 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
     <div className="w-full h-full relative">
       <div ref={containerRef} className="w-full h-full" />
 
-      {/* ローディング */}
       {status === 'loading' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted gap-3">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -288,7 +266,6 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
         </div>
       )}
 
-      {/* エラー */}
       {status === 'error' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted gap-3 px-6 text-center">
           <AlertTriangle className="w-10 h-10 text-amber-500" />
@@ -316,21 +293,15 @@ export function MapView({ stores, center, zoom, userPosition }: MapViewProps) {
 
           {/* 凡例 */}
           <div className="absolute bottom-6 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg px-3.5 py-2.5 flex flex-col gap-2 border border-gray-100">
-            {/* 出品中 */}
             <div className="flex items-center gap-2">
               <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#4AAF96,#1E3F38)' }} />
               <span className="text-xs font-bold text-gray-700">出品中</span>
-              {listingCount > 0 && (
-                <span className="ml-auto text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">{listingCount}</span>
-              )}
+              {listingCount > 0 && <span className="ml-auto text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">{listingCount}</span>}
             </div>
-            {/* 登録店舗（出品なし） */}
             <div className="flex items-center gap-2">
               <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#D1D5DB,#9CA3AF)' }} />
               <span className="text-xs font-medium text-gray-500">登録店舗</span>
-              {registedCount > 0 && (
-                <span className="ml-auto text-[10px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{registedCount}</span>
-              )}
+              {registedCount > 0 && <span className="ml-auto text-[10px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{registedCount}</span>}
             </div>
           </div>
         </>
