@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface LayoutProps {
   children: React.ReactNode;
   showBottomNav?: boolean;
+  hideFooter?: boolean;
 }
 
-export function Layout({ children, showBottomNav = true }: LayoutProps) {
+export function Layout({ children, showBottomNav = true, hideFooter = false }: LayoutProps) {
   const [location] = useLocation();
 
   const navItems = [
@@ -72,7 +73,7 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
       </main>
 
       {/* Footer */}
-      <footer className="bg-background border-t border-border mt-auto">
+      {!hideFooter && <footer className="bg-background border-t border-border mt-auto">
         {/* Mobile footer */}
         <div className="md:hidden px-5 py-3">
           <p className="text-center text-[10px] text-muted-foreground/50">© 2025 食べロス</p>
@@ -104,7 +105,7 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
             初期費用・月額0円。売れた場合のみ手数料20%が発生する成果報酬型。手数料は決済額から自動控除されます。
           </div>
         </div>
-      </footer>
+      </footer>}
 
       {/* Mobile Bottom Nav */}
       {showBottomNav && (

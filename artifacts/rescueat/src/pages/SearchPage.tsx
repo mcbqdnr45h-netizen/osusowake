@@ -26,10 +26,10 @@ export default function SearchPage() {
   const displayStores = (stores || []).filter(s => !query || filteredStoreIds.has(s.id));
 
   return (
-    <Layout>
+    <Layout hideFooter={view === 'map'}>
       {/* ── マップビュー ── */}
       {view === 'map' && (
-        <div className="relative" style={{ height: 'calc(100dvh - 64px)' }}>
+        <div className="relative h-[calc(100dvh_-_144px)] md:h-[calc(100dvh_-_64px)]">
 
           {/* 浮動検索バー */}
           <div className="absolute top-3 left-3 right-3 z-20 flex gap-2">
