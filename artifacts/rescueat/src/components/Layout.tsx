@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Map, Search, Package, Heart, User, X } from 'lucide-react';
+import { Map, Search, Package, Heart, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface LayoutProps {
@@ -8,74 +8,8 @@ interface LayoutProps {
   showBottomNav?: boolean;
 }
 
-function TokushoModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm px-0 md:px-6"
-      onClick={onClose}
-    >
-      <div
-        className="bg-card w-full md:max-w-lg rounded-t-3xl md:rounded-2xl shadow-2xl max-h-[85dvh] flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Handle bar (mobile) */}
-        <div className="flex justify-center pt-3 md:hidden">
-          <div className="w-10 h-1 bg-border rounded-full" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <h2 className="text-lg font-black">特定商取引法に基づく表記</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="overflow-y-auto px-6 py-5 space-y-5">
-          {[
-            { label: '販売業者', value: '食べロス運営事務局' },
-            { label: '運営責任者', value: 'Yuhi' },
-            { label: 'お問い合わせ', value: (
-              <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
-                Googleフォームよりお問い合わせください
-              </a>
-            )},
-            { label: 'サービス内容', value: 'フードロス削減を目的とした飲食店・食料品店のサプライズバッグ予約・購入プラットフォーム' },
-            { label: '販売価格', value: '各商品ページに表示の価格（税込）' },
-            { label: '支払方法', value: 'クレジットカード（Stripe決済）' },
-            { label: '支払時期', value: '予約確定時に即時決済' },
-            { label: '商品の引渡し時期', value: '各店舗の受取時間内にご来店の上、お受け取りください' },
-            { label: 'キャンセル・返品規定', value: '商品の性質上、購入確定後のキャンセル・返品・交換はお受けできません。ただし、店舗側の都合による商品提供不可の場合は全額返金いたします。' },
-            { label: '手数料', value: '初期費用・月額費用：0円。販売成立時のみ、販売金額の20%を手数料として申し受けます。' },
-            { label: '個人情報の取扱い', value: '収集した個人情報は、サービス提供・改善の目的のみに使用し、第三者への提供は行いません。' },
-          ].map(({ label, value }) => (
-            <div key={label} className="border-b border-border/50 pb-4 last:border-0 last:pb-0">
-              <dt className="text-xs font-black text-muted-foreground uppercase tracking-wide mb-1">{label}</dt>
-              <dd className="text-sm text-foreground leading-relaxed">{value}</dd>
-            </div>
-          ))}
-        </div>
-
-        <div className="shrink-0 px-6 pb-6 pt-4">
-          <button
-            onClick={onClose}
-            className="w-full bg-primary text-primary-foreground font-bold py-3.5 rounded-xl hover:bg-primary/90 active:scale-[0.98] transition-all"
-          >
-            閉じる
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function Layout({ children, showBottomNav = true }: LayoutProps) {
   const [location] = useLocation();
-  const [showTokusho, setShowTokusho] = useState(false);
 
   const navItems = [
     { href: '/', icon: Map, label: '発見' },
@@ -94,7 +28,6 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-[80px] md:pb-0 flex flex-col font-sans">
-      {showTokusho && <TokushoModal onClose={() => setShowTokusho(false)} />}
 
       {/* Top Header */}
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border shadow-sm">
@@ -138,23 +71,11 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
         </AnimatePresence>
       </main>
 
-      {/* Footer — mobile: compact, desktop: full */}
+      {/* Footer */}
       <footer className="bg-background border-t border-border mt-auto">
         {/* Mobile footer */}
-        <div className="md:hidden px-5 py-4 pb-2">
-          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-            <Link href="/terms" className="hover:text-primary transition-colors font-medium py-1">利用規約</Link>
-            <span className="text-border">·</span>
-            <Link href="/privacy" className="hover:text-primary transition-colors font-medium py-1">プライバシーポリシー</Link>
-            <span className="text-border">·</span>
-            <button
-              onClick={() => setShowTokusho(true)}
-              className="hover:text-primary transition-colors py-1"
-            >
-              特定商取引法
-            </button>
-          </div>
-          <p className="text-center text-[10px] text-muted-foreground/50 mt-2">© 2025 食べロス</p>
+        <div className="md:hidden px-5 py-3">
+          <p className="text-center text-[10px] text-muted-foreground/50">© 2025 食べロス</p>
         </div>
 
         {/* Desktop footer */}
@@ -175,17 +96,6 @@ export function Layout({ children, showBottomNav = true }: LayoutProps) {
               >
                 ヘルプ・お問い合わせ
               </a>
-              <span>·</span>
-              <button
-                onClick={() => setShowTokusho(true)}
-                className="hover:text-primary transition-colors text-xs"
-              >
-                特定商取引法に基づく表記
-              </button>
-              <span>·</span>
-              <Link href="/privacy" className="hover:text-primary transition-colors">プライバシーポリシー</Link>
-              <span>·</span>
-              <Link href="/terms" className="hover:text-primary transition-colors">利用規約</Link>
               <span>·</span>
               <span className="text-muted-foreground/60">© 2025 食べロス. All rights reserved.</span>
             </div>

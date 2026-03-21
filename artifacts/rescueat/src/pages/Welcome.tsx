@@ -85,11 +85,7 @@ export default function Welcome() {
         </Link>
 
         <p className="text-center text-white/40 text-xs pt-2">
-          登録することで
-          <Link href="/terms" className="text-white/60 underline underline-offset-2 mx-1">利用規約</Link>
-          および
-          <Link href="/privacy" className="text-white/60 underline underline-offset-2 mx-1">プライバシーポリシー</Link>
-          に同意したものとみなします
+          登録することで利用規約およびプライバシーポリシーに同意したものとみなします
         </p>
       </motion.div>
     </div>
