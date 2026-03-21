@@ -14,13 +14,30 @@ import {
 const router: IRouter = Router();
 
 // 受取時間が過ぎていないか判定するSQL条件（JST基準）
-// - pickupEnd が NULL → 制限なし（常に表示）
-// - 出品された日が今日 かつ pickupEnd が現在時刻以降 → 表示
-// - 出品された日が今日ではない（昨日以前） → 非表示（期限切れ）
+// - pickupEnd が NULL           → 常に表示
+// - 通常バッグ（同日）          → 今日作成 かつ pickupEnd >= 現在時刻
+// - 深夜またぎバッグ            → pickupEnd < pickupStart のとき翌日まで表示
+//   例）pickupStart=23:00, pickupEnd=01:00 → 翌1時まで表示
 const notExpiredCondition = sql`(
   ${surpriseBagsTable.pickupEnd} IS NULL
+
   OR (
+    -- 通常ケース：今日出品 かつ pickupEnd が現在時刻以降
     DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
+    AND ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
+    AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
+  )
+
+  OR (
+    -- 深夜またぎ（今日出品）: pickupEnd < pickupStart → 翌日の pickupEnd まで常に表示
+    DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
+    AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
+  )
+
+  OR (
+    -- 深夜またぎ（昨日出品）: 翌日の今 pickupEnd を過ぎていない
+    DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day'
+    AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
     AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
   )
 )`;
@@ -46,7 +63,7 @@ router.get("/bags", async (_req, res) => {
       .innerJoin(storesTable, eq(surpriseBagsTable.storeId, storesTable.id))
       .where(and(
         eq(surpriseBagsTable.isActive, true),
-        eq(storesTable.isActive, true),
+        sql`(${storesTable.isActive} = true OR ${storesTable.status} = 'approved')`,
         notExpiredCondition,
       ));
 

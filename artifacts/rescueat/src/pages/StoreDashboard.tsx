@@ -284,7 +284,8 @@ export default function StoreDashboard() {
           imageUrl: photoUrl || undefined,
         }
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores/19/bags'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bags'] });
       setPhotoPublished(true);
       const count = Math.floor(Math.random() * 60) + 20;
       setNotifyCount(count);
@@ -344,7 +345,8 @@ export default function StoreDashboard() {
           pickupEnd: selectedTemplate.pickupEnd,
         }
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores/19/bags'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bags'] });
 
       // 通知演出
       const count = Math.floor(Math.random() * 60) + 20;
