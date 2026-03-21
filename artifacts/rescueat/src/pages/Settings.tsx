@@ -5,7 +5,7 @@ import { useLocation, Link } from 'wouter';
 import {
   ChevronLeft, User, Camera, Bell, Gift, LogOut,
   Copy, Share2, Check, ChevronRight, Mail, Pencil,
-  FileText, Shield, Sparkles, Store, X,
+  Sparkles, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -426,37 +426,6 @@ export default function Settings() {
             >
               <Share2 className="w-4 h-4" />
               友達に教える（シェア）
-            </button>
-          </div>
-
-          {/* ── LEGAL ── */}
-          <SectionLabel>規約・その他</SectionLabel>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-1">
-            <Link href="/terms" className="flex items-center gap-3.5 px-4 min-h-[56px] hover:bg-secondary/60 transition-colors border-b border-border/60">
-              <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <span className="flex-1 font-bold text-sm text-foreground">利用規約</span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </Link>
-
-            <Link href="/privacy" className="flex items-center gap-3.5 px-4 min-h-[56px] hover:bg-secondary/60 transition-colors border-b border-border/60">
-              <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                <Shield className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <span className="flex-1 font-bold text-sm text-foreground">プライバシーポリシー</span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </Link>
-
-            <button
-              onClick={() => setShowTokusho(true)}
-              className="w-full flex items-center gap-3.5 px-4 min-h-[56px] hover:bg-secondary/60 transition-colors"
-            >
-              <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                <Store className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <span className="flex-1 font-bold text-sm text-foreground text-left">特定商取引法に基づく表記</span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
 
