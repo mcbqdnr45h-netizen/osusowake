@@ -27,6 +27,13 @@ export default function CheckoutSuccess() {
   }, [sessionId, reservationId]);
 
   useEffect(() => {
+    window.history.pushState(null, '', window.location.href);
+    const handlePop = () => navigate('/my-reservations');
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [navigate]);
+
+  useEffect(() => {
     if (!verified) return;
     const t = setTimeout(() => navigate('/my-reservations'), 5000);
     return () => clearTimeout(t);

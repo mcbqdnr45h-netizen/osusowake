@@ -52,7 +52,7 @@ export default function Checkout() {
       const { url } = await res.json();
       if (!url) throw new Error('Stripe URLが取得できませんでした');
 
-      window.location.href = url;
+      window.location.replace(url);
     } catch (err: any) {
       toast({
         title: '決済エラー',
