@@ -3,9 +3,10 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, LayoutDashboard, ClipboardCheck } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, LayoutDashboard, ClipboardCheck, Mail } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
+import { useAuth } from '@/contexts/AuthContext';
 
 const POINT_RATE = 0.03;
 
@@ -13,6 +14,7 @@ export default function MyPage() {
   const userId = useUserId();
   const { isApprovedOwner } = useMyStore();
   const [, navigate] = useLocation();
+  const { user, profile, signOut } = useAuth();
 
   const { data: reservations } = useListReservations({ userId: userId || '' }, {
     query: { enabled: !!userId }
@@ -28,7 +30,8 @@ export default function MyPage() {
   const totalSpent = pickedUpReservations.reduce((sum, r) => sum + (r.totalPrice || 0), 0);
   const totalPoints = Math.floor(totalSpent * POINT_RATE);
 
-  function handleLogout() {
+  async function handleLogout() {
+    await signOut();
     navigate('/welcome');
   }
 
@@ -38,14 +41,48 @@ export default function MyPage() {
         <h1 className="text-2xl font-black mb-6 text-foreground">マイページ</h1>
 
         {/* Profile Card */}
-        <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4 mb-4 shadow-sm">
-          <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0 border border-primary/30">
-            <User className="w-8 h-8" />
+        <div className="bg-card border border-border rounded-2xl p-5 mb-4 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0 border border-primary/30">
+              <User className="w-8 h-8" />
+            </div>
+            <div className="min-w-0 flex-1">
+              {user ? (
+                <>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-lg font-black text-foreground truncate">{user.email}</h2>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0
+                      ${profile?.role === 'store_owner'
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                        : 'bg-primary/10 text-primary'
+                      }`}>
+                      {profile?.role === 'store_owner' ? '🏪 店舗オーナー' : '👤 お客様'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
+                    <Mail className="w-3 h-3" />
+                    <span>Supabase Auth 認証済み</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-xl font-bold text-foreground">ゲストユーザー</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    <Link href="/login" className="text-primary font-bold underline underline-offset-2">ログイン</Link>
+                    {' '}または{' '}
+                    <Link href="/signup" className="text-primary font-bold underline underline-offset-2">新規登録</Link>
+                  </p>
+                </>
+              )}
+            </div>
           </div>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-foreground">ゲストユーザー</h2>
-            <p className="text-sm text-muted-foreground mt-1 truncate">ID: {userId}</p>
-          </div>
+          {/* Points from Supabase */}
+          {profile && (
+            <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Supabase ポイント残高</span>
+              <span className="font-black text-amber-500">{profile.points_balance.toLocaleString()} pt</span>
+            </div>
+          )}
         </div>
 
         {/* ── Points Card ── */}
