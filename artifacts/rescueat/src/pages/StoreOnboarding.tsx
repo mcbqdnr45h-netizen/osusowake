@@ -53,7 +53,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   return null;
 }
 
-type Step = 'basic' | 'compliance' | 'done';
+type Step = 'basic' | 'compliance' | 'redirecting' | 'done';
 
 interface BasicForm {
   name: string; address: string; city: string;
@@ -111,6 +111,7 @@ export default function StoreOnboarding() {
   const [submitting, setSubmitting] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [createdStoreId, setCreatedStoreId] = useState<number | null>(null);
+  const [stripeConnected, setStripeConnected] = useState(false);
 
   const [basic, setBasic] = useState<BasicForm>({
     name: '', address: '', city: '', category: 'restaurant',
@@ -126,6 +127,20 @@ export default function StoreOnboarding() {
 
   const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Stripe から戻ってきた場合（?stripe_connect=return&storeId=XXX）
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stripeReturn = params.get('stripe_connect');
+    const storeIdParam = params.get('storeId');
+    if ((stripeReturn === 'return' || stripeReturn === 'refresh') && storeIdParam) {
+      setCreatedStoreId(parseInt(storeIdParam));
+      setStripeConnected(stripeReturn === 'return');
+      setStep('done');
+      // URLパラメータをクリア
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   function handleAddressChange(val: string) {
     setBasic(b => ({ ...b, address: val }));
@@ -164,6 +179,7 @@ export default function StoreOnboarding() {
 
     setSubmitting(true);
     try {
+      // ① 店舗情報を DB に保存
       const res = await fetch(`${BASE}/api/stores/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -186,10 +202,36 @@ export default function StoreOnboarding() {
       if (!res.ok) throw new Error(await res.text());
       const store = await res.json();
       setCreatedStoreId(store.id);
-      setStep('done');
+
+      // ② Stripe Connect Account Link を生成して store に stripe_account_id を紐付け
+      setStep('redirecting');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      const origin = window.location.origin;
+      const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+      const returnUrl  = `${origin}${basePath}/store-onboarding?stripe_connect=return&storeId=${store.id}`;
+      const refreshUrl = `${origin}${basePath}/store-onboarding?stripe_connect=refresh&storeId=${store.id}`;
+
+      const connectRes = await fetch(`${BASE}/api/stores/${store.id}/connect/onboard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl, refreshUrl }),
+      });
+
+      if (!connectRes.ok) {
+        // Stripe 未設定や失敗時はそのまま完了画面へ
+        setStripeConnected(false);
+        setStep('done');
+        return;
+      }
+
+      const { url } = await connectRes.json();
+
+      // ③ Stripe の口座登録ページへリダイレクト
+      window.location.href = url;
     } catch (err: any) {
       toast({ title: '申請失敗', description: err.message, variant: 'destructive' });
+      setStep('compliance');
     } finally {
       setSubmitting(false);
     }
@@ -412,6 +454,27 @@ export default function StoreOnboarding() {
             </motion.form>
           )}
 
+          {/* ── REDIRECTING（Stripeへ遷移中） ── */}
+          {step === 'redirecting' && (
+            <motion.div
+              key="redirecting"
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-16"
+            >
+              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+                <CheckCircle2 className="w-10 h-10 text-primary" />
+                <div className="absolute inset-0 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+              </div>
+              <h2 className="text-2xl font-black text-foreground mb-2">店舗情報を保存しました</h2>
+              <p className="text-muted-foreground text-sm mb-2 leading-relaxed">
+                Stripeの口座登録ページへ移動しています…
+              </p>
+              <p className="text-xs text-muted-foreground/60">
+                自動的に移動しない場合はしばらくお待ちください
+              </p>
+            </motion.div>
+          )}
+
           {/* ── DONE ── */}
           {step === 'done' && (
             <motion.div
@@ -419,31 +482,61 @@ export default function StoreOnboarding() {
               initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
               className="text-center py-8"
             >
+              {/* メインアイコン */}
               <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5">
-                <Clock className="w-12 h-12 text-primary" />
+                <CheckCircle2 className="w-12 h-12 text-primary" />
               </div>
-              <h2 className="text-2xl font-black text-foreground mb-2">申請を受け付けました！</h2>
+              <h2 className="text-2xl font-black text-foreground mb-2">
+                {stripeConnected ? '申請＆口座登録が完了しました！' : '申請を受け付けました！'}
+              </h2>
               <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-                1〜2営業日以内に審査結果をお知らせします。<br />
-                承認後、すぐに出品を開始できます。
+                {stripeConnected
+                  ? '書類審査が完了次第、Stripeで登録した口座へ自動で売上が振り込まれます。'
+                  : '1〜2営業日以内に審査結果をお知らせします。承認後、すぐに出品を開始できます。'}
               </p>
 
+              {/* 申請番号 */}
               {createdStoreId && (
-                <div className="bg-secondary/50 rounded-2xl p-4 text-left mb-6">
+                <div className="bg-secondary/50 rounded-2xl p-4 text-left mb-5">
                   <p className="text-xs text-muted-foreground font-bold mb-1">申請番号</p>
                   <p className="font-black text-primary text-lg">STORE-{String(createdStoreId).padStart(5, '0')}</p>
                 </div>
               )}
 
+              {/* Stripe 接続ステータス */}
+              <div className={`rounded-2xl p-4 text-left mb-5 border ${stripeConnected ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${stripeConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}>
+                    {stripeConnected
+                      ? <CheckCircle2 className="w-5 h-5 text-white" />
+                      : <Clock className="w-5 h-5 text-white" />
+                    }
+                  </div>
+                  <div>
+                    <p className={`font-black text-sm mb-0.5 ${stripeConnected ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'}`}>
+                      {stripeConnected ? 'Stripe口座登録済み' : 'Stripe口座登録が未完了です'}
+                    </p>
+                    <p className={`text-xs leading-relaxed ${stripeConnected ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                      {stripeConnected
+                        ? '決済が発生した際、プラットフォーム手数料25%を除いた売上が自動送金されます。'
+                        : '後から店舗ダッシュボードで口座登録を完了できます。'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ステップ一覧 */}
               <div className="space-y-3 text-left mb-8">
                 {[
-                  { icon: '📋', text: '書類審査（1〜2営業日）' },
-                  { icon: '✅', text: '承認通知（メール）' },
-                  { icon: '🚀', text: '即日出品スタート！' },
+                  { icon: '📋', text: '書類審査（1〜2営業日）', done: false },
+                  { icon: '✅', text: '承認通知', done: false },
+                  { icon: '💳', text: 'Stripe口座登録', done: stripeConnected },
+                  { icon: '🚀', text: '即日出品スタート！', done: false },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3">
+                  <div key={i} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${item.done ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}>
                     <span className="text-xl">{item.icon}</span>
-                    <span className="font-bold text-sm text-foreground">{item.text}</span>
+                    <span className={`font-bold text-sm ${item.done ? 'text-primary' : 'text-foreground'}`}>{item.text}</span>
+                    {item.done && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
                   </div>
                 ))}
               </div>
