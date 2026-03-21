@@ -6,6 +6,7 @@ import {
   Store, Package, LogOut, RefreshCw, Loader2, AlertCircle,
   ChevronRight, TrendingUp, ShoppingBag, PlusCircle,
   Minus, Plus, Power, BarChart3, Zap, ShieldAlert,
+  CreditCard, ExternalLink,
 } from 'lucide-react';
 
 interface StoreData {
@@ -34,6 +35,14 @@ interface TodaySales {
   net: number;
   count: number;
   connected: boolean;
+}
+
+interface ConnectStatus {
+  connected: boolean;
+  detailsSubmitted: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  accountId?: string;
 }
 
 function GuardScreen({ message, children }: { message: string; children?: React.ReactNode }) {
@@ -73,6 +82,8 @@ export default function StoreOwnerDashboard() {
   const [store, setStore] = useState<StoreData | null | undefined>(undefined);
   const [bags, setBags] = useState<BagData[]>([]);
   const [todaySales, setTodaySales] = useState<TodaySales | null>(null);
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
+  const [connectLoading, setConnectLoading] = useState(false);
   const [loadingStore, setLoadingStore] = useState(true);
   const [loadingBags, setLoadingBags] = useState(false);
   const [loadingSales, setLoadingSales] = useState(false);
@@ -134,17 +145,55 @@ export default function StoreOwnerDashboard() {
     }
   }, []);
 
+  const fetchConnectStatus = useCallback(async (storeId: number) => {
+    try {
+      const res = await fetch(`/api/stores/${storeId}/connect/status`);
+      if (res.ok) setConnectStatus(await res.json());
+    } catch { }
+  }, []);
+
+  const handleConnectOnboard = async () => {
+    if (!store) return;
+    setConnectLoading(true);
+    try {
+      const base = `${window.location.origin}${import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}`;
+      const res = await fetch(`/api/stores/${store.id}/connect/onboard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          returnUrl: `${base}/store/dashboard?stripe_connect=return`,
+          refreshUrl: `${base}/store/dashboard?stripe_connect=refresh`,
+        }),
+      });
+      if (!res.ok) throw new Error('オンボーディングリンクの取得に失敗しました');
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch (err: any) {
+      setError(err.message);
+      setConnectLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     fetchStore(user.id).then((s) => {
-      if (s) { fetchBags(s.id); fetchTodaySales(s.id); }
+      if (s) {
+        fetchBags(s.id);
+        fetchTodaySales(s.id);
+        fetchConnectStatus(s.id);
+      }
     });
-  }, [user, fetchStore, fetchBags, fetchTodaySales]);
+    // Stripe オンボーディングからの戻り検出
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('stripe_connect') === 'return') {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [user, fetchStore, fetchBags, fetchTodaySales, fetchConnectStatus]);
 
   const handleRefresh = async () => {
     if (!store) return;
     setRefreshing(true);
-    await Promise.all([fetchBags(store.id), fetchTodaySales(store.id)]);
+    await Promise.all([fetchBags(store.id), fetchTodaySales(store.id), fetchConnectStatus(store.id)]);
     setRefreshing(false);
   };
 
@@ -290,6 +339,42 @@ export default function StoreOwnerDashboard() {
               className="bg-destructive/10 border border-destructive/30 text-destructive text-sm font-medium px-4 py-3 rounded-xl flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />{error}
               <button onClick={() => setError(null)} className="ml-auto text-lg leading-none">×</button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Stripe 未設定警告バナー ── */}
+        <AnimatePresence>
+          {connectStatus !== null && !(connectStatus.detailsSubmitted && connectStatus.chargesEnabled) && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                  <CreditCard className="w-5 h-5 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-amber-800 text-sm leading-tight">
+                    【重要】お支払いの受取設定を完了させてください
+                  </p>
+                  <p className="text-amber-700 text-xs mt-1 leading-relaxed">
+                    {connectStatus.connected
+                      ? 'Stripe の審査・設定が完了していません。お客様からの入金を受け取るには設定を完了してください。'
+                      : '売上を受け取るには、Stripe Connect の銀行口座登録が必要です。'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleConnectOnboard}
+                disabled={connectLoading}
+                className="mt-3 w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 transition-colors active:scale-[0.98]"
+              >
+                {connectLoading
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <><ExternalLink className="w-4 h-4" />今すぐ振込先を登録する</>
+                }
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute, GuestRoute } from "@/components/ProtectedRoute";
 
 import Home from "./pages/Home";
 import BagDetail from "./pages/BagDetail";
@@ -35,17 +36,45 @@ import OrderTicket from "./pages/OrderTicket";
 import NotFound from "./pages/not-found";
 import SupabaseTest from "./pages/SupabaseTest";
 
+// ── ルートガードファクトリ ─────────────────────────────────────────────────────
+// 認証が必要なルート
+const Protected = (C: React.ComponentType, role?: 'customer' | 'store_owner') =>
+  function ProtectedWrapper() { return <ProtectedRoute component={C} requireRole={role} />; };
+
+// ゲスト専用ルート（ログイン済みなら自動リダイレクト）
+const Guest = (C: React.ComponentType) =>
+  function GuestWrapper() { return <GuestRoute component={C} />; };
+
+// ── 各ページのラッパー（コンポーネント安定化のため外で定義）──────────────────────
+const GuardedLogin          = Guest(Login);
+const GuardedSignUp         = Guest(SignUp);
+const GuardedStoreLogin     = Guest(StoreLogin);
+const GuardedStoreSignUp    = Guest(StoreSignUp);
+const GuardedMyPage         = Protected(MyPage);
+const GuardedMyReservations = Protected(MyReservations);
+const GuardedCheckout       = Protected(Checkout);
+const GuardedOrderTicket    = Protected(OrderTicket);
+const GuardedOrders         = Protected(Orders);
+const GuardedSettings       = Protected(Settings);
+const GuardedPaymentMethods = Protected(PaymentMethods);
+const GuardedFavorites      = Protected(FavoritesPage);
+const GuardedStoreDashboard = Protected(StoreDashboard, 'store_owner');
+const GuardedStoreOwnerDash = Protected(StoreOwnerDashboard, 'store_owner');
+const GuardedRegisterStore  = Protected(RegisterStore, 'store_owner');
+const GuardedStoreOnboarding = Protected(StoreOnboarding, 'store_owner');
+const GuardedAdmin          = Protected(AdminDashboard);
+const GuardedAdminVerify    = Protected(AdminVerifyShops);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      // 4xx エラー（クライアントエラー）はリトライしない。5xx のみリトライ。
       retry: (failureCount, error: unknown) => {
         const status = (error as any)?.status as number | undefined;
         if (status !== undefined && status >= 400 && status < 500) return false;
         return failureCount < 1;
       },
-      staleTime: 1000 * 60 * 2, // 2 minutes
+      staleTime: 1000 * 60 * 2,
     },
   },
 });
@@ -53,34 +82,44 @@ const queryClient = new QueryClient({
 function Router() {
   return (
     <Switch>
+      {/* ── パブリックページ ── */}
       <Route path="/" component={Home} />
       <Route path="/welcome" component={Welcome} />
-      <Route path="/signup" component={SignUp} />
-      <Route path="/login" component={Login} />
-      <Route path="/store/login" component={StoreLogin} />
-      <Route path="/store/signup" component={StoreSignUp} />
-      <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/search" component={SearchPage} />
-      <Route path="/favorites" component={FavoritesPage} />
-      <Route path="/mypage" component={MyPage} />
       <Route path="/bags/:id" component={BagDetail} />
-      <Route path="/checkout/:id" component={Checkout} />
-      <Route path="/my-reservations" component={MyReservations} />
-      <Route path="/orders/:id" component={OrderTicket} />
-      <Route path="/store-dashboard" component={StoreDashboard} />
-      <Route path="/store/dashboard" component={StoreOwnerDashboard} />
-      <Route path="/register-store" component={RegisterStore} />
-      <Route path="/admin-verify-shops" component={AdminVerifyShops} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/payment-methods" component={PaymentMethods} />
-      <Route path="/orders" component={Orders} />
-      <Route path="/store-onboarding" component={StoreOnboarding} />
-      <Route path="/admin" component={AdminDashboard} />
-      <Route path="/success" component={CheckoutSuccess} />
-      <Route path="/cancel" component={CheckoutCancel} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
+      <Route path="/verify-email" component={VerifyEmail} />
+      <Route path="/success" component={CheckoutSuccess} />
+      <Route path="/cancel" component={CheckoutCancel} />
       <Route path="/supabase-test" component={SupabaseTest} />
+
+      {/* ── ゲスト専用（ログイン済みなら自動リダイレクト）── */}
+      <Route path="/login" component={GuardedLogin} />
+      <Route path="/signup" component={GuardedSignUp} />
+      <Route path="/store/login" component={GuardedStoreLogin} />
+      <Route path="/store/signup" component={GuardedStoreSignUp} />
+
+      {/* ── 要ログイン（一般ユーザー）── */}
+      <Route path="/mypage" component={GuardedMyPage} />
+      <Route path="/my-reservations" component={GuardedMyReservations} />
+      <Route path="/checkout/:id" component={GuardedCheckout} />
+      <Route path="/orders/:id" component={GuardedOrderTicket} />
+      <Route path="/orders" component={GuardedOrders} />
+      <Route path="/settings" component={GuardedSettings} />
+      <Route path="/payment-methods" component={GuardedPaymentMethods} />
+      <Route path="/favorites" component={GuardedFavorites} />
+
+      {/* ── 店舗オーナー専用 ── */}
+      <Route path="/store/dashboard" component={GuardedStoreOwnerDash} />
+      <Route path="/store-dashboard" component={GuardedStoreDashboard} />
+      <Route path="/register-store" component={GuardedRegisterStore} />
+      <Route path="/store-onboarding" component={GuardedStoreOnboarding} />
+
+      {/* ── 管理者 ── */}
+      <Route path="/admin" component={GuardedAdmin} />
+      <Route path="/admin-verify-shops" component={GuardedAdminVerify} />
+
       <Route component={NotFound} />
     </Switch>
   );
