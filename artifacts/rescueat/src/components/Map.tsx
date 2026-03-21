@@ -149,7 +149,7 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
           center: startCenter,
           zoom: zoom ?? 14,
           disableDefaultUI: true,
-          zoomControl: true,
+          zoomControl: false,
           gestureHandling: 'greedy',
           styles: MAP_STYLES,
           clickableIcons: false,
@@ -282,6 +282,20 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
 
       {status === 'ready' && (
         <>
+          {/* カスタムズームボタン */}
+          <div className="absolute bottom-[152px] right-2 z-10 flex flex-col overflow-hidden rounded-2xl shadow-lg border border-gray-200">
+            <button
+              onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) + 1)}
+              className="w-10 h-10 bg-white flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-all border-b border-gray-100 text-xl font-light"
+              aria-label="ズームイン"
+            >＋</button>
+            <button
+              onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) - 1)}
+              className="w-10 h-10 bg-white flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-all text-xl font-light"
+              aria-label="ズームアウト"
+            >－</button>
+          </div>
+
           {/* GPS ボタン */}
           <button
             onClick={handleLocate}
