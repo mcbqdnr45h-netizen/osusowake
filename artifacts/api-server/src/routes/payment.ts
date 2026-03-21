@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { reservationsTable, surpriseBagsTable } from "@workspace/db/schema";
+import { reservationsTable, surpriseBagsTable, storesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import {
   CreatePaymentIntentBody,
@@ -149,6 +149,7 @@ router.post("/checkout/session", async (req, res) => {
         totalPrice: reservationsTable.totalPrice,
         paymentStatus: reservationsTable.paymentStatus,
         bagId: reservationsTable.bagId,
+        storeId: reservationsTable.storeId,
       })
       .from(reservationsTable)
       .where(eq(reservationsTable.id, reservationId));
@@ -169,11 +170,18 @@ router.post("/checkout/session", async (req, res) => {
       return;
     }
 
+    // 店舗の Stripe アカウント ID を取得
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(eq(storesTable.id, reservation.storeId));
+
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
     const amountInYen = Math.round(reservation.totalPrice);
+    const platformFeeAmount = Math.floor(amountInYen * 0.25); // 25%
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: "payment",
       line_items: [
         {
@@ -192,9 +200,15 @@ router.post("/checkout/session", async (req, res) => {
       payment_intent_data: {
         metadata: {
           reservationId: String(reservation.id),
-          platformFeeAmount: String(Math.floor(amountInYen * 0.2)),
-          platformFeeRate: "20",
+          platformFeeAmount: String(platformFeeAmount),
+          platformFeeRate: "25",
         },
+        ...(store?.stripeAccountId
+          ? {
+              application_fee_amount: platformFeeAmount,
+              transfer_data: { destination: store.stripeAccountId },
+            }
+          : {}),
       },
       success_url: successUrl.includes("{CHECKOUT_SESSION_ID}")
         ? successUrl
@@ -204,7 +218,9 @@ router.post("/checkout/session", async (req, res) => {
         reservationId: String(reservation.id),
       },
       locale: "ja",
-    });
+    };
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     await db
       .update(reservationsTable)

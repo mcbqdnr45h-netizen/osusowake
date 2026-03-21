@@ -35,6 +35,7 @@ export const storesTable = pgTable("stores", {
   isActive: boolean("is_active").notNull().default(true),
   status: storeStatusEnum("status").notNull().default("approved"),
   ownerId: text("owner_id"),
+  stripeAccountId: text("stripe_account_id"),
   // Onboarding compliance fields
   licenseNumber: text("license_number"),
   licenseImageUrl: text("license_image_url"),
