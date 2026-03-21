@@ -44,10 +44,15 @@ export type Database = {
   orders: {
     id: string;
     user_id: string;
-    product_id: string;
+    product_id: string | null;
+    bag_id: number | null;
+    reservation_id: number | null;
     final_price: number;
     status: 'unpicked' | 'picked_up' | 'cancelled';
     stripe_payment_id: string | null;
+    pickup_code: string | null;
+    bag_title: string | null;
+    store_name: string | null;
     created_at: string;
     picked_up_at: string | null;
   };

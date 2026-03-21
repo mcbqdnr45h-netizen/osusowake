@@ -6,6 +6,7 @@ import { CheckCircle2, ShieldCheck, CreditCard, Coins, Lock, Sparkles, ChevronLe
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 const POINT_RATE = 0.03;
 
@@ -15,6 +16,7 @@ export default function Checkout() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const { user } = useAuth();
 
   const { data: reservation, isLoading } = useGetReservation(reservationId);
 
@@ -41,7 +43,7 @@ export default function Checkout() {
       const res = await fetch('/api/checkout/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reservationId, successUrl, cancelUrl }),
+        body: JSON.stringify({ reservationId, successUrl, cancelUrl, userId: user?.id }),
       });
 
       if (!res.ok) {

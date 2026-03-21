@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { reservationsTable, surpriseBagsTable, storesTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   CreatePaymentIntentBody,
   ConfirmPaymentBody,
@@ -132,10 +132,11 @@ router.post("/payment/confirm", async (req, res) => {
 // ─── Stripe Checkout Session ───────────────────────────────────────────────
 router.post("/checkout/session", async (req, res) => {
   try {
-    const { reservationId, successUrl, cancelUrl } = req.body as {
+    const { reservationId, successUrl, cancelUrl, userId } = req.body as {
       reservationId: number;
       successUrl: string;
       cancelUrl: string;
+      userId?: string;
     };
 
     if (!reservationId || !successUrl || !cancelUrl) {
@@ -211,7 +212,7 @@ router.post("/checkout/session", async (req, res) => {
         ? successUrl
         : `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
-      metadata: { reservationId: String(reservation.id) },
+      metadata: { reservationId: String(reservation.id), userId: userId || '' },
       locale: "ja" as const,
     };
 
@@ -291,31 +292,126 @@ router.get("/checkout/verify", async (req, res) => {
     const reservationId = parseInt(reservation_id);
     const stripeKey = process.env["STRIPE_SECRET_KEY"];
 
+    // ── 1. Stripe セッション確認 ────────────────────────────────
+    let paymentStatus = "paid";
+    let stripePaymentId: string | null = null;
+    let supabaseUserId = "";
+
     if (stripeKey) {
       const stripe = await import("stripe").then((m) => new m.default(stripeKey));
       const session = await stripe.checkout.sessions.retrieve(session_id);
+      paymentStatus = session.payment_status;
+      stripePaymentId = (session.payment_intent as string) || session.id;
+      supabaseUserId = session.metadata?.userId || "";
 
-      if (session.payment_status === "paid") {
-        await db
-          .update(reservationsTable)
-          .set({ paymentStatus: "paid", status: "confirmed", paymentIntentId: session.payment_intent as string })
-          .where(eq(reservationsTable.id, reservationId));
-
-        res.json({ status: "paid", reservationId });
+      if (session.payment_status !== "paid") {
+        res.json({ status: session.payment_status, reservationId });
         return;
       }
+    }
 
-      res.json({ status: session.payment_status, reservationId });
+    // ── 2. 予約を取得（bag・store JOIN）──────────────────────────
+    const [reservationFull] = await db
+      .select({
+        id: reservationsTable.id,
+        userId: reservationsTable.userId,
+        bagId: reservationsTable.bagId,
+        storeId: reservationsTable.storeId,
+        totalPrice: reservationsTable.totalPrice,
+        paymentStatus: reservationsTable.paymentStatus,
+        pickupCode: reservationsTable.pickupCode,
+        bagTitle: surpriseBagsTable.title,
+        storeName: storesTable.name,
+        pickupStart: surpriseBagsTable.pickupStart,
+        pickupEnd: surpriseBagsTable.pickupEnd,
+        stockCount: surpriseBagsTable.stockCount,
+      })
+      .from(reservationsTable)
+      .leftJoin(surpriseBagsTable, eq(reservationsTable.bagId, surpriseBagsTable.id))
+      .leftJoin(storesTable, eq(reservationsTable.storeId, storesTable.id))
+      .where(eq(reservationsTable.id, reservationId));
+
+    if (!reservationFull) {
+      res.status(404).json({ error: "not_found", message: "Reservation not found" });
       return;
     }
 
-    // Stripe未設定のフォールバック
-    await db
-      .update(reservationsTable)
-      .set({ paymentStatus: "paid", status: "confirmed" })
-      .where(eq(reservationsTable.id, reservationId));
+    // 二重処理ガード: すでに paid なら Supabase/在庫処理をスキップして既存データを返す
+    const alreadyPaid = reservationFull.paymentStatus === "paid";
 
-    res.json({ status: "paid", reservationId });
+    // ── 3. Drizzle 予約ステータス更新 ────────────────────────────
+    if (!alreadyPaid) {
+      await db
+        .update(reservationsTable)
+        .set({
+          paymentStatus: "paid",
+          status: "confirmed",
+          ...(stripePaymentId ? { paymentIntentId: stripePaymentId } : {}),
+        })
+        .where(eq(reservationsTable.id, reservationId));
+
+      // ── 4. 在庫デクリメント（stockCount >= 1 のとき）──────────
+      if (reservationFull.bagId && (reservationFull.stockCount ?? 0) > 0) {
+        await db
+          .update(surpriseBagsTable)
+          .set({ stockCount: sql`GREATEST(stock_count - 1, 0)` })
+          .where(eq(surpriseBagsTable.id, reservationFull.bagId));
+
+        console.log(`✅ 在庫デクリメント: bag_id=${reservationFull.bagId}`);
+      }
+
+      // ── 5. Supabase orders に書き込み ─────────────────────────
+      const targetUserId = supabaseUserId || reservationFull.userId;
+      if (targetUserId) {
+        try {
+          const { supabaseAdmin } = await import("../lib/supabase.js");
+
+          // 既存の注文が存在する場合はスキップ（冪等性）
+          const { data: existing } = await supabaseAdmin
+            .from("orders")
+            .select("id")
+            .eq("reservation_id", reservationId)
+            .maybeSingle();
+
+          if (!existing) {
+            const { error: insertErr } = await supabaseAdmin.from("orders").insert({
+              user_id: targetUserId,
+              product_id: null,
+              bag_id: reservationFull.bagId,
+              reservation_id: reservationId,
+              final_price: reservationFull.totalPrice,
+              status: "unpicked",
+              stripe_payment_id: stripePaymentId,
+              pickup_code: reservationFull.pickupCode,
+              bag_title: reservationFull.bagTitle,
+              store_name: reservationFull.storeName,
+            });
+
+            if (insertErr) {
+              console.error("Supabase orders insert error:", insertErr);
+            } else {
+              console.log(`✅ Supabase orders 書き込み成功: reservation_id=${reservationId}, user_id=${targetUserId}`);
+            }
+          } else {
+            console.log(`ℹ️ Supabase orders 既存レコードのためスキップ: reservation_id=${reservationId}`);
+          }
+        } catch (supaErr) {
+          console.error("Supabase write error (non-fatal):", supaErr);
+        }
+      }
+    }
+
+    // ── 6. 受付票データを返す ────────────────────────────────────
+    res.json({
+      status: "paid",
+      reservationId,
+      pickupCode: reservationFull.pickupCode,
+      bagTitle: reservationFull.bagTitle,
+      storeName: reservationFull.storeName,
+      totalPrice: reservationFull.totalPrice,
+      pickupStart: reservationFull.pickupStart,
+      pickupEnd: reservationFull.pickupEnd,
+    });
   } catch (err) {
     console.error("Verify error:", err);
     res.status(500).json({ error: "verify_error", message: "Failed to verify session" });
