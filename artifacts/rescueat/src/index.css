@@ -17,8 +17,8 @@
   --color-card-border: hsl(var(--card-border));
 
   --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-popover-border: hsl(var(--popover-border));
+  --color-popover-foreground: hsl(var(--card-foreground));
+  --color-popover-border: hsl(var(--card-border));
 
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
@@ -51,9 +51,8 @@
 }
 
 :root {
-  /* ── ベースカラー ── */
-  --background: 30 20% 98%;           /* 温かみのある白 */
-  --foreground: 20 30% 12%;           /* 温かみのある濃色 */
+  --background: 30 20% 98%;
+  --foreground: 20 30% 12%;
   --card: 0 0% 100%;
   --card-foreground: 20 30% 12%;
   --card-border: 30 20% 88%;
@@ -61,19 +60,15 @@
   --popover-foreground: 20 30% 12%;
   --popover-border: 30 20% 88%;
 
-  /* ── プライマリ: サンセットオレンジ #FF8C00 = HSL(33, 100%, 50%) ── */
   --primary: 33 100% 50%;
   --primary-foreground: 0 0% 100%;
 
-  /* ── セカンダリ: 温かみのあるクリーム ── */
   --secondary: 33 40% 93%;
   --secondary-foreground: 25 40% 25%;
 
-  /* ── ミュート ── */
   --muted: 30 15% 92%;
   --muted-foreground: 25 10% 48%;
 
-  /* ── アクセント: 明るいアンバー ── */
   --accent: 42 96% 56%;
   --accent-foreground: 30 60% 15%;
 
@@ -84,64 +79,150 @@
   --ring: 33 100% 50%;
   --radius: 0.875rem;
 
-  /* ── フォント ── */
   --app-font-sans: 'Noto Sans JP', sans-serif;
   --app-font-display: 'Outfit', 'Noto Sans JP', sans-serif;
 
-  /* ── シャドウ（オレンジ系） ── */
   --shadow-2xs: 0px 1px 2px 0px rgba(0,0,0,0.04);
   --shadow-xs: 0px 2px 4px 0px rgba(0,0,0,0.04);
-  --shadow-sm: 0px 4px 8px -2px rgba(255, 140, 0, 0.12), 0px 2px 4px -2px rgba(255, 140, 0, 0.06);
-  --shadow: 0px 10px 15px -3px rgba(255, 140, 0, 0.12), 0px 4px 6px -4px rgba(255, 140, 0, 0.06);
-  --shadow-md: 0px 12px 20px -4px rgba(255, 140, 0, 0.18), 0px 6px 8px -4px rgba(255, 140, 0, 0.1);
-  --shadow-lg: 0px 20px 25px -5px rgba(255, 140, 0, 0.22), 0px 8px 10px -6px rgba(255, 140, 0, 0.12);
+  --shadow-sm: 0px 4px 8px -2px rgba(255,140,0,0.12), 0px 2px 4px -2px rgba(255,140,0,0.06);
+  --shadow: 0px 10px 15px -3px rgba(255,140,0,0.12), 0px 4px 6px -4px rgba(255,140,0,0.06);
+  --shadow-md: 0px 12px 20px -4px rgba(255,140,0,0.18), 0px 6px 8px -4px rgba(255,140,0,0.1);
+  --shadow-lg: 0px 20px 25px -5px rgba(255,140,0,0.22), 0px 8px 10px -6px rgba(255,140,0,0.12);
 }
 
 .dark {
   --background: 20 25% 6%;
   --foreground: 30 20% 96%;
-
   --card: 20 25% 9%;
   --card-foreground: 30 20% 96%;
   --card-border: 20 25% 16%;
-
   --popover: 20 25% 9%;
   --popover-foreground: 30 20% 96%;
   --popover-border: 20 25% 16%;
-
   --primary: 33 100% 52%;
   --primary-foreground: 0 0% 100%;
-
   --secondary: 20 25% 16%;
   --secondary-foreground: 30 20% 96%;
-
   --muted: 20 25% 16%;
   --muted-foreground: 30 15% 60%;
-
   --accent: 42 90% 58%;
   --accent-foreground: 20 30% 8%;
-
   --destructive: 0 70% 55%;
   --destructive-foreground: 0 0% 100%;
-
   --border: 20 25% 16%;
   --input: 20 25% 16%;
   --ring: 33 100% 52%;
 }
 
+/* ─── Base ─────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
+    /* iOSタップハイライト完全除去 */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
   }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* スムーズスクロール最適化 */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
   }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--app-font-display);
     @apply font-bold tracking-tight;
   }
+
+  /* すべてのボタン・インタラクティブ要素にタッチ最適化 */
+  button, a, [role="button"], label {
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+
+  /* iOS入力フォームズームを防ぐ（font-size: 16px以上） */
+  input, select, textarea {
+    font-size: 16px;
+  }
 }
 
+/* ─── Utilities ──────────────────────────────────────────── */
+@layer utilities {
+  /* Safe-area ユーティリティ */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-safe-4 {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .pb-safe-5 {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* スクロール最適化 */
+  .scroll-smooth-native {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* タップフィードバック（全国展開レベルの押し心地） */
+  .tap-scale {
+    @apply transition-transform duration-100 active:scale-[0.96] active:opacity-80;
+  }
+  .tap-scale-sm {
+    @apply transition-transform duration-100 active:scale-[0.92] active:opacity-75;
+  }
+  .tap-opacity {
+    @apply transition-opacity duration-100 active:opacity-65;
+  }
+}
+
+/* ─── Shimmer skeleton animation ─────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--secondary)) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(20 25% 20%) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ─── Fade-in for lazy images ─────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.img-fade-in {
+  animation: fadeIn 0.35s ease-out forwards;
+}
+
+/* ─── Leaflet ─────────────────────────────────────────────── */
 .leaflet-container {
   font-family: var(--app-font-sans);
   z-index: 10;
@@ -160,6 +241,7 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* ─── Scrollbar 非表示 ────────────────────────────────────── */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }

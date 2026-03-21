@@ -16,10 +16,10 @@ function WalkTimeBadge({ storeLat, storeLng }: { storeLat: number; storeLng: num
   const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
   const minutes = metersToWalkMinutes(meters);
   const label   = formatWalkTime(minutes);
-  const color   = minutes <= 5 ? 'text-green-600' : minutes <= 15 ? 'text-orange-500' : 'text-sky-500';
+  const color   = minutes <= 5 ? 'text-green-300' : minutes <= 15 ? 'text-orange-300' : 'text-sky-300';
   return (
     <span className={`inline-flex items-center gap-0.5 text-[11px] font-black ${color}`}>
-      <Navigation className="w-2.5 h-2.5" />
+      <Navigation className="w-2.5 h-2.5 shrink-0" />
       {label}
     </span>
   );
@@ -30,7 +30,7 @@ export function BagCard({ bag }: BagCardProps) {
   const isSoldOut  = bag.stockCount <= 0;
   const isLowStock = bag.stockCount > 0 && bag.stockCount < 3;
   const { isFavorite, toggle } = useFavorites();
-  const storeId  = bag.store.id;
+  const storeId   = bag.store.id;
   const favorited = isFavorite(storeId);
   const [burst, setBurst]         = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -47,30 +47,32 @@ export function BagCard({ bag }: BagCardProps) {
   return (
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
-      className={`group block relative rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-card border border-border/30
-        ${isSoldOut ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:-translate-y-1 cursor-pointer'}`}
+      className={`group block relative rounded-2xl overflow-hidden shadow-md bg-card border border-border/30
+        tap-scale transition-shadow duration-300
+        ${isSoldOut ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:shadow-xl hover:-translate-y-0.5 cursor-pointer'}`}
       onClick={(e) => isSoldOut && e.preventDefault()}
     >
-      {/* ── 4:3 画像エリア（スケルトン付き） ── */}
-      <div className="relative w-full aspect-[4/3] bg-muted overflow-hidden">
+      {/* ── 4:3 画像エリア（shimmerスケルトン付き） ── */}
+      <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted">
 
-        {/* スケルトン */}
+        {/* Shimmer スケルトン（画像ロード前） */}
         {!imgLoaded && (
-          <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted/60 to-muted animate-pulse" />
+          <div className="absolute inset-0 skeleton-shimmer" />
         )}
 
-        {/* 画像 */}
+        {/* 画像：lazy + decoding最適化 */}
         <img
           src={imgSrc}
           alt={bag.store.name}
           loading="lazy"
+          decoding="async"
           onLoad={() => setImgLoaded(true)}
-          className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-105
-            ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105
+            ${imgLoaded ? 'img-fade-in' : 'opacity-0'}`}
         />
 
         {/* グラデーションオーバーレイ */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
 
         {/* 左上: 店舗名チップ */}
         <div className="absolute top-2.5 left-2.5">
@@ -80,12 +82,12 @@ export function BagCard({ bag }: BagCardProps) {
           </div>
         </div>
 
-        {/* 右上: アクションバッジ群 */}
+        {/* 右上: バッジ群 */}
         <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1.5">
-          {/* ハートボタン */}
           <button
             onClick={handleFavorite}
-            className={`w-8 h-8 flex items-center justify-center rounded-full shadow-md transition-all duration-200 active:scale-90
+            className={`w-8 h-8 flex items-center justify-center rounded-full shadow-md
+              tap-scale-sm transition-colors duration-150
               ${favorited
                 ? 'bg-rose-500 text-white'
                 : 'bg-white/90 backdrop-blur-sm text-rose-400 hover:bg-rose-50'
@@ -119,7 +121,7 @@ export function BagCard({ bag }: BagCardProps) {
         )}
       </div>
 
-      {/* ── カード下部情報 ── */}
+      {/* ── カード情報エリア ── */}
       <div className="p-4">
         <h3 className="font-bold text-foreground text-[15px] leading-snug mb-3 line-clamp-2">
           {bag.title}
@@ -150,17 +152,19 @@ export function BagCard({ bag }: BagCardProps) {
   );
 }
 
-/** ホーム画面用スケルトンカード */
+/** 読み込み中のグリッドスケルトン */
 export function BagCardSkeleton() {
   return (
-    <div className="rounded-2xl overflow-hidden shadow-sm border border-border/30 bg-card animate-pulse">
-      <div className="w-full aspect-[4/3] bg-muted" />
+    <div className="rounded-2xl overflow-hidden shadow-sm border border-border/30 bg-card">
+      {/* 4:3 shimmer画像エリア */}
+      <div className="w-full aspect-[4/3] skeleton-shimmer" />
+      {/* テキストエリア */}
       <div className="p-4 space-y-3">
-        <div className="h-4 bg-muted rounded w-3/4" />
-        <div className="h-3 bg-muted rounded w-1/2" />
-        <div className="flex justify-between pt-1">
-          <div className="h-3 bg-muted rounded w-16" />
-          <div className="h-6 bg-muted rounded w-20" />
+        <div className="h-4 skeleton-shimmer rounded-full w-3/4" />
+        <div className="h-3 skeleton-shimmer rounded-full w-1/2" />
+        <div className="flex justify-between items-center pt-1">
+          <div className="h-3 skeleton-shimmer rounded-full w-16" />
+          <div className="h-6 skeleton-shimmer rounded-full w-20" />
         </div>
       </div>
     </div>

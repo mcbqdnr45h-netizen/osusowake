@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation } from '@workspace/api-client-react';
@@ -208,7 +208,8 @@ export default function BagDetail() {
 
   const [, navigate] = useLocation();
   const [quantity, setQuantity] = useState(1);
-  const [showReport, setShowReport] = useState(false);
+  const [showReport,    setShowReport]    = useState(false);
+  const [heroImgLoaded, setHeroImgLoaded] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const { coords: userCoords } = useUserLocation();
 
@@ -384,14 +385,21 @@ export default function BagDetail() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-card md:rounded-3xl shadow-sm border-x border-b md:border border-border/50 overflow-hidden"
         >
-          {/* Hero Image */}
-          <div className="relative h-72 md:h-96 w-full">
+          {/* Hero Image（shimmer + フェードイン）*/}
+          <div className="relative h-72 md:h-96 w-full overflow-hidden bg-muted">
+            {/* shimmer スケルトン（ロード前） */}
+            {!heroImgLoaded && (
+              <div className="absolute inset-0 skeleton-shimmer" />
+            )}
             <img
               src={bag.store.imageUrl || getCategoryImage(bag.store.category)}
               alt={bag.store.name}
-              className="w-full h-full object-cover"
+              loading="eager"
+              decoding="async"
+              onLoad={() => setHeroImgLoaded(true)}
+              className={`w-full h-full object-cover transition-opacity duration-500 ${heroImgLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
             <div className="absolute top-4 right-4 bg-accent text-accent-foreground font-bold px-4 py-1.5 rounded-full text-sm shadow-lg shadow-accent/20">
               {discountPercent}% OFF
@@ -672,25 +680,28 @@ export default function BagDetail() {
           </div>
         </motion.div>
 
-        {/* Bottom Sticky CTA */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-[0_-20px_40px_rgba(0,0,0,0.05)] p-4 pb-safe z-50 md:sticky md:bg-transparent md:border-none md:shadow-none md:mt-6 md:p-0">
-          <div className="max-w-3xl mx-auto flex items-center gap-4">
+        {/* Bottom Sticky CTA（safe-area対応）*/}
+        <div
+          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-[0_-20px_40px_rgba(0,0,0,0.05)] z-50 md:sticky md:bg-transparent md:border-none md:shadow-none md:mt-6"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
+        >
+          <div className="px-4 pt-4 max-w-3xl mx-auto"><div className="flex items-center gap-4">
 
             <div className="bg-secondary rounded-2xl flex items-center p-1 h-14 border border-border/50">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 disabled={quantity <= 1 || isUnavailable}
-                className="w-12 h-full flex items-center justify-center rounded-xl text-foreground hover:bg-background disabled:opacity-50 transition-colors"
+                className="w-12 h-full flex items-center justify-center rounded-xl text-foreground hover:bg-background disabled:opacity-50 transition-colors tap-scale"
               >
                 <Minus className="w-5 h-5" />
               </button>
-              <div className="w-10 text-center font-bold text-lg">
+              <div className="w-10 text-center font-bold text-lg select-none">
                 {quantity}
               </div>
               <button
                 onClick={() => setQuantity(Math.min(bag.stockCount, quantity + 1))}
                 disabled={quantity >= bag.stockCount || isUnavailable}
-                className="w-12 h-full flex items-center justify-center rounded-xl text-foreground hover:bg-background disabled:opacity-50 transition-colors"
+                className="w-12 h-full flex items-center justify-center rounded-xl text-foreground hover:bg-background disabled:opacity-50 transition-colors tap-scale"
               >
                 <Plus className="w-5 h-5" />
               </button>
@@ -720,16 +731,17 @@ export default function BagDetail() {
             </button>
           </div>
           {!isUnavailable && (
-            <div className="text-center mt-3 text-xs text-muted-foreground md:hidden">
+            <div className="text-center mt-3 text-xs text-muted-foreground md:hidden pb-1">
               残りわずか{bag.stockCount}個！お早めに。
             </div>
           )}
           {isExpired && (
-            <div className="text-center mt-3 text-xs text-muted-foreground md:hidden flex items-center justify-center gap-1">
+            <div className="text-center mt-3 text-xs text-muted-foreground md:hidden flex items-center justify-center gap-1 pb-1">
               <Clock className="w-3 h-3" />
               本日の受取時間（〜{bag.pickupEnd}）が終了しました
             </div>
           )}
+          </div>
         </div>
       </div>
     </Layout>
