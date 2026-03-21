@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import {
   Coins, Package, Store, Clock, QrCode,
-  ChevronRight, Home, Copy, Check, Sparkles,
+  ChevronRight, Home, Copy, Check, Sparkles, Receipt,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -20,21 +20,9 @@ interface OrderReceipt {
   pickupEnd: string | null;
 }
 
-// 紙吹雪を打ち上げる
 function fireConfetti() {
   const colors = ['#FF8C00', '#FFD700', '#FF4500', '#FFA07A', '#FF6347', '#FFB347', '#fff'];
-
-  // 最初のバースト
-  confetti({
-    particleCount: 140,
-    spread: 80,
-    origin: { y: 0.55 },
-    colors,
-    scalar: 1.2,
-  });
-
-  // 左右から流れる紙吹雪
-  let elapsed = 0;
+  confetti({ particleCount: 140, spread: 80, origin: { y: 0.55 }, colors, scalar: 1.2 });
   const end = Date.now() + 2800;
   const frame = () => {
     confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 }, colors });
@@ -52,29 +40,19 @@ export default function CheckoutSuccess() {
   const [confettiFired, setConfettiFired] = useState(false);
 
   const params = new URLSearchParams(window.location.search);
-  const sessionId = params.get('session_id');
+  const sessionId    = params.get('session_id');
   const reservationId = params.get('reservation_id');
 
   useEffect(() => {
-    if (!sessionId || !reservationId) {
-      setLoading(false);
-      return;
-    }
+    if (!sessionId || !reservationId) { setLoading(false); return; }
     fetch(`/api/checkout/verify?session_id=${sessionId}&reservation_id=${reservationId}`)
       .then(r => r.json())
-      .then((data) => {
-        setReceipt(data);
-        setLoading(false);
-      })
+      .then((data) => { setReceipt(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  // 決済成功時に紙吹雪
   useEffect(() => {
-    if (!loading && !confettiFired) {
-      setConfettiFired(true);
-      fireConfetti();
-    }
+    if (!loading && !confettiFired) { setConfettiFired(true); fireConfetti(); }
   }, [loading]);
 
   useEffect(() => {
@@ -116,7 +94,6 @@ export default function CheckoutSuccess() {
           transition={{ type: 'spring', stiffness: 220, damping: 18 }}
           className="flex flex-col items-center text-center mb-7"
         >
-          {/* 店主イラスト */}
           <div className="relative mb-5">
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
@@ -126,7 +103,6 @@ export default function CheckoutSuccess() {
             >
               <span className="text-6xl leading-none select-none">🧑‍🍳</span>
             </motion.div>
-            {/* きらめき */}
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: [0, 1.3, 1], opacity: [0, 1, 1] }}
@@ -162,7 +138,6 @@ export default function CheckoutSuccess() {
           transition={{ delay: 0.25 }}
           className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm mb-4"
         >
-          {/* ヘッダー */}
           <div className="bg-gradient-to-r from-primary to-orange-400 px-5 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Package className="w-4 h-4 text-white" />
@@ -176,7 +151,6 @@ export default function CheckoutSuccess() {
           </div>
 
           <div className="p-5 space-y-4">
-            {/* 店舗名 */}
             {receipt?.storeName && (
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -189,7 +163,6 @@ export default function CheckoutSuccess() {
               </div>
             )}
 
-            {/* 商品名 */}
             {receipt?.bagTitle && (
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -202,7 +175,6 @@ export default function CheckoutSuccess() {
               </div>
             )}
 
-            {/* 受取時間 */}
             {(receipt?.pickupStart || receipt?.pickupEnd) && (
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
@@ -210,14 +182,14 @@ export default function CheckoutSuccess() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">受取時間</p>
-                  <p className="font-bold text-foreground text-base">
+                  <p className="font-black text-foreground text-base text-amber-700">
                     {receipt.pickupStart}{receipt.pickupEnd ? ` 〜 ${receipt.pickupEnd}` : ''}
                   </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">この時間内にお受取りください</p>
                 </div>
               </div>
             )}
 
-            {/* 支払金額 */}
             {receipt?.totalPrice !== undefined && (
               <div className="flex items-center justify-between pt-4 border-t border-border/60">
                 <span className="text-sm font-bold text-muted-foreground">お支払い金額</span>
@@ -249,7 +221,7 @@ export default function CheckoutSuccess() {
             </div>
             <button
               onClick={copyCode}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-border hover:bg-muted transition-colors text-sm font-bold text-muted-foreground active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-border hover:bg-muted transition-colors text-sm font-bold text-muted-foreground tap-scale"
             >
               {codeCopied ? (
                 <><Check className="w-4 h-4 text-green-500" /><span className="text-green-500">コピーしました！</span></>
@@ -266,7 +238,7 @@ export default function CheckoutSuccess() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl p-5 shadow-lg shadow-orange-200/60 mb-4 flex items-center gap-4"
+            className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl p-5 shadow-lg shadow-orange-200/60 mb-5 flex items-center gap-4"
           >
             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
               <Coins className="w-7 h-7 text-white" />
@@ -279,29 +251,40 @@ export default function CheckoutSuccess() {
           </motion.div>
         )}
 
-        {/* ── ナビゲーション ── */}
+        {/* ── ナビゲーション（導線強化）── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.62 }}
           className="space-y-3"
         >
+          {/* メインCTA：予約内容を確認する */}
           <button
             onClick={() => navigate('/my-reservations')}
-            className="w-full bg-primary text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 py-4 hover:bg-primary/90 transition-colors shadow-md shadow-primary/25 active:scale-[0.98]"
+            className="w-full bg-primary text-white rounded-2xl font-black text-base flex items-center justify-center gap-2.5 py-4 hover:bg-primary/90 transition-all shadow-md shadow-primary/25 tap-scale"
           >
-            <Package className="w-5 h-5" />
-            予約一覧を確認する
-            <ChevronRight className="w-4 h-4 ml-auto" />
+            <Receipt className="w-5 h-5 shrink-0" />
+            <span>予約内容を確認する</span>
+            <ChevronRight className="w-4 h-4 ml-auto shrink-0" />
           </button>
+
+          {/* 説明テキスト */}
+          <p className="text-center text-xs text-muted-foreground px-2">
+            受取コードやお店の情報は「お届け」タブから<br className="hidden sm:inline" />いつでも確認できます
+          </p>
+
+          {/* サブCTA：トップに戻る */}
           <button
             onClick={() => navigate('/')}
-            className="w-full bg-secondary text-foreground rounded-2xl font-bold text-base flex items-center justify-center gap-2 py-3.5 hover:bg-secondary/80 transition-colors active:scale-[0.98]"
+            className="w-full bg-secondary text-foreground rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 py-3.5 hover:bg-secondary/80 transition-all border border-border tap-scale"
           >
-            <Home className="w-5 h-5" />
-            ホームに戻る
+            <Home className="w-5 h-5 shrink-0" />
+            <span>トップに戻る</span>
           </button>
         </motion.div>
+
+        {/* 底部余白（safe-area対応） */}
+        <div className="pb-safe-4 mt-4" />
 
       </div>
     </div>

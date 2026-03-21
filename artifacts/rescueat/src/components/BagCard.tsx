@@ -28,7 +28,7 @@ function WalkTimeBadge({ storeLat, storeLng }: { storeLat: number; storeLng: num
 export function BagCard({ bag }: BagCardProps) {
   const discountPercent = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
   const isSoldOut  = bag.stockCount <= 0;
-  const isLowStock = bag.stockCount > 0 && bag.stockCount < 3;
+  const isLowStock = bag.stockCount > 0 && bag.stockCount <= 2;
   const { isFavorite, toggle } = useFavorites();
   const storeId   = bag.store.id;
   const favorited = isFavorite(storeId);
@@ -47,20 +47,22 @@ export function BagCard({ bag }: BagCardProps) {
   return (
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
-      className={`group block relative rounded-2xl overflow-hidden shadow-md bg-card border border-border/30
-        tap-scale transition-shadow duration-300
-        ${isSoldOut ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:shadow-xl hover:-translate-y-0.5 cursor-pointer'}`}
+      className={`group block relative rounded-2xl overflow-hidden shadow-md bg-card border transition-shadow duration-300 tap-scale
+        ${isSoldOut
+          ? 'opacity-50 cursor-not-allowed grayscale border-border/20'
+          : 'border-border/30 hover:shadow-xl hover:-translate-y-0.5 cursor-pointer'
+        }`}
       onClick={(e) => isSoldOut && e.preventDefault()}
     >
-      {/* ── 4:3 画像エリア（shimmerスケルトン付き） ── */}
+      {/* ── 4:3 画像エリア ── */}
       <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted">
 
-        {/* Shimmer スケルトン（画像ロード前） */}
+        {/* Shimmer スケルトン */}
         {!imgLoaded && (
           <div className="absolute inset-0 skeleton-shimmer" />
         )}
 
-        {/* 画像：lazy + decoding最適化 */}
+        {/* 画像 */}
         <img
           src={imgSrc}
           alt={bag.store.name}
@@ -98,14 +100,16 @@ export function BagCard({ bag }: BagCardProps) {
           </button>
 
           {isSoldOut ? (
-            <div className="bg-black/60 text-white font-black px-2.5 py-1 rounded-full text-xs backdrop-blur-sm">完売</div>
+            <div className="bg-gray-700/80 text-white/90 font-black px-2.5 py-1 rounded-full text-xs backdrop-blur-sm border border-white/10">
+              完売
+            </div>
           ) : (
             <>
               <div className="bg-accent text-accent-foreground font-black px-2.5 py-1 rounded-full text-xs shadow-md rotate-2">
                 {discountPercent}% OFF
               </div>
               {isLowStock && (
-                <div className="bg-destructive text-destructive-foreground font-bold px-2 py-0.5 rounded-full text-[10px] animate-pulse shadow-md">
+                <div className="bg-destructive text-destructive-foreground font-black px-2 py-0.5 rounded-full text-[10px] animate-pulse shadow-md">
                   残りわずか!
                 </div>
               )}
@@ -114,7 +118,7 @@ export function BagCard({ bag }: BagCardProps) {
         </div>
 
         {/* 左下: 徒歩時間 */}
-        {bag.store.lat && bag.store.lng && (
+        {!isSoldOut && bag.store.lat && bag.store.lng && (
           <div className="absolute bottom-2.5 left-2.5 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
             <WalkTimeBadge storeLat={bag.store.lat} storeLng={bag.store.lng} />
           </div>
@@ -123,30 +127,62 @@ export function BagCard({ bag }: BagCardProps) {
 
       {/* ── カード情報エリア ── */}
       <div className="p-4">
-        <h3 className="font-bold text-foreground text-[15px] leading-snug mb-3 line-clamp-2">
+
+        {/* 商品タイトル：情報ヒエラルキーの頂点 */}
+        <h3 className={`font-black leading-snug mb-3 line-clamp-2
+          ${isSoldOut ? 'text-sm text-muted-foreground' : 'text-base text-foreground'}`}>
           {bag.title}
         </h3>
 
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/60 px-2 py-1 rounded-md">
-            <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
-            <span className="font-medium">受取 {bag.pickupStart}-{bag.pickupEnd}</span>
+        {/* 完売御礼メッセージ */}
+        {isSoldOut ? (
+          <div className="rounded-xl bg-muted/60 border border-border/40 px-3 py-2.5 text-center">
+            <p className="text-xs font-black text-muted-foreground leading-relaxed">
+              完売御礼！<br />
+              <span className="font-medium">次のおすそ分けをお楽しみに</span>
+            </p>
           </div>
-          <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md font-medium
-            ${isLowStock ? 'bg-orange-100 text-orange-600' : 'text-muted-foreground bg-secondary/60'}`}>
-            <Package className={`w-3.5 h-3.5 shrink-0 ${isLowStock ? 'text-orange-500' : 'text-primary'}`} />
-            <span>残り{bag.stockCount}個</span>
-          </div>
-        </div>
+        ) : (
+          <>
+            {/* 受取時間 ＋ 残り在庫 */}
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/60 px-2 py-1 rounded-md">
+                <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="font-bold">受取 {bag.pickupStart}-{bag.pickupEnd}</span>
+              </div>
 
-        <div className="flex items-center justify-between border-t border-border/50 pt-3">
-          <div className="text-sm text-muted-foreground line-through decoration-destructive/50 font-medium">
-            ¥{bag.originalPrice.toLocaleString()}
-          </div>
-          <div className="text-2xl font-black text-primary leading-none">
-            ¥{bag.discountedPrice.toLocaleString()}
-          </div>
-        </div>
+              {/* 残り在庫：優先度が高いときはオレンジ強調 */}
+              <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md
+                ${isLowStock
+                  ? 'bg-orange-100 text-orange-600 font-black border border-orange-200'
+                  : 'text-muted-foreground bg-secondary/60 font-bold'
+                }`}>
+                <Package className={`w-3.5 h-3.5 shrink-0 ${isLowStock ? 'text-orange-500' : 'text-primary'}`} />
+                <span>残り
+                  <span className={`ml-0.5 ${isLowStock ? 'text-orange-700 text-sm' : ''}`}>
+                    {bag.stockCount}
+                  </span>個
+                </span>
+              </div>
+            </div>
+
+            {/* 価格エリア：最大インパクト */}
+            <div className="flex items-center justify-between border-t border-border/50 pt-3">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground font-medium">定価</span>
+                <span className="text-sm text-muted-foreground line-through decoration-destructive/50 font-bold leading-tight">
+                  ¥{bag.originalPrice.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-primary/70 font-bold tracking-wide uppercase">おすそ分け価格</span>
+                <span className="text-3xl font-black text-primary leading-none">
+                  ¥{bag.discountedPrice.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </Link>
   );
@@ -156,15 +192,19 @@ export function BagCard({ bag }: BagCardProps) {
 export function BagCardSkeleton() {
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-border/30 bg-card">
-      {/* 4:3 shimmer画像エリア */}
       <div className="w-full aspect-[4/3] skeleton-shimmer" />
-      {/* テキストエリア */}
       <div className="p-4 space-y-3">
-        <div className="h-4 skeleton-shimmer rounded-full w-3/4" />
-        <div className="h-3 skeleton-shimmer rounded-full w-1/2" />
-        <div className="flex justify-between items-center pt-1">
-          <div className="h-3 skeleton-shimmer rounded-full w-16" />
-          <div className="h-6 skeleton-shimmer rounded-full w-20" />
+        <div className="h-5 skeleton-shimmer rounded-full w-3/4" />
+        <div className="flex gap-2">
+          <div className="h-6 skeleton-shimmer rounded-md w-24" />
+          <div className="h-6 skeleton-shimmer rounded-md w-20" />
+        </div>
+        <div className="flex justify-between items-end pt-1 border-t border-border/30">
+          <div className="space-y-1">
+            <div className="h-2.5 skeleton-shimmer rounded-full w-8" />
+            <div className="h-3.5 skeleton-shimmer rounded-full w-16" />
+          </div>
+          <div className="h-8 skeleton-shimmer rounded-full w-24" />
         </div>
       </div>
     </div>

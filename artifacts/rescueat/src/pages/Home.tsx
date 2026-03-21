@@ -156,22 +156,35 @@ function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
 
       {/* テキスト情報 */}
       <div className="p-2.5">
-        <p className="font-bold text-foreground text-xs leading-tight line-clamp-1 mb-1.5">{bag.title}</p>
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1.5">
-          <Clock className="w-2.5 h-2.5 shrink-0" />
-          <span>{bag.pickupStart}-{bag.pickupEnd}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground line-through">¥{bag.originalPrice.toLocaleString()}</span>
-          <div className="flex items-baseline gap-1">
-            {!isSoldOut && (
-              <span className={`text-[10px] font-bold ${isLowStock ? 'text-orange-500' : 'text-muted-foreground'}`}>
-                残り{bag.stockCount}
-              </span>
-            )}
-            <span className="text-base font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
+        <p className={`font-black leading-tight line-clamp-1 mb-1.5
+          ${isSoldOut ? 'text-[11px] text-muted-foreground' : 'text-xs text-foreground'}`}>
+          {bag.title}
+        </p>
+
+        {isSoldOut ? (
+          <div className="rounded-lg bg-muted/50 px-2 py-1.5 text-center mt-1">
+            <p className="text-[9px] font-black text-muted-foreground leading-tight">
+              完売御礼！<br />
+              <span className="font-medium">次回もお楽しみに</span>
+            </p>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1.5">
+              <Clock className="w-2.5 h-2.5 shrink-0 text-primary" />
+              <span className="font-bold">{bag.pickupStart}-{bag.pickupEnd}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground line-through font-medium">¥{bag.originalPrice.toLocaleString()}</span>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-[10px] font-black ${isLowStock ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                  残り{bag.stockCount}
+                </span>
+                <span className="text-base font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </Link>
   );
