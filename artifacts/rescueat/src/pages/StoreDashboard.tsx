@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { 
   useListStoreBags, 
@@ -10,6 +10,7 @@ import {
   Plus, Check, Store as StoreIcon, RefreshCw, Box, Leaf, 
   Zap, ChevronUp, ChevronDown, BarChart2, Bell, Rocket,
   Clock, TrendingUp, Camera, Sparkles, ImagePlus,
+  Building2, CheckCircle2, AlertCircle, ExternalLink, Loader2,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -127,13 +128,81 @@ function NotificationBlast({ visible, count, title, onClose }: { visible: boolea
   );
 }
 
+// ─── Connect ステータス型 ─────────────────────────────────────────────────────
+interface ConnectStatus {
+  connected: boolean;
+  accountId?: string;
+  detailsSubmitted?: boolean;
+  chargesEnabled?: boolean;
+  payoutsEnabled?: boolean;
+}
+
 // ─── メイン ──────────────────────────────────────────────────────────────────
 export default function StoreDashboard() {
-  const STORE_ID = 1;
+  const STORE_ID = 19;
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'quick' | 'reservations' | 'bags' | 'analytics'>('quick');
+
+  // ── Stripe Connect State ──
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
+  const [connectLoading, setConnectLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(true);
+
+  // Connect ステータスを取得
+  const fetchConnectStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/stores/${STORE_ID}/connect/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setConnectStatus(data);
+      }
+    } catch (e) {
+      console.error('Connect status fetch error:', e);
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [STORE_ID]);
+
+  useEffect(() => {
+    fetchConnectStatus();
+
+    // Stripe オンボーディングから戻ってきた場合を検出
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('stripe_connect') === 'return') {
+      toast({ title: '振込先登録の処理が完了しました', description: 'Stripeによる審査後に有効になります' });
+      // URLクエリパラメータをクリア
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [fetchConnectStatus]);
+
+  // オンボーディング開始
+  const handleConnectOnboard = async () => {
+    setConnectLoading(true);
+    try {
+      const base = `${window.location.origin}${import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}`;
+      const returnUrl  = `${base}/store-dashboard?stripe_connect=return`;
+      const refreshUrl = `${base}/store-dashboard?stripe_connect=refresh`;
+
+      const res = await fetch(`/api/stores/${STORE_ID}/connect/onboard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl, refreshUrl }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'オンボーディングリンクの取得に失敗しました');
+      }
+
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch (err: any) {
+      toast({ title: 'エラー', description: err.message, variant: 'destructive' });
+      setConnectLoading(false);
+    }
+  };
 
   // Quick listing state
   const [selectedTemplate, setSelectedTemplate] = useState<typeof TEMPLATES[0] | null>(null);
@@ -187,7 +256,7 @@ export default function StoreDashboard() {
           imageUrl: photoUrl || undefined,
         }
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores/1/bags'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores/19/bags'] });
       setPhotoPublished(true);
       const count = Math.floor(Math.random() * 60) + 20;
       setNotifyCount(count);
@@ -246,7 +315,7 @@ export default function StoreDashboard() {
           pickupEnd: selectedTemplate.pickupEnd,
         }
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores/1/bags'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores/19/bags'] });
 
       // 通知演出
       const count = Math.floor(Math.random() * 60) + 20;
@@ -271,7 +340,7 @@ export default function StoreDashboard() {
       toast({ title: "出品しました！" });
       setIsCreating(false);
       setFormData({ ...formData, title: '', description: '' });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores/1/bags'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores/19/bags'] });
     } catch (err: any) {
       toast({ title: "エラー", description: err.message, variant: "destructive" });
     }
@@ -336,6 +405,61 @@ export default function StoreDashboard() {
             </>
           )}
         </div>
+
+        {/* ── 売上振込先カード ── */}
+        {(() => {
+          const isComplete = connectStatus?.detailsSubmitted && connectStatus?.chargesEnabled;
+          const isPending  = connectStatus?.connected && !isComplete;
+
+          return (
+            <div className={`mb-4 rounded-2xl border p-4 shadow-sm transition-colors
+              ${isComplete ? 'bg-green-50 border-green-200' : isPending ? 'bg-amber-50 border-amber-200' : 'bg-card border-border'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0
+                  ${isComplete ? 'bg-green-100' : isPending ? 'bg-amber-100' : 'bg-primary/10'}`}>
+                  {statusLoading
+                    ? <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+                    : isComplete
+                      ? <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      : isPending
+                        ? <AlertCircle className="w-5 h-5 text-amber-500" />
+                        : <Building2 className="w-5 h-5 text-primary" />
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-black
+                    ${isComplete ? 'text-green-800' : isPending ? 'text-amber-800' : 'text-foreground'}`}>
+                    {isComplete ? '振込先の登録が完了しています' : isPending ? '振込先の審査中・設定中' : '売上振込先を登録する'}
+                  </p>
+                  <p className={`text-[11px] mt-0.5 leading-relaxed
+                    ${isComplete ? 'text-green-700' : isPending ? 'text-amber-700' : 'text-muted-foreground'}`}>
+                    {isComplete
+                      ? `決済が自動的に振り込まれます (ID: ${connectStatus?.accountId?.slice(0, 18)}…)`
+                      : isPending
+                        ? 'Stripeで審査が完了すると振込が有効になります'
+                        : '決済の売上を受け取るには銀行口座の登録が必要です'}
+                  </p>
+                </div>
+                {!statusLoading && !isComplete && (
+                  <button
+                    onClick={handleConnectOnboard}
+                    disabled={connectLoading}
+                    className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 shadow-sm
+                      ${isPending
+                        ? 'bg-amber-500 text-white hover:bg-amber-600'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      }`}
+                  >
+                    {connectLoading
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />処理中</>
+                      : <><ExternalLink className="w-3.5 h-3.5" />{isPending ? '続きを設定' : '登録する'}</>
+                    }
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── タブ ── */}
         <div className="flex bg-muted p-1 rounded-xl mb-5 gap-1">

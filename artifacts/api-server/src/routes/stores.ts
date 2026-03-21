@@ -507,4 +507,124 @@ router.put("/stores/:storeId", async (req, res) => {
   }
 });
 
+// ─── Stripe Connect Onboarding ───────────────────────────────────────────────
+
+// POST /api/stores/:storeId/connect/onboard
+// Stripe Express アカウントを作成し（未作成なら）、オンボーディングリンクを返す
+router.post("/stores/:storeId/connect/onboard", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    const { returnUrl, refreshUrl } = req.body as { returnUrl: string; refreshUrl: string };
+
+    if (!returnUrl || !refreshUrl) {
+      res.status(400).json({ error: "bad_request", message: "returnUrl and refreshUrl are required" });
+      return;
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      res.status(503).json({ error: "stripe_not_configured", message: "Stripe is not configured" });
+      return;
+    }
+
+    const [store] = await db
+      .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "Store not found" });
+      return;
+    }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    let accountId = store.stripeAccountId;
+
+    // Stripe アカウントが未作成の場合は新規作成
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: "express",
+        country: "JP",
+        capabilities: {
+          transfers: { requested: true },
+        },
+      });
+      accountId = account.id;
+
+      // DB に保存
+      await db
+        .update(storesTable)
+        .set({ stripeAccountId: accountId })
+        .where(eq(storesTable.id, storeId));
+
+      console.log(`✅ Stripe Express Account created: ${accountId} for store ${storeId}`);
+    } else {
+      console.log(`ℹ️  Existing Stripe Account: ${accountId} for store ${storeId}`);
+    }
+
+    // Account Link（オンボーディングURL）を生成
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: "account_onboarding",
+    });
+
+    res.json({ url: accountLink.url, accountId });
+  } catch (err) {
+    console.error("Stripe Connect onboard error:", err);
+    res.status(500).json({ error: "stripe_error", message: "Failed to create onboarding link" });
+  }
+});
+
+// GET /api/stores/:storeId/connect/status
+// Stripe アカウントのオンボーディング完了状況を返す
+router.get("/stores/:storeId/connect/status", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "Store not found" });
+      return;
+    }
+
+    if (!store.stripeAccountId) {
+      res.json({ connected: false, detailsSubmitted: false, chargesEnabled: false, payoutsEnabled: false });
+      return;
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      // Stripe未設定でもアカウントIDがあれば connected=true として返す
+      res.json({ connected: true, accountId: store.stripeAccountId, detailsSubmitted: false, chargesEnabled: false, payoutsEnabled: false });
+      return;
+    }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+    const account = await stripe.accounts.retrieve(store.stripeAccountId);
+
+    res.json({
+      connected: true,
+      accountId: store.stripeAccountId,
+      detailsSubmitted: account.details_submitted,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+    });
+  } catch (err: any) {
+    // アカウントが削除されている場合など
+    if (err?.code === "account_invalid" || err?.statusCode === 404) {
+      res.json({ connected: false, detailsSubmitted: false, chargesEnabled: false, payoutsEnabled: false });
+      return;
+    }
+    console.error("Stripe Connect status error:", err);
+    res.status(500).json({ error: "stripe_error", message: "Failed to fetch connect status" });
+  }
+});
+
 export default router;
