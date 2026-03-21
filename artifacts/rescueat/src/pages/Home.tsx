@@ -4,7 +4,8 @@ import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
   Search, Store, ChevronRight, Clock, MapPin, Zap,
-  SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2,
+  SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map,
+  Globe,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
@@ -23,6 +24,14 @@ const CATEGORIES = [
   { label: 'コンビニ',       value: 'convenience',   emoji: '🏪' },
   { label: 'スイーツ',       value: 'sweets',        emoji: '🍰' },
   { label: 'その他',         value: 'other',         emoji: '🥗' },
+];
+
+// クイックカテゴリー（トップ4）
+const QUICK_CATS = [
+  { label: 'パン',   value: 'bakery',     emoji: '🍞', bg: 'bg-amber-50',  border: 'border-amber-200',  text: 'text-amber-700' },
+  { label: 'お弁当', value: 'restaurant', emoji: '🍱', bg: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-700' },
+  { label: 'スイーツ', value: 'sweets',   emoji: '🍰', bg: 'bg-pink-50',   border: 'border-pink-200',   text: 'text-pink-700'  },
+  { label: '惣菜',   value: 'other',      emoji: '🥗', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700'},
 ];
 
 type SortKey = 'default' | 'time_asc' | 'price_asc' | 'price_desc';
@@ -85,7 +94,69 @@ function CampaignBanners() {
   );
 }
 
-// ─── コンパクトカード（shimmer付き）─────────────────────────────────────────
+// ─── 全国モード魅力バナー（位置情報OFF時）─────────────────────────────────
+function NationwideBanner({ onAllow }: { onAllow: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="mx-4 mt-4 mb-2 rounded-2xl overflow-hidden"
+    >
+      <div className="bg-gradient-to-br from-sky-500 to-indigo-500 px-4 py-4 flex items-center gap-3">
+        <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-2xl select-none">🗾</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-black text-sm leading-tight">全国のおすそ分けを表示中</p>
+          <p className="text-white/75 text-[11px] mt-0.5 leading-tight">現在地をONにすると近くのお店を優先表示します</p>
+        </div>
+        <button
+          onClick={onAllow}
+          className="bg-white text-sky-600 font-black text-[11px] px-3 py-1.5 rounded-lg shrink-0 shadow-sm tap-scale whitespace-nowrap"
+        >
+          現在地ON
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── クイックカテゴリーグリッド ────────────────────────────────────────────
+function QuickCategoryGrid({
+  activeCategory,
+  onSelect,
+}: {
+  activeCategory: string;
+  onSelect: (val: string) => void;
+}) {
+  return (
+    <div className="px-4 pt-3 pb-1">
+      <div className="grid grid-cols-4 gap-2.5">
+        {QUICK_CATS.map((cat) => {
+          const isActive = activeCategory === cat.value;
+          return (
+            <motion.button
+              key={cat.value}
+              onClick={() => onSelect(isActive ? 'all' : cat.value)}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              className={`flex flex-col items-center justify-center gap-1 py-3 rounded-2xl border-2 transition-colors duration-150
+                ${isActive
+                  ? `${cat.bg} ${cat.border} ${cat.text} shadow-sm`
+                  : 'bg-card border-border/60 text-foreground hover:border-primary/30'
+                }`}
+            >
+              <span className="text-2xl select-none leading-none">{cat.emoji}</span>
+              <span className={`text-[11px] font-black leading-none ${isActive ? cat.text : 'text-muted-foreground'}`}>
+                {cat.label}
+              </span>
+            </motion.button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── コンパクトカード ─────────────────────────────────────────────────────
 function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
   const { isFavorite, toggle } = useFavorites();
   const isSoldOut    = bag.stockCount <= 0;
@@ -101,35 +172,23 @@ function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       onClick={e => isSoldOut && e.preventDefault()}
       className={`group block relative w-44 shrink-0 rounded-2xl overflow-hidden shadow-md border border-border/50 bg-card
-        tap-scale transition-shadow duration-200
+        tap-scale transition-all duration-200
         ${isSoldOut ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-lg'}`}
     >
-      {/* ── 固定高さ画像エリア（shimmer付き）── */}
       <div className="relative w-full h-28 overflow-hidden bg-muted">
-        {/* Shimmer */}
         {!loaded && <div className="absolute inset-0 skeleton-shimmer" />}
-
-        {/* 画像 */}
         <img
-          src={imgSrc}
-          alt={bag.store.name}
-          loading="lazy"
-          decoding="async"
+          src={imgSrc} alt={bag.store.name} loading="lazy" decoding="async"
           onLoad={() => setLoaded(true)}
           className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105
             ${loaded ? 'img-fade-in' : 'opacity-0'}`}
         />
-
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
-
-        {/* 店舗チップ */}
         <div className="absolute top-2 left-2">
           <span className="bg-white/90 backdrop-blur-sm text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
             {getCategoryIcon(bag.store.category)} {bag.store.name.slice(0, 6)}{bag.store.name.length > 6 ? '…' : ''}
           </span>
         </div>
-
-        {/* バッジ */}
         <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
           {!isSoldOut && (
             <span className="bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 rounded-md">
@@ -142,8 +201,6 @@ function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
             </span>
           )}
         </div>
-
-        {/* ハートボタン */}
         <button
           onClick={e => { e.preventDefault(); e.stopPropagation(); toggle(bag.store.id); }}
           className={`absolute bottom-2 right-2 w-6 h-6 rounded-full flex items-center justify-center tap-scale-sm
@@ -153,19 +210,15 @@ function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
           <Heart className={`w-3 h-3 ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
         </button>
       </div>
-
-      {/* テキスト情報 */}
       <div className="p-2.5">
         <p className={`font-black leading-tight line-clamp-1 mb-1.5
           ${isSoldOut ? 'text-[11px] text-muted-foreground' : 'text-xs text-foreground'}`}>
           {bag.title}
         </p>
-
         {isSoldOut ? (
           <div className="rounded-lg bg-muted/50 px-2 py-1.5 text-center mt-1">
             <p className="text-[9px] font-black text-muted-foreground leading-tight">
-              完売御礼！<br />
-              <span className="font-medium">次回もお楽しみに</span>
+              完売御礼！<br /><span className="font-medium">次回もお楽しみに</span>
             </p>
           </div>
         ) : (
@@ -190,7 +243,6 @@ function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
   );
 }
 
-/** 横スクロールのスケルトン */
 function CompactBagCardSkeleton() {
   return (
     <div className="w-44 shrink-0 rounded-2xl overflow-hidden border border-border/30 bg-card">
@@ -251,13 +303,14 @@ function RecommendedSection({ bags, loading }: { bags: SurpriseBagWithStore[]; l
   );
 }
 
-// ─── 現在地の市区町村フック（フォールバック付き）─────────────────────────────
+// ─── 位置情報フック ───────────────────────────────────────────────────────
 const GEO_TIMEOUT_MS = 5000;
 
 function useUserCity() {
   const [city, setCity]       = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);   // 最初はロード中
-  const [denied, setDenied]   = useState(false);  // 拒否済みフラグ
+  const [loading, setLoading] = useState(true);
+  const [denied, setDenied]   = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -266,7 +319,6 @@ function useUserCity() {
       return;
     }
 
-    // タイムアウト保険（位置情報が長時間かかる場合は諦める）
     const fallbackTimer = setTimeout(() => {
       setLoading(false);
       setDenied(true);
@@ -285,6 +337,7 @@ function useUserCity() {
           const addr = data.address || {};
           const name = addr.city || addr.town || addr.village || addr.county || addr.state || null;
           setCity(name);
+          setDenied(false);
         } catch {
           setCity(null);
         } finally {
@@ -300,9 +353,56 @@ function useUserCity() {
     );
 
     return () => clearTimeout(fallbackTimer);
+  }, [retryCount]);
+
+  const retry = useCallback(() => {
+    setLoading(true);
+    setDenied(false);
+    setCity(null);
+    setRetryCount(c => c + 1);
   }, []);
 
-  return { city, loading, denied };
+  return { city, loading, denied, retry };
+}
+
+// ─── フローティング地図ボタン ─────────────────────────────────────────────
+function FloatingMapButton() {
+  return (
+    <Link href="/search?view=map">
+      <motion.button
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.5 }}
+        whileTap={{ scale: 0.9 }}
+        className="fixed bottom-[88px] right-4 z-40 w-14 h-14 bg-primary rounded-2xl shadow-xl shadow-primary/30
+          flex items-center justify-center text-primary-foreground
+          hover:bg-primary/90 transition-colors duration-150"
+        aria-label="地図で探す"
+      >
+        <Map className="w-6 h-6" />
+      </motion.button>
+    </Link>
+  );
+}
+
+// ─── 全国おすすめ空状態 ────────────────────────────────────────────────────
+function NationwideEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+        className="w-24 h-24 bg-gradient-to-br from-primary/20 to-amber-200/50 rounded-3xl flex items-center justify-center mb-5 shadow-sm"
+      >
+        <span className="text-4xl select-none">🗾</span>
+      </motion.div>
+      <h3 className="text-lg font-black text-foreground mb-2">全国のおすそ分けを準備中</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        まだ出品がありません。<br />
+        全国のお店がおすそ分けを準備中です！
+      </p>
+    </div>
+  );
 }
 
 // ─── メインコンポーネント ─────────────────────────────────────────────────────
@@ -317,7 +417,7 @@ export default function Home() {
 
   const { isApprovedOwner } = useMyStore();
   const { data: bags, isLoading: isLoadingBags } = useListAllBags();
-  const { city: userCity, loading: geoLoading, denied: geoDenied } = useUserCity();
+  const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
 
   const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || inStockOnly || sortKey !== 'default';
 
@@ -334,8 +434,8 @@ export default function Home() {
     }
     if (activeCategory !== 'all') result = result.filter(b => b.store.category === activeCategory);
     if (inStockOnly)               result = result.filter(b => b.stockCount > 0);
-    if (sortKey === 'time_asc')  result = [...result].sort((a, b) => (a.pickupStart || '').localeCompare(b.pickupStart || ''));
-    if (sortKey === 'price_asc') result = [...result].sort((a, b) => a.discountedPrice - b.discountedPrice);
+    if (sortKey === 'time_asc')   result = [...result].sort((a, b) => (a.pickupStart || '').localeCompare(b.pickupStart || ''));
+    if (sortKey === 'price_asc')  result = [...result].sort((a, b) => a.discountedPrice - b.discountedPrice);
     if (sortKey === 'price_desc') result = [...result].sort((a, b) => b.discountedPrice - a.discountedPrice);
     return result;
   }, [bags, searchQuery, activeCategory, inStockOnly, sortKey]);
@@ -350,7 +450,6 @@ export default function Home() {
     setSortKey('default');
   }
 
-  /** キーボードを閉じる（背景タップ時） */
   const dismissKeyboard = useCallback(() => {
     searchRef.current?.blur();
     setShowSort(false);
@@ -358,13 +457,13 @@ export default function Home() {
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label || 'おすすめ順';
 
-  // 位置情報フォールバックの地名タイトル
+  // ヘッダータイトル
   const areaTitle = geoLoading
     ? null
     : userCity
       ? `${userCity}のおすそ分け`
       : geoDenied
-        ? '全国のおすそ分け'
+        ? '全国の注目おすそ分け'
         : 'あなたの街のおすそ分け';
 
   return (
@@ -384,7 +483,10 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  <MapPin className="w-4 h-4 text-primary" />
+                  {geoDenied
+                    ? <Globe className="w-4 h-4 text-sky-500" />
+                    : <MapPin className="w-4 h-4 text-primary" />
+                  }
                   <h1 className="text-xl font-black text-foreground">{areaTitle}</h1>
                 </>
               )}
@@ -410,7 +512,10 @@ export default function Home() {
               </div>
             ) : (
               <>
-                <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                {geoDenied
+                  ? <Globe className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                  : <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                }
                 <span className="text-sm font-black text-foreground">{areaTitle}</span>
               </>
             )}
@@ -446,10 +551,12 @@ export default function Home() {
           {/* カテゴリーチップ */}
           <div className="flex overflow-x-auto hide-scrollbar gap-2 px-4 pb-2">
             {CATEGORIES.map(cat => (
-              <button
+              <motion.button
                 key={cat.value}
                 onClick={() => setActiveCategory(cat.value)}
-                className={`whitespace-nowrap flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors shrink-0 border tap-scale
+                whileTap={{ scale: 0.92 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className={`whitespace-nowrap flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors shrink-0 border
                   ${activeCategory === cat.value
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                     : 'bg-card text-foreground border-border hover:border-primary/40'
@@ -457,14 +564,13 @@ export default function Home() {
               >
                 <span className="select-none">{cat.emoji}</span>
                 <span>{cat.label}</span>
-              </button>
+              </motion.button>
             ))}
           </div>
 
           {/* フィルターバー */}
           <div className="flex items-center gap-2 px-4 pb-3 pt-1">
 
-            {/* おすそ分け受付中のみトグル */}
             <button
               onClick={() => setInStockOnly(v => !v)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border tap-scale transition-colors
@@ -479,7 +585,7 @@ export default function Home() {
               おすそ分け受付中のみ
             </button>
 
-            {/* 並び替えドロップダウン */}
+            {/* 並び替え */}
             <div className="relative">
               <button
                 onClick={() => setShowSort(v => !v)}
@@ -491,7 +597,7 @@ export default function Home() {
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 {currentSortLabel}
-                <ChevronDown className={`w-3 h-3 transition-transform ${showSort ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${showSort ? 'rotate-180' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -525,17 +631,19 @@ export default function Home() {
                 <span className="text-xs text-muted-foreground font-medium">{filteredBags.length}件</span>
               )}
               {activeFilterCnt > 0 && (
-                <button onClick={clearAll}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-destructive/8 text-destructive border border-destructive/20 hover:bg-destructive/15 tap-scale transition-colors">
+                <motion.button
+                  onClick={clearAll}
+                  whileTap={{ scale: 0.92 }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-destructive/8 text-destructive border border-destructive/20 hover:bg-destructive/15 transition-colors">
                   <X className="w-3 h-3" />
                   リセット
-                </button>
+                </motion.button>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── スクロールエリア（背景タップでキーボード閉じる）── */}
+        {/* ── スクロールエリア ── */}
         <div
           ref={scrollRef}
           className="flex-1 overflow-y-auto bg-secondary/10 scroll-smooth-native"
@@ -562,7 +670,7 @@ export default function Home() {
                     variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
                   >
                     {filteredBags.map(bag => (
-                      <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
+                      <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
                         <BagCard bag={bag} />
                       </motion.div>
                     ))}
@@ -581,29 +689,46 @@ export default function Home() {
                     <p className="text-sm text-muted-foreground text-center mb-6 leading-relaxed">
                       キーワードやジャンルを<br />変えて探してみてください
                     </p>
-                    <button onClick={clearAll}
-                      className="px-6 py-2.5 bg-primary text-primary-foreground rounded-2xl text-sm font-bold shadow-md shadow-primary/20 tap-scale">
+                    <motion.button
+                      onClick={clearAll}
+                      whileTap={{ scale: 0.94 }}
+                      className="px-6 py-2.5 bg-primary text-primary-foreground rounded-2xl text-sm font-bold shadow-md shadow-primary/20">
                       条件をリセットする
-                    </button>
+                    </motion.button>
                   </motion.div>
                 )}
               </motion.div>
 
             ) : (
-              /* 通常ホーム */
+              /* ─── 通常ホーム ─── */
               <motion.div
                 key="home"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.18 }}
               >
-                {/* キャンペーンバナー（バッグ有り時のみ表示） */}
+                {/* 全国モードバナー（位置情報OFF時）*/}
+                {!geoLoading && geoDenied && (
+                  <NationwideBanner onAllow={retryGeo} />
+                )}
+
+                {/* キャンペーンバナー（バッグ有り時のみ）*/}
                 {(!isLoadingBags && allBags.length > 0) && <CampaignBanners />}
 
-                {/* 急募・おすすめセクション */}
-                <UrgentSection     bags={allBags} loading={isLoadingBags} />
+                {/* ── クイックカテゴリー（商品一覧の上）── */}
+                <QuickCategoryGrid
+                  activeCategory={activeCategory}
+                  onSelect={setActiveCategory}
+                />
+
+                {/* 急募セクション */}
+                <UrgentSection bags={allBags} loading={isLoadingBags} />
+
                 {(!isLoadingBags && allBags.length > 0) && <div className="mx-4 my-2 border-t border-border/40" />}
+
+                {/* おすすめセクション */}
                 <RecommendedSection bags={allBags} loading={isLoadingBags} />
 
+                {/* すべてのおすそ分け ヘッダー */}
                 {(!isLoadingBags && allBags.length > 0) && (
                   <div className="flex items-center justify-between px-4 pt-3 pb-2">
                     <span className="text-sm font-black text-foreground">すべてのおすそ分け</span>
@@ -611,10 +736,12 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* 店舗ダッシュボードバナー（Mobile） */}
+                {/* 店舗ダッシュボードバナー（Mobile）*/}
                 {isApprovedOwner && (
                   <Link href="/store-dashboard" className="md:hidden mx-4 mt-1 mb-3 block">
-                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-3.5 flex items-center justify-between tap-scale">
+                    <motion.div
+                      whileTap={{ scale: 0.97 }}
+                      className="bg-primary/5 border border-primary/20 rounded-xl p-3.5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center">
                           <Store className="w-5 h-5 text-primary" />
@@ -625,7 +752,7 @@ export default function Home() {
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
+                    </motion.div>
                   </Link>
                 )}
 
@@ -636,16 +763,20 @@ export default function Home() {
                       {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
                     </div>
                   ) : allBags.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                      <div className="w-24 h-24 bg-card border-2 border-dashed border-border rounded-3xl flex items-center justify-center mb-5">
-                        <span className="text-4xl select-none">🎁</span>
-                      </div>
-                      <h3 className="text-lg font-black text-foreground mb-2">今日のおすそ分けを準備中</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        まだ出品がありません。<br />
-                        お近くのお店がおすそ分けを準備中です！
-                      </p>
-                    </div>
+                    geoDenied
+                      ? <NationwideEmptyState />
+                      : (
+                        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                          <div className="w-24 h-24 bg-card border-2 border-dashed border-border rounded-3xl flex items-center justify-center mb-5">
+                            <span className="text-4xl select-none">🎁</span>
+                          </div>
+                          <h3 className="text-lg font-black text-foreground mb-2">今日のおすそ分けを準備中</h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            まだ出品がありません。<br />
+                            お近くのお店がおすそ分けを準備中です！
+                          </p>
+                        </div>
+                      )
                   ) : (
                     <motion.div
                       className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2"
@@ -653,7 +784,7 @@ export default function Home() {
                       variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } }}
                     >
                       {allBags.map(bag => (
-                        <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
+                        <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
                           <BagCard bag={bag} />
                         </motion.div>
                       ))}
@@ -665,6 +796,9 @@ export default function Home() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* ── フローティング地図ボタン ── */}
+      <FloatingMapButton />
     </Layout>
   );
 }
