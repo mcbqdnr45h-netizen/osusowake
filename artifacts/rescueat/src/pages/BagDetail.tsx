@@ -444,9 +444,14 @@ export default function BagDetail() {
                 <div className="text-sm text-muted-foreground line-through mb-1">
                   通常価格 ¥{bag.originalPrice.toLocaleString()}
                 </div>
-                <div className="text-4xl font-display font-bold text-primary flex items-baseline gap-1">
+                <div className="text-4xl font-display font-bold text-primary flex items-baseline gap-2">
                   ¥{bag.discountedPrice.toLocaleString()}
                   <span className="text-sm text-muted-foreground font-normal">/個</span>
+                  {!isSoldOut && (
+                    <span className={`text-sm font-bold ${bag.stockCount < 3 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                      残り{bag.stockCount}個
+                    </span>
+                  )}
                 </div>
               </div>
 

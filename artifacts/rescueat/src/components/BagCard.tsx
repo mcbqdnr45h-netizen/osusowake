@@ -107,12 +107,19 @@ export function BagCard({ bag }: BagCardProps) {
             </div>
           </div>
           
-          <div className="flex items-end justify-between border-t border-border pt-3">
+          <div className="flex items-center justify-between border-t border-border pt-3">
             <div className="text-sm text-muted-foreground line-through decoration-destructive/60 font-medium">
               ¥{bag.originalPrice.toLocaleString()}
             </div>
-            <div className="text-2xl font-black text-primary leading-none">
-              ¥{bag.discountedPrice.toLocaleString()}
+            <div className="flex items-baseline gap-1.5">
+              {!isSoldOut && (
+                <span className={`text-xs font-bold ${isLowStock ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                  残り{bag.stockCount}個
+                </span>
+              )}
+              <div className="text-2xl font-black text-primary leading-none">
+                ¥{bag.discountedPrice.toLocaleString()}
+              </div>
             </div>
           </div>
         </div>

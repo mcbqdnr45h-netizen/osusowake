@@ -203,20 +203,16 @@ function StoreBottomSheet({
                             <span>受取 {bag.pickupStart}–{bag.pickupEnd}</span>
                           </div>
 
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-2">
-                            <Package className="w-3 h-3 shrink-0" />
-                            {isSoldOut
-                              ? <span className="text-destructive font-bold">完売</span>
-                              : isLowStock
-                                ? <span className="text-amber-600 font-bold animate-pulse">残り{bag.stockCount}個！</span>
-                                : <span>残り{bag.stockCount}個</span>
-                            }
-                          </div>
-
                           <div className="flex items-center justify-between">
                             <div>
                               <span className="text-[10px] text-muted-foreground line-through mr-1">¥{bag.originalPrice.toLocaleString()}</span>
                               <span className="text-base font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
+                              {isSoldOut
+                                ? <span className="text-[10px] text-destructive font-bold ml-1">完売</span>
+                                : isLowStock
+                                  ? <span className="text-[10px] text-amber-600 font-bold animate-pulse ml-1">残り{bag.stockCount}個！</span>
+                                  : <span className="text-[10px] text-muted-foreground font-bold ml-1">残り{bag.stockCount}個</span>
+                              }
                             </div>
 
                             {!isSoldOut ? (

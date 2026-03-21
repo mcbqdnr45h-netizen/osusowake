@@ -113,9 +113,16 @@ function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
           <Clock className="w-2.5 h-2.5 shrink-0" />
           <span>{bag.pickupStart}-{bag.pickupEnd}</span>
         </div>
-        <div className="flex items-end justify-between">
+        <div className="flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground line-through">¥{bag.originalPrice.toLocaleString()}</span>
-          <span className="text-base font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
+          <div className="flex items-baseline gap-1">
+            {!isSoldOut && (
+              <span className={`text-[10px] font-bold ${isLowStock ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                残り{bag.stockCount}
+              </span>
+            )}
+            <span className="text-base font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
+          </div>
         </div>
       </div>
     </Link>
