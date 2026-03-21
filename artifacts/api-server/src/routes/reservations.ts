@@ -19,7 +19,9 @@ import {
 const router: IRouter = Router();
 
 function generatePickupCode(id: number): string {
-  return `RES-${String(id).padStart(4, "0")}`;
+  // 6桁のランダム風数字コード（予約IDから決定論的に生成）
+  const n = ((id * 48271 + 23456) % 900000) + 100000;
+  return String(n);
 }
 
 async function getReservationWithDetails(id: number) {

@@ -2,147 +2,217 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetReservation } from '@workspace/api-client-react';
-import { QRCodeSVG } from 'qrcode.react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, Store, Clock, MapPin, CheckCircle2,
-  ChevronRight, AlertCircle, Leaf, Coins,
+  ChevronLeft, Clock, MapPin, CheckCircle2,
+  ChevronRight, AlertCircle, Coins, Leaf,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function pickupStorageKey(id: number) {
-  return `rescueat_ticket_${id}`;
-}
-
-function wasPickedUp(id: number): boolean {
-  try { return localStorage.getItem(pickupStorageKey(id)) === 'picked_up'; } catch { return false; }
-}
-
-function markPickedUp(id: number) {
-  try { localStorage.setItem(pickupStorageKey(id), 'picked_up'); } catch {}
-}
-
-function formatDate(iso?: string | null) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('ja-JP', {
-    year: 'numeric', month: 'long', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
-
 const POINT_RATE = 0.03;
 
-// ─── Swipe Slider ───────────────────────────────────────────────────────────
+// ─── localStorage helpers ─────────────────────────────────────────────────
 
-function SwipeSlider({ onConfirm, disabled }: { onConfirm: () => Promise<void>; disabled?: boolean }) {
+const storageKey = (id: number) => `rescueat_ticket_${id}`;
+
+interface TicketRecord {
+  status: 'picked_up';
+  pickedUpAt: string;
+}
+
+function readTicket(id: number): TicketRecord | null {
+  try {
+    const raw = localStorage.getItem(storageKey(id));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TicketRecord;
+    return parsed.status === 'picked_up' ? parsed : null;
+  } catch { return null; }
+}
+
+function writeTicket(id: number, record: TicketRecord) {
+  try { localStorage.setItem(storageKey(id), JSON.stringify(record)); } catch {}
+}
+
+// ─── 6桁コード変換（既存RES-XXXXも対応）───────────────────────────────────
+
+function toDisplayCode(pickupCode: string | null | undefined, reservationId: number): string {
+  if (pickupCode && /^\d{6}$/.test(pickupCode)) return pickupCode;
+  // Legacy RES-XXXX → derive display code deterministically
+  const n = ((reservationId * 48271 + 23456) % 900000) + 100000;
+  return String(n);
+}
+
+// ─── Date formatters ──────────────────────────────────────────────────────
+
+function formatDatetime(iso?: string | null) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('ja-JP', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  }).replace(/\//g, '/');
+}
+
+function formatReserved(iso?: string | null) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+}
+
+// ─── 6桁コード表示 ────────────────────────────────────────────────────────
+
+function SixDigitCode({ code }: { code: string }) {
+  const digits = code.replace(/\D/g, '').slice(0, 6).padStart(6, '0');
+  const first = digits.slice(0, 3);
+  const second = digits.slice(3, 6);
+
+  return (
+    <div className="flex items-center justify-center gap-3 select-none">
+      {/* 前3桁 */}
+      <div className="flex gap-1.5">
+        {first.split('').map((d, i) => (
+          <motion.div
+            key={`a${i}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06 }}
+            className="w-11 h-14 bg-primary/10 border-2 border-primary/25 rounded-xl flex items-center justify-center"
+          >
+            <span className="font-mono font-black text-3xl text-primary tracking-tight">{d}</span>
+          </motion.div>
+        ))}
+      </div>
+      {/* セパレーター */}
+      <span className="text-3xl font-black text-primary/30 mb-1">–</span>
+      {/* 後3桁 */}
+      <div className="flex gap-1.5">
+        {second.split('').map((d, i) => (
+          <motion.div
+            key={`b${i}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: (i + 3) * 0.06 }}
+            className="w-11 h-14 bg-primary/10 border-2 border-primary/25 rounded-xl flex items-center justify-center"
+          >
+            <span className="font-mono font-black text-3xl text-primary tracking-tight">{d}</span>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── スワイプスライダー ────────────────────────────────────────────────────
+
+function SwipeSlider({ onConfirm }: { onConfirm: () => Promise<void> }) {
   const [confirming, setConfirming] = useState(false);
   const [done, setDone] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
 
-  const THUMB_SIZE = 56;
-  const TRACK_PADDING = 4;
+  const THUMB = 60;
+  const PAD = 4;
+  const trackWidth = trackRef.current?.offsetWidth ?? 340;
+  const maxX = trackWidth - THUMB - PAD * 2;
 
-  const trackWidth = trackRef.current?.offsetWidth ?? 320;
-  const maxX = trackWidth - THUMB_SIZE - TRACK_PADDING * 2;
+  const fill = useTransform(x, [0, maxX * 0.5], [0, 1]);
+  const labelOpacity = useTransform(x, [0, maxX * 0.25], [1, 0]);
 
-  const bgOpacity = useTransform(x, [0, maxX * 0.6], [0, 1]);
-  const labelOpacity = useTransform(x, [0, maxX * 0.3], [1, 0]);
-  const arrowOpacity = useTransform(x, [0, maxX * 0.5], [0.4, 0]);
-
-  const handleDragEnd = useCallback(async () => {
-    if (disabled || confirming) return;
-    const currentX = x.get();
-    if (currentX >= maxX * 0.75) {
+  const onDragEnd = useCallback(async () => {
+    if (confirming) return;
+    if (x.get() >= maxX * 0.78) {
       setConfirming(true);
-      await animate(x, maxX, { duration: 0.15 });
+      await animate(x, maxX, { duration: 0.12 });
       try {
         await onConfirm();
         setDone(true);
       } catch {
-        await animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
+        await animate(x, 0, { type: 'spring', stiffness: 320, damping: 32 });
       } finally {
         setConfirming(false);
       }
     } else {
-      animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
+      animate(x, 0, { type: 'spring', stiffness: 320, damping: 32 });
     }
-  }, [disabled, confirming, x, maxX, onConfirm]);
+  }, [confirming, x, maxX, onConfirm]);
 
   if (done) return null;
 
   return (
     <div
       ref={trackRef}
-      className={`relative h-16 rounded-2xl overflow-hidden select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      style={{ background: '#e2e8f0' }}
+      className="relative rounded-2xl overflow-hidden select-none"
+      style={{ height: 68, background: '#e8f0ee' }}
     >
-      {/* Green fill behind the thumb */}
+      {/* 緑塗り */}
       <motion.div
-        className="absolute inset-0 rounded-2xl"
+        className="absolute inset-0"
         style={{
-          background: 'linear-gradient(90deg, #2D5A51, #3d7a6e)',
-          opacity: bgOpacity,
+          background: 'linear-gradient(90deg, #2D5A51 0%, #3d7a6e 100%)',
+          opacity: fill,
         }}
       />
-
-      {/* Label */}
+      {/* ラベル */}
       <motion.div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        className="absolute inset-0 flex items-center justify-center gap-2 pointer-events-none"
         style={{ opacity: labelOpacity }}
       >
-        <span className="text-sm font-black text-slate-500 tracking-wide flex items-center gap-2">
-          右にスワイプして受取完了
-          <motion.span style={{ opacity: arrowOpacity }}>
-            <ChevronRight className="w-4 h-4" />
-          </motion.span>
-        </span>
+        <ChevronRight className="w-4 h-4 text-primary/50" />
+        <span className="text-sm font-black text-primary/70 tracking-wide">右にスワイプして受取完了</span>
+        <ChevronRight className="w-4 h-4 text-primary/50" />
       </motion.div>
-
-      {/* Thumb */}
+      {/* サム */}
       <motion.div
-        drag={disabled || confirming ? false : 'x'}
+        drag="x"
         dragConstraints={{ left: 0, right: maxX }}
         dragElastic={0}
         dragMomentum={false}
-        onDragEnd={handleDragEnd}
-        style={{ x }}
-        className="absolute top-[4px] left-[4px] w-14 h-14 rounded-xl bg-[#2D5A51] shadow-lg shadow-primary/30 flex items-center justify-center cursor-grab active:cursor-grabbing z-10"
+        onDragEnd={onDragEnd}
+        style={{ x, position: 'absolute', top: PAD, left: PAD, width: THUMB, height: THUMB }}
+        className="rounded-xl bg-primary shadow-lg shadow-primary/40 flex items-center justify-center cursor-grab active:cursor-grabbing z-10"
       >
-        {confirming ? (
-          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        ) : (
-          <ChevronRight className="w-6 h-6 text-white" />
-        )}
+        {confirming
+          ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          : <ChevronRight className="w-7 h-7 text-white" />}
       </motion.div>
     </div>
   );
 }
 
-// ─── Picked-Up Stamp ────────────────────────────────────────────────────────
+// ─── 受取済みスタンプ ─────────────────────────────────────────────────────
 
-function PickedUpStamp() {
+function PickedUpStamp({ pickedUpAt }: { pickedUpAt: string }) {
   return (
     <motion.div
-      initial={{ scale: 0.5, opacity: 0, rotate: -12 }}
-      animate={{ scale: 1, opacity: 1, rotate: -6 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 18 }}
-      className="flex items-center justify-center"
+      initial={{ scale: 0.4, opacity: 0, rotate: -15 }}
+      animate={{ scale: 1, opacity: 1, rotate: -5 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 17, delay: 0.05 }}
+      className="flex flex-col items-center gap-4"
     >
-      <div className="relative border-4 border-slate-400 rounded-2xl px-8 py-5 text-center"
-        style={{ boxShadow: 'inset 0 0 0 2px #94a3b8' }}
+      {/* スタンプ枠 */}
+      <div
+        className="relative border-[4px] border-slate-300 rounded-3xl px-10 py-6 text-center"
+        style={{ boxShadow: 'inset 0 0 0 2px #cbd5e1, 0 0 0 1px #e2e8f0' }}
       >
-        <CheckCircle2 className="w-10 h-10 text-slate-400 mx-auto mb-1" />
-        <p className="text-2xl font-black text-slate-400 tracking-widest uppercase">受取済み</p>
-        <p className="text-xs font-bold text-slate-400/70 mt-0.5">PICKED UP ✅</p>
+        {/* チェックアイコン */}
+        <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+        {/* テキスト */}
+        <p className="text-[28px] font-black text-slate-400 tracking-[0.15em]">受取済み</p>
+        <p className="text-xs font-bold text-slate-400/60 tracking-widest mt-0.5">PICKED UP ✓</p>
+      </div>
+
+      {/* 完了日時 */}
+      <div className="text-center">
+        <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider mb-1">完了日時</p>
+        <p className="text-base font-black text-slate-500">{pickedUpAt}</p>
       </div>
     </motion.div>
   );
 }
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
+// ─── メインページ ──────────────────────────────────────────────────────────
 
 export default function OrderTicket() {
   const [, params] = useRoute('/orders/:id');
@@ -152,23 +222,26 @@ export default function OrderTicket() {
 
   const { data: reservation, isLoading, refetch } = useGetReservation(reservationId);
 
-  // Check localStorage first — prevents showing code after refresh
-  const [isPickedUp, setIsPickedUp] = useState(() => wasPickedUp(reservationId));
+  // localStorage から初期状態を読み込み
+  const [ticket, setTicket] = useState<TicketRecord | null>(() => readTicket(reservationId));
 
-  // Sync with server state on load
+  // DBのステータスと同期
   useEffect(() => {
-    if (reservation?.status === 'picked_up') {
-      markPickedUp(reservationId);
-      setIsPickedUp(true);
+    if (reservation?.status === 'picked_up' && !ticket) {
+      const record: TicketRecord = { status: 'picked_up', pickedUpAt: new Date().toISOString() };
+      writeTicket(reservationId, record);
+      setTicket(record);
     }
-  }, [reservation?.status, reservationId]);
+  }, [reservation?.status, reservationId, ticket]);
 
   const handleConfirmPickup = useCallback(async () => {
     const res = await fetch(`/api/reservations/${reservationId}/pickup`, { method: 'POST' });
+
     if (res.status === 409) {
-      toast({ title: 'このチケットは既に使用済みです', variant: 'destructive' });
-      markPickedUp(reservationId);
-      setIsPickedUp(true);
+      // 既に使用済み
+      const record: TicketRecord = { status: 'picked_up', pickedUpAt: new Date().toISOString() };
+      writeTicket(reservationId, record);
+      setTicket(record);
       refetch();
       throw new Error('already_used');
     }
@@ -177,12 +250,15 @@ export default function OrderTicket() {
       toast({ title: 'エラーが発生しました', description: err.message, variant: 'destructive' });
       throw new Error('failed');
     }
-    markPickedUp(reservationId);
-    setIsPickedUp(true);
+
+    const record: TicketRecord = { status: 'picked_up', pickedUpAt: new Date().toISOString() };
+    writeTicket(reservationId, record);
+    setTicket(record);
     await refetch();
     toast({ title: '受取完了 ✅', description: 'お食事をお楽しみください！' });
   }, [reservationId, refetch, toast]);
 
+  // ─── ローディング ──
   if (isLoading || !reservation) {
     return (
       <Layout showBottomNav={false}>
@@ -193,18 +269,17 @@ export default function OrderTicket() {
     );
   }
 
-  const alreadyPickedUp = isPickedUp || reservation.status === 'picked_up';
+  const isPickedUp = !!(ticket || reservation.status === 'picked_up');
   const isCancelled = reservation.status === 'cancelled';
+  const displayCode = toDisplayCode(reservation.pickupCode, reservationId);
   const points = Math.floor(reservation.totalPrice * POINT_RATE);
-  const qrValue = reservation.pickupCode
-    ? `RESCUEAT:${reservation.pickupCode}:${reservationId}`
-    : `RESCUEAT:${reservationId}`;
+  const pickedUpAtStr = ticket?.pickedUpAt ? formatDatetime(ticket.pickedUpAt) : formatDatetime(new Date().toISOString());
 
   return (
     <Layout showBottomNav={false}>
-      <div className="max-w-md mx-auto pb-8">
+      <div className="max-w-md mx-auto pb-10">
 
-        {/* Header */}
+        {/* ヘッダー */}
         <div className="flex items-center gap-3 px-4 pt-10 pb-4 sticky top-0 bg-background/90 backdrop-blur-sm z-10 border-b border-border/40">
           <button
             onClick={() => navigate('/my-reservations')}
@@ -213,45 +288,54 @@ export default function OrderTicket() {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg font-black text-foreground leading-tight">電子チケット</h1>
-            <p className="text-xs text-muted-foreground font-mono">{reservation.pickupCode ?? `#${reservationId}`}</p>
+            <h1 className="text-lg font-black text-foreground">電子チケット</h1>
+            <p className="text-[11px] text-muted-foreground font-mono">#{String(reservationId).padStart(8, '0')}</p>
           </div>
           <div className="ml-auto">
-            {alreadyPickedUp ? (
-              <span className="bg-slate-100 text-slate-500 text-xs font-black px-3 py-1 rounded-full">受取済み</span>
-            ) : isCancelled ? (
-              <span className="bg-rose-50 text-rose-500 text-xs font-black px-3 py-1 rounded-full">キャンセル</span>
-            ) : (
-              <span className="bg-primary/10 text-primary text-xs font-black px-3 py-1 rounded-full animate-pulse">未受取</span>
-            )}
+            <AnimatePresence mode="wait">
+              {isPickedUp ? (
+                <motion.span key="done" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                  className="bg-slate-100 text-slate-500 text-xs font-black px-3 py-1 rounded-full"
+                >受取済み</motion.span>
+              ) : isCancelled ? (
+                <motion.span key="cancel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="bg-rose-50 text-rose-500 text-xs font-black px-3 py-1 rounded-full"
+                >キャンセル</motion.span>
+              ) : (
+                <motion.span key="active" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="bg-primary/10 text-primary text-xs font-black px-3 py-1 rounded-full"
+                >
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-1.5 animate-pulse" />
+                  未受取
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        <div className="px-4 pt-5 space-y-4">
+        <div className="px-4 pt-4 space-y-3">
 
-          {/* 案内バナー */}
-          {!alreadyPickedUp && !isCancelled && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-primary text-primary-foreground rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-lg shadow-primary/20"
-            >
-              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                <Store className="w-5 h-5 text-white" />
-              </div>
-              <p className="text-sm font-black leading-snug">
-                お店の人にこの画面を見せてください
-              </p>
-            </motion.div>
-          )}
+          {/* 案内バナー（未受取のみ） */}
+          <AnimatePresence>
+            {!isPickedUp && !isCancelled && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="bg-primary text-primary-foreground rounded-2xl px-4 py-3.5 shadow-lg shadow-primary/20"
+              >
+                <p className="text-sm font-black text-center leading-relaxed">
+                  お店の人にこの<span className="text-yellow-300">6桁のコード</span>と<br />画面を見せてください
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Store info */}
+          {/* 店舗情報 */}
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={`bg-card border border-border rounded-2xl p-4 shadow-sm ${alreadyPickedUp ? 'opacity-60 grayscale' : ''}`}
+            className={`bg-card border border-border rounded-2xl p-4 shadow-sm transition-all duration-500 ${isPickedUp ? 'opacity-50 grayscale' : ''}`}
           >
-            <div className="flex gap-3 items-start mb-3">
-              <div className="w-14 h-14 bg-muted rounded-xl overflow-hidden shrink-0">
+            <div className="flex gap-3 items-center mb-3">
+              <div className="w-12 h-12 bg-muted rounded-xl overflow-hidden shrink-0">
                 <img
                   src={reservation.store?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&q=70'}
                   alt=""
@@ -259,135 +343,126 @@ export default function OrderTicket() {
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-black text-foreground text-base">{reservation.store?.name}</p>
-                <p className="text-sm text-muted-foreground truncate mt-0.5">{reservation.bag?.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">数量: {reservation.quantity}個　¥{reservation.totalPrice.toLocaleString()}</p>
+                <p className="font-black text-foreground">{reservation.store?.name}</p>
+                <p className="text-sm text-muted-foreground truncate">{reservation.bag?.title} × {reservation.quantity}</p>
+                <p className="text-xs font-bold text-primary mt-0.5">¥{reservation.totalPrice.toLocaleString()}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-secondary/50 rounded-xl p-2.5 flex items-center gap-2">
+              <div className="bg-secondary/60 rounded-xl px-3 py-2 flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="text-xs font-bold text-foreground">{reservation.bag?.pickupStart} - {reservation.bag?.pickupEnd}</span>
+                <span className="text-xs font-bold">{reservation.bag?.pickupStart}–{reservation.bag?.pickupEnd}</span>
               </div>
-              <div className="bg-secondary/50 rounded-xl p-2.5 flex items-center gap-2 overflow-hidden">
+              <div className="bg-secondary/60 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
                 <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="text-xs font-bold text-foreground truncate">{reservation.store?.address}</span>
+                <span className="text-xs font-bold truncate">{reservation.store?.city || reservation.store?.address}</span>
               </div>
             </div>
           </motion.div>
 
           {/* ── チケット本体 ── */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-            className={`bg-card border-2 rounded-3xl overflow-hidden shadow-md transition-all duration-500
-              ${alreadyPickedUp ? 'border-slate-200 grayscale' : 'border-primary/30 shadow-primary/10'}`}
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}
+            className={`bg-card rounded-3xl overflow-hidden shadow-lg transition-all duration-500
+              ${isPickedUp ? 'border-2 border-slate-200' : 'border-2 border-primary/20 shadow-primary/10'}`}
           >
-            {/* Ticket top notch decoration */}
-            <div className={`h-2 w-full ${alreadyPickedUp ? 'bg-slate-200' : 'bg-gradient-to-r from-primary to-[#3d7a6e]'}`} />
+            {/* トップライン */}
+            <div className={`h-2 ${isPickedUp ? 'bg-slate-200' : 'bg-gradient-to-r from-primary via-[#3a7367] to-[#3d7a6e]'}`} />
 
-            <div className="px-6 py-6 text-center">
-              {alreadyPickedUp ? (
-                /* 受取済みスタンプ */
-                <div className="py-6">
-                  <PickedUpStamp />
-                  <p className="text-xs text-muted-foreground mt-5">
-                    {formatDate(reservation.createdAt)} に予約
-                  </p>
-                  {points > 0 && (
-                    <div className="mt-4 flex items-center justify-center gap-4 bg-secondary/50 rounded-2xl py-3">
-                      <div className="flex items-center gap-1.5 text-amber-500">
-                        <Coins className="w-4 h-4" />
-                        <span className="font-black">+{points}pt 獲得</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-emerald-600">
-                        <Leaf className="w-4 h-4" />
-                        <span className="font-black">CO₂ 2.5kg削減</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : isCancelled ? (
-                <div className="py-8 flex flex-col items-center gap-3">
-                  <AlertCircle className="w-12 h-12 text-rose-400" />
-                  <p className="font-black text-rose-500 text-lg">キャンセル済み</p>
-                  <p className="text-xs text-muted-foreground">この予約はキャンセルされました</p>
-                </div>
-              ) : (
-                /* アクティブ チケット */
-                <>
-                  <p className="text-xs font-bold text-primary/70 uppercase tracking-widest mb-4">受取用コード</p>
+            <div className="px-5 py-7 text-center">
+              <AnimatePresence mode="wait">
+                {isPickedUp ? (
+                  /* 受取済みスタンプ */
+                  <motion.div key="stamp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-4">
+                    <PickedUpStamp pickedUpAt={pickedUpAtStr} />
 
-                  {/* QR Code */}
-                  <div className="flex justify-center mb-4">
-                    <div className="p-3 bg-white rounded-2xl shadow-inner border border-slate-100 inline-block">
-                      <QRCodeSVG
-                        value={qrValue}
-                        size={160}
-                        level="M"
-                        fgColor="#2D5A51"
-                        bgColor="#FFFFFF"
-                      />
-                    </div>
-                  </div>
+                    {points > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+                        className="mt-5 flex items-center justify-center gap-4 bg-secondary/50 rounded-2xl py-3 px-4"
+                      >
+                        <div className="flex items-center gap-1.5 text-amber-500">
+                          <Coins className="w-4 h-4" />
+                          <span className="text-sm font-black">+{points}pt 獲得</span>
+                        </div>
+                        <div className="w-px h-4 bg-border" />
+                        <div className="flex items-center gap-1.5 text-emerald-600">
+                          <Leaf className="w-4 h-4" />
+                          <span className="text-sm font-black">CO₂ 2.5kg削減</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
 
-                  {/* 6桁コード */}
-                  <div className="mb-2">
-                    <div className="inline-flex items-center gap-1 bg-primary/5 border border-primary/20 rounded-xl px-5 py-3">
-                      {(reservation.pickupCode ?? `RES-${String(reservationId).padStart(4, '0')}`).split('').map((ch, i) => (
-                        <span
-                          key={i}
-                          className={`font-mono font-black text-xl ${ch === '-' ? 'text-primary/30 mx-0.5' : 'text-primary'}`}
-                        >
-                          {ch}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                ) : isCancelled ? (
+                  /* キャンセル */
+                  <motion.div key="cancel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="py-8 flex flex-col items-center gap-3"
+                  >
+                    <AlertCircle className="w-12 h-12 text-rose-300" />
+                    <p className="font-black text-rose-400 text-lg">キャンセル済み</p>
+                    <p className="text-xs text-muted-foreground">この予約はキャンセルされました</p>
+                  </motion.div>
 
-                  <p className="text-[11px] text-muted-foreground mb-1">
-                    予約日時: {formatDate(reservation.createdAt)}
-                  </p>
-                </>
-              )}
+                ) : (
+                  /* アクティブ コード */
+                  <motion.div key="code" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <p className="text-[10px] font-black text-primary/60 uppercase tracking-[0.2em] mb-5">
+                      受取用コード
+                    </p>
+
+                    {/* 6桁コード */}
+                    <SixDigitCode code={displayCode} />
+
+                    <p className="text-[11px] text-muted-foreground mt-5">
+                      予約日: {formatReserved(reservation.createdAt)}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            {/* Dashed divider + bottom perforation */}
+            {/* ミシン目 + フッター */}
             {!isCancelled && (
               <>
-                <div className="flex items-center px-4 py-1">
-                  <div className="w-5 h-5 rounded-full bg-background border border-border shrink-0 -ml-8" />
-                  <div className="flex-1 border-t-2 border-dashed border-border mx-1" />
-                  <div className="w-5 h-5 rounded-full bg-background border border-border shrink-0 -mr-8" />
+                <div className="flex items-center px-3">
+                  <div className="w-4 h-4 rounded-full bg-background border border-border -ml-6 shrink-0" />
+                  <div className="flex-1 border-t-2 border-dashed border-border/60 mx-2" />
+                  <div className="w-4 h-4 rounded-full bg-background border border-border -mr-6 shrink-0" />
                 </div>
-                <div className="px-6 py-4 bg-secondary/30 flex justify-between items-center text-xs text-muted-foreground font-mono">
-                  <span>{`#${String(reservationId).padStart(8, '0')}`}</span>
-                  <span>食べロス</span>
+                <div className={`px-6 py-3.5 flex justify-between items-center text-[11px] font-mono transition-all duration-500
+                  ${isPickedUp ? 'bg-slate-50 text-slate-400' : 'bg-primary/5 text-primary/50'}`}
+                >
+                  <span>#{String(reservationId).padStart(8, '0')}</span>
+                  <span className="font-black tracking-wide">食べロス</span>
                   <span>¥{reservation.totalPrice.toLocaleString()}</span>
                 </div>
               </>
             )}
           </motion.div>
 
-          {/* ── スワイプアクション or 使用済みメッセージ ── */}
+          {/* ── スワイプ or 使用済みメッセージ ── */}
           {!isCancelled && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            >
-              {alreadyPickedUp ? (
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-slate-400 shrink-0" />
-                  <p className="text-sm font-bold text-slate-400">
-                    このチケットは既に使用済みです
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-center text-muted-foreground font-bold">
-                    お店の方と一緒にスワイプしてください
-                  </p>
-                  <SwipeSlider onConfirm={handleConfirmPickup} disabled={alreadyPickedUp} />
-                </div>
-              )}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+              <AnimatePresence mode="wait">
+                {isPickedUp ? (
+                  <motion.div
+                    key="used"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                    className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3"
+                  >
+                    <CheckCircle2 className="w-5 h-5 text-slate-400 shrink-0" />
+                    <p className="text-sm font-bold text-slate-400">このチケットは既に使用済みです</p>
+                  </motion.div>
+                ) : (
+                  <motion.div key="swipe" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+                    <p className="text-xs text-center text-muted-foreground font-bold">
+                      コードを確認後、お店の方と一緒にスワイプ
+                    </p>
+                    <SwipeSlider onConfirm={handleConfirmPickup} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 
