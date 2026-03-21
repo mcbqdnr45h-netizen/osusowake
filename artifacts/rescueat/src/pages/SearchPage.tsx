@@ -90,15 +90,15 @@ function StoreBottomSheet({
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="absolute bottom-0 left-0 right-0 z-40 bg-background rounded-t-3xl shadow-2xl overflow-hidden"
-        style={{ maxHeight: '78vh' }}
+        className="absolute bottom-16 left-0 right-0 z-40 bg-background rounded-t-3xl shadow-2xl overflow-hidden"
+        style={{ maxHeight: 'calc(78vh - 64px)' }}
       >
         {/* ドラッグハンドル */}
         <div className="flex justify-center pt-3 pb-1" onClick={onClose}>
           <div className="w-10 h-1.5 bg-border rounded-full" />
         </div>
 
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(78vh - 20px)' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(78vh - 84px)' }}>
 
           {/* ─── 店舗ヘッダー ─── */}
           <div className="relative h-36 mx-4 mt-1 mb-4 rounded-2xl overflow-hidden bg-muted shrink-0">
