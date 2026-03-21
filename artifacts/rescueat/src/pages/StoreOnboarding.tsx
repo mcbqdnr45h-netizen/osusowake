@@ -237,6 +237,7 @@ export default function StoreOnboarding() {
   const [geocoding, setGeocoding] = useState(false);
   const [createdStoreId, setCreatedStoreId] = useState<number | null>(null);
   const [stripeConnected, setStripeConnected] = useState(false);
+  const [stripeUrl, setStripeUrl] = useState<string | null>(null);
 
   const [basic, setBasic] = useState<BasicForm>({
     name: '', address: '', city: '', category: 'restaurant',
@@ -364,7 +365,9 @@ export default function StoreOnboarding() {
       }
 
       const { url } = await connectRes.json();
-      window.location.href = url;
+      // window.location.href はiframe環境でブロックされるため
+      // ステートに保存してユーザーが手動でクリックする方式に変更
+      setStripeUrl(url);
     } catch {
       setStripeConnected(false);
       setStep('done');
@@ -607,19 +610,43 @@ export default function StoreOnboarding() {
             <motion.div
               key="redirecting"
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-16"
+              className="text-center py-12"
             >
-              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-                <CheckCircle2 className="w-10 h-10 text-primary" />
-                <div className="absolute inset-0 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-              </div>
-              <h2 className="text-2xl font-black text-foreground mb-2">店舗情報を保存しました</h2>
-              <p className="text-muted-foreground text-sm mb-2 leading-relaxed">
-                Stripeの口座登録ページへ移動しています…
-              </p>
-              <p className="text-xs text-muted-foreground/60">
-                自動的に移動しない場合はしばらくお待ちください
-              </p>
+              {!stripeUrl ? (
+                /* URL 生成中 */
+                <>
+                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+                    <CheckCircle2 className="w-10 h-10 text-primary" />
+                    <div className="absolute inset-0 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+                  </div>
+                  <h2 className="text-2xl font-black mb-2">口座登録URLを生成中…</h2>
+                  <p className="text-muted-foreground text-sm">Stripeと通信しています</p>
+                </>
+              ) : (
+                /* URL 取得完了 → ボタンで開く */
+                <>
+                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <CheckCircle2 className="w-12 h-12 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-black mb-2">審査が完了しました！</h2>
+                  <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
+                    続けてStripeで銀行口座を登録してください。<br />
+                    登録後に商品の出品が可能になります。
+                  </p>
+                  <a
+                    href={stripeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 w-full max-w-xs mx-auto bg-primary text-primary-foreground font-black text-base rounded-2xl px-6 py-4 shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
+                  >
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                    Stripeで口座登録する
+                  </a>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    ※ 別タブで開きます
+                  </p>
+                </>
+              )}
             </motion.div>
           )}
 
