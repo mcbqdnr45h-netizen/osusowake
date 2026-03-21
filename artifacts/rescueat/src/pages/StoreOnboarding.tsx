@@ -53,7 +53,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   return null;
 }
 
-type Step = 'basic' | 'compliance' | 'redirecting' | 'done';
+type Step = 'basic' | 'compliance' | 'reviewing' | 'redirecting' | 'done';
 
 interface BasicForm {
   name: string; address: string; city: string;
@@ -97,6 +97,131 @@ function ImageUploadBox({
       </div>
       <input ref={ref} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
     </div>
+  );
+}
+
+const REVIEW_CHECKS = [
+  { icon: '🏪', label: '基本情報の確認', detail: '店舗名・住所・位置情報' },
+  { icon: '📄', label: '営業許可証番号の確認', detail: 'ライセンス番号の書式チェック' },
+  { icon: '🖼️', label: '営業許可証（写真）の確認', detail: '書類画像の読み取り' },
+  { icon: '🪪', label: '本人確認書類の確認', detail: '身分証明書の確認' },
+  { icon: '🤝', label: '誓約書への同意確認', detail: '利用規約への同意' },
+];
+
+function ReviewingStep({
+  storeId,
+  onApproved,
+  onFailed,
+}: {
+  storeId: number;
+  onApproved: () => void;
+  onFailed: (reason: string) => void;
+}) {
+  const [visibleCount, setVisibleCount] = useState(0);
+  const [checkedCount, setCheckedCount] = useState(0);
+  const [apiResult, setApiResult] = useState<{ approved: boolean; reason?: string } | null>(null);
+  const [done, setDone] = useState(false);
+
+  // APIを即時呼び出す（アニメーションと並行）
+  React.useEffect(() => {
+    fetch(`${BASE}/api/stores/${storeId}/auto-review`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => setApiResult(data))
+      .catch(() => setApiResult({ approved: true }));
+  }, [storeId]);
+
+  // チェック項目を順番に表示→チェック済みにする
+  React.useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    REVIEW_CHECKS.forEach((_, i) => {
+      timers.push(setTimeout(() => setVisibleCount(v => Math.max(v, i + 1)), i * 620));
+      timers.push(setTimeout(() => setCheckedCount(v => Math.max(v, i + 1)), i * 620 + 500));
+    });
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  // 全チェック完了 + API完了 → 結果へ
+  React.useEffect(() => {
+    if (checkedCount >= REVIEW_CHECKS.length && apiResult !== null && !done) {
+      setDone(true);
+      setTimeout(() => {
+        if (apiResult.approved) onApproved();
+        else onFailed(apiResult.reason ?? '審査が完了しませんでした');
+      }, 700);
+    }
+  }, [checkedCount, apiResult, done, onApproved, onFailed]);
+
+  const progress = Math.round((checkedCount / REVIEW_CHECKS.length) * 100);
+
+  return (
+    <motion.div
+      key="reviewing"
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+      className="space-y-5"
+    >
+      <div className="text-center pt-4 pb-2">
+        <div className="relative w-20 h-20 mx-auto mb-4">
+          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
+            <circle
+              cx="40" cy="40" r="34" fill="none"
+              stroke="hsl(var(--primary))" strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 34}`}
+              strokeDashoffset={`${2 * Math.PI * 34 * (1 - progress / 100)}`}
+              className="transition-all duration-500"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-base font-black text-primary">{progress}%</span>
+          </div>
+        </div>
+        <h2 className="text-xl font-black mb-1">自動審査中...</h2>
+        <p className="text-sm text-muted-foreground">書類・情報を確認しています</p>
+      </div>
+
+      <div className="space-y-2.5">
+        {REVIEW_CHECKS.map((check, i) => {
+          const visible = i < visibleCount;
+          const checked = i < checkedCount;
+          return (
+            <motion.div
+              key={check.label}
+              initial={{ opacity: 0, x: 12 }}
+              animate={visible ? { opacity: 1, x: 0 } : { opacity: 0, x: 12 }}
+              transition={{ duration: 0.3 }}
+              className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 border transition-all duration-300
+                ${checked ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}
+            >
+              <span className="text-2xl shrink-0">{check.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className={`font-bold text-sm ${checked ? 'text-primary' : 'text-foreground'}`}>{check.label}</div>
+                <div className="text-xs text-muted-foreground">{check.detail}</div>
+              </div>
+              <div className="shrink-0 w-6 h-6 flex items-center justify-center">
+                {checked ? (
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400 }}>
+                    <CheckCircle2 className="w-6 h-6 text-primary" />
+                  </motion.div>
+                ) : visible ? (
+                  <div className="w-4 h-4 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
+                ) : null}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {done && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="bg-primary text-primary-foreground rounded-2xl p-4 text-center font-black text-base flex items-center justify-center gap-2"
+        >
+          <CheckCircle2 className="w-5 h-5" />
+          審査完了！口座登録ページへ移動します
+        </motion.div>
+      )}
+    </motion.div>
   );
 }
 
@@ -203,32 +328,9 @@ export default function StoreOnboarding() {
       const store = await res.json();
       setCreatedStoreId(store.id);
 
-      // ② Stripe Connect Account Link を生成して store に stripe_account_id を紐付け
-      setStep('redirecting');
+      // ② 自動審査ステップへ（ReviewingStep内でAPIを呼ぶ）
+      setStep('reviewing');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-
-      const origin = window.location.origin;
-      const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-      const returnUrl  = `${origin}${basePath}/store-onboarding?stripe_connect=return&storeId=${store.id}`;
-      const refreshUrl = `${origin}${basePath}/store-onboarding?stripe_connect=refresh&storeId=${store.id}`;
-
-      const connectRes = await fetch(`${BASE}/api/stores/${store.id}/connect/onboard`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ returnUrl, refreshUrl }),
-      });
-
-      if (!connectRes.ok) {
-        // Stripe 未設定や失敗時はそのまま完了画面へ
-        setStripeConnected(false);
-        setStep('done');
-        return;
-      }
-
-      const { url } = await connectRes.json();
-
-      // ③ Stripe の口座登録ページへリダイレクト
-      window.location.href = url;
     } catch (err: any) {
       toast({ title: '申請失敗', description: err.message, variant: 'destructive' });
       setStep('compliance');
@@ -237,8 +339,45 @@ export default function StoreOnboarding() {
     }
   }
 
+  // 審査通過後に Stripe Connect へ進む
+  const handleAutoApproved = React.useCallback(async () => {
+    if (!createdStoreId) return;
+    setStep('redirecting');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const origin = window.location.origin;
+    const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+    const returnUrl  = `${origin}${basePath}/store-onboarding?stripe_connect=return&storeId=${createdStoreId}`;
+    const refreshUrl = `${origin}${basePath}/store-onboarding?stripe_connect=refresh&storeId=${createdStoreId}`;
+
+    try {
+      const connectRes = await fetch(`${BASE}/api/stores/${createdStoreId}/connect/onboard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl, refreshUrl }),
+      });
+
+      if (!connectRes.ok) {
+        setStripeConnected(false);
+        setStep('done');
+        return;
+      }
+
+      const { url } = await connectRes.json();
+      window.location.href = url;
+    } catch {
+      setStripeConnected(false);
+      setStep('done');
+    }
+  }, [createdStoreId]);
+
+  const handleAutoFailed = React.useCallback((reason: string) => {
+    toast({ title: '審査が完了しませんでした', description: reason, variant: 'destructive' });
+    setStep('compliance');
+  }, [toast]);
+
   const STEPS: Step[] = ['basic', 'compliance', 'done'];
-  const stepIdx = STEPS.indexOf(step);
+  const stepIdx = (step === 'reviewing' || step === 'redirecting') ? 2 : STEPS.indexOf(step);
 
   return (
     <Layout showBottomNav={false}>
@@ -452,6 +591,15 @@ export default function StoreOnboarding() {
                 )}
               </button>
             </motion.form>
+          )}
+
+          {/* ── REVIEWING（自動審査中） ── */}
+          {step === 'reviewing' && createdStoreId && (
+            <ReviewingStep
+              storeId={createdStoreId}
+              onApproved={handleAutoApproved}
+              onFailed={handleAutoFailed}
+            />
           )}
 
           {/* ── REDIRECTING（Stripeへ遷移中） ── */}

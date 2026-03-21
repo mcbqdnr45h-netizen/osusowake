@@ -117,6 +117,51 @@ router.post("/stores/apply", async (req, res) => {
   }
 });
 
+// Public: auto-review a store application — runs validation and approves if all checks pass
+router.post("/stores/:storeId/auto-review", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    const [store] = await db
+      .select()
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      return res.status(404).json({ error: "not_found", message: "Store not found" });
+    }
+
+    // 審査チェック項目
+    const checks = [
+      { key: "basic_info",   label: "基本情報",       passed: !!(store.name && store.address && store.city && store.lat && store.lng) },
+      { key: "license",      label: "営業許可証番号",   passed: !!store.licenseNumber },
+      { key: "license_img",  label: "営業許可証（写真）", passed: !!store.licenseImageUrl },
+      { key: "id_img",       label: "本人確認書類",     passed: !!store.idImageUrl },
+      { key: "pledge",       label: "誓約書への同意",   passed: store.pledgeSigned === true },
+    ];
+
+    const allPassed = checks.every(c => c.passed);
+
+    if (allPassed) {
+      // 全チェック通過 → 自動承認
+      const [approved] = await db
+        .update(storesTable)
+        .set({ status: "approved", isActive: true })
+        .where(eq(storesTable.id, storeId))
+        .returning();
+
+      console.log(`✅ Auto-approved store ${storeId}: ${store.name}`);
+      return res.json({ approved: true, checks, store: approved });
+    }
+
+    // 未通過がある場合は pending のまま
+    const failed = checks.filter(c => !c.passed).map(c => c.label);
+    return res.json({ approved: false, checks, reason: `未記入の項目があります: ${failed.join(', ')}` });
+  } catch (err) {
+    console.error("Auto-review error:", err);
+    res.status(500).json({ error: "internal_error", message: "Review failed" });
+  }
+});
+
 // Public: get the store owned by a specific user
 router.get("/stores/by-owner", async (req, res) => {
   try {
