@@ -31,11 +31,25 @@ export default function StoreLogin() {
       return;
     }
 
-    if (role === 'store_owner') {
-      navigate('/store/dashboard');
-    } else {
+    // 一般ユーザーアカウントで店舗ログインしようとした場合はブロック
+    if (role !== 'store_owner') {
       setError('このアカウントは店舗オーナー用ではありません。ユーザーログインをご利用ください。');
+      return;
     }
+
+    // ?redirect= パラメータが指定されていれば最優先（店舗ページのみ許可）
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get('redirect');
+    if (redirect) {
+      const decoded = decodeURIComponent(redirect);
+      // セキュリティ: 店舗関連ページへのリダイレクトのみ許可
+      if (decoded.startsWith('/store/') || decoded.startsWith('/register-store')) {
+        navigate(decoded);
+        return;
+      }
+    }
+
+    navigate('/store/dashboard');
   }
 
   return (

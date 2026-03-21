@@ -31,10 +31,19 @@ export default function Login() {
       return;
     }
 
+    // ?redirect= パラメータが指定されていれば最優先
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get('redirect');
+    if (redirect) {
+      navigate(decodeURIComponent(redirect));
+      return;
+    }
+
+    // role に応じた自動振り分け
     if (role === 'store_owner') {
       navigate('/store/dashboard');
     } else {
-      navigate('/mypage');
+      navigate('/');   // 一般ユーザーは商品一覧トップへ
     }
   }
 

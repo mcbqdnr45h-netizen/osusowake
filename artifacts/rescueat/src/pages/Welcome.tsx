@@ -1,7 +1,7 @@
 import React from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { Leaf, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -9,6 +9,16 @@ const fadeUp = {
 };
 
 export default function Welcome() {
+  const [location] = useLocation();
+
+  // ?redirect= パラメータがあれば Login/SignUp リンクへ引き継ぐ
+  const params = new URLSearchParams(
+    typeof window !== 'undefined' ? window.location.search : ''
+  );
+  const redirect = params.get('redirect');
+  const loginHref = redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : '/login';
+  const signupHref = redirect ? `/signup?redirect=${encodeURIComponent(redirect)}` : '/signup';
+
   return (
     <div className="min-h-dvh flex flex-col bg-[#2D5A51] relative overflow-hidden">
 
@@ -71,14 +81,14 @@ export default function Welcome() {
         custom={3} variants={fadeUp} initial="hidden" animate="show"
         className="px-6 pb-10 relative z-10 space-y-3"
       >
-        <Link href="/signup">
+        <Link href={signupHref}>
           <button className="w-full bg-white text-[#2D5A51] font-black text-lg py-4 rounded-2xl shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2">
             はじめる（新規登録）
             <ChevronRight className="w-5 h-5" />
           </button>
         </Link>
 
-        <Link href="/login">
+        <Link href={loginHref}>
           <button className="w-full bg-white/15 backdrop-blur-sm border border-white/30 text-white font-bold text-base py-4 rounded-2xl active:scale-[0.98] transition-all">
             ログイン
           </button>

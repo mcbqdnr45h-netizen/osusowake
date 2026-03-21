@@ -55,7 +55,10 @@ export default function SignUp() {
     setDone(true);
 
     if (!confirm) {
-      setTimeout(() => navigate('/mypage'), 1200);
+      // ?redirect= があればそちら、なければ商品一覧トップへ
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect');
+      setTimeout(() => navigate(redirect ? decodeURIComponent(redirect) : '/'), 1200);
     }
   }
 
