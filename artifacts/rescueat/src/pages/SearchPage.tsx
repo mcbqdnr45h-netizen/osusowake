@@ -3,47 +3,10 @@ import { Layout } from '@/components/Layout';
 import { MapView } from '@/components/Map';
 import { BagCard } from '@/components/BagCard';
 import { useListAllBags, useListStores } from '@workspace/api-client-react';
-import { Search, Map as MapIcon, List, SlidersHorizontal, Clock, Package } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'wouter';
-import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
+import { Search, Map as MapIcon, List } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 type ViewMode = 'map' | 'list';
-
-function MiniCard({ bag }: { bag: any }) {
-  const isSoldOut = bag.stockCount <= 0;
-  const discountPct = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
-  return (
-    <Link href={isSoldOut ? '#' : `/bags/${bag.id}`}>
-      <motion.div
-        whileTap={{ scale: 0.97 }}
-        className={`relative w-48 h-32 rounded-2xl overflow-hidden shadow-lg flex-shrink-0 cursor-pointer ${isSoldOut ? 'grayscale opacity-60' : ''}`}
-      >
-        <img
-          src={bag.store.imageUrl || getCategoryImage(bag.store.category)}
-          alt={bag.store.name}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-2.5">
-          <p className="text-white font-bold text-xs truncate leading-tight">{bag.store.name}</p>
-          <p className="text-white/70 text-[10px] truncate">{bag.title}</p>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
-              -{discountPct}%
-            </span>
-            <span className="text-white font-black text-sm">¥{bag.discountedPrice.toLocaleString()}</span>
-          </div>
-        </div>
-        {isSoldOut && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full">SOLD OUT</span>
-          </div>
-        )}
-      </motion.div>
-    </Link>
-  );
-}
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
@@ -94,27 +57,6 @@ export default function SearchPage() {
             <MapView stores={displayStores} />
           </div>
 
-          {/* 下部カードストリップ */}
-          <AnimatePresence>
-            {filteredBags.length > 0 && (
-              <motion.div
-                initial={{ y: 60, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 60, opacity: 0 }}
-                transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-                className="absolute bottom-0 left-0 right-0 z-10 pb-4 pt-6 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"
-              >
-                <div className="flex gap-3 overflow-x-auto px-4 pb-1 pointer-events-auto scrollbar-hide">
-                  {filteredBags.map(bag => (
-                    <MiniCard key={bag.id} bag={bag} />
-                  ))}
-                </div>
-                <p className="text-center text-white text-[11px] font-bold mt-2 drop-shadow">
-                  {query ? `「${query}」 ${filteredBags.length}件` : `${filteredBags.length}件のバッグ`}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       )}
 
