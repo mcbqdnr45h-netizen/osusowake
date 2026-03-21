@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Map, Search, Package, Heart, User, Menu, X, FileText, Shield, Store } from 'lucide-react';
+import { Map, Search, Package, Heart, User, Menu, X, FileText, Shield, Store, Settings, ChevronRight, Coins } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface LayoutProps {
 export function Layout({ children, showBottomNav = true, hideFooter = false }: LayoutProps) {
   const [location] = useLocation();
   const { isApprovedOwner } = useMyStore();
+  const { user, profile } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -35,14 +37,12 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
     { href: '/search', icon: Search, label: '検索' },
     { href: '/my-reservations', icon: Package, label: 'お届け' },
     { href: '/favorites', icon: Heart, label: 'お気に入り' },
-    { href: '/mypage', icon: User, label: 'マイページ' },
   ];
 
   const desktopNavItems = [
     { href: '/', label: '発見' },
     { href: '/search', label: '検索' },
     { href: '/my-reservations', label: 'お届け' },
-    { href: '/mypage', label: 'マイページ' },
   ];
 
   const legalLinks = [
@@ -50,6 +50,8 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
     { href: '/privacy', icon: Shield, label: 'プライバシーポリシー' },
     { href: '/legal', icon: Store, label: '特定商取引に基づく表記' },
   ];
+
+  const isLoggedIn = !!user;
 
   return (
     <div className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen pb-[80px] md:pb-0'} bg-background text-foreground flex flex-col font-sans`}>
@@ -84,7 +86,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 aria-label="メニューを開く"
-                className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-muted transition-colors text-foreground"
+                className={`flex items-center justify-center w-10 h-10 rounded-xl hover:bg-muted transition-colors text-foreground relative ${isLoggedIn ? 'ring-2 ring-primary/30' : ''}`}
               >
                 <AnimatePresence mode="wait" initial={false}>
                   {menuOpen ? (
@@ -119,25 +121,85 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 mt-2 w-64 bg-card border border-border rounded-2xl shadow-xl overflow-hidden z-50"
+                    className="absolute right-0 mt-2 w-72 bg-card border border-border rounded-2xl shadow-xl overflow-hidden z-50"
                   >
-                    <div className="px-4 py-3 border-b border-border/60">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">規約・その他</p>
-                    </div>
-                    <div className="py-1">
-                      {legalLinks.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                          >
-                            <Icon className="w-4 h-4 text-primary shrink-0" />
-                            {item.label}
+                    {/* ── Profile section (logged-in) ── */}
+                    {isLoggedIn ? (
+                      <Link href="/mypage" className="block hover:bg-muted/60 transition-colors">
+                        <div className="px-4 py-4 flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
+                            <User className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-foreground truncate">{user.email}</p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                                profile?.role === 'store_owner'
+                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                                  : 'bg-primary/10 text-primary'
+                              }`}>
+                                {profile?.role === 'store_owner' ? '🏪 店舗オーナー' : '👤 お客様'}
+                              </span>
+                              {profile && (
+                                <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-500">
+                                  <Coins className="w-3 h-3" />
+                                  {profile.points_balance.toLocaleString()} pt
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                        </div>
+                      </Link>
+                    ) : (
+                      /* ── Guest ── */
+                      <div className="px-4 py-3 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <User className="w-4 h-4" />
+                          <span>ゲストユーザー</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link href="/login" className="text-xs font-bold text-primary border border-primary/40 rounded-lg px-2.5 py-1 hover:bg-primary/5 transition-colors">
+                            ログイン
                           </Link>
-                        );
-                      })}
+                          <Link href="/signup" className="text-xs font-bold text-white bg-primary rounded-lg px-2.5 py-1 hover:bg-primary/90 transition-colors">
+                            新規登録
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Settings shortcut (logged-in only) ── */}
+                    {isLoggedIn && (
+                      <Link
+                        href="/settings"
+                        className="flex items-center gap-3 px-4 py-2.5 border-t border-border/60 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <Settings className="w-4 h-4 shrink-0" />
+                        アカウント設定
+                      </Link>
+                    )}
+
+                    {/* ── Legal ── */}
+                    <div className="border-t border-border/60">
+                      <div className="px-4 pt-3 pb-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">規約・その他</p>
+                      </div>
+                      <div className="pb-1">
+                        {legalLinks.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Icon className="w-4 h-4 text-primary shrink-0" />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -202,7 +264,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
         </div>
       </footer>}
 
-      {/* Mobile Bottom Nav */}
+      {/* Mobile Bottom Nav — マイページなし */}
       {showBottomNav && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-10px_30px_rgba(0,0,0,0.05)] pb-safe">
           <div className="flex items-center justify-around h-16 px-1">
