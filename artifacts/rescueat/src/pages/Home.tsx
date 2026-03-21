@@ -104,37 +104,48 @@ function CategoryScrollRow({
           <motion.button
             key={cat.value}
             onClick={() => onSelect(isActive && !isAll ? 'all' : cat.value)}
-            whileTap={{ scale: 0.84 }}
+            whileTap={{ scale: 0.82 }}
             transition={{ type: 'spring', stiffness: 500, damping: 22 }}
             className="flex flex-col items-center gap-1.5 shrink-0"
           >
-            {/* 丸アイコン
-                「すべて」: 常時オレンジ背景・選択時はリング強調
-                その他   : 選択時のみオレンジ、非選択は淡色背景     */}
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl select-none
-              transition-all duration-150
-              ${isAll
-                ? isActive
-                  ? 'bg-primary shadow-lg shadow-primary/35 ring-3 ring-primary ring-offset-2 scale-105'
-                  : 'bg-primary/85 shadow-sm shadow-primary/20'
-                : isActive
-                  ? 'bg-primary ring-2 ring-primary ring-offset-2 shadow-md shadow-primary/25 scale-105'
-                  : `${cat.bg} ring-1 ring-border/60 shadow-sm`
-              }`}>
-              {(isAll || isActive)
-                ? <span className="text-2xl drop-shadow-sm">{cat.emoji}</span>
-                : <span className="text-2xl">{cat.emoji}</span>
-              }
+            {/*
+              ── 「すべて」ボタン ──
+              常時オレンジ背景で唯一無二の存在感。
+              選択中: ring + 拡大 + 濃い影で「今ここ」を明示。
+              非選択: やや透過 + 小さい影で「ホーム」感を保つ。
+
+              ── 通常カテゴリー ──
+              非選択: 白背景 + 薄いグレーリング（ニュートラル）
+              選択中: オレンジ背景 + ring で「絞り込み中」を明示。
+            */}
+            <div
+              className={[
+                'w-14 h-14 rounded-full flex items-center justify-center text-[1.6rem] select-none transition-all duration-200',
+                isAll
+                  ? isActive
+                    ? 'bg-primary shadow-[0_4px_16px_rgba(255,140,0,0.45)] ring-[3px] ring-primary ring-offset-2 scale-110'
+                    : 'bg-primary/80 shadow-[0_2px_8px_rgba(255,140,0,0.28)]'
+                  : isActive
+                    ? 'bg-primary shadow-md shadow-primary/30 ring-2 ring-primary ring-offset-2 scale-108'
+                    : 'bg-white border border-gray-200 shadow-sm',
+              ].join(' ')}
+            >
+              <span className={isAll ? 'drop-shadow' : ''}>{cat.emoji}</span>
             </div>
+
             {/* ラベル */}
-            <span className={`text-[11px] leading-none whitespace-nowrap transition-all
-              ${isActive ? 'font-black text-primary' : 'font-medium text-muted-foreground'}`}>
+            <span
+              className={[
+                'text-[11px] leading-none whitespace-nowrap transition-all duration-150',
+                isActive ? 'font-black text-primary' : 'font-medium text-muted-foreground',
+              ].join(' ')}
+            >
               {cat.label}
             </span>
           </motion.button>
         );
       })}
-      {/* チラ見せ：最後が少し切れて「まだ続く」感を演出 */}
+      {/* チラ見せスペーサー */}
       <div className="w-3 shrink-0" />
     </div>
   );
@@ -572,17 +583,27 @@ export default function Home() {
                     {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
                   </div>
                 ) : filteredBags.length > 0 ? (
-                  <motion.div
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-                    initial="hidden" animate="show"
-                    variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
-                  >
-                    {filteredBags.map(bag => (
-                      <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-                        <BagCard bag={bag} />
-                      </motion.div>
-                    ))}
-                  </motion.div>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeCategory}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                      {filteredBags.map((bag, i) => (
+                        <motion.div
+                          key={bag.id}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: i * 0.04, ease: 'easeOut' }}
+                        >
+                          <BagCard bag={bag} />
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
                 ) : (
                   /* ── 0件リテンション：レコメンド付き ── */
                   <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
