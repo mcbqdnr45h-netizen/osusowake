@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Map, Search, Package, Heart, User } from 'lucide-react';
+import { Map, Search, Package, Heart, User, Menu, X, FileText, Shield, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
 
@@ -13,6 +13,22 @@ interface LayoutProps {
 export function Layout({ children, showBottomNav = true, hideFooter = false }: LayoutProps) {
   const [location] = useLocation();
   const { isApprovedOwner } = useMyStore();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location]);
 
   const navItems = [
     { href: '/', icon: Map, label: '発見' },
@@ -29,6 +45,12 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
     { href: '/mypage', label: 'マイページ' },
   ];
 
+  const legalLinks = [
+    { href: '/terms', icon: FileText, label: '利用規約' },
+    { href: '/privacy', icon: Shield, label: 'プライバシーポリシー' },
+    { href: '/legal', icon: Store, label: '特定商取引に基づく表記' },
+  ];
+
   return (
     <div className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen pb-[80px] md:pb-0'} bg-background text-foreground flex flex-col font-sans`}>
 
@@ -41,20 +63,87 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
             </span>
           </Link>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
-            {desktopNavItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`font-bold transition-colors hover:text-primary ${
-                  location === item.href ? 'text-primary' : 'text-muted-foreground'
-                }`}
+          <div className="flex items-center gap-4">
+            {/* Desktop Nav */}
+            <nav className="hidden md:flex items-center gap-8">
+              {desktopNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`font-bold transition-colors hover:text-primary ${
+                    location === item.href ? 'text-primary' : 'text-muted-foreground'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            {/* Hamburger Menu Button */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="メニューを開く"
+                className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-muted transition-colors text-foreground"
               >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+                <AnimatePresence mode="wait" initial={false}>
+                  {menuOpen ? (
+                    <motion.div
+                      key="x"
+                      initial={{ rotate: -90, opacity: 0 }}
+                      animate={{ rotate: 0, opacity: 1 }}
+                      exit={{ rotate: 90, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <X className="w-5 h-5" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="menu"
+                      initial={{ rotate: 90, opacity: 0 }}
+                      animate={{ rotate: 0, opacity: 1 }}
+                      exit={{ rotate: -90, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Menu className="w-5 h-5" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
+
+              {/* Dropdown */}
+              <AnimatePresence>
+                {menuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    className="absolute right-0 mt-2 w-64 bg-card border border-border rounded-2xl shadow-xl overflow-hidden z-50"
+                  >
+                    <div className="px-4 py-3 border-b border-border/60">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">規約・その他</p>
+                    </div>
+                    <div className="py-1">
+                      {legalLinks.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Icon className="w-4 h-4 text-primary shrink-0" />
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
       </header>
 
