@@ -181,7 +181,7 @@ router.post("/checkout/session", async (req, res) => {
     const amountInYen = Math.round(reservation.totalPrice);
     const platformFeeAmount = Math.floor(amountInYen * 0.25); // 25%
 
-    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+    const baseSessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: "payment",
       line_items: [
         {
@@ -203,12 +203,6 @@ router.post("/checkout/session", async (req, res) => {
           platformFeeAmount: String(platformFeeAmount),
           platformFeeRate: "25",
         },
-        ...(store?.stripeAccountId
-          ? {
-              application_fee_amount: platformFeeAmount,
-              transfer_data: { destination: store.stripeAccountId },
-            }
-          : {}),
       },
       success_url: successUrl.includes("{CHECKOUT_SESSION_ID}")
         ? successUrl
@@ -220,7 +214,29 @@ router.post("/checkout/session", async (req, res) => {
       locale: "ja",
     };
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    // Stripe Connect 送金を試みる（リージョン制限で失敗した場合は直接決済にフォールバック）
+    let session;
+    if (store?.stripeAccountId) {
+      try {
+        session = await stripe.checkout.sessions.create({
+          ...baseSessionParams,
+          payment_intent_data: {
+            ...baseSessionParams.payment_intent_data,
+            application_fee_amount: platformFeeAmount,
+            transfer_data: { destination: store.stripeAccountId },
+          },
+        });
+      } catch (connectErr: any) {
+        if (connectErr?.code === "transfers_not_allowed" || connectErr?.code === "account_invalid") {
+          console.warn("Stripe Connect transfer not available, falling back to direct payment:", connectErr.code);
+          session = await stripe.checkout.sessions.create(baseSessionParams);
+        } else {
+          throw connectErr;
+        }
+      }
+    } else {
+      session = await stripe.checkout.sessions.create(baseSessionParams);
+    }
 
     await db
       .update(reservationsTable)
