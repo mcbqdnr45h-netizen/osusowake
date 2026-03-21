@@ -215,16 +215,16 @@ router.post("/checkout/session", async (req, res) => {
       locale: "ja" as const,
     };
 
-    // payment_intent_data に application_fee_amount と transfer_data を直接指定し
-    // Stripe のシステム上で手数料が差し引かれるようにする（本番: 同リージョンのアカウントで動作）
+    // Stripe Connect: on_behalf_of（店舗負担の決済手数料）+ application_fee_amount（25%）+ transfer_data
     let session;
     let connectUsed = false;
     try {
       session = await stripe.checkout.sessions.create({
         ...commonParams,
         payment_intent_data: {
+          on_behalf_of: destinationAccountId,              // 決済手数料を店舗側に負担させる
           application_fee_amount: applicationFeeAmount,   // 25% プラットフォーム手数料
-          transfer_data: { destination: destinationAccountId }, // 店舗への送金先
+          transfer_data: { destination: destinationAccountId }, // 残額を店舗へ送金
           metadata: {
             reservationId:      String(reservation.id),
             platformFeeAmount:  String(applicationFeeAmount),
@@ -234,10 +234,10 @@ router.post("/checkout/session", async (req, res) => {
         },
       });
       connectUsed = true;
-      console.log(`✅ Stripe Connect 成功: fee=${applicationFeeAmount}JPY → ${destinationAccountId}`);
+      console.log(`✅ Stripe Connect 成功: amount=${amountInYen}JPY, fee=${applicationFeeAmount}JPY (25%), on_behalf_of=${destinationAccountId}`);
     } catch (connectErr: any) {
-      // テスト環境でのクロスリージョン制限 (transfers_not_allowed) の場合のみフォールバック
-      // 本番環境では同リージョンのアカウントを使用するため、このエラーは発生しない
+      // テスト環境でのクロスリージョン制限の場合のみフォールバック
+      // 本番環境では同リージョンの Connected Account を使用するため発生しない
       if (connectErr?.code === "transfers_not_allowed" || connectErr?.code === "account_invalid") {
         console.warn(
           `⚠️  Stripe Connect クロスリージョン制限のためフォールバック (${connectErr.code})\n` +
