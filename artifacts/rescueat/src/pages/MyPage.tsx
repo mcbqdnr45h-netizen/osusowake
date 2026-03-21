@@ -3,10 +3,11 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, LayoutDashboard, ClipboardCheck, Mail } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, LayoutDashboard, ClipboardCheck, Mail, Scale, Flame, TrendingUp, Star } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
 import { useAuth } from '@/contexts/AuthContext';
+import { motion } from 'framer-motion';
 
 const POINT_RATE = 0.03;
 
@@ -21,10 +22,21 @@ export default function MyPage() {
   });
 
   const pickedUpReservations = reservations?.filter(r => r.status === 'picked_up') || [];
-  const pickedUpCount = pickedUpReservations.length;
-  const co2Saved = +(pickedUpCount * 2.5).toFixed(1);
-  const ecoRank = getUserEcoRank(co2Saved);
-  const progress = getUserProgress(co2Saved, ecoRank);
+  const pickedUpCount  = pickedUpReservations.length;
+  const foodSavedKg    = +(pickedUpCount * 0.5).toFixed(1);   // 1回あたり500g換算
+  const co2Saved       = +(pickedUpCount * 2.5).toFixed(1);
+  const ecoRank        = getUserEcoRank(co2Saved);
+  const progress       = getUserProgress(co2Saved, ecoRank);
+
+  // おすそ分けスコア（レベル）
+  const scoreLevel = pickedUpCount === 0 ? 'はじめての一歩' :
+    pickedUpCount < 5  ? 'おすそ分けビギナー' :
+    pickedUpCount < 15 ? 'おすそ分けサポーター' :
+    pickedUpCount < 30 ? 'おすそ分けマスター' : '伝説のおすそ分け人';
+  const scoreEmoji = pickedUpCount === 0 ? '🌱' :
+    pickedUpCount < 5  ? '🌾' :
+    pickedUpCount < 15 ? '🌿' :
+    pickedUpCount < 30 ? '🌳' : '🏆';
 
   // Points calculation: 3% of total paid amount
   const totalSpent = pickedUpReservations.reduce((sum, r) => sum + (r.totalPrice || 0), 0);
@@ -140,49 +152,114 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* Impact Stats */}
+        {/* ── おすそ分けスコア ── */}
         <div className="mb-4">
-          {/* Rescue count */}
-          <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-5 text-center shadow-sm mb-3">
-            <ShoppingBag className="w-8 h-8 text-primary mx-auto mb-2" />
-            <div className="text-3xl font-black text-primary">{pickedUpCount}</div>
-            <div className="text-xs font-bold text-primary/80 mt-1">レスキューした食事</div>
-          </div>
 
-          {/* Eco rank CO2 card */}
-          <div className={`border-2 rounded-2xl p-5 shadow-sm transition-all duration-500 ${ecoRank.sectionBg} ${ecoRank.sectionBorder}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black ${ecoRank.badgeBg} ${ecoRank.badgeText}`}>
-                <span className="text-base leading-none">{ecoRank.icon}</span>
-                {ecoRank.label}
-              </div>
-              <div className={`text-xs font-bold px-2 py-1 rounded-lg ${ecoRank.valueBg} ${ecoRank.labelText}`}>
-                Lv.{ecoRank.rank}
-              </div>
-            </div>
+          {/* ヒーローカード：スコア全体 */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="relative rounded-2xl overflow-hidden mb-3 shadow-md"
+            style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)' }}
+          >
+            {/* 背景装飾円 */}
+            <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full" />
+            <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/5 rounded-full" />
 
-            <div className="flex items-end gap-1 mb-1">
-              <Leaf className={`w-6 h-6 mb-1 ${ecoRank.valueText}`} />
-              <span className={`text-4xl font-black leading-none ${ecoRank.valueText}`}>{co2Saved}</span>
-              <span className={`text-base font-bold mb-0.5 ${ecoRank.labelText}`}>kg</span>
-              <span className={`text-xs font-bold mb-1 ml-1 ${ecoRank.labelText}`}>CO2削減</span>
-            </div>
-
-            {ecoRank.rank < 3 && (
-              <div className="mt-3">
-                <div className={`w-full h-2 rounded-full ${ecoRank.rank === 1 ? 'bg-green-200 dark:bg-green-800' : 'bg-emerald-300 dark:bg-emerald-700'} overflow-hidden`}>
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${ecoRank.progressColor}`}
-                    style={{ width: `${Math.max(4, progress)}%` }}
-                  />
+            <div className="relative px-5 pt-5 pb-4">
+              {/* ランクバッジ */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                  <span className="text-lg leading-none">{scoreEmoji}</span>
+                  <span className="text-white text-xs font-black">{scoreLevel}</span>
                 </div>
-                <p className={`text-[10px] font-bold mt-1.5 ${ecoRank.labelText}`}>{ecoRank.sublabel}</p>
+                <div className="flex items-center gap-1 bg-white/20 px-2.5 py-1 rounded-full">
+                  <Star className="w-3.5 h-3.5 text-yellow-200 fill-yellow-200" />
+                  <span className="text-white text-xs font-black">{pickedUpCount}回</span>
+                </div>
               </div>
-            )}
-            {ecoRank.rank === 3 && (
-              <p className={`text-xs font-bold mt-2 ${ecoRank.labelText}`}>{ecoRank.sublabel}</p>
-            )}
-          </div>
+
+              {/* メインメッセージ */}
+              <div className="mb-1">
+                <p className="text-white/80 text-xs font-medium mb-0.5">
+                  あなたはこれまでに
+                </p>
+                <div className="flex items-end gap-2">
+                  <span className="text-5xl font-black text-white leading-none">{foodSavedKg}</span>
+                  <span className="text-white text-xl font-bold mb-1">kg</span>
+                  <span className="text-white/80 text-sm font-bold mb-1.5">の食品ロスを防ぎました</span>
+                </div>
+              </div>
+
+              {/* 称賛メッセージ */}
+              <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 mt-3">
+                <p className="text-white font-black text-sm text-center">
+                  {pickedUpCount === 0
+                    ? '🌟 最初のおすそ分けを受け取ってみよう！'
+                    : pickedUpCount < 5
+                    ? '🌾 素敵なスタートです！続けてみましょう'
+                    : pickedUpCount < 15
+                    ? `🌿 ナイスおすそ分け！地球が喜んでいます`
+                    : `🏆 すごい！あなたは食のヒーローです`
+                  }
+                </p>
+              </div>
+            </div>
+
+            {/* 3統計バー */}
+            <div className="bg-black/10 px-5 py-3 flex items-center justify-around border-t border-white/10">
+              <div className="text-center">
+                <div className="text-white font-black text-xl leading-none">{pickedUpCount}</div>
+                <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
+                  <ShoppingBag className="w-3 h-3" />おすそ分け回数
+                </div>
+              </div>
+              <div className="w-px h-8 bg-white/20" />
+              <div className="text-center">
+                <div className="text-white font-black text-xl leading-none">{foodSavedKg}</div>
+                <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
+                  <Scale className="w-3 h-3" />削減食品量 (kg)
+                </div>
+              </div>
+              <div className="w-px h-8 bg-white/20" />
+              <div className="text-center">
+                <div className="text-white font-black text-xl leading-none">{co2Saved}</div>
+                <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
+                  <Leaf className="w-3 h-3" />CO2削減 (kg)
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* 次のレベルへの進捗バー */}
+          {ecoRank.rank < 3 && (
+            <div className={`border rounded-2xl p-4 shadow-sm ${ecoRank.sectionBg} ${ecoRank.sectionBorder}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className={`flex items-center gap-1.5 text-xs font-black ${ecoRank.badgeText}`}>
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  次のランクまで
+                </div>
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${ecoRank.badgeBg} ${ecoRank.badgeText}`}>
+                  <Flame className="w-3 h-3" />{ecoRank.label}
+                </div>
+              </div>
+              <div className={`w-full h-2.5 rounded-full overflow-hidden ${ecoRank.rank === 1 ? 'bg-green-200' : 'bg-emerald-300'}`}>
+                <motion.div
+                  className={`h-full rounded-full ${ecoRank.progressColor}`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.max(5, progress)}%` }}
+                  transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+                />
+              </div>
+              <p className={`text-[11px] font-bold mt-1.5 ${ecoRank.labelText}`}>{ecoRank.sublabel}</p>
+            </div>
+          )}
+          {ecoRank.rank === 3 && (
+            <div className={`border-2 rounded-2xl p-4 text-center ${ecoRank.sectionBg} ${ecoRank.sectionBorder}`}>
+              <p className={`text-sm font-black ${ecoRank.labelText}`}>🌳 {ecoRank.sublabel}</p>
+            </div>
+          )}
         </div>
 
         {/* Menu List */}

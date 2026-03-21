@@ -5,6 +5,7 @@ import { SurpriseBagWithStore } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useUserLocation, haversineMeters, metersToWalkMinutes, formatWalkTime } from '@/hooks/use-user-location';
+import { useToast } from '@/hooks/use-toast';
 
 interface BagCardProps {
   bag: SurpriseBagWithStore;
@@ -30,26 +31,58 @@ export function BagCard({ bag }: BagCardProps) {
   const isSoldOut  = bag.stockCount <= 0;
   const isLowStock = bag.stockCount > 0 && bag.stockCount <= 2;
   const { isFavorite, toggle } = useFavorites();
+  const { toast } = useToast();
   const storeId   = bag.store.id;
   const favorited = isFavorite(storeId);
   const [burst, setBurst]         = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [fanBurst, setFanBurst]   = useState(false);
 
   function handleFavorite(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    const wasNotFavorited = !favorited;
     toggle(storeId);
-    if (!favorited) { setBurst(true); setTimeout(() => setBurst(false), 600); }
+    if (wasNotFavorited) {
+      setBurst(true);
+      setTimeout(() => setBurst(false), 600);
+    }
+  }
+
+  function handleSoldOutFan(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasNotFavorited = !favorited;
+    toggle(storeId);
+    if (wasNotFavorited) {
+      setFanBurst(true);
+      setTimeout(() => setFanBurst(false), 600);
+      toast({
+        title: '💌 お気に入り登録しました！',
+        description: '準備が整い次第、通知機能でお知らせできるようになります',
+        duration: 4000,
+      });
+    } else {
+      toast({
+        title: 'お気に入りから削除しました',
+        duration: 2000,
+      });
+    }
   }
 
   const imgSrc = bag.store.imageUrl || getCategoryImage(bag.store.category);
+
+  const storeComment = (bag as any).description as string | null | undefined;
+  const trimmedComment = storeComment
+    ? storeComment.length > 22 ? storeComment.slice(0, 21) + '…' : storeComment
+    : null;
 
   return (
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       className={`group block relative rounded-2xl overflow-hidden shadow-md bg-card border transition-shadow duration-300 tap-scale
         ${isSoldOut
-          ? 'opacity-50 cursor-not-allowed grayscale border-border/20'
+          ? 'opacity-60 cursor-not-allowed grayscale border-border/20'
           : 'border-border/30 hover:shadow-xl hover:-translate-y-0.5 cursor-pointer'
         }`}
       onClick={(e) => isSoldOut && e.preventDefault()}
@@ -57,12 +90,8 @@ export function BagCard({ bag }: BagCardProps) {
       {/* ── 4:3 画像エリア ── */}
       <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted">
 
-        {/* Shimmer スケルトン */}
-        {!imgLoaded && (
-          <div className="absolute inset-0 skeleton-shimmer" />
-        )}
+        {!imgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
 
-        {/* 画像 */}
         <img
           src={imgSrc}
           alt={bag.store.name}
@@ -73,7 +102,6 @@ export function BagCard({ bag }: BagCardProps) {
             ${imgLoaded ? 'img-fade-in' : 'opacity-0'}`}
         />
 
-        {/* グラデーションオーバーレイ */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
 
         {/* 左上: 店舗名チップ */}
@@ -123,24 +151,62 @@ export function BagCard({ bag }: BagCardProps) {
             <WalkTimeBadge storeLat={bag.store.lat} storeLng={bag.store.lng} />
           </div>
         )}
+
+        {/* 完売スタンプ（中央オーバーレイ）*/}
+        {isSoldOut && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="relative">
+              <div className="border-4 border-red-500/80 rounded-xl px-4 py-2 rotate-[-12deg] bg-white/5 backdrop-blur-[1px]">
+                <span className="text-red-500/90 text-2xl font-black tracking-widest leading-none block text-center"
+                  style={{ fontFamily: 'Outfit, sans-serif', textShadow: '0 0 12px rgba(239,68,68,0.3)' }}>
+                  完売御礼
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── カード情報エリア ── */}
       <div className="p-4">
 
-        {/* 商品タイトル：情報ヒエラルキーの頂点 */}
-        <h3 className={`font-black leading-snug mb-3 line-clamp-2
+        {/* 商品タイトル */}
+        <h3 className={`font-black leading-snug mb-1 line-clamp-2
           ${isSoldOut ? 'text-sm text-muted-foreground' : 'text-base text-foreground'}`}>
           {bag.title}
         </h3>
 
-        {/* 完売御礼メッセージ */}
+        {/* 店主の一言（あれば表示）*/}
+        {trimmedComment && !isSoldOut && (
+          <p className="text-[11px] text-muted-foreground/80 mb-2 leading-snug flex items-start gap-1">
+            <span className="text-primary/40 font-black shrink-0 leading-none mt-[1px]">❝</span>
+            <span className="italic line-clamp-1">{trimmedComment}</span>
+          </p>
+        )}
+
+        {/* ── 完売御礼エリア ── */}
         {isSoldOut ? (
-          <div className="rounded-xl bg-muted/60 border border-border/40 px-3 py-2.5 text-center">
-            <p className="text-xs font-black text-muted-foreground leading-relaxed">
-              完売御礼！<br />
-              <span className="font-medium">次のおすそ分けをお楽しみに</span>
+          <div className="space-y-2 mt-3">
+            <p className="text-xs text-muted-foreground/70 text-center font-medium">
+              次のおすそ分けをお楽しみに 🌸
             </p>
+            {/* ファン化ボタン */}
+            <button
+              onClick={handleSoldOutFan}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-black transition-all tap-scale border-2
+                ${favorited
+                  ? 'bg-rose-50 border-rose-300 text-rose-600'
+                  : 'bg-white border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-300'
+                } ${fanBurst ? 'scale-105' : ''}`}
+            >
+              <Heart className={`w-4 h-4 transition-all ${favorited ? 'fill-rose-500 stroke-rose-500' : 'fill-none stroke-rose-400'}`} />
+              {favorited ? 'お気に入り済み ✓' : 'このお店を応援する'}
+            </button>
+            {!favorited && (
+              <p className="text-[10px] text-center text-muted-foreground/60 leading-relaxed">
+                ♡ タップで次のおすそ分けを待てます
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -150,23 +216,17 @@ export function BagCard({ bag }: BagCardProps) {
                 <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span className="font-bold">受取 {bag.pickupStart}-{bag.pickupEnd}</span>
               </div>
-
-              {/* 残り在庫：優先度が高いときはオレンジ強調 */}
               <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md
                 ${isLowStock
                   ? 'bg-orange-100 text-orange-600 font-black border border-orange-200'
                   : 'text-muted-foreground bg-secondary/60 font-bold'
                 }`}>
                 <Package className={`w-3.5 h-3.5 shrink-0 ${isLowStock ? 'text-orange-500' : 'text-primary'}`} />
-                <span>残り
-                  <span className={`ml-0.5 ${isLowStock ? 'text-orange-700 text-sm' : ''}`}>
-                    {bag.stockCount}
-                  </span>個
-                </span>
+                <span>残り<span className={`ml-0.5 ${isLowStock ? 'text-orange-700 text-sm' : ''}`}>{bag.stockCount}</span>個</span>
               </div>
             </div>
 
-            {/* 価格エリア：最大インパクト */}
+            {/* 価格エリア */}
             <div className="flex items-center justify-between border-t border-border/50 pt-3">
               <div className="flex flex-col">
                 <span className="text-xs text-muted-foreground font-medium">定価</span>
@@ -188,13 +248,13 @@ export function BagCard({ bag }: BagCardProps) {
   );
 }
 
-/** 読み込み中のグリッドスケルトン */
 export function BagCardSkeleton() {
   return (
     <div className="rounded-2xl overflow-hidden shadow-sm border border-border/30 bg-card">
       <div className="w-full aspect-[4/3] skeleton-shimmer" />
       <div className="p-4 space-y-3">
         <div className="h-5 skeleton-shimmer rounded-full w-3/4" />
+        <div className="h-3 skeleton-shimmer rounded-full w-1/2" />
         <div className="flex gap-2">
           <div className="h-6 skeleton-shimmer rounded-md w-24" />
           <div className="h-6 skeleton-shimmer rounded-md w-20" />

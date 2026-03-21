@@ -1,10 +1,11 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute, GuestRoute } from "@/components/ProtectedRoute";
+import { AnimatePresence, motion } from "framer-motion";
 
 import Home from "./pages/Home";
 import BagDetail from "./pages/BagDetail";
@@ -79,49 +80,68 @@ const queryClient = new QueryClient({
   },
 });
 
-function Router() {
+// ── ページ遷移フェードアニメーション ─────────────────────────────────────────
+const pageVariants = {
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.2, ease: 'easeOut' } },
+  exit:    { opacity: 0, y: -4, transition: { duration: 0.15, ease: 'easeIn' } },
+};
+
+function AnimatedRoutes() {
+  const [location] = useLocation();
   return (
-    <Switch>
-      {/* ── パブリックページ ── */}
-      <Route path="/" component={Home} />
-      <Route path="/welcome" component={Welcome} />
-      <Route path="/search" component={SearchPage} />
-      <Route path="/bags/:id" component={BagDetail} />
-      <Route path="/terms" component={Terms} />
-      <Route path="/privacy" component={Privacy} />
-      <Route path="/verify-email" component={VerifyEmail} />
-      <Route path="/success" component={CheckoutSuccess} />
-      <Route path="/cancel" component={CheckoutCancel} />
-      <Route path="/supabase-test" component={SupabaseTest} />
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        style={{ display: 'contents' }}
+      >
+        <Switch>
+          {/* ── パブリックページ ── */}
+          <Route path="/" component={Home} />
+          <Route path="/welcome" component={Welcome} />
+          <Route path="/search" component={SearchPage} />
+          <Route path="/bags/:id" component={BagDetail} />
+          <Route path="/terms" component={Terms} />
+          <Route path="/privacy" component={Privacy} />
+          <Route path="/verify-email" component={VerifyEmail} />
+          <Route path="/success" component={CheckoutSuccess} />
+          <Route path="/cancel" component={CheckoutCancel} />
+          <Route path="/supabase-test" component={SupabaseTest} />
 
-      {/* ── ゲスト専用（ログイン済みなら自動リダイレクト）── */}
-      <Route path="/login" component={GuardedLogin} />
-      <Route path="/signup" component={GuardedSignUp} />
-      <Route path="/store/login" component={GuardedStoreLogin} />
-      <Route path="/store/signup" component={GuardedStoreSignUp} />
+          {/* ── ゲスト専用（ログイン済みなら自動リダイレクト）── */}
+          <Route path="/login" component={GuardedLogin} />
+          <Route path="/signup" component={GuardedSignUp} />
+          <Route path="/store/login" component={GuardedStoreLogin} />
+          <Route path="/store/signup" component={GuardedStoreSignUp} />
 
-      {/* ── 要ログイン（一般ユーザー）── */}
-      <Route path="/mypage" component={GuardedMyPage} />
-      <Route path="/my-reservations" component={GuardedMyReservations} />
-      <Route path="/checkout/:id" component={GuardedCheckout} />
-      <Route path="/orders/:id" component={GuardedOrderTicket} />
-      <Route path="/orders" component={GuardedOrders} />
-      <Route path="/settings" component={GuardedSettings} />
-      <Route path="/payment-methods" component={GuardedPaymentMethods} />
-      <Route path="/favorites" component={GuardedFavorites} />
+          {/* ── 要ログイン（一般ユーザー）── */}
+          <Route path="/mypage" component={GuardedMyPage} />
+          <Route path="/my-reservations" component={GuardedMyReservations} />
+          <Route path="/checkout/:id" component={GuardedCheckout} />
+          <Route path="/orders/:id" component={GuardedOrderTicket} />
+          <Route path="/orders" component={GuardedOrders} />
+          <Route path="/settings" component={GuardedSettings} />
+          <Route path="/payment-methods" component={GuardedPaymentMethods} />
+          <Route path="/favorites" component={GuardedFavorites} />
 
-      {/* ── 店舗オーナー専用 ── */}
-      <Route path="/store/dashboard" component={GuardedStoreOwnerDash} />
-      <Route path="/store-dashboard" component={GuardedStoreDashboard} />
-      <Route path="/register-store" component={GuardedRegisterStore} />
-      <Route path="/store-onboarding" component={GuardedStoreOnboarding} />
+          {/* ── 店舗オーナー専用 ── */}
+          <Route path="/store/dashboard" component={GuardedStoreOwnerDash} />
+          <Route path="/store-dashboard" component={GuardedStoreDashboard} />
+          <Route path="/register-store" component={GuardedRegisterStore} />
+          <Route path="/store-onboarding" component={GuardedStoreOnboarding} />
 
-      {/* ── 管理者 ── */}
-      <Route path="/admin" component={GuardedAdmin} />
-      <Route path="/admin-verify-shops" component={GuardedAdminVerify} />
+          {/* ── 管理者 ── */}
+          <Route path="/admin" component={GuardedAdmin} />
+          <Route path="/admin-verify-shops" component={GuardedAdminVerify} />
 
-      <Route component={NotFound} />
-    </Switch>
+          <Route component={NotFound} />
+        </Switch>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
@@ -132,7 +152,7 @@ function App() {
         <FavoritesProvider>
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
+              <AnimatedRoutes />
             </WouterRouter>
             <Toaster />
           </TooltipProvider>
