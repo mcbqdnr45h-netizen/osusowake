@@ -256,19 +256,29 @@ function StoreBottomSheet({
 }
 
 // ─── ゼロ件ステート ────────────────────────────────────────────────────────────
-function ZeroResultsState({ query, onClear, recommendBags }: {
-  query: string; onClear: () => void; recommendBags: SurpriseBagWithStore[];
+function ZeroResultsState({ query, category, onClear, recommendBags }: {
+  query: string; category: string; onClear: () => void; recommendBags: SurpriseBagWithStore[];
 }) {
+  const catLabel = CATEGORIES.find(c => c.value === category)?.label;
+
+  const title = catLabel && !query
+    ? `「${catLabel}」のおすそ分けはまだありません`
+    : query
+      ? `「${query}」は見つかりませんでした`
+      : '条件に合うおすそ分けがありませんでした';
+
+  const subtitle = catLabel && !query
+    ? 'お店が準備中です。代わりにこちらはいかがですか？🌸'
+    : 'スペルや条件を変えて探してみましょう 🔍';
+
   return (
     <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}>
       <div className="flex flex-col items-center text-center px-6 py-10">
         <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-amber-100 rounded-3xl flex items-center justify-center mb-4 shadow-sm border border-orange-200/60">
           <PackageOpen className="w-9 h-9 text-primary/60" />
         </div>
-        <h3 className="text-lg font-black text-foreground mb-1">「{query}」は見つかりませんでした</h3>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-          スペルや言葉を変えてみるか、<br />全体から探してみましょう 🔍
-        </p>
+        <h3 className="text-lg font-black text-foreground mb-1">{title}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-6">{subtitle}</p>
         <button onClick={onClear}
           className="flex items-center gap-2 bg-primary text-primary-foreground font-black px-6 py-3 rounded-2xl shadow-md shadow-primary/20 tap-scale">
           <RefreshCw className="w-4 h-4" />全商品を表示する
@@ -502,7 +512,7 @@ export default function SearchPage() {
               ref={searchRef}
               type="search"
               inputMode="search"
-              className="w-full bg-card border border-border text-foreground rounded-2xl pl-11 pr-24 py-3 text-sm font-medium focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground"
+              className="w-full bg-card border border-border text-foreground rounded-2xl pl-11 pr-24 py-3 text-sm font-medium outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
               placeholder="エリア・お店・カテゴリで探す..."
               value={inputValue}
               style={{ fontSize: '16px' }}
@@ -510,6 +520,8 @@ export default function SearchPage() {
               onFocus={() => history.length > 0 && setShowHistory(true)}
               onBlur={() => setTimeout(() => setShowHistory(false), 150)}
               onKeyDown={handleKeyDown}
+              onFocusCapture={e => { e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255,140,0,0.13)'; }}
+              onBlurCapture={e => { e.currentTarget.style.boxShadow = ''; }}
             />
             {inputValue && (
               <button
@@ -792,7 +804,7 @@ export default function SearchPage() {
                     </motion.div>
 
                   ) : isFiltering ? (
-                    <ZeroResultsState key="zero" query={liveQuery} onClear={clearAllFilters} recommendBags={recommendBags} />
+                    <ZeroResultsState key="zero" query={liveQuery} category={category} onClear={clearAllFilters} recommendBags={recommendBags} />
 
                   ) : (
                     <motion.div key="empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}

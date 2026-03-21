@@ -95,41 +95,47 @@ function CategoryScrollRow({
   onSelect: (val: string) => void;
 }) {
   return (
-    /* pr-6 で右端を少しはみ出させて「続きあり」を示す */
-    <div className="flex gap-3 overflow-x-auto hide-scrollbar px-4 pr-6 py-3">
+    <div className="flex gap-3 overflow-x-auto hide-scrollbar px-4 py-3" style={{ paddingRight: '1.5rem' }}>
       {SCROLL_CATS.map((cat) => {
         const isActive = activeCategory === cat.value;
+        const isAll    = cat.value === 'all';
+
         return (
           <motion.button
             key={cat.value}
-            onClick={() => onSelect(isActive && cat.value !== 'all' ? 'all' : cat.value)}
-            whileTap={{ scale: 0.86 }}
+            onClick={() => onSelect(isActive && !isAll ? 'all' : cat.value)}
+            whileTap={{ scale: 0.84 }}
             transition={{ type: 'spring', stiffness: 500, damping: 22 }}
             className="flex flex-col items-center gap-1.5 shrink-0"
           >
-            {/* 丸アイコン */}
+            {/* 丸アイコン
+                「すべて」: 常時オレンジ背景・選択時はリング強調
+                その他   : 選択時のみオレンジ、非選択は淡色背景     */}
             <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl select-none
-              transition-all duration-150 shadow-sm
-              ${isActive
-                ? 'bg-primary ring-2 ring-primary ring-offset-2 shadow-md shadow-primary/25'
-                : `${cat.bg} ring-1 ring-border/60`
+              transition-all duration-150
+              ${isAll
+                ? isActive
+                  ? 'bg-primary shadow-lg shadow-primary/35 ring-3 ring-primary ring-offset-2 scale-105'
+                  : 'bg-primary/85 shadow-sm shadow-primary/20'
+                : isActive
+                  ? 'bg-primary ring-2 ring-primary ring-offset-2 shadow-md shadow-primary/25 scale-105'
+                  : `${cat.bg} ring-1 ring-border/60 shadow-sm`
               }`}>
-              {isActive && cat.value !== 'all' ? (
-                <span className="text-white text-2xl">{cat.emoji}</span>
-              ) : (
-                <span>{cat.emoji}</span>
-              )}
+              {(isAll || isActive)
+                ? <span className="text-2xl drop-shadow-sm">{cat.emoji}</span>
+                : <span className="text-2xl">{cat.emoji}</span>
+              }
             </div>
             {/* ラベル */}
-            <span className={`text-[11px] font-bold leading-none whitespace-nowrap
-              ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-[11px] leading-none whitespace-nowrap transition-all
+              ${isActive ? 'font-black text-primary' : 'font-medium text-muted-foreground'}`}>
               {cat.label}
             </span>
           </motion.button>
         );
       })}
-      {/* チラ見せスペーサー（最後の要素の半分が見える状態を作る）*/}
-      <div className="w-2 shrink-0" />
+      {/* チラ見せ：最後が少し切れて「まだ続く」感を演出 */}
+      <div className="w-3 shrink-0" />
     </div>
   );
 }
@@ -452,9 +458,17 @@ export default function Home() {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 onFocus={() => setShowSort(false)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
                 placeholder="エリア・ジャンル・お店名で検索..."
-                className="w-full bg-secondary/60 border border-border text-foreground rounded-2xl pl-10 pr-10 py-2.5 focus:bg-card focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground"
+                className="w-full bg-secondary/60 border border-border text-foreground rounded-2xl pl-10 pr-10 py-2.5 outline-none transition-all placeholder:text-muted-foreground
+                  focus:bg-card focus:border-primary focus:ring-2 focus:ring-primary/20"
                 style={{ fontSize: '16px' }}
+                onFocusCapture={e => { e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255,140,0,0.13)'; }}
+                onBlurCapture={e => { e.currentTarget.style.boxShadow = ''; }}
               />
               {searchQuery && (
                 <button
@@ -570,23 +584,54 @@ export default function Home() {
                     ))}
                   </motion.div>
                 ) : (
-                  <motion.div
-                    initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col items-center justify-center py-16 px-6"
-                  >
-                    <div className="w-20 h-20 bg-card border-2 border-dashed border-border rounded-3xl flex items-center justify-center mb-4">
-                      <PackageOpen className="w-9 h-9 text-muted-foreground/50" />
+                  /* ── 0件リテンション：レコメンド付き ── */
+                  <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                    {/* メッセージ */}
+                    <div className="flex flex-col items-center text-center px-6 py-8">
+                      <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center mb-3 border border-orange-200/60">
+                        <PackageOpen className="w-8 h-8 text-primary/60" />
+                      </div>
+                      <h3 className="text-base font-black text-foreground mb-1">
+                        {activeCategory !== 'all'
+                          ? `「${SCROLL_CATS.find(c => c.value === activeCategory)?.label ?? activeCategory}」のおすそ分けは\nまだありません`
+                          : '条件に合うおすそ分けが見つかりませんでした'
+                        }
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                        {activeCategory !== 'all'
+                          ? 'お店が準備中です。代わりにこちらはいかがですか？'
+                          : 'ジャンルや条件を変えて探してみてください'
+                        }
+                      </p>
+                      <motion.button onClick={clearAll} whileTap={{ scale: 0.94 }}
+                        className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-2xl text-sm font-bold shadow-md shadow-primary/20">
+                        <X className="w-3.5 h-3.5" />条件をリセット
+                      </motion.button>
                     </div>
-                    <h3 className="text-base font-black text-foreground mb-1.5 text-center">
-                      条件に合うおすそ分けが<br />見つかりませんでした
-                    </h3>
-                    <p className="text-sm text-muted-foreground text-center mb-5 leading-relaxed">
-                      ジャンルを変えて探してみてください
-                    </p>
-                    <motion.button onClick={clearAll} whileTap={{ scale: 0.94 }}
-                      className="px-6 py-2.5 bg-primary text-primary-foreground rounded-2xl text-sm font-bold shadow-md shadow-primary/20">
-                      条件をリセット
-                    </motion.button>
+
+                    {/* 全カテゴリーからのレコメンド */}
+                    {allBags.filter(b => b.stockCount > 0).length > 0 && (
+                      <div className="mt-1 pb-2">
+                        <div className="flex items-center gap-2 mb-3 px-4">
+                          <div className="flex-1 h-px bg-border/60" />
+                          <span className="text-[11px] font-black text-muted-foreground flex items-center gap-1 px-1">
+                            ✨ 代わりにこちらはいかがですか？
+                          </span>
+                          <div className="flex-1 h-px bg-border/60" />
+                        </div>
+                        <motion.div
+                          className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4"
+                          initial="hidden" animate="show"
+                          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
+                        >
+                          {allBags.filter(b => b.stockCount > 0).slice(0, 3).map(bag => (
+                            <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+                              <BagCard bag={bag} />
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </motion.div>
