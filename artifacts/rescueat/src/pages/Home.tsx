@@ -3,8 +3,8 @@ import { Layout } from '@/components/Layout';
 import { BagCard } from '@/components/BagCard';
 import { useListAllBags, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
-  Search, Store, ChevronRight, Clock, Flame, Zap,
-  SlidersHorizontal, ChevronDown, X, PackageOpen,
+  Search, Store, ChevronRight, Clock, MapPin, Zap,
+  SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
@@ -13,7 +13,7 @@ import { useFavorites } from '@/contexts/FavoritesContext';
 import { Heart } from 'lucide-react';
 import { useMyStore } from '@/hooks/use-my-store';
 
-// ─── カテゴリー定義 ───────────────────────────────────────────────────────────
+// ─── カテゴリー定義 ─────────────────────────────────────────────────────────────
 const CATEGORIES = [
   { label: 'すべて',         value: 'all',          emoji: '✨' },
   { label: 'パン・スイーツ', value: 'bakery',        emoji: '🍞' },
@@ -21,22 +21,23 @@ const CATEGORIES = [
   { label: 'カフェ',         value: 'cafe',          emoji: '☕' },
   { label: 'スーパー',       value: 'supermarket',   emoji: '🛒' },
   { label: 'コンビニ',       value: 'convenience',   emoji: '🏪' },
+  { label: 'スイーツ',       value: 'sweets',        emoji: '🍰' },
   { label: 'その他',         value: 'other',         emoji: '🥗' },
 ];
 
 type SortKey = 'default' | 'time_asc' | 'price_asc' | 'price_desc';
 const SORT_OPTIONS: { label: string; value: SortKey }[] = [
-  { label: 'おすすめ順',       value: 'default'   },
-  { label: '時間が早い順',     value: 'time_asc'  },
-  { label: '価格が安い順',     value: 'price_asc' },
-  { label: '価格が高い順',     value: 'price_desc'},
+  { label: 'おすすめ順',   value: 'default'    },
+  { label: '時間が早い順', value: 'time_asc'   },
+  { label: '価格が安い順', value: 'price_asc'  },
+  { label: '価格が高い順', value: 'price_desc' },
 ];
 
-// ─── キャンペーンバナー ───────────────────────────────────────────────────────
+// ─── キャンペーンバナー ─────────────────────────────────────────────────────────
 const BANNERS = [
-  { id: 1, emoji: '🌱', title: '初回限定！レスキュー応援', highlight: '500円OFF',       sub: '初めての方限定クーポン配布中',          from: 'from-[#2D5A51]', to: 'to-[#4A8C7F]', accent: 'bg-white/20', badge: 'bg-white text-[#2D5A51]' },
-  { id: 2, emoji: '🥐', title: '春のパン祭り！対象のパン屋さんが', highlight: 'ポイント2倍', sub: '3/20（木）〜3/31（日）の期間限定', from: 'from-amber-500', to: 'to-orange-400', accent: 'bg-white/20', badge: 'bg-white text-amber-600' },
-  { id: 3, emoji: '🍱', title: 'お弁当レスキュー特集！', highlight: '今日のランチをお得に', sub: '在庫わずか・売切れ次第終了',             from: 'from-rose-500',  to: 'to-pink-400',   accent: 'bg-white/20', badge: 'bg-white text-rose-600'  },
+  { id: 1, emoji: '🎁', title: '初回限定おすそ分けキャンペーン', highlight: '500円OFF',       sub: 'はじめてのおすそ分け限定クーポン配布中', from: 'from-orange-500', to: 'to-amber-400', accent: 'bg-white/20', badge: 'bg-white text-orange-600' },
+  { id: 2, emoji: '🥐', title: '春のパン祭り！対象のパン屋さんが',  highlight: 'ポイント2倍', sub: '3/20（木）〜3/31（日）の期間限定',     from: 'from-amber-500',  to: 'to-orange-400', accent: 'bg-white/20', badge: 'bg-white text-amber-600' },
+  { id: 3, emoji: '🍱', title: 'お弁当おすそ分け特集！', highlight: '今日のランチをお得に',    sub: '在庫わずか・売切れ次第終了',             from: 'from-rose-500',   to: 'to-pink-400',   accent: 'bg-white/20', badge: 'bg-white text-rose-600'  },
 ];
 
 function CampaignBanners() {
@@ -77,7 +78,7 @@ function CampaignBanners() {
   );
 }
 
-// ─── コンパクトカード ─────────────────────────────────────────────────────────
+// ─── コンパクトカード ───────────────────────────────────────────────────────────
 function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
   const { isFavorite, toggle } = useFavorites();
   const isSoldOut = bag.stockCount <= 0;
@@ -135,11 +136,11 @@ function UrgentSection({ bags }: { bags: SurpriseBagWithStore[] }) {
   return (
     <div className="shrink-0 pt-2 pb-1">
       <div className="flex items-center gap-2 px-4 mb-3">
-        <div className="flex items-center gap-1.5 bg-destructive/10 text-destructive px-2.5 py-1 rounded-full">
-          <Flame className="w-3.5 h-3.5" />
-          <span className="text-xs font-black">レスキュー急募！</span>
+        <div className="flex items-center gap-1.5 bg-orange-100 text-orange-600 px-2.5 py-1 rounded-full border border-orange-200">
+          <span className="text-xs">🔥</span>
+          <span className="text-xs font-black">もうすぐ終わるおすそ分け</span>
         </div>
-        <span className="text-xs text-muted-foreground font-medium">まもなく終了</span>
+        <span className="text-xs text-muted-foreground font-medium">お急ぎを！</span>
       </div>
       <div className="flex gap-3 overflow-x-auto hide-scrollbar px-4 pb-1">
         {urgentBags.map(bag => <CompactBagCard key={bag.id} bag={bag} />)}
@@ -156,7 +157,7 @@ function RecommendedSection({ bags }: { bags: SurpriseBagWithStore[] }) {
       <div className="flex items-center justify-between px-4 mb-3">
         <div className="flex items-center gap-1.5">
           <Zap className="w-4 h-4 text-primary" />
-          <span className="text-sm font-black text-foreground">今日のおすすめ</span>
+          <span className="text-sm font-black text-foreground">今日のおすすめおすそ分け</span>
         </div>
         <span className="text-xs text-muted-foreground">{recommendedBags.length}件</span>
       </div>
@@ -167,7 +168,41 @@ function RecommendedSection({ bags }: { bags: SurpriseBagWithStore[] }) {
   );
 }
 
-// ─── メイン ───────────────────────────────────────────────────────────────────
+// ─── 現在地の市区町村を取得するフック ────────────────────────────────────────────
+function useUserCity() {
+  const [city, setCity] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=ja`,
+            { headers: { 'User-Agent': 'TabeRosu/1.0' } }
+          );
+          const data = await res.json();
+          const addr = data.address || {};
+          const name = addr.city || addr.town || addr.village || addr.county || addr.state || null;
+          setCity(name);
+        } catch {
+          setCity(null);
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => { setLoading(false); },
+      { timeout: 6000, maximumAge: 600_000 }
+    );
+  }, []);
+
+  return { city, loading };
+}
+
+// ─── メイン ───────────────────────────────────────────────────────────────────────
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -178,14 +213,12 @@ export default function Home() {
 
   const { isApprovedOwner } = useMyStore();
   const { data: bags, isLoading: isLoadingBags } = useListAllBags();
+  const { city: userCity, loading: geoLoading } = useUserCity();
 
-  // 絞り込みが active かどうか
   const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || inStockOnly || sortKey !== 'default';
 
   const filteredBags = useMemo(() => {
     let result = bags || [];
-
-    // キーワード
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(b =>
@@ -195,18 +228,12 @@ export default function Home() {
         b.store.category?.toLowerCase().includes(q)
       );
     }
-
-    // カテゴリー
     if (activeCategory !== 'all') {
       result = result.filter(b => b.store.category === activeCategory);
     }
-
-    // 在庫あり
     if (inStockOnly) {
       result = result.filter(b => b.stockCount > 0);
     }
-
-    // 並び替え
     if (sortKey === 'time_asc') {
       result = [...result].sort((a, b) => (a.pickupStart || '').localeCompare(b.pickupStart || ''));
     } else if (sortKey === 'price_asc') {
@@ -214,16 +241,11 @@ export default function Home() {
     } else if (sortKey === 'price_desc') {
       result = [...result].sort((a, b) => b.discountedPrice - a.discountedPrice);
     }
-
     return result;
   }, [bags, searchQuery, activeCategory, inStockOnly, sortKey]);
 
   const allBags = bags || [];
-  const activeFilterCount = [
-    activeCategory !== 'all',
-    inStockOnly,
-    sortKey !== 'default',
-  ].filter(Boolean).length;
+  const activeFilterCount = [activeCategory !== 'all', inStockOnly, sortKey !== 'default'].filter(Boolean).length;
 
   function clearAll() {
     setSearchQuery('');
@@ -233,6 +255,13 @@ export default function Home() {
   }
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label || 'おすすめ順';
+
+  // 動的な地名タイトル
+  const areaTitle = geoLoading
+    ? null
+    : userCity
+    ? `${userCity}のおすそ分け`
+    : 'あなたの街のおすそ分け';
 
   return (
     <Layout>
@@ -244,7 +273,17 @@ export default function Home() {
           {/* Desktop top bar */}
           <div className="hidden md:flex items-center justify-between px-5 py-3 border-b border-border">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-black text-foreground">大阪エリアの出品</h1>
+              {geoLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="text-xl font-black text-muted-foreground">場所を確認中...</span>
+                </div>
+              ) : (
+                <>
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <h1 className="text-xl font-black text-foreground">{areaTitle}</h1>
+                </>
+              )}
               <span className="bg-primary/10 text-primary px-2.5 py-1 rounded-full font-bold text-sm">
                 {filteredBags.length}件
               </span>
@@ -258,8 +297,23 @@ export default function Home() {
             )}
           </div>
 
+          {/* モバイル エリア名 */}
+          <div className="md:hidden flex items-center gap-2 px-4 pt-3 pb-1">
+            {geoLoading ? (
+              <div className="flex items-center gap-1.5">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                <span className="text-sm font-bold text-muted-foreground">現在地を確認中...</span>
+              </div>
+            ) : (
+              <>
+                <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="text-sm font-black text-foreground">{areaTitle}</span>
+              </>
+            )}
+          </div>
+
           {/* 検索バー */}
-          <div className="px-4 pt-3 pb-2">
+          <div className="px-4 pt-2 pb-2">
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input
@@ -267,7 +321,7 @@ export default function Home() {
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="お店や食べ物を検索..."
+                placeholder="エリア・ジャンル・お店名で検索..."
                 className="w-full bg-secondary/60 border border-border text-foreground rounded-2xl pl-10 pr-10 py-3 text-sm font-medium focus:bg-card focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground"
               />
               {searchQuery && (
@@ -300,20 +354,19 @@ export default function Home() {
           {/* 絞り込みコントロールバー */}
           <div className="flex items-center gap-2 px-4 pb-3 pt-1">
 
-            {/* レスキュー待ちのみトグル */}
+            {/* おすそ分け受付中のみトグル */}
             <button
               onClick={() => setInStockOnly(v => !v)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all
                 ${inStockOnly
-                  ? 'bg-green-100 text-green-700 border-green-300'
+                  ? 'bg-orange-100 text-orange-700 border-orange-300'
                   : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
                 }`}
             >
-              {/* トグルドット */}
-              <span className={`w-7 h-4 rounded-full flex items-center transition-colors ${inStockOnly ? 'bg-green-500' : 'bg-muted'}`}>
+              <span className={`w-7 h-4 rounded-full flex items-center transition-colors ${inStockOnly ? 'bg-primary' : 'bg-muted'}`}>
                 <span className={`w-3 h-3 bg-white rounded-full shadow transition-transform mx-0.5 ${inStockOnly ? 'translate-x-3' : 'translate-x-0'}`} />
               </span>
-              レスキュー待ちのみ
+              おすそ分け受付中のみ
             </button>
 
             {/* 並び替えドロップダウン */}
@@ -353,7 +406,6 @@ export default function Home() {
               </AnimatePresence>
             </div>
 
-            {/* スペーサー */}
             <div className="flex-1" />
 
             {/* 件数 + リセット */}
@@ -404,7 +456,6 @@ export default function Home() {
                     ))}
                   </motion.div>
                 ) : (
-                  /* ── 空の状態 ── */
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -414,10 +465,10 @@ export default function Home() {
                       <PackageOpen className="w-10 h-10 text-muted-foreground/50" />
                     </div>
                     <h3 className="text-lg font-black text-foreground mb-2 text-center">
-                      条件に一致するレスキュー先が<br />見つかりませんでした
+                      条件に合うおすそ分けが<br />見つかりませんでした
                     </h3>
                     <p className="text-sm text-muted-foreground text-center mb-6 leading-relaxed">
-                      検索キーワードや絞り込み条件を<br />変えてみてください
+                      キーワードやジャンルを<br />変えて探してみてください
                     </p>
                     <button
                       onClick={clearAll}
@@ -445,7 +496,7 @@ export default function Home() {
                     <div className="mx-4 my-2 border-t border-border/40" />
                     <RecommendedSection bags={allBags} />
                     <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                      <span className="text-sm font-black text-foreground">すべての出品</span>
+                      <span className="text-sm font-black text-foreground">すべてのおすそ分け</span>
                       <span className="text-xs text-muted-foreground">{allBags.length}件</span>
                     </div>
                   </>
@@ -460,55 +511,54 @@ export default function Home() {
                           <Store className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                          <div className="font-bold text-sm text-foreground">店舗ダッシュボード</div>
-                          <div className="text-xs text-muted-foreground">バッグ管理・予約確認</div>
+                          <p className="text-xs font-black text-foreground">店舗ダッシュボード</p>
+                          <p className="text-[10px] text-muted-foreground">在庫・売上を管理する</p>
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </Link>
                 )}
 
-                {/* バッググリッド */}
-                <div className="px-4 pb-4">
+                {/* バッグリスト + ローダー */}
+                <div className="px-4 pb-6">
                   {isLoadingBags ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                       {[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-card rounded-2xl animate-pulse border border-border" />)}
                     </div>
-                  ) : allBags.length > 0 ? (
+                  ) : allBags.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                      <div className="w-24 h-24 bg-card border-2 border-dashed border-border rounded-3xl flex items-center justify-center mb-5">
+                        <span className="text-4xl">🎁</span>
+                      </div>
+                      <h3 className="text-lg font-black text-foreground mb-2">
+                        今日のおすそ分けを準備中
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        まだ出品がありません。<br />
+                        お近くのお店がおすそ分けを準備中です！
+                      </p>
+                    </div>
+                  ) : (
                     <motion.div
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2"
                       initial="hidden"
                       animate="show"
-                      variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } }}
+                      variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } }}
                     >
                       {allBags.map(bag => (
-                        <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
+                        <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } }}>
                           <BagCard bag={bag} />
                         </motion.div>
                       ))}
                     </motion.div>
-                  ) : (
-                    <div className="text-center py-20 px-4">
-                      <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Search className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-bold text-foreground">出品中の商品がありません</h3>
-                      <p className="text-muted-foreground mt-2 text-sm">後でもう一度チェックしてください。</p>
-                    </div>
                   )}
                 </div>
-
-                {/* キャンペーンバナー */}
-                <CampaignBanners />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
-
-      {/* ソートドロップダウン外クリック */}
-      {showSort && <div className="fixed inset-0 z-40" onClick={() => setShowSort(false)} />}
     </Layout>
   );
 }

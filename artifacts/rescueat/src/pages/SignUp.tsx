@@ -134,7 +134,7 @@ export default function SignUp() {
             <span className="text-2xl">🍀</span>
           </div>
           <h1 className="text-2xl font-black text-foreground">アカウント作成</h1>
-          <p className="text-muted-foreground text-sm mt-1">食べロスに参加して、フードロス削減に貢献しよう</p>
+          <p className="text-muted-foreground text-sm mt-1">お近くのお店から、おすそ分けを受け取ろう</p>
         </motion.div>
 
         <motion.form

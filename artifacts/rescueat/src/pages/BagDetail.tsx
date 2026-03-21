@@ -286,7 +286,7 @@ export default function BagDetail() {
               <h2 className="text-2xl font-black mb-3">受取時間が終了しました</h2>
               <p className="text-muted-foreground text-sm leading-relaxed mb-8">
                 この商品の受取時間は既に過ぎています。<br />
-                フードロスを救える他の商品を探してみましょう！
+                他のおすそ分けバッグを見てみましょう！
               </p>
 
               {/* CTA: 商品を探す */}
@@ -425,7 +425,7 @@ export default function BagDetail() {
                     </p>
                     <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
                       この商品の受取時間（〜{bag.pickupEnd}）は既に過ぎています。<br />
-                      他のフードロス商品を探してみましょう！
+                      他のおすそ分けバッグを探してみましょう！
                     </p>
                   </div>
                 </div>
@@ -485,7 +485,7 @@ export default function BagDetail() {
                 <Info className="w-5 h-5 text-primary" /> バッグの内容
               </h3>
               <p className="text-muted-foreground leading-relaxed">
-                {bag.description || `${bag.store.name}の余剰商品がランダムに入ったお得なサプライズバッグです。美味しく食べられるのに廃棄されてしまう食品をレスキューしましょう！`}
+                {bag.description || `${bag.store.name}のお料理がランダムに入ったお得なサプライズバッグです。お店の味を、ぜひ受け取ってください！`}
               </p>
             </div>
 
@@ -680,7 +680,7 @@ export default function BagDetail() {
               ) : isSoldOut ? (
                 '完売しました'
               ) : (
-                `予約する (¥${(bag.discountedPrice * quantity).toLocaleString()})`
+                `おすそ分けを予約する (¥${(bag.discountedPrice * quantity).toLocaleString()})`
               )}
             </button>
           </div>

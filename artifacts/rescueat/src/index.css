@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -51,69 +51,82 @@
 }
 
 :root {
-  --background: 150 15% 97%;
-  --foreground: 168 42% 12%;
+  /* ── ベースカラー ── */
+  --background: 30 20% 98%;           /* 温かみのある白 */
+  --foreground: 20 30% 12%;           /* 温かみのある濃色 */
   --card: 0 0% 100%;
-  --card-foreground: 168 42% 12%;
-  --card-border: 150 20% 88%;
+  --card-foreground: 20 30% 12%;
+  --card-border: 30 20% 88%;
   --popover: 0 0% 100%;
-  --popover-foreground: 168 42% 12%;
-  --popover-border: 150 20% 88%;
-  --primary: 168 42% 27%;        /* #2D5A51 */
+  --popover-foreground: 20 30% 12%;
+  --popover-border: 30 20% 88%;
+
+  /* ── プライマリ: サンセットオレンジ #FF8C00 = HSL(33, 100%, 50%) ── */
+  --primary: 33 100% 50%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 150 25% 92%;
-  --secondary-foreground: 168 42% 20%;
-  --muted: 150 15% 92%;
-  --muted-foreground: 150 10% 48%;
-  --accent: 38 92% 50%;          /* warm amber for urgency badges */
-  --accent-foreground: 38 90% 15%;
+
+  /* ── セカンダリ: 温かみのあるクリーム ── */
+  --secondary: 33 40% 93%;
+  --secondary-foreground: 25 40% 25%;
+
+  /* ── ミュート ── */
+  --muted: 30 15% 92%;
+  --muted-foreground: 25 10% 48%;
+
+  /* ── アクセント: 明るいアンバー ── */
+  --accent: 42 96% 56%;
+  --accent-foreground: 30 60% 15%;
+
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 150 15% 88%;
-  --input: 150 15% 88%;
-  --ring: 168 42% 27%;
+  --border: 30 15% 88%;
+  --input: 30 15% 88%;
+  --ring: 33 100% 50%;
   --radius: 0.875rem;
+
+  /* ── フォント ── */
   --app-font-sans: 'Noto Sans JP', sans-serif;
-  --app-font-display: 'Noto Sans JP', sans-serif;
-  
-  --shadow-2xs: 0px 1px 2px 0px rgba(0,0,0,0.05);
-  --shadow-xs: 0px 2px 4px 0px rgba(0,0,0,0.05);
-  --shadow-sm: 0px 4px 8px -2px rgba(45, 90, 81, 0.1), 0px 2px 4px -2px rgba(45, 90, 81, 0.06);
-  --shadow: 0px 10px 15px -3px rgba(45, 90, 81, 0.1), 0px 4px 6px -4px rgba(45, 90, 81, 0.05);
-  --shadow-md: 0px 12px 20px -4px rgba(45, 90, 81, 0.15), 0px 6px 8px -4px rgba(45, 90, 81, 0.1);
-  --shadow-lg: 0px 20px 25px -5px rgba(45, 90, 81, 0.2), 0px 8px 10px -6px rgba(45, 90, 81, 0.1);
+  --app-font-display: 'Outfit', 'Noto Sans JP', sans-serif;
+
+  /* ── シャドウ（オレンジ系） ── */
+  --shadow-2xs: 0px 1px 2px 0px rgba(0,0,0,0.04);
+  --shadow-xs: 0px 2px 4px 0px rgba(0,0,0,0.04);
+  --shadow-sm: 0px 4px 8px -2px rgba(255, 140, 0, 0.12), 0px 2px 4px -2px rgba(255, 140, 0, 0.06);
+  --shadow: 0px 10px 15px -3px rgba(255, 140, 0, 0.12), 0px 4px 6px -4px rgba(255, 140, 0, 0.06);
+  --shadow-md: 0px 12px 20px -4px rgba(255, 140, 0, 0.18), 0px 6px 8px -4px rgba(255, 140, 0, 0.1);
+  --shadow-lg: 0px 20px 25px -5px rgba(255, 140, 0, 0.22), 0px 8px 10px -6px rgba(255, 140, 0, 0.12);
 }
 
 .dark {
-  --background: 168 42% 5%;
-  --foreground: 150 15% 97%;
-  
-  --card: 168 42% 8%;
-  --card-foreground: 150 15% 97%;
-  --card-border: 168 42% 15%;
-  
-  --popover: 168 42% 8%;
-  --popover-foreground: 150 15% 97%;
-  --popover-border: 168 42% 15%;
-  
-  --primary: 168 42% 45%;
-  --primary-foreground: 168 42% 5%;
-  
-  --secondary: 168 42% 15%;
-  --secondary-foreground: 150 15% 97%;
-  
-  --muted: 168 42% 15%;
-  --muted-foreground: 150 15% 65%;
-  
-  --accent: 38 90% 55%;
-  --accent-foreground: 168 42% 5%;
-  
+  --background: 20 25% 6%;
+  --foreground: 30 20% 96%;
+
+  --card: 20 25% 9%;
+  --card-foreground: 30 20% 96%;
+  --card-border: 20 25% 16%;
+
+  --popover: 20 25% 9%;
+  --popover-foreground: 30 20% 96%;
+  --popover-border: 20 25% 16%;
+
+  --primary: 33 100% 52%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 20 25% 16%;
+  --secondary-foreground: 30 20% 96%;
+
+  --muted: 20 25% 16%;
+  --muted-foreground: 30 15% 60%;
+
+  --accent: 42 90% 58%;
+  --accent-foreground: 20 30% 8%;
+
   --destructive: 0 70% 55%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 168 42% 15%;
-  --input: 168 42% 15%;
-  --ring: 168 42% 45%;
+  --border: 20 25% 16%;
+  --input: 20 25% 16%;
+  --ring: 33 100% 52%;
 }
 
 @layer base {

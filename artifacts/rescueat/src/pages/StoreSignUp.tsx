@@ -122,7 +122,7 @@ export default function StoreSignUp() {
             <Store className="w-6 h-6 text-primary" />
           </div>
           <h1 className="text-2xl font-black text-foreground">店舗オーナー登録</h1>
-          <p className="text-muted-foreground text-sm mt-1">食べロスでフードロスを一緒に減らしましょう</p>
+          <p className="text-muted-foreground text-sm mt-1">お店の味を、もっと多くの人へおすそ分けしよう</p>
         </motion.div>
 
         {/* 特典バナー */}

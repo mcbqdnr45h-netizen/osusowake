@@ -237,7 +237,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <span className="font-black text-lg text-primary">食べロス</span>
-              <span className="text-xs text-muted-foreground">フードロスを減らし、美味しい食品を救う</span>
+              <span className="text-xs text-muted-foreground">お店の味を、誰かにおすそ分けしよう</span>
             </div>
             <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
               {isApprovedOwner && (
