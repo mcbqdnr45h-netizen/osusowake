@@ -104,6 +104,7 @@ router.post("/stores/apply", async (req, res) => {
       phone: body.phone ?? null,
       isActive: false,
       status: "pending",
+      ownerId: body.ownerId ?? null,
       licenseNumber: body.licenseNumber ?? null,
       licenseImageUrl: body.licenseImageUrl ?? null,
       idImageUrl: body.idImageUrl ?? null,
@@ -113,6 +114,31 @@ router.post("/stores/apply", async (req, res) => {
   } catch (err) {
     console.error("Store apply error:", err);
     res.status(400).json({ error: "bad_request", message: "Invalid store data" });
+  }
+});
+
+// Public: get the store owned by a specific user
+router.get("/stores/by-owner", async (req, res) => {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      return res.status(400).json({ error: "bad_request", message: "userId is required" });
+    }
+    const [store] = await db
+      .select(storeSelectFields)
+      .from(storesTable)
+      .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
+      .where(eq(storesTable.ownerId, userId))
+      .groupBy(storesTable.id)
+      .limit(1);
+
+    if (!store) {
+      return res.status(404).json({ error: "not_found", message: "No store found for this user" });
+    }
+    res.json(store);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to fetch store by owner" });
   }
 });
 

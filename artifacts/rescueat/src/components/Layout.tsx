@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'wouter';
 import { Map, Search, Package, Heart, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMyStore } from '@/hooks/use-my-store';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface LayoutProps {
 
 export function Layout({ children, showBottomNav = true, hideFooter = false }: LayoutProps) {
   const [location] = useLocation();
+  const { isApprovedOwner } = useMyStore();
 
   const navItems = [
     { href: '/', icon: Map, label: '発見' },
@@ -87,8 +89,12 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
               <span className="text-xs text-muted-foreground">フードロスを減らし、美味しい食品を救う</span>
             </div>
             <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
-              <Link href="/register-store" className="hover:text-primary transition-colors font-medium">お店を登録する</Link>
-              <span>·</span>
+              {isApprovedOwner && (
+                <>
+                  <Link href="/store-dashboard" className="hover:text-primary transition-colors font-medium">店舗ダッシュボード</Link>
+                  <span>·</span>
+                </>
+              )}
               <a
                 href="https://forms.gle/uhMoXjjF9YzkR52a6"
                 target="_blank"

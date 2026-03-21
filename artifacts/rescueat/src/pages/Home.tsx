@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Heart } from 'lucide-react';
+import { useMyStore } from '@/hooks/use-my-store';
 
 const CATEGORIES = ['全て', 'ベーカリー', 'レストラン', 'カフェ', 'スーパー', 'コンビニ'];
 
@@ -220,6 +221,7 @@ function RecommendedSection({ bags }: { bags: SurpriseBagWithStore[] }) {
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState('全て');
+  const { isApprovedOwner } = useMyStore();
 
   const { data: bags, isLoading: isLoadingBags } = useListAllBags();
 
@@ -252,12 +254,14 @@ export default function Home() {
               {filteredBags.length}件
             </span>
           </div>
-          <Link href="/register-store">
-            <button className="flex items-center gap-2 bg-primary text-primary-foreground font-bold px-4 py-2.5 rounded-xl text-sm hover:bg-primary/90 active:scale-95 transition-all shadow-sm">
-              <Store className="w-4 h-4" />
-              お店を登録する
-            </button>
-          </Link>
+          {isApprovedOwner && (
+            <Link href="/store-dashboard">
+              <button className="flex items-center gap-2 bg-primary text-primary-foreground font-bold px-4 py-2.5 rounded-xl text-sm hover:bg-primary/90 active:scale-95 transition-all shadow-sm">
+                <Store className="w-4 h-4" />
+                ダッシュボード
+              </button>
+            </Link>
+          )}
         </div>
 
         {/* Category Chips */}
@@ -293,21 +297,23 @@ export default function Home() {
             </>
           )}
 
-          {/* Store Registration Banner (mobile) */}
-          <Link href="/register-store" className="md:hidden mx-4 mt-1 mb-3 block shrink-0">
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Store className="w-5 h-5 text-primary" />
+          {/* Store Dashboard Banner (mobile) — approved owners only */}
+          {isApprovedOwner && (
+            <Link href="/store-dashboard" className="md:hidden mx-4 mt-1 mb-3 block shrink-0">
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Store className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-foreground">店舗ダッシュボード</div>
+                    <div className="text-xs text-muted-foreground">バッグ管理・予約確認</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-bold text-sm text-foreground">お店を登録する</div>
-                  <div className="text-xs text-muted-foreground">初期費用0円・成果報酬型</div>
-                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </div>
-          </Link>
+            </Link>
+          )}
 
           {/* ── Bag Grid ── */}
           <div className="px-4">

@@ -103,6 +103,9 @@ function ImageUploadBox({
 export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const userId = (() => {
+    try { return localStorage.getItem('rescueat_user_id') || undefined; } catch { return undefined; }
+  })();
 
   const [step, setStep] = useState<Step>('basic');
   const [submitting, setSubmitting] = useState(false);
@@ -173,6 +176,7 @@ export default function StoreOnboarding() {
           imageUrl: basic.imageUrl || undefined,
           lat: pinPos!.lat,
           lng: pinPos!.lng,
+          ownerId: userId,
           licenseNumber: comp.licenseNumber,
           licenseImageUrl: comp.licenseImageUrl,
           idImageUrl: comp.idImageUrl,
