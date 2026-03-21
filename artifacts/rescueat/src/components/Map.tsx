@@ -84,6 +84,11 @@ function makeUserIconUrl(): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+export interface MapBounds {
+  north: number; south: number; east: number; west: number;
+  centerLat: number; centerLng: number;
+}
+
 interface MapViewProps {
   stores: Store[];
   center?: [number, number];
@@ -91,9 +96,10 @@ interface MapViewProps {
   userPosition?: [number, number] | null;
   onStoreSelect?: (store: Store) => void;
   onUserPositionChange?: (pos: { lat: number; lng: number } | null) => void;
+  onMapIdle?: (bounds: MapBounds) => void;
 }
 
-export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onUserPositionChange }: MapViewProps) {
+export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onUserPositionChange, onMapIdle }: MapViewProps) {
   const containerRef    = useRef<HTMLDivElement>(null);
   const mapRef          = useRef<google.maps.Map | null>(null);
   const clustererRef    = useRef<MarkerClusterer | null>(null);
@@ -101,6 +107,8 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
   const storeMarkersRef = useRef<google.maps.Marker[]>([]);
   const onStoreSelectRef        = useRef(onStoreSelect);
   const onUserPositionChangeRef = useRef(onUserPositionChange);
+  const onMapIdleRef            = useRef(onMapIdle);
+  const isFirstIdleRef          = useRef(true);
 
   const [status,   setStatus]  = useState<'loading' | 'ready' | 'error'>('loading');
   const [locating, setLocating] = useState(false);
@@ -113,6 +121,7 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
   // コールバックを常に最新に保つ
   useEffect(() => { onStoreSelectRef.current        = onStoreSelect;        }, [onStoreSelect]);
   useEffect(() => { onUserPositionChangeRef.current = onUserPositionChange; }, [onUserPositionChange]);
+  useEffect(() => { onMapIdleRef.current            = onMapIdle;            }, [onMapIdle]);
 
   // userPos が変化したら親に通知
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
@@ -157,6 +166,22 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
 
         mapRef.current = map;
         clustererRef.current = new MarkerClusterer({ map });
+
+        // idle イベント：地図が止まるたびにバウンドを親へ通知（初回除く）
+        map.addListener('idle', () => {
+          if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
+          const bounds = map.getBounds();
+          const c      = map.getCenter();
+          if (!bounds || !c) return;
+          const ne = bounds.getNorthEast();
+          const sw = bounds.getSouthWest();
+          onMapIdleRef.current?.({
+            north: ne.lat(), south: sw.lat(),
+            east:  ne.lng(), west:  sw.lng(),
+            centerLat: c.lat(), centerLng: c.lng(),
+          });
+        });
+
         setStatus('ready');
       } catch (e) {
         console.error('Google Maps load error:', e);
