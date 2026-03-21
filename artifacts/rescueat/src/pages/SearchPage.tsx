@@ -73,7 +73,10 @@ export default function SearchPage() {
   }, [bags, query, category, sort, inStockOnly]);
 
   const filteredStoreIds = new Set(filteredBags.map(b => b.store.id));
-  const displayStores = (stores || []).filter(s => !query || filteredStoreIds.has(s.id));
+  // 承認済み店舗のみマップに表示（確認中・未承認を除外）
+  const displayStores = (stores || [])
+    .filter(s => (s as any).status === 'approved' || !(s as any).status)
+    .filter(s => !query || filteredStoreIds.has(s.id));
 
   const activeFilterCount = [
     category !== '',
