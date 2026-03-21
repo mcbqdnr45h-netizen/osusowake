@@ -10,7 +10,9 @@ export default function SignUp() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [referralCode, setReferralCode] = useState('');
   const [referralValid, setReferralValid] = useState<boolean | null>(null);
@@ -19,7 +21,8 @@ export default function SignUp() {
   const [done, setDone] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
-  const isValid = email.trim() && password.length >= 6 && agreed && !isLoading;
+  const passwordsMatch = confirmPassword === '' || password === confirmPassword;
+  const isValid = email.trim() && password.length >= 6 && password === confirmPassword && agreed && !isLoading;
 
   function handleReferralChange(val: string) {
     const upper = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -181,6 +184,44 @@ export default function SignUp() {
             </div>
             {password.length > 0 && password.length < 6 && (
               <p className="text-destructive text-xs font-medium mt-1.5">6文字以上で入力してください</p>
+            )}
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="block text-sm font-bold text-foreground mb-1.5">パスワード（確認）</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={e => { setConfirmPassword(e.target.value); setError(''); }}
+                placeholder="もう一度入力"
+                className={`w-full bg-card border-2 rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:ring-4 outline-none transition-all ${
+                  !passwordsMatch
+                    ? 'border-destructive focus:border-destructive focus:ring-destructive/10'
+                    : confirmPassword.length > 0 && password === confirmPassword
+                    ? 'border-green-500 focus:border-green-500 focus:ring-green-500/10'
+                    : 'border-border focus:border-primary focus:ring-primary/10'
+                }`}
+                autoComplete="new-password"
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(v => !v)}
+                className="absolute inset-y-0 right-4 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {!passwordsMatch && (
+              <p className="text-destructive text-xs font-medium mt-1.5">パスワードが一致しません</p>
+            )}
+            {confirmPassword.length > 0 && password === confirmPassword && (
+              <p className="text-green-600 text-xs font-medium mt-1.5">パスワードが一致しています ✓</p>
             )}
           </div>
 
