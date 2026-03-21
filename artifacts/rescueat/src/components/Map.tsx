@@ -90,15 +90,17 @@ interface MapViewProps {
   zoom?: number;
   userPosition?: [number, number] | null;
   onStoreSelect?: (store: Store) => void;
+  onUserPositionChange?: (pos: { lat: number; lng: number } | null) => void;
 }
 
-export function MapView({ stores, center, zoom, userPosition, onStoreSelect }: MapViewProps) {
+export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onUserPositionChange }: MapViewProps) {
   const containerRef    = useRef<HTMLDivElement>(null);
   const mapRef          = useRef<google.maps.Map | null>(null);
   const clustererRef    = useRef<MarkerClusterer | null>(null);
   const userMarkerRef   = useRef<google.maps.Marker | null>(null);
   const storeMarkersRef = useRef<google.maps.Marker[]>([]);
-  const onStoreSelectRef = useRef(onStoreSelect);
+  const onStoreSelectRef        = useRef(onStoreSelect);
+  const onUserPositionChangeRef = useRef(onUserPositionChange);
 
   const [status,   setStatus]  = useState<'loading' | 'ready' | 'error'>('loading');
   const [locating, setLocating] = useState(false);
@@ -109,7 +111,11 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect }: M
   const mapCenter = center ? { lat: center[0], lng: center[1] } : OSAKA_CENTER;
 
   // コールバックを常に最新に保つ
-  useEffect(() => { onStoreSelectRef.current = onStoreSelect; }, [onStoreSelect]);
+  useEffect(() => { onStoreSelectRef.current        = onStoreSelect;        }, [onStoreSelect]);
+  useEffect(() => { onUserPositionChangeRef.current = onUserPositionChange; }, [onUserPositionChange]);
+
+  // userPos が変化したら親に通知
+  useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
   // 承認済み店舗のみ
   const approvedStores = stores.filter(s => (s as any).status === 'approved' || !(s as any).status);

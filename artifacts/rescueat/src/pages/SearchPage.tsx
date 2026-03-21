@@ -5,11 +5,29 @@ import { BagCard } from '@/components/BagCard';
 import { useListAllBags, useListStores, Store, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
   Search, Map as MapIcon, List, SlidersHorizontal, X, ChevronDown,
-  ArrowUpDown, MapPin, Clock, Package, ChevronRight, ShoppingBag,
+  ArrowUpDown, MapPin, Clock, Package, ChevronRight, ShoppingBag, Navigation2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
+
+// ─── Haversine 距離計算 ───────────────────────────────────────────────────────
+function calcDistanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(m: number): string {
+  if (m < 50)   return 'すぐそこ';
+  if (m < 1000) return `${Math.round(m / 10) * 10}m`;
+  return `${(m / 1000).toFixed(1)}km`;
+}
 
 type ViewMode = 'map' | 'list';
 type SortKey  = 'default' | 'price_asc' | 'price_desc' | 'stock_desc';
@@ -34,15 +52,23 @@ const SORT_OPTIONS: { label: string; value: SortKey }[] = [
 function StoreBottomSheet({
   store,
   bags,
+  userPos,
   onClose,
 }: {
   store: Store;
   bags: SurpriseBagWithStore[];
+  userPos: { lat: number; lng: number } | null;
   onClose: () => void;
 }) {
   const storeBags = bags.filter(b => b.store.id === store.id);
   const hasBags   = storeBags.length > 0;
   const bagCount  = store.totalBagsAvailable ?? storeBags.filter(b => b.stockCount > 0).length;
+
+  const distanceLabel = useMemo(() => {
+    if (!userPos || !store.latitude || !store.longitude) return null;
+    const m = calcDistanceM(userPos.lat, userPos.lng, Number(store.latitude), Number(store.longitude));
+    return formatDistance(m);
+  }, [userPos, store.latitude, store.longitude]);
 
   return (
     <>
@@ -100,13 +126,19 @@ function StoreBottomSheet({
 
           {/* ─── 基本情報 ─── */}
           <div className="px-4 space-y-2 mb-4">
-            {/* 住所 */}
-            {store.address && (
-              <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                <span className="text-sm text-muted-foreground leading-relaxed">{store.address}</span>
-              </div>
-            )}
+            {/* 住所 + 距離 */}
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+              <span className="text-sm text-muted-foreground leading-relaxed flex-1">
+                {store.address || '住所未設定'}
+              </span>
+              {distanceLabel && (
+                <span className="inline-flex items-center gap-1 shrink-0 text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  <Navigation2 className="w-2.5 h-2.5" />
+                  {distanceLabel}
+                </span>
+              )}
+            </div>
 
             {/* ステータスバッジ */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -227,6 +259,11 @@ export default function SearchPage() {
   const [inStockOnly,  setInStockOnly]  = useState(false);
   const [showSort,     setShowSort]     = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
+
+  const handleUserPositionChange = useCallback((pos: { lat: number; lng: number } | null) => {
+    setUserPos(pos);
+  }, []);
 
   const { data: bags,   isLoading: bagsLoading } = useListAllBags();
   const { data: stores }                          = useListStores();
@@ -297,6 +334,7 @@ export default function SearchPage() {
             <MapView
               stores={displayStores}
               onStoreSelect={handleStoreSelect}
+              onUserPositionChange={handleUserPositionChange}
             />
           </div>
 
@@ -306,6 +344,7 @@ export default function SearchPage() {
               <StoreBottomSheet
                 store={selectedStore}
                 bags={bags || []}
+                userPos={userPos}
                 onClose={() => setSelectedStore(null)}
               />
             )}
