@@ -292,7 +292,10 @@ export default function OrderTicket() {
               store: reservation.store,
             }}
             userId={userId}
-            onClose={() => setShowReview(false)}
+            onClose={() => {
+              setShowReview(false);
+              navigate('/my-reservations');
+            }}
           />
         )}
       </AnimatePresence>
