@@ -179,10 +179,20 @@ router.post("/checkout/session", async (req, res) => {
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
     const amountInYen = Math.round(reservation.totalPrice);
-    const platformFeeAmount = Math.floor(amountInYen * 0.25); // 25%
+    // 25% プラットフォーム手数料（JPY は小数不可のため切り捨て）
+    const applicationFeeAmount = Math.floor(amountInYen * 0.25);
 
-    const baseSessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
-      mode: "payment",
+    // 送金先: 店舗の stripeAccountId。未設定の場合はデフォルトテスト用アカウントを使用
+    const destinationAccountId =
+      store?.stripeAccountId ?? "acct_1TDLA9GjCxAcHQcd";
+
+    console.log(
+      `Stripe Connect: amount=${amountInYen}JPY, fee=${applicationFeeAmount}JPY (25%), destination=${destinationAccountId}`
+    );
+
+    // 共通の line_items / URL 設定
+    const commonParams = {
+      mode: "payment" as const,
       line_items: [
         {
           price_data: {
@@ -197,46 +207,61 @@ router.post("/checkout/session", async (req, res) => {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        metadata: {
-          reservationId: String(reservation.id),
-          platformFeeAmount: String(platformFeeAmount),
-          platformFeeRate: "25",
-        },
-      },
       success_url: successUrl.includes("{CHECKOUT_SESSION_ID}")
         ? successUrl
         : `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
-      metadata: {
-        reservationId: String(reservation.id),
-      },
-      locale: "ja",
+      metadata: { reservationId: String(reservation.id) },
+      locale: "ja" as const,
     };
 
-    // Stripe Connect 送金を試みる（リージョン制限で失敗した場合は直接決済にフォールバック）
+    // payment_intent_data に application_fee_amount と transfer_data を直接指定し
+    // Stripe のシステム上で手数料が差し引かれるようにする（本番: 同リージョンのアカウントで動作）
     let session;
-    if (store?.stripeAccountId) {
-      try {
+    let connectUsed = false;
+    try {
+      session = await stripe.checkout.sessions.create({
+        ...commonParams,
+        payment_intent_data: {
+          application_fee_amount: applicationFeeAmount,   // 25% プラットフォーム手数料
+          transfer_data: { destination: destinationAccountId }, // 店舗への送金先
+          metadata: {
+            reservationId:      String(reservation.id),
+            platformFeeAmount:  String(applicationFeeAmount),
+            platformFeeRate:    "25",
+            destinationAccount: destinationAccountId,
+          },
+        },
+      });
+      connectUsed = true;
+      console.log(`✅ Stripe Connect 成功: fee=${applicationFeeAmount}JPY → ${destinationAccountId}`);
+    } catch (connectErr: any) {
+      // テスト環境でのクロスリージョン制限 (transfers_not_allowed) の場合のみフォールバック
+      // 本番環境では同リージョンのアカウントを使用するため、このエラーは発生しない
+      if (connectErr?.code === "transfers_not_allowed" || connectErr?.code === "account_invalid") {
+        console.warn(
+          `⚠️  Stripe Connect クロスリージョン制限のためフォールバック (${connectErr.code})\n` +
+          `   destination=${destinationAccountId} はプラットフォームと異なるリージョンです\n` +
+          `   本番環境では日本リージョンの Connected Account を使用してください`
+        );
         session = await stripe.checkout.sessions.create({
-          ...baseSessionParams,
+          ...commonParams,
           payment_intent_data: {
-            ...baseSessionParams.payment_intent_data,
-            application_fee_amount: platformFeeAmount,
-            transfer_data: { destination: store.stripeAccountId },
+            metadata: {
+              reservationId:      String(reservation.id),
+              platformFeeAmount:  String(applicationFeeAmount),
+              platformFeeRate:    "25",
+              destinationAccount: destinationAccountId,
+              connectStatus:      "fallback_cross_region",
+            },
           },
         });
-      } catch (connectErr: any) {
-        if (connectErr?.code === "transfers_not_allowed" || connectErr?.code === "account_invalid") {
-          console.warn("Stripe Connect transfer not available, falling back to direct payment:", connectErr.code);
-          session = await stripe.checkout.sessions.create(baseSessionParams);
-        } else {
-          throw connectErr;
-        }
+      } else {
+        throw connectErr;
       }
-    } else {
-      session = await stripe.checkout.sessions.create(baseSessionParams);
     }
+
+    console.log(`Checkout session created: ${session.id} (Connect=${connectUsed})`);
 
     await db
       .update(reservationsTable)
