@@ -27,6 +27,7 @@ import StoreOnboarding from "./pages/StoreOnboarding";
 import AdminDashboard from "./pages/AdminDashboard";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import CheckoutCancel from "./pages/CheckoutCancel";
+import OrderTicket from "./pages/OrderTicket";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/bags/:id" component={BagDetail} />
       <Route path="/checkout/:id" component={Checkout} />
       <Route path="/my-reservations" component={MyReservations} />
+      <Route path="/orders/:id" component={OrderTicket} />
       <Route path="/store-dashboard" component={StoreDashboard} />
       <Route path="/register-store" component={RegisterStore} />
       <Route path="/admin-verify-shops" component={AdminVerifyShops} />

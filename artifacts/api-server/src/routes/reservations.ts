@@ -178,6 +178,45 @@ router.put("/reservations/:reservationId", async (req, res) => {
   }
 });
 
+// ─── Pickup confirmation (もぎり) ───────────────────────────────────────────
+router.post("/reservations/:reservationId/pickup", async (req, res) => {
+  try {
+    const id = parseInt(req.params.reservationId, 10);
+    if (!id) { res.status(400).json({ error: "bad_request", message: "Invalid id" }); return; }
+
+    const [existing] = await db
+      .select()
+      .from(reservationsTable)
+      .where(eq(reservationsTable.id, id));
+
+    if (!existing) {
+      res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+
+    if (existing.status === "picked_up") {
+      res.status(409).json({ error: "already_picked_up", message: "このチケットは既に使用済みです" });
+      return;
+    }
+
+    if (existing.status === "cancelled") {
+      res.status(400).json({ error: "cancelled", message: "キャンセル済みの予約です" });
+      return;
+    }
+
+    await db
+      .update(reservationsTable)
+      .set({ status: "picked_up" })
+      .where(eq(reservationsTable.id, id));
+
+    const updated = await getReservationWithDetails(id);
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to confirm pickup" });
+  }
+});
+
 router.post("/reservations/:reservationId/cancel", async (req, res) => {
   try {
     const { reservationId } = CancelReservationParams.parse(req.params);

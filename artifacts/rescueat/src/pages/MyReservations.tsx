@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useListReservations } from '@workspace/api-client-react';
 import { format, parseISO } from 'date-fns';
-import { Ticket, MapPin, Clock, ExternalLink, Star, PenLine, X, ChevronDown } from 'lucide-react';
+import { Ticket, MapPin, Clock, ExternalLink, Star, PenLine, X, ChevronDown, QrCode } from 'lucide-react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -270,11 +270,17 @@ export default function MyReservations() {
                       </div>
 
                       {res.status === 'confirmed' && res.pickupCode ? (
-                        <div className="w-full">
-                          <div className="text-xs text-muted-foreground mb-1">店頭でこのコードを提示</div>
-                          <div className="bg-background border-2 border-primary/20 text-primary font-mono font-bold text-xl py-3 rounded-xl tracking-widest">
+                        <div className="w-full space-y-2">
+                          <div className="text-xs text-muted-foreground">店頭でチケットを提示</div>
+                          <div className="bg-background border-2 border-primary/20 text-primary font-mono font-bold text-base py-2 rounded-xl tracking-widest text-center">
                             {res.pickupCode}
                           </div>
+                          <Link href={`/orders/${res.id}`}>
+                            <span className="w-full bg-primary text-primary-foreground font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors cursor-pointer text-sm">
+                              <QrCode className="w-4 h-4" />
+                              チケットを開く
+                            </span>
+                          </Link>
                         </div>
                       ) : res.status === 'pending' ? (
                         <Link href={`/checkout/${res.id}`}>
