@@ -244,28 +244,68 @@ export default function BagDetail() {
   // 410 (期限切れ) または 404 (存在しない)
   if (!bag) {
     const isExpiredError = (error as any)?.status === 410;
+    if (isExpiredError) {
+      return (
+        <Layout showBottomNav={false}>
+          <div className="min-h-[80vh] flex flex-col items-center justify-center px-6 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-sm"
+            >
+              {/* Icon */}
+              <div className="relative w-28 h-28 mx-auto mb-6">
+                <div className="w-28 h-28 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center">
+                  <Clock className="w-14 h-14 text-amber-500" />
+                </div>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
+                  className="absolute -bottom-1 -right-1 w-9 h-9 bg-destructive rounded-full flex items-center justify-center border-2 border-background"
+                >
+                  <AlertCircle className="w-5 h-5 text-white" />
+                </motion.div>
+              </div>
+
+              {/* Text */}
+              <h2 className="text-2xl font-black mb-3">受取時間が終了しました</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-8">
+                この商品の受取時間は既に過ぎています。<br />
+                フードロスを救える他の商品を探してみましょう！
+              </p>
+
+              {/* CTA: 商品を探す */}
+              <motion.a
+                href={`${BASE}/`}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground font-black text-base rounded-2xl px-6 py-4 shadow-lg hover:bg-primary/90 active:scale-95 transition-all mb-3"
+              >
+                🛍️ 他の商品を探す
+              </motion.a>
+
+              {/* サブ: 前のページへ */}
+              <button
+                onClick={() => window.history.back()}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors py-2 underline underline-offset-2"
+              >
+                前のページに戻る
+              </button>
+            </motion.div>
+          </div>
+        </Layout>
+      );
+    }
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center p-12 text-center gap-4">
-          {isExpiredError ? (
-            <>
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                <Clock className="w-10 h-10 text-muted-foreground" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold mb-2">受取時間が終了しました</h2>
-                <p className="text-sm text-muted-foreground">この商品の受取時間は既に過ぎています。<br />他の商品をお探しください。</p>
-              </div>
-              <button
-                onClick={() => window.history.back()}
-                className="mt-2 px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-bold text-sm hover:bg-primary/90 transition-colors"
-              >
-                戻る
-              </button>
-            </>
-          ) : (
-            <p className="text-muted-foreground">バッグが見つかりません</p>
-          )}
+          <p className="text-muted-foreground">バッグが見つかりません</p>
+          <a href={`${BASE}/`} className="px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-bold text-sm hover:bg-primary/90 transition-colors">
+            商品を探す
+          </a>
         </div>
       </Layout>
     );
@@ -355,6 +395,36 @@ export default function BagDetail() {
           </div>
 
           <div className="p-6 md:p-8 space-y-8">
+            {/* 受取時間終了バナー */}
+            {isExpired && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl overflow-hidden border border-amber-300 dark:border-amber-700"
+              >
+                <div className="bg-amber-50 dark:bg-amber-950/40 px-5 py-4 flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-400/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-amber-900 dark:text-amber-200 text-base mb-0.5">
+                      受取時間が終了しました
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                      この商品の受取時間（〜{bag.pickupEnd}）は既に過ぎています。<br />
+                      他のフードロス商品を探してみましょう！
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={`${BASE}/`}
+                  className="flex items-center justify-center gap-2 w-full bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white font-black text-sm py-3.5 transition-all"
+                >
+                  🛍️ 他の商品を探す
+                </a>
+              </motion.div>
+            )}
+
             {/* Price and Details row */}
             <div className="flex flex-wrap gap-6 justify-between items-start">
               <div>
