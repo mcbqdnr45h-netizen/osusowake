@@ -624,6 +624,72 @@ router.post("/stores/:storeId/connect/onboard", async (req, res) => {
   }
 });
 
+// GET /api/stores/:storeId/today-sales
+// 今日の売上（手数料25%控除後の店舗受取額）を Stripe Transfers から取得
+router.get("/stores/:storeId/today-sales", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+      return;
+    }
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId, name: storesTable.name })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "Store not found" });
+      return;
+    }
+
+    if (!store.stripeAccountId) {
+      res.json({ gross: 0, platformFee: 0, net: 0, count: 0, connected: false });
+      return;
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      res.json({ gross: 0, platformFee: 0, net: 0, count: 0, connected: true, noKey: true });
+      return;
+    }
+
+    const stripeLib = await import("stripe");
+    const stripe = new stripeLib.default(stripeKey);
+
+    // 今日の0時（JST）のUNIXタイムスタンプを計算
+    const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const todayStrJST = nowJST.toISOString().slice(0, 10); // "YYYY-MM-DD"
+    const startOfDayUTC = new Date(todayStrJST + "T00:00:00+09:00");
+    const startUnix = Math.floor(startOfDayUTC.getTime() / 1000);
+
+    // 連携アカウントへの今日のTransfer一覧を取得
+    const transfers = await stripe.transfers.list({
+      destination: store.stripeAccountId,
+      created: { gte: startUnix },
+      limit: 100,
+    });
+
+    // JPY: amountは円単位
+    const net = transfers.data.reduce((sum, t) => sum + t.amount, 0);
+    // 店舗受取は売上の75%なので、元の総売上を逆算
+    const gross = Math.round(net / 0.75);
+    const platformFee = gross - net;
+
+    res.json({
+      gross,
+      platformFee,
+      net,
+      count: transfers.data.length,
+      connected: true,
+    });
+  } catch (err: any) {
+    console.error("Today sales error:", err);
+    res.status(500).json({ error: "stripe_error", message: "Failed to fetch today's sales" });
+  }
+});
+
 // GET /api/stores/:storeId/connect/status
 // Stripe アカウントのオンボーディング完了状況を返す
 router.get("/stores/:storeId/connect/status", async (req, res) => {
