@@ -280,9 +280,6 @@ export default function Home() {
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto bg-secondary/10">
 
-          {/* ── Campaign Banners ── */}
-          <CampaignBanners />
-
           {/* ── Urgent / Recommended sections ── */}
           {activeCategory === '全て' && !isLoadingBags && allBags.length > 0 && (
             <>
@@ -313,7 +310,7 @@ export default function Home() {
           </Link>
 
           {/* ── Bag Grid ── */}
-          <div className="px-4 pb-8">
+          <div className="px-4">
             {isLoadingBags ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[1, 2, 3, 4].map(i => (
@@ -346,6 +343,9 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {/* ── Campaign Banners ── */}
+          <CampaignBanners />
         </div>
       </div>
     </Layout>
