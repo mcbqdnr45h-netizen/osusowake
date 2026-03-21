@@ -298,7 +298,7 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
           </button>
 
           {/* 凡例 */}
-          <div className="absolute bottom-6 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg px-3.5 py-2.5 flex flex-col gap-2 border border-gray-100">
+          <div className="absolute bottom-[76px] left-4 z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg px-3.5 py-2.5 flex flex-col gap-2 border border-gray-100">
             <div className="flex items-center gap-2">
               <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#4AAF96,#1E3F38)' }} />
               <span className="text-xs font-bold text-gray-700">出品中</span>
