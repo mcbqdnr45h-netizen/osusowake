@@ -8,6 +8,7 @@ interface AuthContextValue {
   session: Session | null;
   isLoading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signUpAsStore: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null; role: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -72,6 +73,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null, needsConfirmation };
   }
 
+  async function signUpAsStore(email: string, password: string) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    if (error) {
+      return { error: translateError(error.message), needsConfirmation: false };
+    }
+
+    if (data.user) {
+      await supabase.from('users').upsert({
+        id: data.user.id,
+        email: data.user.email!,
+        role: 'store_owner',
+        points_balance: 0,
+      }, { onConflict: 'id' });
+    }
+
+    const needsConfirmation = !data.session;
+    return { error: null, needsConfirmation };
+  }
+
   async function signIn(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: translateError(error.message), role: null };
@@ -100,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, isLoading, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, session, isLoading, signUp, signUpAsStore, signIn, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

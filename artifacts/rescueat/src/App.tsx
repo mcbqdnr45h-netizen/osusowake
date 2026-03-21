@@ -21,6 +21,8 @@ import Privacy from "./pages/Privacy";
 import Welcome from "./pages/Welcome";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
+import StoreLogin from "./pages/StoreLogin";
+import StoreSignUp from "./pages/StoreSignUp";
 import VerifyEmail from "./pages/VerifyEmail";
 import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
@@ -55,6 +57,8 @@ function Router() {
       <Route path="/welcome" component={Welcome} />
       <Route path="/signup" component={SignUp} />
       <Route path="/login" component={Login} />
+      <Route path="/store/login" component={StoreLogin} />
+      <Route path="/store/signup" component={StoreSignUp} />
       <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/search" component={SearchPage} />
       <Route path="/favorites" component={FavoritesPage} />

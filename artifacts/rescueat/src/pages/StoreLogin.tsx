@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, ChevronLeft, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, Mail, Lock, Store } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function Login() {
+export default function StoreLogin() {
   const [, navigate] = useLocation();
   const { signIn } = useAuth();
 
@@ -34,7 +34,7 @@ export default function Login() {
     if (role === 'store_owner') {
       navigate('/store/dashboard');
     } else {
-      navigate('/mypage');
+      setError('このアカウントは店舗オーナー用ではありません。ユーザーログインをご利用ください。');
     }
   }
 
@@ -56,14 +56,14 @@ export default function Login() {
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="flex bg-secondary rounded-2xl p-1 mb-8 gap-1"
         >
-          <button className="flex-1 py-2.5 rounded-xl text-sm font-black bg-card text-foreground shadow-sm transition-all">
-            ユーザー
-          </button>
-          <Link href="/store/login" className="flex-1">
+          <Link href="/login" className="flex-1">
             <button className="w-full py-2.5 rounded-xl text-sm font-bold text-muted-foreground transition-all">
-              店舗オーナー
+              ユーザー
             </button>
           </Link>
+          <button className="flex-1 py-2.5 rounded-xl text-sm font-black bg-card text-foreground shadow-sm transition-all">
+            店舗オーナー
+          </button>
         </motion.div>
 
         <motion.div
@@ -71,10 +71,10 @@ export default function Login() {
           className="mb-10"
         >
           <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
-            <span className="text-2xl">🍀</span>
+            <Store className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-black text-foreground">おかえりなさい</h1>
-          <p className="text-muted-foreground text-sm mt-1">アカウントにログインしてください</p>
+          <h1 className="text-2xl font-black text-foreground">店舗オーナーログイン</h1>
+          <p className="text-muted-foreground text-sm mt-1">店舗管理ダッシュボードにアクセスします</p>
         </motion.div>
 
         <motion.form
@@ -103,9 +103,7 @@ export default function Login() {
 
           {/* Password */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-sm font-bold text-foreground">パスワード</label>
-            </div>
+            <label className="block text-sm font-bold text-foreground mb-1.5">パスワード</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                 <Lock className="w-4 h-4 text-muted-foreground" />
@@ -147,7 +145,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={!isValid}
-            className={`w-full font-black text-lg py-4 rounded-2xl transition-all min-h-[56px] flex items-center justify-center
+            className={`w-full font-black text-lg py-4 rounded-2xl transition-all min-h-[56px] flex items-center justify-center gap-2
               ${isValid
                 ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98]'
                 : 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -155,7 +153,7 @@ export default function Login() {
           >
             {isLoading
               ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              : 'ログインする'
+              : <><Store className="w-5 h-5" />ダッシュボードへ</>
             }
           </button>
 
@@ -166,8 +164,8 @@ export default function Login() {
           </div>
 
           <p className="text-center text-sm text-muted-foreground pb-2">
-            アカウントをお持ちでない方は{' '}
-            <Link href="/signup" className="text-primary font-bold underline underline-offset-2">新規登録</Link>
+            店舗アカウントをお持ちでない方は{' '}
+            <Link href="/store/signup" className="text-primary font-bold underline underline-offset-2">新規登録</Link>
           </p>
         </motion.form>
       </div>

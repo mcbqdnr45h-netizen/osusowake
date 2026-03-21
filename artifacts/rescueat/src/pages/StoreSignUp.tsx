@@ -1,37 +1,31 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, ChevronLeft, Mail, Lock, CheckCircle2, Gift, X } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, Mail, Lock, Store, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function SignUp() {
+export default function StoreSignUp() {
   const [, navigate] = useLocation();
-  const { signUp } = useAuth();
+  const { signUpAsStore } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [referralCode, setReferralCode] = useState('');
-  const [referralValid, setReferralValid] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
-  const isValid = email.trim() && password.length >= 6 && agreed && !isLoading;
-
-  function handleReferralChange(val: string) {
-    const upper = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    setReferralCode(upper);
-    if (upper.length === 0) {
-      setReferralValid(null);
-    } else if (upper.length >= 8) {
-      setReferralValid(true);
-    } else {
-      setReferralValid(false);
-    }
-  }
+  const passwordsMatch = confirmPassword === '' || password === confirmPassword;
+  const isValid =
+    email.trim() &&
+    password.length >= 6 &&
+    password === confirmPassword &&
+    agreed &&
+    !isLoading;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +33,7 @@ export default function SignUp() {
     setError('');
     setIsLoading(true);
 
-    const { error: err, needsConfirmation: confirm } = await signUp(email, password);
+    const { error: err, needsConfirmation: confirm } = await signUpAsStore(email, password);
 
     setIsLoading(false);
 
@@ -52,7 +46,7 @@ export default function SignUp() {
     setDone(true);
 
     if (!confirm) {
-      setTimeout(() => navigate('/mypage'), 1200);
+      setTimeout(() => navigate('/store/dashboard'), 1200);
     }
   }
 
@@ -66,10 +60,10 @@ export default function SignUp() {
           className="flex flex-col items-center text-center max-w-sm"
         >
           <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-5">
-            <span className="text-5xl">{needsConfirmation ? '📧' : '🎉'}</span>
+            <span className="text-5xl">{needsConfirmation ? '📧' : '🏪'}</span>
           </div>
           <h2 className="text-2xl font-black text-foreground mb-3">
-            {needsConfirmation ? '確認メールを送信しました' : 'ようこそ！'}
+            {needsConfirmation ? '確認メールを送信しました' : '登録完了！'}
           </h2>
           {needsConfirmation ? (
             <>
@@ -78,14 +72,14 @@ export default function SignUp() {
                 メール内のリンクをクリックして、登録を完了してください。
               </p>
               <Link
-                href="/login"
+                href="/store/login"
                 className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground font-black py-4 rounded-2xl hover:bg-primary/90 transition-all"
               >
                 ログイン画面へ
               </Link>
             </>
           ) : (
-            <p className="text-muted-foreground text-sm">マイページに移動します...</p>
+            <p className="text-muted-foreground text-sm">店舗ダッシュボードへ移動します...</p>
           )}
         </motion.div>
       </div>
@@ -110,14 +104,14 @@ export default function SignUp() {
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="flex bg-secondary rounded-2xl p-1 mb-8 gap-1"
         >
-          <button className="flex-1 py-2.5 rounded-xl text-sm font-black bg-card text-foreground shadow-sm transition-all">
-            ユーザー
-          </button>
-          <Link href="/store/signup" className="flex-1">
+          <Link href="/signup" className="flex-1">
             <button className="w-full py-2.5 rounded-xl text-sm font-bold text-muted-foreground transition-all">
-              店舗オーナー
+              ユーザー
             </button>
           </Link>
+          <button className="flex-1 py-2.5 rounded-xl text-sm font-black bg-card text-foreground shadow-sm transition-all">
+            店舗オーナー
+          </button>
         </motion.div>
 
         <motion.div
@@ -125,10 +119,30 @@ export default function SignUp() {
           className="mb-8"
         >
           <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
-            <span className="text-2xl">🍀</span>
+            <Store className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-black text-foreground">アカウント作成</h1>
-          <p className="text-muted-foreground text-sm mt-1">食べロスに参加して、フードロス削減に貢献しよう</p>
+          <h1 className="text-2xl font-black text-foreground">店舗オーナー登録</h1>
+          <p className="text-muted-foreground text-sm mt-1">食べロスでフードロスを一緒に減らしましょう</p>
+        </motion.div>
+
+        {/* 特典バナー */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          className="bg-primary/5 border border-primary/20 rounded-2xl p-4 mb-6"
+        >
+          <p className="text-xs font-black text-primary mb-2">店舗オーナー特典</p>
+          <ul className="space-y-1.5">
+            {[
+              '余剰食品を手軽に出品・管理',
+              '売上は翌日自動送金（Stripe Connect）',
+              'プラットフォーム手数料は25%のみ',
+            ].map((item, i) => (
+              <li key={i} className="flex items-center gap-2 text-xs text-foreground">
+                <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
         </motion.div>
 
         <motion.form
@@ -147,7 +161,7 @@ export default function SignUp() {
                 type="email"
                 value={email}
                 onChange={e => { setEmail(e.target.value); setError(''); }}
-                placeholder="example@email.com"
+                placeholder="store@example.com"
                 className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                 autoComplete="email"
                 disabled={isLoading}
@@ -184,61 +198,37 @@ export default function SignUp() {
             )}
           </div>
 
-          {/* Referral Code */}
+          {/* Confirm Password */}
           <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">
-              招待コード
-              <span className="ml-2 text-xs font-normal text-muted-foreground">（任意）</span>
-            </label>
+            <label className="block text-sm font-bold text-foreground mb-1.5">パスワード（確認）</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <Gift className="w-4 h-4 text-muted-foreground" />
+                <Lock className="w-4 h-4 text-muted-foreground" />
               </div>
               <input
-                type="text"
-                value={referralCode}
-                onChange={e => handleReferralChange(e.target.value)}
-                placeholder="例：RESCUEA08C32"
-                maxLength={12}
-                className={`w-full bg-card border-2 rounded-xl pl-11 pr-10 py-3.5 text-foreground font-mono font-medium tracking-widest placeholder:text-muted-foreground/60 placeholder:font-normal placeholder:tracking-normal focus:ring-4 outline-none transition-all uppercase
-                  ${referralValid === true
-                    ? 'border-green-500 focus:border-green-500 focus:ring-green-500/10'
-                    : referralValid === false
-                    ? 'border-amber-400 focus:border-amber-400 focus:ring-amber-400/10'
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={e => { setConfirmPassword(e.target.value); setError(''); }}
+                placeholder="もう一度入力"
+                className={`w-full bg-card border-2 rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:ring-4 outline-none transition-all
+                  ${!passwordsMatch
+                    ? 'border-destructive focus:border-destructive focus:ring-destructive/10'
                     : 'border-border focus:border-primary focus:ring-primary/10'
                   }`}
-                autoComplete="off"
+                autoComplete="new-password"
                 disabled={isLoading}
               />
-              {referralCode.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { setReferralCode(''); setReferralValid(null); }}
-                  className="absolute inset-y-0 right-4 flex items-center text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(v => !v)}
+                className="absolute inset-y-0 right-4 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-            <AnimatePresence>
-              {referralValid === true && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5 text-green-600 text-xs font-bold mt-1.5"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  招待コードを確認しました
-                </motion.p>
-              )}
-              {referralValid === false && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  className="text-amber-600 text-xs font-medium mt-1.5"
-                >
-                  8文字以上の英数字で入力してください
-                </motion.p>
-              )}
-            </AnimatePresence>
+            {!passwordsMatch && confirmPassword.length > 0 && (
+              <p className="text-destructive text-xs font-medium mt-1.5">パスワードが一致しません</p>
+            )}
           </div>
 
           {/* Error */}
@@ -277,6 +267,12 @@ export default function SignUp() {
             </p>
           </div>
 
+          {/* Security note */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+            <span>登録情報はStripeとの連携に使用されます。第三者への提供はありません。</span>
+          </div>
+
           {/* Submit */}
           <button
             type="submit"
@@ -289,12 +285,12 @@ export default function SignUp() {
           >
             {isLoading ? (
               <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : '登録する'}
+            ) : <><Store className="w-5 h-5" />店舗として登録する</>}
           </button>
 
           <p className="text-center text-sm text-muted-foreground pb-2">
             すでにアカウントをお持ちですか？{' '}
-            <Link href="/login" className="text-primary font-bold underline underline-offset-2">ログイン</Link>
+            <Link href="/store/login" className="text-primary font-bold underline underline-offset-2">ログイン</Link>
           </p>
         </motion.form>
       </div>
