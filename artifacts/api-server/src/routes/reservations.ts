@@ -18,6 +18,33 @@ import {
 
 const router: IRouter = Router();
 
+/** 深夜またぎ対応の期限切れ判定 */
+function isBagExpired(bag: {
+  pickupEnd: string | null;
+  pickupStart: string | null;
+  createdAt: Date;
+}): boolean {
+  if (!bag.pickupEnd) return false;
+
+  const nowJST       = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const createdJST   = new Date(bag.createdAt.getTime() + 9 * 60 * 60 * 1000);
+  const todayStr     = nowJST.toISOString().slice(0, 10);
+  const yesterdayStr = new Date(nowJST.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const createdStr   = createdJST.toISOString().slice(0, 10);
+  const currentTime  = nowJST.toISOString().slice(11, 16);
+
+  const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
+
+  if (isOvernightBag) {
+    if (createdStr === todayStr)      return false; // 今日出品 → 翌日 pickupEnd まで有効
+    if (createdStr === yesterdayStr)  return currentTime > bag.pickupEnd; // 昨日出品
+    return true;
+  }
+
+  if (createdStr !== todayStr) return true;
+  return currentTime > bag.pickupEnd;
+}
+
 function generatePickupCode(id: number): string {
   // 6桁のランダム風数字コード（予約IDから決定論的に生成）
   const n = ((id * 48271 + 23456) % 900000) + 100000;
@@ -105,16 +132,10 @@ router.post("/reservations", async (req, res) => {
       return;
     }
 
-    // 受取時間チェック（JST基準）
-    if (bag.pickupEnd) {
-      const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
-      const createdJST = new Date(bag.createdAt.getTime() + 9 * 60 * 60 * 1000);
-      const isToday = nowJST.toISOString().slice(0, 10) === createdJST.toISOString().slice(0, 10);
-      const currentTime = nowJST.toISOString().slice(11, 16); // "HH:MM"
-      if (!isToday || currentTime > bag.pickupEnd) {
-        res.status(410).json({ error: "expired", message: "この商品の受取時間が過ぎています" });
-        return;
-      }
+    // 受取時間チェック（深夜またぎ対応）
+    if (isBagExpired(bag)) {
+      res.status(410).json({ error: "expired", message: "この商品の受取時間が過ぎています" });
+      return;
     }
 
     if (bag.stockCount < body.quantity) {

@@ -13,6 +13,46 @@ import {
 
 const router: IRouter = Router();
 
+/**
+ * バッグが期限切れかどうかを判定する（深夜またぎ対応）
+ * - pickupEnd が null → 期限なし（false）
+ * - 通常バッグ（pickupEnd >= pickupStart）: 今日作成 かつ 現在時刻 > pickupEnd なら期限切れ
+ * - 深夜またぎバッグ（pickupEnd < pickupStart 例: 23:00〜01:00）:
+ *     今日作成 → 翌日の pickupEnd まで有効（期限切れにならない）
+ *     昨日作成 → 今日の pickupEnd を過ぎたら期限切れ
+ */
+export function isBagExpired(bag: {
+  pickupEnd: string | null;
+  pickupStart: string | null;
+  createdAt: Date;
+}): boolean {
+  if (!bag.pickupEnd) return false;
+
+  const nowJST      = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const createdJST  = new Date(bag.createdAt.getTime() + 9 * 60 * 60 * 1000);
+  const todayStr    = nowJST.toISOString().slice(0, 10);
+  const yesterdayStr = new Date(nowJST.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const createdStr  = createdJST.toISOString().slice(0, 10);
+  const currentTime = nowJST.toISOString().slice(11, 16); // "HH:MM"
+
+  const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
+
+  if (isOvernightBag) {
+    if (createdStr === todayStr) {
+      // 今日出品した深夜またぎバッグ → 翌日の pickupEnd まで有効
+      return false;
+    } else if (createdStr === yesterdayStr) {
+      // 昨日出品した深夜またぎバッグ → 今日の pickupEnd を過ぎたら期限切れ
+      return currentTime > bag.pickupEnd;
+    }
+    return true; // 2日以上前は期限切れ
+  }
+
+  // 通常バッグ
+  if (createdStr !== todayStr) return true;
+  return currentTime > bag.pickupEnd;
+}
+
 // 受取時間が過ぎていないか判定するSQL条件（JST基準）
 // - pickupEnd が NULL           → 常に表示
 // - 通常バッグ（同日）          → 今日作成 かつ pickupEnd >= 現在時刻
@@ -105,18 +145,10 @@ router.get("/bags/:bagId", async (req, res) => {
       return;
     }
 
-    // 受取時間チェック：期限切れなら 410 Gone を返す
-    if (bag.pickupEnd) {
-      const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
-      const createdJST = new Date(bag.createdAt.getTime() + 9 * 60 * 60 * 1000);
-      const isToday =
-        nowJST.toISOString().slice(0, 10) === createdJST.toISOString().slice(0, 10);
-      const currentTime = nowJST.toISOString().slice(11, 16); // "HH:MM"
-
-      if (!isToday || currentTime > bag.pickupEnd) {
-        res.status(410).json({ error: "expired", message: "この商品の受取時間が過ぎています" });
-        return;
-      }
+    // 受取時間チェック：期限切れなら 410 Gone（深夜またぎ対応）
+    if (isBagExpired(bag)) {
+      res.status(410).json({ error: "expired", message: "この商品の受取時間が過ぎています" });
+      return;
     }
 
     res.json({ ...bag, store: { ...bag.store, totalBagsAvailable: bag.stockCount } });

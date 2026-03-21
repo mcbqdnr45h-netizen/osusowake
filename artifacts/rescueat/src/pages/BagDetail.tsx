@@ -209,14 +209,27 @@ export default function BagDetail() {
   const [showReport, setShowReport] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
 
-  // 受取時間が過ぎているか判定（JST基準）
+  // 受取時間が過ぎているか判定（JST基準・深夜またぎ対応）
   const isExpired = React.useMemo(() => {
     if (!bag?.pickupEnd) return false;
-    const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
-    const createdJST = new Date(new Date(bag.createdAt as string).getTime() + 9 * 60 * 60 * 1000);
-    const isToday = nowJST.toISOString().slice(0, 10) === createdJST.toISOString().slice(0, 10);
-    const currentTime = nowJST.toISOString().slice(11, 16); // "HH:MM"
-    return !isToday || currentTime > bag.pickupEnd;
+    const nowJST       = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const createdJST   = new Date(new Date(bag.createdAt as string).getTime() + 9 * 60 * 60 * 1000);
+    const todayStr     = nowJST.toISOString().slice(0, 10);
+    const yesterdayStr = new Date(nowJST.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const createdStr   = createdJST.toISOString().slice(0, 10);
+    const currentTime  = nowJST.toISOString().slice(11, 16);
+
+    // 深夜またぎバッグ（例: pickupStart=23:00, pickupEnd=01:00）
+    const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
+    if (isOvernightBag) {
+      if (createdStr === todayStr)     return false;           // 今日出品 → 翌日まで有効
+      if (createdStr === yesterdayStr) return currentTime > bag.pickupEnd; // 昨日出品
+      return true;
+    }
+
+    // 通常バッグ
+    if (createdStr !== todayStr) return true;
+    return currentTime > bag.pickupEnd;
   }, [bag]);
 
   const { data: reviewData } = useQuery<ReviewData>({
