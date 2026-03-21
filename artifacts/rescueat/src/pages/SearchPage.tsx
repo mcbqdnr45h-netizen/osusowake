@@ -1,17 +1,19 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { MapView } from '@/components/Map';
-import { BagCard } from '@/components/BagCard';
+import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, useListStores, Store, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
   Search, Map as MapIcon, List, SlidersHorizontal, X, ChevronDown,
   ArrowUpDown, MapPin, Clock, Package, ChevronRight, ShoppingBag, Navigation2,
+  Croissant, Utensils, Coffee, ShoppingCart, Store as StoreIcon,
+  Candy, Wheat, Sparkles, History, RefreshCw, Loader2, PackageOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 
-// ─── Haversine 距離計算 ───────────────────────────────────────────────────────
+// ─── 距離計算 ─────────────────────────────────────────────────────────────────
 function calcDistanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const toRad = (d: number) => d * Math.PI / 180;
@@ -32,14 +34,17 @@ function formatDistance(m: number): string {
 type ViewMode = 'map' | 'list';
 type SortKey  = 'default' | 'price_asc' | 'price_desc' | 'stock_desc';
 
+// ─── カテゴリー（Lucide アイコン付き）────────────────────────────────────────
 const CATEGORIES = [
-  { label: '全て',       value: '' },
-  { label: '🥐 ベーカリー', value: 'bakery' },
-  { label: '🍱 レストラン', value: 'restaurant' },
-  { label: '☕ カフェ',    value: 'cafe' },
-  { label: '🛒 スーパー',  value: 'supermarket' },
-  { label: '🏪 コンビニ',  value: 'convenience' },
-];
+  { label: 'すべて',        value: '',            icon: <Sparkles  className="w-4 h-4" /> },
+  { label: 'パン',          value: 'bakery',       icon: <Croissant className="w-4 h-4" /> },
+  { label: 'お弁当・惣菜',  value: 'restaurant',   icon: <Utensils  className="w-4 h-4" /> },
+  { label: 'カフェ',        value: 'cafe',         icon: <Coffee    className="w-4 h-4" /> },
+  { label: 'スーパー',      value: 'supermarket',  icon: <ShoppingCart className="w-4 h-4" /> },
+  { label: 'コンビニ',      value: 'convenience',  icon: <StoreIcon className="w-4 h-4" /> },
+  { label: 'スイーツ',      value: 'sweets',       icon: <Candy     className="w-4 h-4" /> },
+  { label: 'その他',        value: 'other',        icon: <Wheat     className="w-4 h-4" /> },
+] as const;
 
 const SORT_OPTIONS: { label: string; value: SortKey }[] = [
   { label: 'おすすめ順',   value: 'default'    },
@@ -48,17 +53,26 @@ const SORT_OPTIONS: { label: string; value: SortKey }[] = [
   { label: '在庫が多い順', value: 'stock_desc' },
 ];
 
-// ─── 店舗詳細ボトムシート ────────────────────────────────────────────────────
+// ─── 検索履歴ユーティリティ ──────────────────────────────────────────────────
+const HISTORY_KEY = 'tabe_search_history';
+const MAX_HISTORY = 6;
+
+function loadHistory(): string[] {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveHistory(q: string, prev: string[]): string[] {
+  const next = [q, ...prev.filter(h => h !== q)].slice(0, MAX_HISTORY);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+  return next;
+}
+function clearHistory() { localStorage.removeItem(HISTORY_KEY); }
+
+// ─── 店舗詳細ボトムシート ─────────────────────────────────────────────────────
 function StoreBottomSheet({
-  store,
-  bags,
-  userPos,
-  onClose,
+  store, bags, userPos, onClose,
 }: {
-  store: Store;
-  bags: SurpriseBagWithStore[];
-  userPos: { lat: number; lng: number } | null;
-  onClose: () => void;
+  store: Store; bags: SurpriseBagWithStore[];
+  userPos: { lat: number; lng: number } | null; onClose: () => void;
 }) {
   const storeBags = bags.filter(b => b.store.id === store.id);
   const hasBags   = storeBags.length > 0;
@@ -72,81 +86,47 @@ function StoreBottomSheet({
 
   return (
     <>
-      {/* 背景オーバーレイ */}
-      <motion.div
-        key="overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="absolute inset-0 z-30 bg-black/30 backdrop-blur-[1px]"
-        onClick={onClose}
-      />
+      <motion.div key="overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }} className="absolute inset-0 z-30 bg-black/30 backdrop-blur-[1px]" onClick={onClose} />
 
-      {/* ボトムシート本体 */}
-      <motion.div
-        key="sheet"
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
+      <motion.div key="sheet" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
         className="absolute bottom-16 left-0 right-0 z-40 bg-background rounded-t-3xl shadow-2xl overflow-hidden"
-        style={{ maxHeight: 'calc(78vh - 64px)' }}
-      >
-        {/* ドラッグハンドル */}
+        style={{ maxHeight: 'calc(78vh - 64px)' }}>
+
         <div className="flex justify-center pt-3 pb-1" onClick={onClose}>
           <div className="w-10 h-1.5 bg-border rounded-full" />
         </div>
 
         <div className="overflow-y-auto" style={{ maxHeight: 'calc(78vh - 84px)' }}>
-
-          {/* ─── 店舗ヘッダー ─── */}
           <div className="relative h-36 mx-4 mt-1 mb-4 rounded-2xl overflow-hidden bg-muted shrink-0">
-            <img
-              src={store.imageUrl || getCategoryImage(store.category)}
-              alt={store.name}
-              className="w-full h-full object-cover"
-            />
+            <img src={store.imageUrl || getCategoryImage(store.category)} alt={store.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-            {/* 閉じるボタン */}
-            <button
-              onClick={onClose}
-              className="absolute top-2.5 right-2.5 w-8 h-8 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center"
-            >
+            <button onClick={onClose}
+              className="absolute top-2.5 right-2.5 w-8 h-8 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center tap-scale">
               <X className="w-4 h-4 text-white" />
             </button>
-
-            {/* 店舗名 */}
             <div className="absolute bottom-3 left-3 right-10">
               <p className="text-white/80 text-xs mb-0.5">{getCategoryIcon(store.category)} {store.category ?? 'その他'}</p>
               <h2 className="text-white font-black text-lg leading-tight line-clamp-1">{store.name}</h2>
             </div>
           </div>
 
-          {/* ─── 基本情報 ─── */}
           <div className="px-4 space-y-2 mb-4">
-            {/* 住所 + 距離 */}
             <div className="flex items-start gap-2">
               <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-              <span className="text-sm text-muted-foreground leading-relaxed flex-1">
-                {store.address || '住所未設定'}
-              </span>
+              <span className="text-sm text-muted-foreground leading-relaxed flex-1">{store.address || '住所未設定'}</span>
               {distanceLabel && (
                 <span className="inline-flex items-center gap-1 shrink-0 text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full whitespace-nowrap">
-                  <Navigation2 className="w-2.5 h-2.5" />
-                  {distanceLabel}
+                  <Navigation2 className="w-2.5 h-2.5" />{distanceLabel}
                 </span>
               )}
             </div>
-
-            {/* ステータスバッジ */}
             <div className="flex items-center gap-2 flex-wrap">
               {hasBags ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black text-white"
                   style={{ background: 'linear-gradient(135deg,#4AAF96,#1E3F38)' }}>
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  出品中 · {bagCount}個あり
+                  <ShoppingBag className="w-3.5 h-3.5" />出品中 · {bagCount}個あり
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-muted-foreground rounded-full text-xs font-bold">
@@ -156,32 +136,23 @@ function StoreBottomSheet({
             </div>
           </div>
 
-          {/* ─── バッグ一覧 ─── */}
           <div className="px-4 pb-6">
             {hasBags ? (
               <>
                 <h3 className="text-sm font-black text-foreground mb-3 flex items-center gap-1.5">
-                  <Package className="w-4 h-4 text-primary" />
-                  出品中のバッグ
+                  <Package className="w-4 h-4 text-primary" />出品中のバッグ
                 </h3>
                 <div className="space-y-3">
                   {storeBags.map(bag => {
-                    const isSoldOut      = bag.stockCount <= 0;
-                    const discountPct    = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
-                    const isLowStock     = bag.stockCount > 0 && bag.stockCount < 3;
-
+                    const isSoldOut   = bag.stockCount <= 0;
+                    const discountPct = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
+                    const isLowStock  = bag.stockCount > 0 && bag.stockCount < 3;
                     return (
                       <div key={bag.id}
                         className={`flex gap-3 bg-card border rounded-2xl overflow-hidden transition-all
                           ${isSoldOut ? 'opacity-60 border-border' : 'border-primary/20 shadow-sm hover:shadow-md'}`}>
-
-                        {/* サムネイル */}
                         <div className="relative w-24 h-24 shrink-0 bg-muted">
-                          <img
-                            src={bag.store.imageUrl || getCategoryImage(bag.store.category)}
-                            alt={bag.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={bag.store.imageUrl || getCategoryImage(bag.store.category)} alt={bag.title} className="w-full h-full object-cover" />
                           {!isSoldOut && (
                             <span className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 rounded-md">
                               {discountPct}% OFF
@@ -193,37 +164,31 @@ function StoreBottomSheet({
                             </div>
                           )}
                         </div>
-
-                        {/* 情報 */}
                         <div className="flex-1 py-2.5 pr-2 min-w-0">
-                          <p className="font-bold text-sm text-foreground leading-tight line-clamp-1 mb-1">{bag.title}</p>
-
+                          <p className="font-black text-sm text-foreground leading-tight line-clamp-1 mb-1">{bag.title}</p>
                           <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-1.5">
                             <Clock className="w-3 h-3 shrink-0" />
                             <span>受取 {bag.pickupStart}–{bag.pickupEnd}</span>
                           </div>
-
                           <div className="flex items-center justify-between">
                             <div>
                               <span className="text-[10px] text-muted-foreground line-through mr-1">¥{bag.originalPrice.toLocaleString()}</span>
                               <span className="text-base font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
                               {isSoldOut
-                                ? <span className="text-[10px] text-destructive font-bold ml-1">完売</span>
+                                ? <span className="text-[10px] text-muted-foreground font-bold ml-1">完売</span>
                                 : isLowStock
-                                  ? <span className="text-[10px] text-amber-600 font-bold animate-pulse ml-1">残り{bag.stockCount}個！</span>
+                                  ? <span className="text-[10px] text-amber-600 font-black animate-pulse ml-1">残り{bag.stockCount}個！</span>
                                   : <span className="text-[10px] text-muted-foreground font-bold ml-1">残り{bag.stockCount}個</span>
                               }
                             </div>
-
                             {!isSoldOut ? (
                               <Link href={`/bags/${bag.id}`}>
-                                <button className="flex items-center gap-1 bg-primary text-primary-foreground text-[11px] font-black px-3 py-1.5 rounded-xl active:scale-95 transition-transform shadow-sm shadow-primary/20">
-                                  レスキュー
-                                  <ChevronRight className="w-3 h-3" />
+                                <button className="flex items-center gap-1 bg-primary text-primary-foreground text-[11px] font-black px-3 py-1.5 rounded-xl tap-scale shadow-sm shadow-primary/20">
+                                  おすそ分け <ChevronRight className="w-3 h-3" />
                                 </button>
                               </Link>
                             ) : (
-                              <span className="text-[11px] text-muted-foreground font-bold px-2 py-1 bg-secondary rounded-xl">完売</span>
+                              <span className="text-[11px] text-muted-foreground font-bold px-2 py-1 bg-secondary rounded-xl">完売御礼</span>
                             )}
                           </div>
                         </div>
@@ -246,28 +211,121 @@ function StoreBottomSheet({
   );
 }
 
+// ─── ゼロ件ステート ──────────────────────────────────────────────────────────
+function ZeroResultsState({
+  query, onClear, recommendBags,
+}: { query: string; onClear: () => void; recommendBags: SurpriseBagWithStore[] }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}>
+
+      {/* 温かいメッセージ */}
+      <div className="flex flex-col items-center text-center px-6 py-10">
+        <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-amber-100 rounded-3xl flex items-center justify-center mb-4 shadow-sm border border-orange-200/60">
+          <PackageOpen className="w-9 h-9 text-primary/60" />
+        </div>
+        <h3 className="text-lg font-black text-foreground mb-1">
+          「{query}」は見つかりませんでした
+        </h3>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+          スペルや言葉を変えてみるか、<br />全体から探してみましょう 🔍
+        </p>
+
+        <button
+          onClick={onClear}
+          className="flex items-center gap-2 bg-primary text-primary-foreground font-black px-6 py-3 rounded-2xl shadow-md shadow-primary/20 tap-scale"
+        >
+          <RefreshCw className="w-4 h-4" />
+          全商品を表示する
+        </button>
+      </div>
+
+      {/* 本日のおすすめ */}
+      {recommendBags.length > 0 && (
+        <div className="mt-2 px-4 pb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex-1 h-px bg-border" />
+            <div className="flex items-center gap-1.5 text-xs font-black text-muted-foreground px-3">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              代わりにこちらはいかがですか？
+            </div>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+            initial="hidden" animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
+          >
+            {recommendBags.map(bag => (
+              <motion.div key={bag.id}
+                variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+                <BagCard bag={bag} />
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 // ─── メインページ ─────────────────────────────────────────────────────────────
 export default function SearchPage() {
-  const [query,        setQuery]        = useState('');
-  const [view,         setView]         = useState<ViewMode>('map');
+  const [inputValue,   setInputValue]   = useState('');      // リアルタイム入力値
+  const [query,        setQuery]        = useState('');      // 実行済みクエリ
+  const [view,         setView]         = useState<ViewMode>('list');
   const [category,     setCategory]     = useState('');
   const [sort,         setSort]         = useState<SortKey>('default');
   const [inStockOnly,  setInStockOnly]  = useState(false);
   const [showSort,     setShowSort]     = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [isSearching,  setIsSearching]  = useState(false);  // ローディング演出
+  const [showHistory,  setShowHistory]  = useState(false);  // 検索履歴パネル
+  const [history,      setHistory]      = useState<string[]>(loadHistory);
+
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const handleUserPositionChange = useCallback((pos: { lat: number; lng: number } | null) => {
     setUserPos(pos);
   }, []);
 
-  const { data: bags,   isLoading: bagsLoading } = useListAllBags();
-  const { data: stores }                          = useListStores();
+  const { data: bags, isLoading: bagsLoading } = useListAllBags();
+  const { data: stores } = useListStores();
+
+  // ── 検索実行（キーボードを閉じる + ローダー演出）──
+  const executeSearch = useCallback((q: string) => {
+    const trimmed = q.trim();
+    // キーボードを強制的に閉じる
+    searchRef.current?.blur();
+    setShowHistory(false);
+    setShowSort(false);
+
+    if (trimmed) {
+      setIsSearching(true);
+      // 短い演出（クライアントサイドフィルタなので実際は即座）
+      setTimeout(() => {
+        setQuery(trimmed);
+        setIsSearching(false);
+        setHistory(prev => saveHistory(trimmed, prev));
+      }, 420);
+    } else {
+      setQuery('');
+    }
+  }, []);
+
+  // Enterキー
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') executeSearch(inputValue);
+    if (e.key === 'Escape') { searchRef.current?.blur(); setShowHistory(false); }
+  }, [inputValue, executeSearch]);
+
+  // リアルタイムフィルタ用クエリ（入力に追従・ローダーなし）
+  const liveQuery = query || inputValue.trim();
 
   const filteredBags = useMemo(() => {
     let result = bags || [];
-    if (query) {
-      const q = query.toLowerCase();
+    if (liveQuery) {
+      const q = liveQuery.toLowerCase();
       result = result.filter(b =>
         b.title.toLowerCase().includes(q) ||
         b.store.name.toLowerCase().includes(q) ||
@@ -281,21 +339,42 @@ export default function SearchPage() {
     if (sort === 'price_desc') result = [...result].sort((a, b) => b.discountedPrice - a.discountedPrice);
     if (sort === 'stock_desc') result = [...result].sort((a, b) => b.stockCount - a.stockCount);
     return result;
-  }, [bags, query, category, sort, inStockOnly]);
+  }, [bags, liveQuery, category, sort, inStockOnly]);
+
+  // ゼロ件時のおすすめ（在庫ありを最大3件）
+  const recommendBags = useMemo(() =>
+    (bags || []).filter(b => b.stockCount > 0).slice(0, 3),
+  [bags]);
 
   const filteredStoreIds = new Set(filteredBags.map(b => b.store.id));
   const displayStores    = (stores || [])
     .filter(s => (s as any).status === 'approved' || !(s as any).status)
-    .filter(s => !query || filteredStoreIds.has(s.id));
+    .filter(s => !liveQuery || filteredStoreIds.has(s.id));
 
+  const isFiltering       = !!liveQuery || category !== '' || inStockOnly || sort !== 'default';
   const activeFilterCount = [category !== '', inStockOnly, sort !== 'default'].filter(Boolean).length;
   const currentSortLabel  = SORT_OPTIONS.find(o => o.value === sort)?.label || 'おすすめ順';
 
-  function clearAllFilters() { setCategory(''); setInStockOnly(false); setSort('default'); setQuery(''); }
+  function clearAllFilters() {
+    setCategory(''); setInStockOnly(false); setSort('default');
+    setQuery(''); setInputValue('');
+    searchRef.current?.focus();
+  }
 
-  const handleStoreSelect = useCallback((store: Store) => {
-    setSelectedStore(store);
-  }, []);
+  const handleStoreSelect = useCallback((store: Store) => setSelectedStore(store), []);
+
+  const handleHistorySelect = (h: string) => {
+    setInputValue(h);
+    setShowHistory(false);
+    executeSearch(h);
+  };
+
+  const handleDeleteHistory = (h: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = history.filter(item => item !== h);
+    setHistory(next);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+  };
 
   return (
     <Layout hideFooter={view === 'map'}>
@@ -303,46 +382,32 @@ export default function SearchPage() {
       {/* ── マップビュー ── */}
       {view === 'map' && (
         <div className="relative flex-1 min-h-0">
-
-          {/* 浮動検索バー */}
           <div className="absolute top-3 left-3 right-3 z-20 flex gap-2">
             <div className="relative flex-1 shadow-xl">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input
-                type="text"
+                ref={searchRef}
+                type="search"
+                inputMode="search"
                 className="w-full bg-white border border-gray-100 rounded-2xl pl-9 pr-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
                 placeholder="店舗名、エリア、カテゴリで検索..."
-                value={query}
-                onChange={e => setQuery(e.target.value)}
+                value={inputValue}
+                style={{ fontSize: '16px' }}
+                onChange={e => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
               />
             </div>
-            <button
-              onClick={() => setView('list')}
-              className="h-[46px] px-3.5 bg-white shadow-xl border border-gray-100 rounded-2xl flex items-center gap-1.5 text-xs font-bold text-foreground whitespace-nowrap active:scale-95 transition-transform"
-            >
-              <List className="w-4 h-4" />
-              リスト
+            <button onClick={() => setView('list')}
+              className="h-[46px] px-3.5 bg-white shadow-xl border border-gray-100 rounded-2xl flex items-center gap-1.5 text-xs font-bold text-foreground whitespace-nowrap tap-scale">
+              <List className="w-4 h-4" />リスト
             </button>
           </div>
-
-          {/* 地図本体 */}
           <div className="absolute inset-0">
-            <MapView
-              stores={displayStores}
-              onStoreSelect={handleStoreSelect}
-              onUserPositionChange={handleUserPositionChange}
-            />
+            <MapView stores={displayStores} onStoreSelect={handleStoreSelect} onUserPositionChange={handleUserPositionChange} />
           </div>
-
-          {/* ── 店舗詳細ボトムシート ── */}
           <AnimatePresence>
             {selectedStore && (
-              <StoreBottomSheet
-                store={selectedStore}
-                bags={bags || []}
-                userPos={userPos}
-                onClose={() => setSelectedStore(null)}
-              />
+              <StoreBottomSheet store={selectedStore} bags={bags || []} userPos={userPos} onClose={() => setSelectedStore(null)} />
             )}
           </AnimatePresence>
         </div>
@@ -355,45 +420,120 @@ export default function SearchPage() {
           {/* Sticky フィルターバー */}
           <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 pt-4 pb-3 space-y-3">
 
+            {/* 検索ボックス */}
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
-                  type="text"
-                  className="w-full bg-card border border-border text-foreground rounded-2xl pl-11 pr-4 py-3 text-sm font-medium focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground"
-                  placeholder="店舗名、商品名、エリアで検索..."
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
+                  ref={searchRef}
+                  type="search"
+                  inputMode="search"
+                  className="w-full bg-card border border-border text-foreground rounded-2xl pl-11 pr-10 py-3 text-sm font-medium focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground"
+                  placeholder="エリア・お店・カテゴリで探す..."
+                  value={inputValue}
+                  style={{ fontSize: '16px' }}
+                  onChange={e => { setInputValue(e.target.value); setShowHistory(true); }}
+                  onFocus={() => history.length > 0 && setShowHistory(true)}
+                  onBlur={() => setTimeout(() => setShowHistory(false), 150)}
+                  onKeyDown={handleKeyDown}
                 />
-                {query && (
-                  <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-muted-foreground/20 flex items-center justify-center">
-                    <X className="w-3 h-3 text-muted-foreground" />
+                {inputValue ? (
+                  <button
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => { setInputValue(''); setQuery(''); searchRef.current?.focus(); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-muted-foreground/20 flex items-center justify-center tap-scale-sm">
+                    <X className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
-                )}
+                ) : null}
+
+                {/* 検索履歴ドロップダウン */}
+                <AnimatePresence>
+                  {showHistory && history.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.14 }}
+                      className="absolute top-full mt-1.5 left-0 right-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-muted-foreground">
+                          <History className="w-3.5 h-3.5" />
+                          最近の検索
+                        </div>
+                        <button
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => { clearHistory(); setHistory([]); setShowHistory(false); }}
+                          className="text-[10px] text-muted-foreground hover:text-destructive font-bold transition-colors tap-opacity"
+                        >
+                          全て消去
+                        </button>
+                      </div>
+                      {history.map(h => (
+                        <div
+                          key={h}
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => handleHistorySelect(h)}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-secondary cursor-pointer group tap-opacity border-b border-border/30 last:border-0 transition-colors"
+                        >
+                          <History className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                          <span className="flex-1 text-sm font-medium text-foreground truncate">{h}</span>
+                          <button
+                            onClick={e => handleDeleteHistory(h, e)}
+                            className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive transition-all"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+
+              {/* 検索ボタン（Enter代替 + ローダー）*/}
               <button
-                onClick={() => setView('map')}
-                className="h-[46px] px-3.5 bg-primary text-primary-foreground rounded-2xl flex items-center gap-1.5 text-xs font-bold shadow-md shadow-primary/20 active:scale-95 transition-transform shrink-0"
+                onClick={() => executeSearch(inputValue)}
+                disabled={isSearching}
+                className="h-[46px] px-4 bg-primary text-primary-foreground rounded-2xl flex items-center gap-1.5 text-sm font-black shadow-md shadow-primary/20 tap-scale shrink-0 min-w-[72px] justify-center"
               >
-                <MapIcon className="w-4 h-4" />
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <><Search className="w-4 h-4" /><span>検索</span></>
+                )}
+              </button>
+
+              {/* 地図ボタン */}
+              <button onClick={() => setView('map')}
+                className="h-[46px] px-3 bg-card border border-border text-foreground rounded-2xl flex items-center gap-1 text-xs font-bold tap-scale shrink-0">
+                <MapIcon className="w-4 h-4 text-primary" />
                 地図
               </button>
             </div>
 
+            {/* カテゴリーチップ（Lucide アイコン付き）*/}
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-0.5">
               {CATEGORIES.map(cat => (
-                <button key={cat.value} onClick={() => setCategory(cat.value)}
-                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 border
-                    ${category === cat.value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-foreground border-border hover:border-primary/50'}`}>
-                  {cat.label}
+                <button key={cat.value} onClick={() => { setCategory(cat.value); searchRef.current?.blur(); }}
+                  className={`whitespace-nowrap flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border tap-scale
+                    ${category === cat.value
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-card text-foreground border-border hover:border-primary/50 hover:bg-primary/5'
+                    }`}>
+                  {cat.icon}
+                  <span>{cat.label}</span>
                 </button>
               ))}
             </div>
 
+            {/* サブフィルター */}
             <div className="flex items-center gap-2">
+
+              {/* 並び替え */}
               <div className="relative">
                 <button onClick={() => setShowSort(v => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all tap-scale
                     ${sort !== 'default' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-foreground border-border hover:border-primary/40'}`}>
                   <ArrowUpDown className="w-3.5 h-3.5" />
                   {currentSortLabel}
@@ -401,11 +541,12 @@ export default function SearchPage() {
                 </button>
                 <AnimatePresence>
                   {showSort && (
-                    <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.15 }}
+                    <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.14 }}
                       className="absolute top-full mt-1.5 left-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
                       {SORT_OPTIONS.map(opt => (
                         <button key={opt.value} onClick={() => { setSort(opt.value); setShowSort(false); }}
-                          className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors hover:bg-secondary ${sort === opt.value ? 'text-primary bg-primary/5' : 'text-foreground'}`}>
+                          className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors hover:bg-secondary tap-opacity
+                            ${sort === opt.value ? 'text-primary bg-primary/5' : 'text-foreground'}`}>
                           {sort === opt.value && <span className="mr-1.5">✓</span>}
                           {opt.label}
                         </button>
@@ -415,55 +556,100 @@ export default function SearchPage() {
                 </AnimatePresence>
               </div>
 
+              {/* 在庫あり */}
               <button onClick={() => setInStockOnly(v => !v)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all tap-scale
                   ${inStockOnly ? 'bg-green-100 text-green-700 border-green-300' : 'bg-card text-foreground border-border hover:border-primary/40'}`}>
                 <span className={`w-2 h-2 rounded-full ${inStockOnly ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
                 在庫あり
               </button>
 
               <div className="flex-1" />
+
+              {/* 件数 + リセット */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-medium">{filteredBags.length}件</span>
+                {!bagsLoading && (
+                  <span className="text-xs text-muted-foreground font-medium">
+                    {isFiltering ? `${filteredBags.length}件` : `全${(bags || []).length}件`}
+                  </span>
+                )}
                 {activeFilterCount > 0 && (
                   <button onClick={clearAllFilters}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 transition-colors">
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 transition-colors tap-scale">
                     <X className="w-3 h-3" />
-                    リセット ({activeFilterCount})
+                    リセット
                   </button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* バッグ一覧 */}
-          <div className="px-4 pt-4">
-            {bagsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-card rounded-2xl animate-pulse border border-border" />)}
-              </div>
-            ) : filteredBags.length > 0 ? (
-              <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" initial="hidden" animate="show"
-                variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}>
-                {filteredBags.map(bag => (
-                  <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
-                    <BagCard bag={bag} />
-                  </motion.div>
-                ))}
+          {/* ── 検索中オーバーレイ ── */}
+          <AnimatePresence>
+            {isSearching && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="px-4 pt-12 pb-8 flex flex-col items-center justify-center gap-4"
+              >
+                <div className="relative w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                  <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                  <div className="absolute inset-2 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-xl select-none">🔍</span>
+                  </div>
+                </div>
+                <p className="text-base font-black text-foreground">おすそ分けを探しています...</p>
+                <p className="text-xs text-muted-foreground">「{inputValue}」で検索中</p>
               </motion.div>
-            ) : (
-              <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
-                <SlidersHorizontal className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-foreground">条件に合う商品がありません</h3>
-                <p className="text-muted-foreground mt-1 text-sm">絞り込み条件を変えてみてください</p>
-                {activeFilterCount > 0 && (
-                  <button onClick={clearAllFilters} className="mt-4 px-5 py-2 bg-primary text-primary-foreground rounded-full text-sm font-bold">
-                    絞り込みをリセット
-                  </button>
-                )}
-              </div>
             )}
-          </div>
+          </AnimatePresence>
+
+          {/* ── バッグ一覧 / ゼロ件 ── */}
+          {!isSearching && (
+            <div className="px-4 pt-4">
+              <AnimatePresence mode="wait">
+                {bagsLoading ? (
+                  <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
+                  </motion.div>
+
+                ) : filteredBags.length > 0 ? (
+                  <motion.div key="results" className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                    initial="hidden" animate="show"
+                    variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}>
+                    {filteredBags.map(bag => (
+                      <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}>
+                        <BagCard bag={bag} />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+
+                ) : isFiltering ? (
+                  <ZeroResultsState
+                    key="zero"
+                    query={liveQuery}
+                    onClear={clearAllFilters}
+                    recommendBags={recommendBags}
+                  />
+
+                ) : (
+                  <motion.div key="empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                    <div className="w-20 h-20 bg-card border-2 border-dashed border-border rounded-3xl flex items-center justify-center mb-5">
+                      <span className="text-4xl select-none">🎁</span>
+                    </div>
+                    <h3 className="text-lg font-black text-foreground mb-2">今日のおすそ分けを準備中</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      まだ出品がありません。<br />お近くのお店がおすそ分けを準備中です！
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       )}
 
