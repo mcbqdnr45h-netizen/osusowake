@@ -306,7 +306,7 @@ export default function SearchPage() {
 
       {/* ── マップビュー ── */}
       {view === 'map' && (
-        <div className="relative h-[calc(100dvh_-_144px)] md:h-[calc(100dvh_-_64px)]">
+        <div className="relative flex-1 min-h-0">
 
           {/* 浮動検索バー */}
           <div className="absolute top-3 left-3 right-3 z-20 flex gap-2">
