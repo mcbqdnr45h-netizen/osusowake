@@ -175,6 +175,7 @@ router.get("/stores/by-owner", async (req, res) => {
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
       .where(eq(storesTable.ownerId, userId))
       .groupBy(storesTable.id)
+      .orderBy(desc(storesTable.id))
       .limit(1);
 
     if (!store) {

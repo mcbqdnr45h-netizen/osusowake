@@ -139,9 +139,34 @@ interface ConnectStatus {
 
 // ─── メイン ──────────────────────────────────────────────────────────────────
 export default function StoreDashboard() {
-  const STORE_ID = 19;
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // ── ログイン中ユーザーの店舗IDを動的に取得 ──
+  const [storeId, setStoreId] = useState<number | null>(null);
+  const [storeLoading, setStoreLoading] = useState(true);
+  const [storeError, setStoreError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const userId = localStorage.getItem('rescueat_user_id');
+    if (!userId) {
+      setStoreError('ログインが必要です');
+      setStoreLoading(false);
+      return;
+    }
+    fetch(`/api/stores/by-owner?userId=${userId}`)
+      .then(async (res) => {
+        if (res.status === 404) {
+          setStoreError('店舗が見つかりません。まず店舗登録を行ってください。');
+          return;
+        }
+        if (!res.ok) throw new Error('店舗情報の取得に失敗しました');
+        const store = await res.json();
+        setStoreId(store.id);
+      })
+      .catch((err) => setStoreError(err.message))
+      .finally(() => setStoreLoading(false));
+  }, []);
 
   const [activeTab, setActiveTab] = useState<'quick' | 'reservations' | 'bags' | 'analytics'>('quick');
 
@@ -152,8 +177,9 @@ export default function StoreDashboard() {
 
   // Connect ステータスを取得
   const fetchConnectStatus = useCallback(async () => {
+    if (!storeId) return;
     try {
-      const res = await fetch(`/api/stores/${STORE_ID}/connect/status`);
+      const res = await fetch(`/api/stores/${storeId}/connect/status`);
       if (res.ok) {
         const data = await res.json();
         setConnectStatus(data);
@@ -163,10 +189,10 @@ export default function StoreDashboard() {
     } finally {
       setStatusLoading(false);
     }
-  }, [STORE_ID]);
+  }, [storeId]);
 
   useEffect(() => {
-    fetchConnectStatus();
+    if (storeId) fetchConnectStatus();
 
     // Stripe オンボーディングから戻ってきた場合を検出
     const params = new URLSearchParams(window.location.search);
@@ -175,17 +201,18 @@ export default function StoreDashboard() {
       // URLクエリパラメータをクリア
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [fetchConnectStatus]);
+  }, [fetchConnectStatus, storeId]);
 
   // オンボーディング開始
   const handleConnectOnboard = async () => {
+    if (!storeId) return;
     setConnectLoading(true);
     try {
       const base = `${window.location.origin}${import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}`;
       const returnUrl  = `${base}/store-dashboard?stripe_connect=return`;
       const refreshUrl = `${base}/store-dashboard?stripe_connect=refresh`;
 
-      const res = await fetch(`/api/stores/${STORE_ID}/connect/onboard`, {
+      const res = await fetch(`/api/stores/${storeId}/connect/onboard`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ returnUrl, refreshUrl }),
@@ -241,10 +268,11 @@ export default function StoreDashboard() {
 
   const handlePhotoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!storeId) return toast({ title: '店舗情報を読み込み中です', variant: 'destructive' });
     setPhotoSubmitting(true);
     try {
       await createBag.mutateAsync({
-        storeId: STORE_ID,
+        storeId: storeId,
         data: {
           title: photoTitle,
           description: '本日の余り食材をたっぷり詰め合わせました',
@@ -287,8 +315,8 @@ export default function StoreDashboard() {
     stockCount: 5, pickupStart: '18:00', pickupEnd: '20:00'
   });
 
-  const { data: bags, isLoading: isLoadingBags } = useListStoreBags(STORE_ID);
-  const { data: reservations, isLoading: isLoadingRes } = useListReservations({ storeId: STORE_ID });
+  const { data: bags, isLoading: isLoadingBags } = useListStoreBags(storeId ?? 0);
+  const { data: reservations, isLoading: isLoadingRes } = useListReservations({ storeId: storeId ?? 0 });
   const createBag = useCreateBag();
   const updateResStatus = useUpdateReservationStatus();
 
@@ -301,10 +329,11 @@ export default function StoreDashboard() {
   // ── クイック出品 ──
   const handleQuickSubmit = async () => {
     if (!selectedTemplate) return;
+    if (!storeId) return toast({ title: '店舗情報を読み込み中です', variant: 'destructive' });
     setIsSubmitting(true);
     try {
       await createBag.mutateAsync({
-        storeId: STORE_ID,
+        storeId: storeId,
         data: {
           title: selectedTemplate.title,
           description: selectedTemplate.description,
@@ -336,11 +365,11 @@ export default function StoreDashboard() {
   const handleCreateBag = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createBag.mutateAsync({ storeId: STORE_ID, data: formData });
+      await createBag.mutateAsync({ storeId: storeId!, data: formData });
       toast({ title: "出品しました！" });
       setIsCreating(false);
       setFormData({ ...formData, title: '', description: '' });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores/19/bags'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
     } catch (err: any) {
       toast({ title: "エラー", description: err.message, variant: "destructive" });
     }
@@ -362,6 +391,34 @@ export default function StoreDashboard() {
     { key: 'bags',         label: '出品一覧',     icon: <Box className="w-3.5 h-3.5" /> },
     { key: 'analytics',   label: '分析',         icon: <BarChart2 className="w-3.5 h-3.5" /> },
   ] as const;
+
+  // ── 店舗読み込み中 / エラー ──
+  if (storeLoading) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          <p className="text-muted-foreground text-sm">店舗情報を取得中…</p>
+        </div>
+      </Layout>
+    );
+  }
+  if (storeError || !storeId) {
+    return (
+      <Layout>
+        <div className="max-w-md mx-auto px-4 py-16 text-center">
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-destructive" />
+          </div>
+          <h2 className="text-xl font-black mb-2">店舗が見つかりません</h2>
+          <p className="text-sm text-muted-foreground mb-6">{storeError ?? '先に店舗登録を行ってください'}</p>
+          <a href="/store-onboarding" className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-bold px-6 py-3 rounded-2xl hover:bg-primary/90 transition-colors">
+            店舗登録を始める
+          </a>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
