@@ -8,6 +8,8 @@ import {
   ChevronRight, AlertCircle, Coins, Leaf,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ReviewModal } from '@/components/ReviewModal';
+import { useUserId } from '@/hooks/use-user';
 
 const POINT_RATE = 0.03;
 
@@ -219,11 +221,13 @@ export default function OrderTicket() {
   const reservationId = params?.id ? parseInt(params.id) : 0;
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const userId = useUserId();
 
   const { data: reservation, isLoading, refetch } = useGetReservation(reservationId);
 
   // localStorage から初期状態を読み込み
   const [ticket, setTicket] = useState<TicketRecord | null>(() => readTicket(reservationId));
+  const [showReview, setShowReview] = useState(false);
 
   // DBのステータスと同期
   useEffect(() => {
@@ -256,6 +260,7 @@ export default function OrderTicket() {
     setTicket(record);
     await refetch();
     toast({ title: '受取完了 ✅', description: 'お食事をお楽しみください！' });
+    setTimeout(() => setShowReview(true), 800);
   }, [reservationId, refetch, toast]);
 
   // ─── ローディング ──
@@ -277,6 +282,21 @@ export default function OrderTicket() {
 
   return (
     <Layout showBottomNav={false}>
+      {/* ─── 受取完了後レビューモーダル ─── */}
+      <AnimatePresence>
+        {showReview && userId && reservation && (
+          <ReviewModal
+            reservation={{
+              id: reservationId,
+              storeId: reservation.storeId,
+              store: reservation.store,
+            }}
+            userId={userId}
+            onClose={() => setShowReview(false)}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="max-w-md mx-auto pb-10">
 
         {/* ヘッダー */}
