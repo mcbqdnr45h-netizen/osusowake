@@ -4,6 +4,7 @@ import storesRouter from "./stores";
 import bagsRouter from "./bags";
 import reservationsRouter from "./reservations";
 import paymentRouter from "./payment";
+import supabaseTestRouter from "./supabase-test";
 
 const router: IRouter = Router();
 
@@ -12,6 +13,7 @@ router.use(storesRouter);
 router.use(bagsRouter);
 router.use(reservationsRouter);
 router.use(paymentRouter);
+router.use(supabaseTestRouter);
 
 router.get("/me", (_req, res) => {
   res.json({

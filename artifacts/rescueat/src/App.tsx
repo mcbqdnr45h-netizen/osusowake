@@ -29,6 +29,7 @@ import CheckoutSuccess from "./pages/CheckoutSuccess";
 import CheckoutCancel from "./pages/CheckoutCancel";
 import OrderTicket from "./pages/OrderTicket";
 import NotFound from "./pages/not-found";
+import SupabaseTest from "./pages/SupabaseTest";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +73,7 @@ function Router() {
       <Route path="/cancel" component={CheckoutCancel} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
+      <Route path="/supabase-test" component={SupabaseTest} />
       <Route component={NotFound} />
     </Switch>
   );
