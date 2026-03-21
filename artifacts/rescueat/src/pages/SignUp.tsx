@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, ChevronLeft, Mail, Lock, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, Mail, Lock, CheckCircle2, Gift, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignUp() {
@@ -12,12 +12,26 @@ export default function SignUp() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
+  const [referralValid, setReferralValid] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
   const isValid = email.trim() && password.length >= 6 && agreed && !isLoading;
+
+  function handleReferralChange(val: string) {
+    const upper = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    setReferralCode(upper);
+    if (upper.length === 0) {
+      setReferralValid(null);
+    } else if (upper.length >= 8) {
+      setReferralValid(true);
+    } else {
+      setReferralValid(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -153,6 +167,63 @@ export default function SignUp() {
             {password.length > 0 && password.length < 6 && (
               <p className="text-destructive text-xs font-medium mt-1.5">6文字以上で入力してください</p>
             )}
+          </div>
+
+          {/* Referral Code */}
+          <div>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              招待コード
+              <span className="ml-2 text-xs font-normal text-muted-foreground">（任意）</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <Gift className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type="text"
+                value={referralCode}
+                onChange={e => handleReferralChange(e.target.value)}
+                placeholder="例：RESCUEA08C32"
+                maxLength={12}
+                className={`w-full bg-card border-2 rounded-xl pl-11 pr-10 py-3.5 text-foreground font-mono font-medium tracking-widest placeholder:text-muted-foreground/60 placeholder:font-normal placeholder:tracking-normal focus:ring-4 outline-none transition-all uppercase
+                  ${referralValid === true
+                    ? 'border-green-500 focus:border-green-500 focus:ring-green-500/10'
+                    : referralValid === false
+                    ? 'border-amber-400 focus:border-amber-400 focus:ring-amber-400/10'
+                    : 'border-border focus:border-primary focus:ring-primary/10'
+                  }`}
+                autoComplete="off"
+                disabled={isLoading}
+              />
+              {referralCode.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setReferralCode(''); setReferralValid(null); }}
+                  className="absolute inset-y-0 right-4 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <AnimatePresence>
+              {referralValid === true && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 text-green-600 text-xs font-bold mt-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  招待コードを確認しました
+                </motion.p>
+              )}
+              {referralValid === false && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="text-amber-600 text-xs font-medium mt-1.5"
+                >
+                  8文字以上の英数字で入力してください
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Error */}
