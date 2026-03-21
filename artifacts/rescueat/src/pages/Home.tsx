@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
-import { BagCard } from '@/components/BagCard';
+import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
   Search, Store, ChevronRight, Clock, MapPin, Zap,
@@ -440,7 +440,7 @@ export default function Home() {
               >
                 {isLoadingBags ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-card rounded-2xl animate-pulse border border-border" />)}
+                    {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
                   </div>
                 ) : filteredBags.length > 0 ? (
                   <motion.div
@@ -524,7 +524,7 @@ export default function Home() {
                 <div className="px-4 pb-6">
                   {isLoadingBags ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                      {[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-card rounded-2xl animate-pulse border border-border" />)}
+                      {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
                     </div>
                   ) : allBags.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">

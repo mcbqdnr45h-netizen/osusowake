@@ -1,0 +1,30 @@
+{
+  "name": "食べロス - おすそ分けアプリ",
+  "short_name": "食べロス",
+  "description": "お近くのお店からお得なおすそ分けバッグをゲットしよう",
+  "start_url": "/rescueat/",
+  "scope": "/rescueat/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FF8C00",
+  "orientation": "portrait-primary",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/rescueat/opengraph.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/rescueat/opengraph.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "食べロス ホーム画面"
+    }
+  ],
+  "categories": ["food", "shopping", "lifestyle"]
+}

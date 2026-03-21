@@ -1,0 +1,79 @@
+const CACHE_NAME = 'tabelosu-v1';
+const BASE = '/rescueat';
+
+const PRECACHE_URLS = [
+  `${BASE}/`,
+  `${BASE}/manifest.json`,
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  if (request.method !== 'GET') return;
+  if (url.pathname.startsWith(`${BASE}/api/`)) return;
+
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      return fetch(request).then((response) => {
+        if (!response || response.status !== 200 || response.type === 'opaque') return response;
+        const toCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, toCache));
+        return response;
+      }).catch(() => caches.match(`${BASE}/`));
+    })
+  );
+});
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let payload;
+  try { payload = event.data.json(); } catch { payload = { title: '食べロス', body: event.data.text() }; }
+
+  const options = {
+    body: payload.body || 'お知らせがあります',
+    icon: `${BASE}/icons/icon-192.png`,
+    badge: `${BASE}/icons/icon-192.png`,
+    tag: payload.tag || 'tabelosu',
+    data: { url: payload.url || `${BASE}/` },
+    actions: [
+      { action: 'open', title: 'アプリを開く' },
+      { action: 'dismiss', title: '閉じる' },
+    ],
+    vibrate: [100, 50, 100],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || '食べロス', options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  if (event.action === 'dismiss') return;
+  const url = event.notification.data?.url || `${BASE}/`;
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
+      const existing = cls.find((c) => c.url.includes('/rescueat/'));
+      if (existing) { existing.focus(); existing.navigate(url); }
+      else clients.openWindow(url);
+    })
+  );
+});

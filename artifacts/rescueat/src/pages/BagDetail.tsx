@@ -3,13 +3,15 @@ import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon } from '@/lib/category-utils';
-import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart } from 'lucide-react';
+import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
+import { WalkTime } from '@/components/WalkTime';
+import { useUserLocation, haversineMeters, metersToWalkMinutes, formatWalkTime } from '@/hooks/use-user-location';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -208,6 +210,7 @@ export default function BagDetail() {
   const [quantity, setQuantity] = useState(1);
   const [showReport, setShowReport] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const { coords: userCoords } = useUserLocation();
 
   // 受取時間が過ぎているか判定（JST基準・深夜またぎ対応）
   const isExpired = React.useMemo(() => {
@@ -395,11 +398,23 @@ export default function BagDetail() {
             </div>
 
             <div className="absolute bottom-6 left-6 right-6">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-medium border border-white/30 flex items-center gap-1.5">
                   <span>{getCategoryIcon(bag.store.category)}</span>
                   {bag.store.name}
                 </span>
+                {/* 徒歩時間バッジ */}
+                {bag.store.lat && bag.store.lng && userCoords && (() => {
+                  const meters  = haversineMeters(userCoords.lat, userCoords.lng, bag.store.lat!, bag.store.lng!);
+                  const minutes = metersToWalkMinutes(meters);
+                  const color   = minutes <= 5 ? 'text-green-300' : minutes <= 15 ? 'text-orange-300' : 'text-sky-300';
+                  return (
+                    <span className={`bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-bold border border-white/20 flex items-center gap-1.5 ${color}`}>
+                      <Navigation className="w-3.5 h-3.5" />
+                      {formatWalkTime(minutes)}
+                    </span>
+                  );
+                })()}
               </div>
               <h1 className="text-3xl md:text-4xl font-display font-bold text-white mb-2 leading-tight">
                 {bag.title}
@@ -455,25 +470,45 @@ export default function BagDetail() {
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                <div className="bg-secondary/50 rounded-2xl p-4 min-w-[120px]">
-                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <div className="flex flex-wrap gap-3">
+                <div className="bg-secondary/50 rounded-2xl p-4 min-w-[110px]">
+                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                     <Clock className="w-4 h-4" />
                     <span className="text-xs font-semibold">受取時間</span>
                   </div>
-                  <div className="font-bold text-foreground">
+                  <div className="font-bold text-foreground text-sm">
                     {bag.pickupStart} - {bag.pickupEnd}
                   </div>
                 </div>
-                <div className="bg-secondary/50 rounded-2xl p-4 min-w-[120px]">
-                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <div className="bg-secondary/50 rounded-2xl p-4 min-w-[90px]">
+                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                     <MapPin className="w-4 h-4" />
-                    <span className="text-xs font-semibold">場所</span>
+                    <span className="text-xs font-semibold">エリア</span>
                   </div>
-                  <div className="font-bold text-foreground truncate max-w-[100px]">
+                  <div className="font-bold text-foreground text-sm truncate max-w-[90px]">
                     {bag.store.city}
                   </div>
                 </div>
+                {/* 徒歩時間カード */}
+                {bag.store.lat && bag.store.lng && userCoords && (() => {
+                  const meters  = haversineMeters(userCoords.lat, userCoords.lng, bag.store.lat!, bag.store.lng!);
+                  const minutes = metersToWalkMinutes(meters);
+                  const isFast  = minutes <= 5;
+                  const isNear  = minutes <= 15;
+                  return (
+                    <div className={`rounded-2xl p-4 min-w-[100px] border ${
+                      isFast ? 'bg-green-50 border-green-200' : isNear ? 'bg-orange-50 border-orange-200' : 'bg-secondary/50 border-transparent'
+                    }`}>
+                      <div className={`flex items-center gap-1.5 mb-1 ${isFast ? 'text-green-600' : isNear ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                        <Navigation className="w-4 h-4" />
+                        <span className="text-xs font-semibold">現在地から</span>
+                      </div>
+                      <div className={`font-black text-sm ${isFast ? 'text-green-700' : isNear ? 'text-orange-600' : 'text-foreground'}`}>
+                        {formatWalkTime(minutes)}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
