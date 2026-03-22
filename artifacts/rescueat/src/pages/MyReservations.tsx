@@ -43,7 +43,7 @@ export default function MyReservations() {
   const { toast } = useToast();
   const { data: reservations, isLoading, refetch } = useListReservations(
     { userId: userId || '' },
-    { query: { enabled: !!userId } },
+    { query: { enabled: !!userId, refetchOnMount: 'always', staleTime: 0 } },
   );
 
   const cancelMutation = useCancelReservation();

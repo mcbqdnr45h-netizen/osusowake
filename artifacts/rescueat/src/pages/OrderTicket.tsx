@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetReservation } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Clock, MapPin, CheckCircle2,
@@ -223,6 +224,7 @@ export default function OrderTicket() {
   const { toast } = useToast();
   const userId = useUserId();
 
+  const queryClient = useQueryClient();
   const { data: reservation, isLoading, refetch } = useGetReservation(reservationId);
 
   // localStorage から初期状態を読み込み
@@ -259,6 +261,7 @@ export default function OrderTicket() {
     writeTicket(reservationId, record);
     setTicket(record);
     await refetch();
+    queryClient.invalidateQueries({ predicate: q => q.queryKey.join('/').includes('reservations') });
     toast({ title: '受取完了 ✅', description: 'お食事をお楽しみください！' });
     setTimeout(() => setShowReview(true), 800);
   }, [reservationId, refetch, toast]);
