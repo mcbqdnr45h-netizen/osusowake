@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function Login() {
   const [, navigate] = useLocation();
-  const { signIn } = useAuth();
+  const { signIn, signOut } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,6 +31,13 @@ export default function Login() {
       return;
     }
 
+    // 店舗オーナーアカウントはユーザーログインからブロック
+    if (role === 'store_owner') {
+      await signOut();
+      setError('このアカウントは店舗オーナー用です。「店舗オーナー」タブからログインしてください。');
+      return;
+    }
+
     // ?redirect= パラメータが指定されていれば最優先
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get('redirect');
@@ -39,12 +46,7 @@ export default function Login() {
       return;
     }
 
-    // role に応じた自動振り分け
-    if (role === 'store_owner') {
-      navigate('/store/dashboard');
-    } else {
-      navigate('/');   // 一般ユーザーは商品一覧トップへ
-    }
+    navigate('/');   // 一般ユーザーは商品一覧トップへ
   }
 
   return (
