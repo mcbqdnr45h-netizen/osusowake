@@ -94,7 +94,7 @@ export function BagCard({ bag }: BagCardProps) {
     }
   }
 
-  const imgSrc = bag.store.imageUrl || getCategoryImage(bag.store.category);
+  const imgSrc = bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category);
 
   const storeComment = (bag as any).description as string | null | undefined;
   const trimmedComment = storeComment

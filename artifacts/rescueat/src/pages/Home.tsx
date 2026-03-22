@@ -184,7 +184,7 @@ function CompactBagCard({ bag }: { bag: SurpriseBagWithStore }) {
   const isLowStock  = bag.stockCount > 0 && bag.stockCount < 3;
   const favorited   = isFavorite(bag.store.id);
   const [loaded, setLoaded] = useState(false);
-  const imgSrc = bag.store.imageUrl || getCategoryImage(bag.store.category);
+  const imgSrc = bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category);
 
   return (
     <Link

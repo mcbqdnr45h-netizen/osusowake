@@ -122,6 +122,7 @@ export interface SurpriseBag {
   stockCount: number;
   pickupStart?: string;
   pickupEnd?: string;
+  imageUrl?: string | null;
   isActive: boolean;
   createdAt: string;
 }

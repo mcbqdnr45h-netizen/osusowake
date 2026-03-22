@@ -392,7 +392,7 @@ export default function BagDetail() {
               <div className="absolute inset-0 skeleton-shimmer" />
             )}
             <img
-              src={bag.store.imageUrl || getCategoryImage(bag.store.category)}
+              src={bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category)}
               alt={bag.store.name}
               loading="eager"
               decoding="async"
