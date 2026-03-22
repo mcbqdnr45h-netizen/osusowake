@@ -185,7 +185,7 @@ router.post("/stores/:storeId/bags", async (req, res) => {
       stockCount: Number(body.stockCount),
       pickupStart: body.pickupStart ?? null,
       pickupEnd: body.pickupEnd ?? null,
-      isActive: true,
+      isActive: false,
     }).returning();
     res.status(201).json(bag);
   } catch (err) {
@@ -207,6 +207,39 @@ router.put("/bags/:bagId", async (req, res) => {
 
     if (!updated) {
       res.status(404).json({ error: "not_found", message: "Bag not found" });
+      return;
+    }
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: "bad_request", message: "Invalid update data" });
+  }
+});
+
+// 店舗オーナーによる個別バッグ更新（公開/非公開トグルなど）
+// storeId を含めることで所有権チェックを行う
+router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId, 10);
+    const bagId = parseInt(req.params.bagId, 10);
+    if (isNaN(storeId) || isNaN(bagId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId or bagId" });
+      return;
+    }
+
+    const body = UpdateBagBody.parse(req.body);
+
+    const [updated] = await db
+      .update(surpriseBagsTable)
+      .set(body)
+      .where(and(
+        eq(surpriseBagsTable.id, bagId),
+        eq(surpriseBagsTable.storeId, storeId),
+      ))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Bag not found or not owned by this store" });
       return;
     }
     res.json(updated);
