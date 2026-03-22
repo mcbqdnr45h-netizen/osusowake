@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
+import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useLocation, Link } from 'wouter';
 import {
@@ -149,6 +150,14 @@ function Row({
   );
 }
 
+function SettingsWrapper({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth();
+  if (profile?.role === 'store_owner') {
+    return <StoreLayout>{children}</StoreLayout>;
+  }
+  return <Layout showBottomNav={false}>{children}</Layout>;
+}
+
 export default function Settings() {
   const userId = useUserId() || '';
   const { user, signOut: authSignOut } = useAuth();
@@ -236,7 +245,7 @@ export default function Settings() {
   }
 
   return (
-    <Layout showBottomNav={false}>
+    <SettingsWrapper>
       <AnimatePresence>
         {showTokusho && <TokushoModal onClose={() => setShowTokusho(false)} />}
       </AnimatePresence>
@@ -466,6 +475,6 @@ export default function Settings() {
           <p className="text-center text-xs text-muted-foreground pb-4">食べロス v1.0.0</p>
         </div>
       </div>
-    </Layout>
+    </SettingsWrapper>
   );
 }
