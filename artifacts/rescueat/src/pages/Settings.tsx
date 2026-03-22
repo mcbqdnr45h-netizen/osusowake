@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useLocation, Link } from 'wouter';
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const GENRES = ['ベーカリー', 'お弁当', 'カフェ', 'レストラン', 'スーパー', 'コンビニ', 'スイーツ', '和食'];
 
@@ -150,6 +151,7 @@ function Row({
 
 export default function Settings() {
   const userId = useUserId() || '';
+  const { user, signOut: authSignOut } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { saved, save } = useLocalSettings(userId);
@@ -164,6 +166,23 @@ export default function Settings() {
   const [copied, setCopied] = useState(false);
   const [saved_, setSaved_] = useState(false);
   const [showTokusho, setShowTokusho] = useState(false);
+
+  // Supabase認証ユーザーが読み込まれたら実際のメール・名前で初期値を上書き
+  useEffect(() => {
+    if (!user) return;
+    const realEmail = user.email ?? '';
+    const meta = (user.user_metadata ?? {}) as Record<string, string>;
+    const realName =
+      meta.full_name ||
+      meta.name ||
+      (realEmail ? realEmail.split('@')[0] : '');
+    // メールは常にSupabaseから同期
+    setEmail(realEmail);
+    // 表示名がデフォルトのまま（一度も編集されていない）なら実名で置き換え
+    if (saved.displayName === 'ゲストユーザー' && realName) {
+      setDisplayName(realName);
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Referral code: first 6 chars of userId, uppercase
   const referralCode = `RESCUE${userId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
@@ -211,7 +230,8 @@ export default function Settings() {
     }
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await authSignOut();
     navigate('/welcome');
   }
 
