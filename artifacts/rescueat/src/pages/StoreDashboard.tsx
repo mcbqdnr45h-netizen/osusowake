@@ -601,7 +601,7 @@ export default function StoreDashboard() {
                     <label className="block text-xs font-bold text-muted-foreground mb-1">定価</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
-                      <input type="number" min="100" value={photoOriginal} onChange={e => setPhotoOriginal(Number(e.target.value))}
+                      <input type="number" inputMode="numeric" value={photoOriginal || ''} onChange={e => setPhotoOriginal(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0))}
                         className="w-full bg-background border border-input rounded-xl pl-7 pr-3 py-3 font-bold text-base focus:ring-2 focus:ring-primary/40 outline-none" />
                     </div>
                   </div>
@@ -612,7 +612,7 @@ export default function StoreDashboard() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
-                      <input type="number" min="100" value={photoDiscounted} onChange={e => setPhotoDiscounted(Number(e.target.value))}
+                      <input type="number" inputMode="numeric" value={photoDiscounted || ''} onChange={e => setPhotoDiscounted(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0))}
                         className="w-full bg-background border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary text-base focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
                     </div>
                   </div>
@@ -864,11 +864,11 @@ export default function StoreDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-bold text-muted-foreground mb-1.5">通常価格</label>
-                      <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">¥</span><input type="number" required value={formData.originalPrice} onChange={e => setFormData({ ...formData, originalPrice: Number(e.target.value) })} className="w-full bg-background border border-input rounded-xl pl-8 pr-4 py-3 font-bold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all" /></div>
+                      <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">¥</span><input type="number" inputMode="numeric" required value={formData.originalPrice || ''} onChange={e => setFormData({ ...formData, originalPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })} className="w-full bg-background border border-input rounded-xl pl-8 pr-4 py-3 font-bold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all" /></div>
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-muted-foreground mb-1.5">割引価格</label>
-                      <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold">¥</span><input type="number" required value={formData.discountedPrice} onChange={e => setFormData({ ...formData, discountedPrice: Number(e.target.value) })} className="w-full bg-background border-2 border-primary/30 rounded-xl pl-8 pr-4 py-3 font-black text-primary focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" /></div>
+                      <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold">¥</span><input type="number" inputMode="numeric" required value={formData.discountedPrice || ''} onChange={e => setFormData({ ...formData, discountedPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })} className="w-full bg-background border-2 border-primary/30 rounded-xl pl-8 pr-4 py-3 font-black text-primary focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" /></div>
                     </div>
                   </div>
                   {discountPercent > 0 && (
