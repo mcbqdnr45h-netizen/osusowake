@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { surpriseBagsTable, storesTable } from "@workspace/db/schema";
+import { surpriseBagsTable, storesTable, reservationsTable } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import {
   ListStoreBagsParams,
@@ -244,9 +244,16 @@ router.delete("/stores/:storeId/bags/:bagId", async (req, res) => {
       return;
     }
 
-    await db
-      .delete(surpriseBagsTable)
-      .where(eq(surpriseBagsTable.id, bagId));
+    // トランザクション内で関連予約を先に削除 → バッグを削除
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(reservationsTable)
+        .where(eq(reservationsTable.bagId, bagId));
+
+      await tx
+        .delete(surpriseBagsTable)
+        .where(eq(surpriseBagsTable.id, bagId));
+    });
 
     res.status(204).send();
   } catch (err) {
