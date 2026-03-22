@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────
-// ローディング画面
+// ローディング画面（auth / profile 取得中）
 // ─────────────────────────────────────────────────────────────────
 function AuthLoadingScreen() {
   return (
@@ -22,12 +22,14 @@ function AuthLoadingScreen() {
 
 // ─────────────────────────────────────────────────────────────────
 // ProtectedRoute
-//   requireRole なし       → ログインのみ必要（role 不問）
-//   requireRole: 'store_owner' → 店舗オーナー専用
-//   requireRole: 'customer'    → 一般ユーザー専用
 //
-// 未ログイン     → /welcome?redirect=<元のURL>
-// ロール違い     → role に応じた適切な場所へ
+//  AuthContext の改修により isLoading=false の時点で
+//  user と profile は両方確定済み（fetchProfile を await している）。
+//
+//  isLoading=true  → スピナー（絶対にリダイレクトしない）
+//  !user           → /welcome へ
+//  role 不一致     → 各ロールのホームへ
+//  その他          → <Component /> を表示
 // ─────────────────────────────────────────────────────────────────
 export function ProtectedRoute({
   component: Component,
@@ -40,6 +42,7 @@ export function ProtectedRoute({
   const [location, navigate] = useLocation();
 
   useEffect(() => {
+    // isLoading 中は絶対に判定しない（profile が揃っていない可能性があるため）
     if (isLoading) return;
 
     // 未ログイン → ウェルカム画面へ（redirect パラメータ付き）
@@ -49,29 +52,33 @@ export function ProtectedRoute({
       return;
     }
 
-    // ロール制限チェック（profile 取得後のみ判定）
+    // ロール制限チェック
+    // AuthContext 改修後、isLoading=false の時点で profile は揃っているが
+    // signOut 直後など profile=null になる瞬間があるため null ガードを残す
     if (requireRole && profile) {
       if (profile.role !== requireRole) {
-        // 一般ユーザーが店舗ページへ → トップへ
         if (requireRole === 'store_owner') {
+          // 一般ユーザーが店舗ページへ → トップへ
           navigate('/', { replace: true });
-        }
-        // 店舗オーナーが顧客専用ページへ → ダッシュボードへ
-        else if (requireRole === 'customer') {
+        } else {
+          // 店舗オーナーが顧客専用ページへ → ダッシュボードへ
           navigate('/store/dashboard', { replace: true });
         }
       }
     }
   }, [isLoading, user, profile, requireRole, location, navigate]);
 
+  // ① auth+profile 取得完了まで必ずスピナー
   if (isLoading) return <AuthLoadingScreen />;
+
+  // ② 未ログイン（effect がリダイレクト中）→ 何も表示しない
   if (!user) return null;
 
-  // profile が取得中 or ロール制限に違反している場合は非表示
-  if (requireRole && profile && profile.role !== requireRole) return null;
-
-  // profile 未取得中はロード画面（一瞬だが安全のため）
+  // ③ profile が null（極稀なタイミング）→ スピナーで待機
   if (requireRole && !profile) return <AuthLoadingScreen />;
+
+  // ④ ロール違反（effect がリダイレクト中）→ 何も表示しない（コンポーネントを見せない）
+  if (requireRole && profile && profile.role !== requireRole) return null;
 
   return <Component />;
 }
@@ -100,7 +107,7 @@ export function GuestRoute({
       return;
     }
 
-    // role に応じて振り分け（profile 取得後のみ）
+    // profile が揃ったら role に応じて振り分け
     if (profile) {
       if (profile.role === 'store_owner') {
         navigate('/store/dashboard', { replace: true });
@@ -110,8 +117,9 @@ export function GuestRoute({
     }
   }, [isLoading, user, profile, navigate]);
 
-  // Auth チェック中はちらつき防止のため何も表示しない
+  // auth+profile 取得完了まで何も表示しない（ちらつき防止）
   if (isLoading) return null;
+  // ログイン済みなら effect がリダイレクト中 → 何も表示しない
   if (user) return null;
 
   return <Component />;

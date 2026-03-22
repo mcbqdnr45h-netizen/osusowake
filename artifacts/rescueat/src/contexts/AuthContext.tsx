@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, type PublicUser } from '@/lib/supabase';
 
@@ -17,18 +17,28 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser]       = useState<User | null>(null);
   const [profile, setProfile] = useState<PublicUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+
+  // isLoading = true until the FIRST auth+profile check is fully complete
   const [isLoading, setIsLoading] = useState(true);
 
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (data) setProfile(data as PublicUser);
+  // prevent concurrent fetchProfile calls from racing
+  const fetchingRef = useRef(false);
+
+  async function fetchProfile(userId: string): Promise<void> {
+    fetchingRef.current = true;
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (data) setProfile(data as PublicUser);
+    } finally {
+      fetchingRef.current = false;
+    }
   }
 
   async function refreshProfile() {
@@ -36,21 +46,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      setIsLoading(false);
-    });
+    let cancelled = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      else setProfile(null);
-    });
+    // ── 初回セッション確認（await fetchProfile してから isLoading=false）──────────
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id);   // ← await で確実にプロフィール取得後に進む
+        }
+      } catch (_) {
+        // ignore network errors on init
+      } finally {
+        if (!cancelled) setIsLoading(false);     // ← profile 取得後に初めて false
+      }
+    };
 
-    return () => subscription.unsubscribe();
+    initAuth();
+
+    // ── 以降の認証状態変化（ログイン/ログアウト/トークン更新）────────────────────
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (cancelled) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          // signIn() が手動で setProfile する場合と競合しないよう、
+          // まだフェッチ中でなければ最新プロフィールを取得
+          if (!fetchingRef.current) {
+            fetchProfile(session.user.id);
+          }
+        } else {
+          setProfile(null);
+        }
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function signUp(email: string, password: string) {
@@ -106,7 +144,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
       if (prof) {
         role = prof.role;
-        setProfile({ id: data.user.id, email: prof.email, role: prof.role, points_balance: prof.points_balance, created_at: data.user.created_at });
+        // onAuthStateChange より先に profile をセットしておく（ちらつき防止）
+        setProfile({
+          id: data.user.id,
+          email: prof.email,
+          role: prof.role,
+          points_balance: prof.points_balance,
+          created_at: data.user.created_at,
+        });
       }
     }
 
@@ -135,9 +180,9 @@ export function useAuth() {
 
 function translateError(msg: string): string {
   if (msg.includes('Invalid login credentials')) return 'メールアドレスまたはパスワードが正しくありません';
-  if (msg.includes('Email not confirmed')) return 'メールアドレスが未確認です。確認メールのリンクをクリックしてください';
-  if (msg.includes('User already registered')) return 'このメールアドレスは既に登録されています';
+  if (msg.includes('Email not confirmed'))        return 'メールアドレスが未確認です。確認メールのリンクをクリックしてください';
+  if (msg.includes('User already registered'))   return 'このメールアドレスは既に登録されています';
   if (msg.includes('Password should be at least')) return 'パスワードは6文字以上で入力してください';
-  if (msg.includes('rate limit')) return 'しばらく時間をおいてから再試行してください';
+  if (msg.includes('rate limit'))                return 'しばらく時間をおいてから再試行してください';
   return msg;
 }
