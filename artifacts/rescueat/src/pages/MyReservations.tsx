@@ -93,7 +93,7 @@ export default function MyReservations() {
   async function handleDismiss(resId: number) {
     setCancelling(true);
     try {
-      await cancelMutation.mutateAsync(resId);
+      await cancelMutation.mutateAsync({ reservationId: resId });
       setDismissedIds(prev => new Set([...prev, resId]));
       setConfirmingId(null);
       toast({ title: '予約を削除しました' });
