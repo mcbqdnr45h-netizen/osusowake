@@ -4,7 +4,7 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
 import {
   Plus, Package2, Clock, AlertCircle, Loader2,
-  ChevronUp, ChevronDown, ToggleLeft, ToggleRight,
+  ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +37,9 @@ export default function StoreBagsPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId]   = useState<number | null>(null);
+  const [deletingId, setDeletingId]   = useState<number | null>(null);
+  const [confirmId, setConfirmId]     = useState<number | null>(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -92,6 +94,27 @@ export default function StoreBagsPage() {
       toast({ title: '更新に失敗しました', variant: 'destructive' });
     } finally {
       setTogglingId(null);
+    }
+  }
+
+  async function handleDelete(bag: Bag) {
+    if (!storeId) return;
+    setDeletingId(bag.id);
+    setConfirmId(null);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? '削除に失敗しました');
+      }
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      toast({ title: '商品を削除しました' });
+    } catch (err: any) {
+      toast({ title: err.message ?? '削除に失敗しました', variant: 'destructive' });
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -289,20 +312,56 @@ export default function StoreBagsPage() {
                       )}
                     </div>
 
-                    {/* 公開/非公開トグル */}
-                    <button
-                      onClick={() => handleToggleActive(bag)}
-                      disabled={togglingId === bag.id}
-                      className="shrink-0 flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-                    >
-                      {togglingId === bag.id
-                        ? <Loader2 className="w-6 h-6 animate-spin" />
-                        : bag.isActive
-                          ? <ToggleRight className="w-8 h-8 text-primary" />
-                          : <ToggleLeft className="w-8 h-8" />
-                      }
-                      <span className="text-[9px] font-bold">{bag.isActive ? '公開中' : '非公開'}</span>
-                    </button>
+                    {/* 右側ボタン群 */}
+                    <div className="shrink-0 flex flex-col items-center gap-2">
+                      {/* 公開/非公開トグル */}
+                      <button
+                        onClick={() => { setConfirmId(null); handleToggleActive(bag); }}
+                        disabled={togglingId === bag.id || deletingId === bag.id}
+                        className="flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                      >
+                        {togglingId === bag.id
+                          ? <Loader2 className="w-6 h-6 animate-spin" />
+                          : bag.isActive
+                            ? <ToggleRight className="w-8 h-8 text-primary" />
+                            : <ToggleLeft className="w-8 h-8" />
+                        }
+                        <span className="text-[9px] font-bold">{bag.isActive ? '公開中' : '非公開'}</span>
+                      </button>
+
+                      {/* 削除ボタン（非公開のみ表示）*/}
+                      {!bag.isActive && (
+                        <div className="flex flex-col items-center gap-1">
+                          {confirmId === bag.id ? (
+                            // 確認ステップ
+                            <div className="flex flex-col items-center gap-1">
+                              <button
+                                onClick={() => handleDelete(bag)}
+                                disabled={deletingId === bag.id}
+                                className="text-[9px] font-black text-white bg-red-500 px-2 py-1 rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                              >
+                                {deletingId === bag.id ? <Loader2 className="w-3 h-3 animate-spin" /> : '削除する'}
+                              </button>
+                              <button
+                                onClick={() => setConfirmId(null)}
+                                className="text-[9px] text-muted-foreground underline"
+                              >
+                                戻る
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmId(bag.id)}
+                              disabled={togglingId === bag.id}
+                              className="flex flex-col items-center gap-0.5 text-muted-foreground/50 hover:text-red-400 transition-colors disabled:opacity-30"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="text-[9px] font-bold">削除</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

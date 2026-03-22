@@ -216,6 +216,45 @@ router.put("/bags/:bagId", async (req, res) => {
   }
 });
 
+// 非公開バッグの削除（isActive=false のものだけ削除可能）
+router.delete("/stores/:storeId/bags/:bagId", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId, 10);
+    const bagId = parseInt(req.params.bagId, 10);
+    if (isNaN(storeId) || isNaN(bagId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId or bagId" });
+      return;
+    }
+
+    // 対象バッグを取得して所有権・公開状態を確認
+    const [bag] = await db
+      .select()
+      .from(surpriseBagsTable)
+      .where(and(
+        eq(surpriseBagsTable.id, bagId),
+        eq(surpriseBagsTable.storeId, storeId),
+      ));
+
+    if (!bag) {
+      res.status(404).json({ error: "not_found", message: "Bag not found or not owned by this store" });
+      return;
+    }
+    if (bag.isActive) {
+      res.status(409).json({ error: "conflict", message: "公開中の商品は削除できません。先に非公開にしてください。" });
+      return;
+    }
+
+    await db
+      .delete(surpriseBagsTable)
+      .where(eq(surpriseBagsTable.id, bagId));
+
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to delete bag" });
+  }
+});
+
 // 店舗オーナーによる個別バッグ更新（公開/非公開トグルなど）
 // storeId を含めることで所有権チェックを行う
 router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
