@@ -6,7 +6,7 @@ import {
   storesTable,
   insertReservationSchema,
 } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import {
   ListReservationsQueryParams,
   CreateReservationBody,
@@ -271,21 +271,31 @@ router.post("/reservations/:reservationId/cancel", async (req, res) => {
       return;
     }
 
+    // ① 予約ステータスを cancelled に更新（最重要・失敗したら 500）
     await db
       .update(reservationsTable)
       .set({ status: "cancelled" })
       .where(eq(reservationsTable.id, reservationId));
 
-    await db
-      .update(surpriseBagsTable)
-      .set({ stockCount: existing.quantity })
-      .where(eq(surpriseBagsTable.id, existing.bagId));
+    // ② 在庫を戻す（失敗しても cancel 自体は成功扱い）
+    try {
+      await db
+        .update(surpriseBagsTable)
+        .set({ stockCount: sql`${surpriseBagsTable.stockCount} + ${existing.quantity}` })
+        .where(eq(surpriseBagsTable.id, existing.bagId));
+    } catch (stockErr: unknown) {
+      const msg = stockErr instanceof Error ? stockErr.message : String(stockErr);
+      console.error("[cancel] stock restore failed (non-critical):", msg);
+    }
 
     const updated = await getReservationWithDetails(reservationId);
     res.json(updated);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "internal_error", message: "Failed to cancel reservation" });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const cause = (err as { cause?: unknown })?.cause;
+    const causeMsg = cause instanceof Error ? cause.message : cause ? String(cause) : "";
+    console.error("[cancel] reservation cancel failed:", msg, causeMsg);
+    res.status(500).json({ error: "internal_error", message: "Failed to cancel reservation", detail: msg });
   }
 });
 

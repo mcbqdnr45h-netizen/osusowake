@@ -187,11 +187,11 @@ export default function MyReservations() {
           </div>
         ) : (() => {
           const sorted = [...reservations]
-            .filter(r => !dismissedIds.has(r.id))
+            .filter(r => !dismissedIds.has(r.id) && r.status !== 'cancelled')
             .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
 
           const active  = sorted.filter(r => r.status === 'confirmed' || r.status === 'pending');
-          const history = sorted.filter(r => r.status === 'picked_up' || r.status === 'cancelled');
+          const history = sorted.filter(r => r.status === 'picked_up');
 
           const renderCard = (res: typeof sorted[0], i: number) => {
             const expired    = isPickupExpired(res.bag?.pickupEnd, res.createdAt);
