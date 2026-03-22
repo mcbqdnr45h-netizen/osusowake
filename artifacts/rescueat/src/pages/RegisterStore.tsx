@@ -62,23 +62,28 @@ async function compressImage(file: File, maxPx = 1200, quality = 0.75): Promise<
 
 // ── Geocoding with multi-strategy fallback ─────────────────────────────────
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  const strategies = [
-    address + ' Japan',
-    address,
-    // Strip street number for area-level match
-    address.replace(/\d+-\d+-?\d*/g, '').trim() + ' Japan',
-  ];
-  for (const q of strategies) {
+  // ① 国土地理院 API（日本語住所専用・CORS対応・認証不要）
+  try {
+    const res = await fetch(
+      `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(address)}`,
+    );
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      const [lng, lat] = data[0].geometry.coordinates;
+      return { lat, lng };
+    }
+  } catch {}
+
+  // ② Nominatim フォールバック（番地を省いた住所でリトライ）
+  const queries = [address, address.replace(/\d+-\d+-?\d*/g, '').trim()];
+  for (const q of queries) {
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=jp`,
-        { headers: { 'Accept-Language': 'ja', 'User-Agent': 'taberos-app/1.0' } }
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Japan')}&format=json&limit=1&countrycodes=jp&accept-language=ja`,
       );
       const data = await res.json();
-      if (data && data.length > 0) {
-        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-      }
-    } catch { /* try next */ }
+      if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    } catch {}
   }
   return null;
 }
