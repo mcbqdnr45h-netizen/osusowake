@@ -6,6 +6,7 @@ import {
   Plus, Package2, Clock, AlertCircle, Loader2,
   ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Trash2,
 } from 'lucide-react';
+import { ImageUpload } from '@/components/ImageUpload';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -40,6 +41,7 @@ export default function StoreBagsPage() {
   const [togglingId, setTogglingId]   = useState<number | null>(null);
   const [deletingId, setDeletingId]   = useState<number | null>(null);
   const [confirmId, setConfirmId]     = useState<number | null>(null);
+  const [imageUrl, setImageUrl]       = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -53,6 +55,10 @@ export default function StoreBagsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!storeId || !form.title.trim()) return;
+    if (!imageUrl) {
+      toast({ title: '写真を追加してください', variant: 'destructive' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       await createBag.mutateAsync({
@@ -65,11 +71,13 @@ export default function StoreBagsPage() {
           stockCount: form.stockCount,
           pickupStart: form.pickupStart,
           pickupEnd: form.pickupEnd,
+          imageUrl,
         },
       });
       toast({ title: '出品しました！' });
       queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
       setShowForm(false);
+      setImageUrl(null);
       setForm({ title: '', originalPrice: 1000, discountedPrice: 350, stockCount: 3, pickupStart: '18:00', pickupEnd: '20:00' });
     } catch {
       toast({ title: '出品に失敗しました', variant: 'destructive' });
@@ -246,12 +254,14 @@ export default function StoreBagsPage() {
                 </div>
               </div>
 
+              <ImageUpload value={imageUrl} onChange={setImageUrl} required />
+
               <div className="flex gap-3">
                 <button type="button" onClick={() => setShowForm(false)}
                   className="flex-1 py-3 rounded-xl border-2 border-border font-bold text-muted-foreground hover:bg-muted transition-colors">
                   キャンセル
                 </button>
-                <button type="submit" disabled={isSubmitting || !form.title.trim()}
+                <button type="submit" disabled={isSubmitting || !form.title.trim() || !imageUrl}
                   className="flex-1 py-3 rounded-xl bg-primary text-white font-black flex items-center justify-center gap-2 shadow-md shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-primary/90 transition-all">
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" />出品する</>}
                 </button>

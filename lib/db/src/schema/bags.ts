@@ -13,6 +13,7 @@ export const surpriseBagsTable = pgTable("surprise_bags", {
   stockCount: integer("stock_count").notNull().default(0),
   pickupStart: text("pickup_start"),
   pickupEnd: text("pickup_end"),
+  imageUrl: text("image_url"),
   isActive: boolean("is_active").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

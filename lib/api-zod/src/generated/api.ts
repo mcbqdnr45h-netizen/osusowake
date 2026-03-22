@@ -202,6 +202,7 @@ export const CreateBagBody = zod.object({
   stockCount: zod.number(),
   pickupStart: zod.string().optional(),
   pickupEnd: zod.string().optional(),
+  imageUrl: zod.string().optional(),
 });
 
 /**

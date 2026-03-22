@@ -185,6 +185,7 @@ router.post("/stores/:storeId/bags", async (req, res) => {
       stockCount: Number(body.stockCount),
       pickupStart: body.pickupStart ?? null,
       pickupEnd: body.pickupEnd ?? null,
+      imageUrl: body.imageUrl ?? null,
       isActive: true,
     }).returning();
     res.status(201).json(bag);

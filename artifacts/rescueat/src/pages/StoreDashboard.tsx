@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { format, isToday, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { ImageUpload } from '@/components/ImageUpload';
 
 // ─── 型 ────────────────────────────────────────────────────────────────────
 type ReservationStatus = 'pending' | 'confirmed' | 'picked_up' | 'cancelled';
@@ -77,6 +78,7 @@ function PostBagModal({
   const [selected, setSelected] = useState<typeof TEMPLATES[0] | null>(null);
   const [qty, setQty] = useState(3);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   // 手動フォーム
   const [form, setForm] = useState({
@@ -90,6 +92,10 @@ function PostBagModal({
 
   async function handleQuickSubmit() {
     if (!selected) return;
+    if (!imageUrl) {
+      toast({ title: '写真を追加してください', variant: 'destructive' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       await createBag.mutateAsync({
@@ -102,6 +108,7 @@ function PostBagModal({
           stockCount: qty,
           pickupStart: selected.pickupStart,
           pickupEnd: selected.pickupEnd,
+          imageUrl,
         },
       });
       toast({ title: '出品しました！', description: `${selected.emoji} ${selected.label} × ${qty}個` });
@@ -116,6 +123,10 @@ function PostBagModal({
   async function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim() || form.discountedPrice <= 0) return;
+    if (!imageUrl) {
+      toast({ title: '写真を追加してください', variant: 'destructive' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       await createBag.mutateAsync({
@@ -128,6 +139,7 @@ function PostBagModal({
           stockCount: form.stockCount,
           pickupStart: form.pickupStart,
           pickupEnd: form.pickupEnd,
+          imageUrl,
         },
       });
       toast({ title: '出品しました！' });
@@ -264,21 +276,26 @@ function PostBagModal({
                 )}
               </AnimatePresence>
 
+              {/* 写真アップロード */}
+              <ImageUpload value={imageUrl} onChange={setImageUrl} required />
+
               {/* 出品ボタン */}
               <button
                 onClick={handleQuickSubmit}
-                disabled={!selected || isSubmitting}
+                disabled={!selected || !imageUrl || isSubmitting}
                 className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all ${
-                  selected && !isSubmitting
+                  selected && imageUrl && !isSubmitting
                     ? 'bg-primary text-white shadow-lg shadow-primary/25 active:scale-[0.98]'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                 }`}
               >
                 {isSubmitting
                   ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : selected
-                    ? <><Plus className="w-5 h-5" />{selected.emoji} {qty}個を今すぐ出品する</>
-                    : 'カテゴリーを選んでください'
+                  : !selected
+                    ? 'カテゴリーを選んでください'
+                    : !imageUrl
+                      ? '写真を追加してください'
+                      : <><Plus className="w-5 h-5" />{selected.emoji} {qty}個を今すぐ出品する</>
                 }
               </button>
             </>
@@ -371,11 +388,14 @@ function PostBagModal({
                 </div>
               </div>
 
+              {/* 写真アップロード */}
+              <ImageUpload value={imageUrl} onChange={setImageUrl} required />
+
               <button
                 type="submit"
-                disabled={isSubmitting || !form.title.trim() || form.discountedPrice <= 0}
+                disabled={isSubmitting || !form.title.trim() || form.discountedPrice <= 0 || !imageUrl}
                 className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all ${
-                  !isSubmitting && form.title.trim() && form.discountedPrice > 0
+                  !isSubmitting && form.title.trim() && form.discountedPrice > 0 && imageUrl
                     ? 'bg-primary text-white shadow-lg shadow-primary/25 active:scale-[0.98]'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                 }`}
