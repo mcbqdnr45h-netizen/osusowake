@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 import { SurpriseBagWithStore } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
-import { useUserLocation, haversineMeters, metersToWalkMinutes, formatWalkTime } from '@/hooks/use-user-location';
+import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
 import { useToast } from '@/hooks/use-toast';
 
 interface BagCardProps {
@@ -15,8 +15,8 @@ function WalkTimeBadge({ storeLat, storeLng }: { storeLat: number; storeLng: num
   const { coords } = useUserLocation();
   if (!coords) return null;
   const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
-  const minutes = metersToWalkMinutes(meters);
-  const label   = formatWalkTime(minutes);
+  const minutes = Math.round(meters / 67);
+  const label   = formatDistanceLabel(meters);
   const color   = minutes <= 5 ? 'text-green-300' : minutes <= 15 ? 'text-orange-300' : 'text-sky-300';
   return (
     <span className={`inline-flex items-center gap-0.5 text-[11px] font-black ${color}`}>

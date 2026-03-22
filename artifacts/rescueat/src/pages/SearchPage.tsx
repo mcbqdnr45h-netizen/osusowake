@@ -13,7 +13,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
-import { useUserLocation, haversineMeters, metersToWalkMinutes, formatWalkTime } from '@/hooks/use-user-location';
+import { useUserLocation, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 
 // ─── 距離計算 ─────────────────────────────────────────────────────────────────
 function calcDistanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -75,7 +75,7 @@ function InlineWalkBadge({ storeLat, storeLng, prominent = false }: { storeLat: 
   if (!coords) return null;
   const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
   const minutes = metersToWalkMinutes(meters);
-  const label   = formatWalkTime(minutes);
+  const label   = formatDistanceLabel(meters);
   const isClose = minutes <= 5;
   const isMid   = minutes <= 15;
 
@@ -86,7 +86,7 @@ function InlineWalkBadge({ storeLat, storeLng, prominent = false }: { storeLat: 
           : isMid ? 'bg-orange-100 text-orange-600 border border-orange-200'
           : 'bg-sky-100 text-sky-700 border border-sky-200'}`}>
         <Navigation className="w-3 h-3 shrink-0" />
-        徒歩{label}
+        {label}
       </span>
     );
   }
@@ -118,8 +118,7 @@ function StoreBottomSheet({
   const walkLabel = useMemo(() => {
     if (!userPos || !store.lat || !store.lng) return null;
     const m = haversineMeters(userPos.lat, userPos.lng, store.lat, store.lng);
-    const mins = metersToWalkMinutes(m);
-    return formatWalkTime(mins);
+    return formatDistanceLabel(m);
   }, [userPos, store.lat, store.lng]);
 
   return (

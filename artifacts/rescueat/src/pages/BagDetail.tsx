@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { WalkTime } from '@/components/WalkTime';
-import { useUserLocation, haversineMeters, metersToWalkMinutes, formatWalkTime } from '@/hooks/use-user-location';
+import { useUserLocation, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -419,7 +419,7 @@ export default function BagDetail() {
                   return (
                     <span className={`bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-bold border border-white/20 flex items-center gap-1.5 ${color}`}>
                       <Navigation className="w-3.5 h-3.5" />
-                      {formatWalkTime(minutes)}
+                      {formatDistanceLabel(meters)}
                     </span>
                   );
                 })()}
@@ -512,7 +512,7 @@ export default function BagDetail() {
                         <span className="text-xs font-semibold">現在地から</span>
                       </div>
                       <div className={`font-black text-sm ${isFast ? 'text-green-700' : isNear ? 'text-orange-600' : 'text-foreground'}`}>
-                        {formatWalkTime(minutes)}
+                        {formatDistanceLabel(meters)}
                       </div>
                     </div>
                   );

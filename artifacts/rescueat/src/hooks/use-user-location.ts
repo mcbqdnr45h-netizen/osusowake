@@ -70,3 +70,18 @@ export function formatWalkTime(minutes: number): string {
   const m = minutes % 60;
   return m > 0 ? `${h}時間${m}分` : `${h}時間`;
 }
+
+/**
+ * メートルから表示ラベルを生成する統合関数。
+ * - 1分未満    → 「すぐそこ」
+ * - 60分以内   → 「徒歩X分」
+ * - 60分超     → km 距離表示（非現実的な徒歩時間を防止）
+ */
+export function formatDistanceLabel(meters: number): string {
+  const minutes = metersToWalkMinutes(meters);
+  if (minutes < 1)   return 'すぐそこ';
+  if (minutes <= 60) return `徒歩${minutes}分`;
+  // 1時間超は徒歩ではなく距離で表示
+  if (meters < 1000) return `${Math.round(meters)}m`;
+  return `${(meters / 1000).toFixed(1)}km`;
+}

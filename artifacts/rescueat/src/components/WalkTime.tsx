@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigation } from 'lucide-react';
-import { useUserLocation, haversineMeters, metersToWalkMinutes, formatWalkTime } from '@/hooks/use-user-location';
+import { useUserLocation, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 
 interface WalkTimeProps {
   storeLat?: number | null;
@@ -26,7 +26,7 @@ export function WalkTime({ storeLat, storeLng, className = '', variant = 'badge'
 
   const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
   const minutes = metersToWalkMinutes(meters);
-  const label   = formatWalkTime(minutes);
+  const label   = formatDistanceLabel(meters);
 
   const urgencyColor =
     minutes <= 5  ? 'text-green-600 bg-green-50 border-green-200' :
