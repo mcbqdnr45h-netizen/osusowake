@@ -10,6 +10,18 @@ import { useToast } from '@/hooks/use-toast';
 import { ReviewModal } from '@/components/ReviewModal';
 import type { ReviewTarget } from '@/components/ReviewModal';
 
+/** pickupEnd が "HH:MM" 形式のとき、今日のその時刻をすでに過ぎているか判定する */
+function isPickupExpired(pickupEnd?: string | null): boolean {
+  if (!pickupEnd) return false;
+  const [hStr, mStr] = pickupEnd.split(':');
+  const h = parseInt(hStr ?? '0', 10);
+  const m = parseInt(mStr ?? '0', 10);
+  if (isNaN(h) || isNaN(m)) return false;
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+  return now > end;
+}
+
 export default function MyReservations() {
   const userId = useUserId();
   const { toast } = useToast();
@@ -155,15 +167,28 @@ export default function MyReservations() {
                       </span>
                     </Link>
                   )}
-                  {res.status === 'pending' && (
-                    <Link href={`/checkout/${res.id}`}>
-                      <span className="mt-1 w-full bg-amber-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-amber-600 active:scale-[0.98] transition-all cursor-pointer text-sm shadow-md shadow-amber-300/50">
-                        <CreditCard className="w-4 h-4" />
-                        決済を完了する
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </span>
-                    </Link>
-                  )}
+                  {res.status === 'pending' && (() => {
+                    const expired = isPickupExpired(res.bag?.pickupEnd);
+                    return expired ? (
+                      <div className="mt-1 space-y-1.5">
+                        <div className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-400 font-bold py-3 rounded-xl text-sm cursor-not-allowed select-none border border-slate-200">
+                          <Clock className="w-4 h-4" />
+                          受取時間が終了しました
+                        </div>
+                        <p className="text-[11px] text-muted-foreground text-center leading-snug">
+                          受取時間（〜{res.bag?.pickupEnd}）を過ぎているため決済できません
+                        </p>
+                      </div>
+                    ) : (
+                      <Link href={`/checkout/${res.id}`}>
+                        <span className="mt-1 w-full bg-amber-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-amber-600 active:scale-[0.98] transition-all cursor-pointer text-sm shadow-md shadow-amber-300/50">
+                          <CreditCard className="w-4 h-4" />
+                          決済を完了する
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </span>
+                      </Link>
+                    );
+                  })()}
                   {res.status === 'picked_up' && (
                     <div className="mt-1 space-y-2">
                       {alreadyReviewed ? (
