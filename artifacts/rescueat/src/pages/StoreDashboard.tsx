@@ -10,6 +10,7 @@ import {
 import {
   Plus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
+  History,
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -52,31 +53,34 @@ function statusLabel(s: ReservationStatus) {
   return { text: 'キャンセル', cls: 'bg-gray-100 text-gray-500 border-gray-200' };
 }
 
-// ─── クイック出品テンプレート ────────────────────────────────────────────
-const TEMPLATES = [
-  { emoji: '🍞', label: 'パン詰め合わせ',   title: '本日のパン詰め合わせ',   originalPrice: 1200, discountedPrice: 400, pickupStart: '18:00', pickupEnd: '20:00' },
-  { emoji: '🍱', label: 'お弁当セット',     title: '本日のお弁当セット',     originalPrice: 900,  discountedPrice: 300, pickupStart: '19:00', pickupEnd: '21:00' },
-  { emoji: '🎂', label: 'スイーツセット',   title: '本日のスイーツセット',   originalPrice: 1500, discountedPrice: 500, pickupStart: '17:00', pickupEnd: '19:00' },
-  { emoji: '🥗', label: 'サラダ・惣菜',     title: '本日のサラダ・惣菜セット', originalPrice: 800,  discountedPrice: 280, pickupStart: '19:30', pickupEnd: '21:30' },
-  { emoji: '🍣', label: 'お寿司セット',     title: '本日のお寿司セット',     originalPrice: 2000, discountedPrice: 700, pickupStart: '20:00', pickupEnd: '22:00' },
-  { emoji: '☕', label: 'カフェセット',     title: '本日のカフェセット',     originalPrice: 1000, discountedPrice: 350, pickupStart: '16:00', pickupEnd: '18:00' },
-];
+// ─── 過去出品の型 ─────────────────────────────────────────────────────────
+interface PastBag {
+  id: number;
+  title: string;
+  originalPrice: number;
+  discountedPrice: number;
+  imageUrl: string | null;
+}
 
 // ─── 出品モーダル ────────────────────────────────────────────────────────
 function PostBagModal({
   storeId,
+  pastBags,
   onClose,
   onSuccess,
 }: {
   storeId: number;
+  pastBags: PastBag[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const { toast } = useToast();
   const createBag = useCreateBag();
   const [mode, setMode] = useState<'quick' | 'manual'>('quick');
-  const [selected, setSelected] = useState<typeof TEMPLATES[0] | null>(null);
+  const [pastBag, setPastBag] = useState<PastBag | null>(null);
   const [qty, setQty] = useState(3);
+  const [quickPickupStart, setQuickPickupStart] = useState('18:00');
+  const [quickPickupEnd, setQuickPickupEnd] = useState('20:00');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
@@ -90,8 +94,13 @@ function PostBagModal({
     pickupEnd: '20:00',
   });
 
+  // 過去の出品を選択したとき、その画像を引き継ぐ
+  React.useEffect(() => {
+    if (pastBag?.imageUrl) setImageUrl(pastBag.imageUrl);
+  }, [pastBag]);
+
   async function handleQuickSubmit() {
-    if (!selected) return;
+    if (!pastBag) return;
     if (!imageUrl) {
       toast({ title: '写真を追加してください', variant: 'destructive' });
       return;
@@ -101,17 +110,17 @@ function PostBagModal({
       await createBag.mutateAsync({
         storeId,
         data: {
-          title: selected.title,
+          title: pastBag.title,
           description: '',
-          originalPrice: selected.originalPrice,
-          discountedPrice: selected.discountedPrice,
+          originalPrice: pastBag.originalPrice,
+          discountedPrice: pastBag.discountedPrice,
           stockCount: qty,
-          pickupStart: selected.pickupStart,
-          pickupEnd: selected.pickupEnd,
+          pickupStart: quickPickupStart,
+          pickupEnd: quickPickupEnd,
           imageUrl,
         },
       });
-      toast({ title: '出品しました！', description: `${selected.emoji} ${selected.label} × ${qty}個` });
+      toast({ title: '出品しました！', description: `${pastBag.title} × ${qty}個` });
       onSuccess();
     } catch {
       toast({ title: '出品に失敗しました', variant: 'destructive' });
@@ -208,96 +217,152 @@ function PostBagModal({
 
           {mode === 'quick' && (
             <>
-              {/* テンプレートグリッド */}
+              {/* ─ 過去の出品履歴リスト ─ */}
               <div>
-                <p className="text-xs font-bold text-muted-foreground mb-3">カテゴリーを選ぶ</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {TEMPLATES.map((tpl) => (
-                    <button
-                      key={tpl.label}
-                      onClick={() => setSelected(tpl)}
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
-                        selected?.label === tpl.label
-                          ? 'border-primary bg-primary/5 shadow-sm'
-                          : 'border-border bg-card hover:border-primary/40'
-                      }`}
-                    >
-                      <span className="text-2xl">{tpl.emoji}</span>
-                      <span className="text-[10px] font-bold text-foreground leading-tight text-center">{tpl.label}</span>
-                      <span className="text-[10px] font-black text-primary">¥{tpl.discountedPrice}</span>
-                    </button>
-                  ))}
-                </div>
+                <p className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5" />
+                  過去の出品から選ぶ
+                </p>
+
+                {pastBags.length === 0 ? (
+                  /* 履歴なし */
+                  <div className="bg-muted/50 rounded-2xl p-6 text-center border border-dashed border-border">
+                    <Package2 className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm font-bold text-foreground">まだ出品履歴がありません</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      「手動で入力」タブから最初の商品を登録してください
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {pastBags.map((bag) => {
+                      const isSelected = pastBag?.id === bag.id;
+                      const offPct = bag.originalPrice > 0
+                        ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
+                        : 0;
+                      return (
+                        <button
+                          key={bag.id}
+                          type="button"
+                          onClick={() => setPastBag(isSelected ? null : bag)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition-all ${
+                            isSelected
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border bg-card hover:border-primary/30'
+                          }`}
+                        >
+                          {/* サムネイル */}
+                          {bag.imageUrl ? (
+                            <img
+                              src={bag.imageUrl}
+                              alt={bag.title}
+                              className="w-14 h-14 rounded-xl object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                              <Package2 className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                          )}
+
+                          {/* テキスト */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-foreground truncate">{bag.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs line-through text-muted-foreground">¥{bag.originalPrice.toLocaleString()}</span>
+                              <span className="text-sm font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
+                              {offPct > 0 && (
+                                <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+                                  {offPct}%OFF
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* チェック */}
+                          {isSelected && (
+                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                              <CheckCircle2 className="w-4 h-4 text-white" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              {/* 個数選択 */}
+              {/* ─ 詳細設定（個数・受取時間・写真）─ */}
               <AnimatePresence>
-                {selected && (
+                {pastBag && (
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-primary/5 border-2 border-primary/20 rounded-2xl p-4"
+                    exit={{ opacity: 0, y: 8 }}
+                    className="space-y-4 border-t border-border pt-4"
                   >
-                    <p className="text-xs font-bold text-muted-foreground mb-3">出品する個数</p>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center bg-white border-2 border-border rounded-xl overflow-hidden shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() => setQty(Math.max(1, qty - 1))}
-                          className="w-12 h-12 flex items-center justify-center hover:bg-muted transition-colors text-xl font-black"
-                        >
-                          <ChevronDown className="w-5 h-5" />
-                        </button>
-                        <span className="w-14 text-center text-2xl font-black">{qty}</span>
-                        <button
-                          type="button"
-                          onClick={() => setQty(Math.min(99, qty + 1))}
-                          className="w-12 h-12 flex items-center justify-center hover:bg-muted transition-colors text-xl font-black"
-                        >
-                          <ChevronUp className="w-5 h-5" />
-                        </button>
+                    {/* 個数 + 受取時間 */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* 個数 */}
+                      <div>
+                        <p className="text-xs font-bold text-muted-foreground mb-2">出品数</p>
+                        <div className="flex items-center bg-white border-2 border-border rounded-xl overflow-hidden shadow-sm h-12">
+                          <button
+                            type="button"
+                            onClick={() => setQty(Math.max(1, qty - 1))}
+                            className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-black text-lg"
+                          >−</button>
+                          <span className="flex-1 text-center text-xl font-black">{qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => setQty(Math.min(99, qty + 1))}
+                            className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-black text-lg"
+                          >＋</button>
+                        </div>
                       </div>
-                      <div className="flex-1 bg-white rounded-xl p-3 border border-border">
-                        <p className="text-sm font-black">{selected.emoji} {selected.label}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-                          <Clock className="w-3 h-3" />
-                          {selected.pickupStart}〜{selected.pickupEnd}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs line-through text-muted-foreground">¥{selected.originalPrice}</span>
-                          <span className="text-sm font-black text-primary">¥{selected.discountedPrice}</span>
-                          <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
-                            {Math.round((1 - selected.discountedPrice / selected.originalPrice) * 100)}%OFF
-                          </span>
+
+                      {/* 受取時間 */}
+                      <div>
+                        <p className="text-xs font-bold text-muted-foreground mb-2">受取時間</p>
+                        <div className="space-y-1.5">
+                          <input
+                            type="time"
+                            value={quickPickupStart}
+                            onChange={e => setQuickPickupStart(e.target.value)}
+                            className="w-full bg-white border-2 border-border rounded-xl px-3 py-2 font-bold text-sm focus:border-primary outline-none transition-all"
+                          />
+                          <input
+                            type="time"
+                            value={quickPickupEnd}
+                            onChange={e => setQuickPickupEnd(e.target.value)}
+                            className="w-full bg-white border-2 border-border rounded-xl px-3 py-2 font-bold text-sm focus:border-primary outline-none transition-all"
+                          />
                         </div>
                       </div>
                     </div>
+
+                    {/* 写真（過去の画像を引き継ぎ、変更も可） */}
+                    <ImageUpload value={imageUrl} onChange={setImageUrl} required />
+
+                    {/* 出品ボタン */}
+                    <button
+                      onClick={handleQuickSubmit}
+                      disabled={!imageUrl || isSubmitting}
+                      className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all ${
+                        imageUrl && !isSubmitting
+                          ? 'bg-primary text-white shadow-lg shadow-primary/25 active:scale-[0.98]'
+                          : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      }`}
+                    >
+                      {isSubmitting
+                        ? <Loader2 className="w-5 h-5 animate-spin" />
+                        : !imageUrl
+                          ? '写真を追加してください'
+                          : <><Plus className="w-5 h-5" />{qty}個を今すぐ出品する</>
+                      }
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {/* 写真アップロード */}
-              <ImageUpload value={imageUrl} onChange={setImageUrl} required />
-
-              {/* 出品ボタン */}
-              <button
-                onClick={handleQuickSubmit}
-                disabled={!selected || !imageUrl || isSubmitting}
-                className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all ${
-                  selected && imageUrl && !isSubmitting
-                    ? 'bg-primary text-white shadow-lg shadow-primary/25 active:scale-[0.98]'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed'
-                }`}
-              >
-                {isSubmitting
-                  ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : !selected
-                    ? 'カテゴリーを選んでください'
-                    : !imageUrl
-                      ? '写真を追加してください'
-                      : <><Plus className="w-5 h-5" />{selected.emoji} {qty}個を今すぐ出品する</>
-                }
-              </button>
             </>
           )}
 
@@ -505,6 +570,25 @@ export default function StoreDashboard() {
     r => isTodaysReservation(r) && r.status === 'picked_up'
   );
   const activeBags = (bags as any[]).filter((b: any) => b.isActive);
+
+  // クイック出品用: title で重複排除（最新 id を優先）
+  const deduplicatedBags: PastBag[] = React.useMemo(() => {
+    const seen = new Map<string, PastBag>();
+    [...(bags as any[])]
+      .sort((a: any, b: any) => b.id - a.id)
+      .forEach((b: any) => {
+        if (!seen.has(b.title)) {
+          seen.set(b.title, {
+            id: b.id,
+            title: b.title,
+            originalPrice: b.originalPrice,
+            discountedPrice: b.discountedPrice,
+            imageUrl: b.imageUrl ?? null,
+          });
+        }
+      });
+    return Array.from(seen.values());
+  }, [bags]);
 
   // 受取済みにする
   async function handlePickedUp(id: number) {
@@ -720,6 +804,7 @@ export default function StoreDashboard() {
         {showPostModal && storeId && (
           <PostBagModal
             storeId={storeId}
+            pastBags={deduplicatedBags}
             onClose={() => setShowPostModal(false)}
             onSuccess={() => {
               setShowPostModal(false);
