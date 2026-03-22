@@ -1,0 +1,315 @@
+import React, { useState } from 'react';
+import { StoreLayout } from '@/components/StoreLayout';
+import { useMyStore } from '@/hooks/use-my-store';
+import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
+import {
+  Plus, Package2, Clock, AlertCircle, Loader2,
+  ChevronUp, ChevronDown, ToggleLeft, ToggleRight,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { ja } from 'date-fns/locale';
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+
+interface Bag {
+  id: number;
+  title: string;
+  discountedPrice: number;
+  originalPrice: number;
+  stockCount: number;
+  pickupStart: string | null;
+  pickupEnd: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export default function StoreBagsPage() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { store, loading: storeLoading } = useMyStore();
+  const storeId = store?.id ?? null;
+
+  const { data: bags = [], isLoading } = useListStoreBags(storeId ?? 0, { query: { enabled: !!storeId } });
+  const createBag = useCreateBag();
+
+  const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+
+  const [form, setForm] = useState({
+    title: '',
+    originalPrice: 1000,
+    discountedPrice: 350,
+    stockCount: 3,
+    pickupStart: '18:00',
+    pickupEnd: '20:00',
+  });
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!storeId || !form.title.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await createBag.mutateAsync({
+        storeId,
+        data: {
+          title: form.title,
+          description: '',
+          originalPrice: form.originalPrice,
+          discountedPrice: form.discountedPrice,
+          stockCount: form.stockCount,
+          pickupStart: form.pickupStart,
+          pickupEnd: form.pickupEnd,
+        },
+      });
+      toast({ title: '出品しました！' });
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      setShowForm(false);
+      setForm({ title: '', originalPrice: 1000, discountedPrice: 350, stockCount: 3, pickupStart: '18:00', pickupEnd: '20:00' });
+    } catch {
+      toast({ title: '出品に失敗しました', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleToggleActive(bag: Bag) {
+    if (!storeId) return;
+    setTogglingId(bag.id);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !bag.isActive }),
+      });
+      if (!res.ok) throw new Error();
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      toast({ title: bag.isActive ? '非公開にしました' : '公開しました' });
+    } catch {
+      toast({ title: '更新に失敗しました', variant: 'destructive' });
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  if (storeLoading) {
+    return (
+      <StoreLayout>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-7 h-7 animate-spin text-primary" />
+        </div>
+      </StoreLayout>
+    );
+  }
+
+  if (!store) {
+    return (
+      <StoreLayout>
+        <div className="flex-1 flex items-center justify-center px-6 text-center">
+          <div>
+            <AlertCircle className="w-10 h-10 text-orange-400 mx-auto mb-3" />
+            <p className="font-black text-lg">店舗情報が見つかりません</p>
+          </div>
+        </div>
+      </StoreLayout>
+    );
+  }
+
+  const activeBags = (bags as Bag[]).filter(b => b.isActive);
+  const inactiveBags = (bags as Bag[]).filter(b => !b.isActive);
+
+  return (
+    <StoreLayout>
+      <div className="max-w-2xl mx-auto w-full px-4 py-5 space-y-5">
+
+        {/* ── ヘッダー ── */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-black text-foreground">出品・在庫管理</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              出品中 {activeBags.length}件 / 全{(bags as Bag[]).length}件
+            </p>
+          </div>
+          <button
+            onClick={() => setShowForm(v => !v)}
+            className="flex items-center gap-2 bg-primary text-white font-black text-sm px-4 py-2.5 rounded-xl shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            新規出品
+          </button>
+        </div>
+
+        {/* ── 新規出品フォーム ── */}
+        <AnimatePresence>
+          {showForm && (
+            <motion.form
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              onSubmit={handleSubmit}
+              className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-lg space-y-4"
+            >
+              <h3 className="font-black text-foreground">新しいサプライズバッグ</h3>
+
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">商品名</label>
+                <input
+                  required
+                  value={form.title}
+                  onChange={e => setForm({ ...form, title: e.target.value })}
+                  placeholder="例: 本日のパン詰め合わせ"
+                  className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 font-bold placeholder:text-muted-foreground/50 placeholder:font-normal focus:border-primary outline-none transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">通常価格</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
+                    <input
+                      type="number" inputMode="numeric" required
+                      value={form.originalPrice || ''}
+                      onChange={e => setForm({ ...form, originalPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                      className="w-full bg-secondary/40 border-2 border-border rounded-xl pl-7 pr-3 py-3 font-bold focus:border-primary outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">販売価格</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
+                    <input
+                      type="number" inputMode="numeric" required
+                      value={form.discountedPrice || ''}
+                      onChange={e => setForm({ ...form, discountedPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                      className="w-full bg-secondary/40 border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary focus:border-primary outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">在庫数</label>
+                <div className="flex items-center w-36 bg-secondary/40 border-2 border-border rounded-xl overflow-hidden h-12">
+                  <button type="button" onClick={() => setForm({ ...form, stockCount: Math.max(1, form.stockCount - 1) })}
+                    className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">−</button>
+                  <input
+                    type="number" inputMode="numeric" required min="1"
+                    value={form.stockCount}
+                    onChange={e => setForm({ ...form, stockCount: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                    className="flex-1 text-center font-bold text-lg bg-transparent border-none focus:ring-0 p-0 outline-none"
+                  />
+                  <button type="button" onClick={() => setForm({ ...form, stockCount: form.stockCount + 1 })}
+                    className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">＋</button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取開始</label>
+                  <input type="time" required value={form.pickupStart}
+                    onChange={e => setForm({ ...form, pickupStart: e.target.value })}
+                    className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取終了</label>
+                  <input type="time" required value={form.pickupEnd}
+                    onChange={e => setForm({ ...form, pickupEnd: e.target.value })}
+                    className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowForm(false)}
+                  className="flex-1 py-3 rounded-xl border-2 border-border font-bold text-muted-foreground hover:bg-muted transition-colors">
+                  キャンセル
+                </button>
+                <button type="submit" disabled={isSubmitting || !form.title.trim()}
+                  className="flex-1 py-3 rounded-xl bg-primary text-white font-black flex items-center justify-center gap-2 shadow-md shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-primary/90 transition-all">
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" />出品する</>}
+                </button>
+              </div>
+            </motion.form>
+          )}
+        </AnimatePresence>
+
+        {/* ── 出品中リスト ── */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm">読み込み中...</span>
+          </div>
+        ) : (bags as Bag[]).length === 0 ? (
+          <div className="bg-white rounded-2xl border border-dashed border-border p-10 text-center">
+            <Package2 className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="font-bold text-foreground">まだ商品がありません</p>
+            <p className="text-xs text-muted-foreground mt-1">「新規出品」から商品を追加しましょう</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {([...activeBags, ...inactiveBags] as Bag[]).map(bag => (
+              <div
+                key={bag.id}
+                className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-opacity ${
+                  bag.isActive ? 'border-orange-100' : 'border-border opacity-60'
+                }`}
+              >
+                <div className="px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          bag.isActive
+                            ? 'bg-green-50 text-green-700 border border-green-200'
+                            : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {bag.isActive ? '公開中' : '非公開'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          在庫 {bag.stockCount}個
+                        </span>
+                      </div>
+                      <p className="font-black text-foreground">{bag.title}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs line-through text-muted-foreground">¥{bag.originalPrice.toLocaleString()}</span>
+                        <span className="text-sm font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
+                        <span className="text-[10px] font-bold bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full">
+                          {Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)}%OFF
+                        </span>
+                      </div>
+                      {(bag.pickupStart || bag.pickupEnd) && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Clock className="w-3 h-3" />
+                          {bag.pickupStart}〜{bag.pickupEnd}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 公開/非公開トグル */}
+                    <button
+                      onClick={() => handleToggleActive(bag)}
+                      disabled={togglingId === bag.id}
+                      className="shrink-0 flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                    >
+                      {togglingId === bag.id
+                        ? <Loader2 className="w-6 h-6 animate-spin" />
+                        : bag.isActive
+                          ? <ToggleRight className="w-8 h-8 text-primary" />
+                          : <ToggleLeft className="w-8 h-8" />
+                      }
+                      <span className="text-[9px] font-bold">{bag.isActive ? '公開中' : '非公開'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </StoreLayout>
+  );
+}

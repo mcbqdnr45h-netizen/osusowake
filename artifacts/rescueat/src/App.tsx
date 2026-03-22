@@ -13,6 +13,8 @@ import Checkout from "./pages/Checkout";
 import MyReservations from "./pages/MyReservations";
 import StoreDashboard from "./pages/StoreDashboard";
 import StoreOwnerDashboard from "./pages/StoreOwnerDashboard";
+import StoreBagsPage from "./pages/StoreBagsPage";
+import StoreSalesPage from "./pages/StoreSalesPage";
 import SearchPage from "./pages/SearchPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import MyPage from "./pages/MyPage";
@@ -59,9 +61,11 @@ const GuardedOrders         = Protected(Orders);
 const GuardedSettings       = Protected(Settings);
 const GuardedPaymentMethods = Protected(PaymentMethods);
 const GuardedFavorites      = Protected(FavoritesPage);
-const GuardedStoreDashboard = Protected(StoreDashboard, 'store_owner');
-const GuardedStoreOwnerDash = Protected(StoreOwnerDashboard, 'store_owner');
-const GuardedRegisterStore  = Protected(RegisterStore, 'store_owner');
+const GuardedStoreDashboard  = Protected(StoreDashboard, 'store_owner');
+const GuardedStoreOwnerDash  = Protected(StoreOwnerDashboard, 'store_owner');
+const GuardedStoreBags       = Protected(StoreBagsPage, 'store_owner');
+const GuardedStoreSales      = Protected(StoreSalesPage, 'store_owner');
+const GuardedRegisterStore   = Protected(RegisterStore, 'store_owner');
 const GuardedStoreOnboarding = Protected(StoreOnboarding, 'store_owner');
 const GuardedAdmin          = Protected(AdminDashboard);
 const GuardedAdminVerify    = Protected(AdminVerifyShops);
@@ -129,9 +133,11 @@ function AnimatedRoutes() {
           <Route path="/favorites" component={GuardedFavorites} />
 
           {/* ── 店舗オーナー専用 ── */}
-          <Route path="/store/dashboard" component={GuardedStoreOwnerDash} />
-          <Route path="/store-dashboard" component={GuardedStoreDashboard} />
-          <Route path="/register-store" component={GuardedRegisterStore} />
+          <Route path="/store/dashboard" component={GuardedStoreDashboard} />
+          <Route path="/store/bags"      component={GuardedStoreBags} />
+          <Route path="/store/sales"     component={GuardedStoreSales} />
+          <Route path="/store-dashboard" component={GuardedStoreOwnerDash} />
+          <Route path="/register-store"  component={GuardedRegisterStore} />
           <Route path="/store-onboarding" component={GuardedStoreOnboarding} />
 
           {/* ── 管理者 ── */}
