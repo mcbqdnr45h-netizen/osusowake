@@ -165,17 +165,17 @@ export default function MyReservations() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-3xl mx-auto py-8 px-4">
-        <h1 className="text-2xl font-display font-bold text-foreground mb-6">マイ予約</h1>
+      <div className="max-w-3xl mx-auto pt-6 pb-24">
+        <h1 className="text-2xl font-display font-bold text-foreground mb-5 px-4">マイ予約</h1>
 
         {isLoading ? (
-          <div className="space-y-4">
+          <div className="divide-y divide-border/40 border-t border-border/40">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-40 bg-card border border-border rounded-2xl animate-pulse" />
+              <div key={i} className="h-28 bg-card animate-pulse" />
             ))}
           </div>
         ) : !reservations || reservations.length === 0 ? (
-          <div className="text-center py-20 bg-card border border-border border-dashed rounded-3xl">
+          <div className="mx-4 text-center py-20 bg-card border border-border border-dashed rounded-3xl">
             <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h2 className="text-lg font-bold text-foreground mb-2">まだ予約がありません</h2>
             <p className="text-muted-foreground mb-6 text-sm">気になるサプライズバッグを見つけて、<br />フードロス削減に貢献しましょう！</p>
@@ -208,7 +208,7 @@ export default function MyReservations() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: 60, transition: { duration: 0.2 } }}
                 transition={{ delay: i * 0.06 }}
-                className={`relative rounded-2xl border border-border border-l-4 ${cfg.border} ${cfg.bg} overflow-hidden shadow-sm ${isFaded ? 'opacity-70' : 'hover:shadow-md transition-shadow'}`}
+                className={`relative border-l-4 ${cfg.border} ${cfg.bg} overflow-hidden ${isFaded ? 'opacity-70' : ''}`}
               >
                 {/* ── 期限切れ × 削除ボタン ── */}
                 {showDismiss && (
@@ -339,28 +339,28 @@ export default function MyReservations() {
           };
 
           return (
-            <div className="space-y-8">
+            <div className="space-y-6">
               {active.length > 0 && (
                 <section>
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 px-4 pb-2">
                     <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                     <h2 className="text-sm font-bold text-foreground">アクティブ</h2>
                     <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{active.length}件</span>
                   </div>
                   <AnimatePresence mode="popLayout">
-                    <div className="space-y-3">{active.map((r, i) => renderCard(r, i))}</div>
+                    <div className="border-t border-border/40 divide-y divide-border/30">{active.map((r, i) => renderCard(r, i))}</div>
                   </AnimatePresence>
                 </section>
               )}
               {history.length > 0 && (
                 <section>
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 px-4 pb-2">
                     <span className="w-2 h-2 rounded-full bg-slate-300" />
                     <h2 className="text-sm font-bold text-muted-foreground">履歴</h2>
                     <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{history.length}件</span>
                   </div>
                   <AnimatePresence mode="popLayout">
-                    <div className="space-y-3">{history.map((r, i) => renderCard(r, active.length + i))}</div>
+                    <div className="border-t border-border/40 divide-y divide-border/30">{history.map((r, i) => renderCard(r, active.length + i))}</div>
                   </AnimatePresence>
                 </section>
               )}
