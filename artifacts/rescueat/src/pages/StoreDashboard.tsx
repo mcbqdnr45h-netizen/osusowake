@@ -9,8 +9,9 @@ import {
 } from '@workspace/api-client-react';
 import {
   Plus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
-  Loader2, AlertCircle, BarChart2, RefreshCw, Ticket,
+  Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
 } from 'lucide-react';
+import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -584,6 +585,55 @@ export default function StoreDashboard() {
             </div>
           ))}
         </div>
+
+        {/* ── 出品中の商品 ── */}
+        {activeBags.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-black text-foreground flex items-center gap-2">
+                <Eye className="w-5 h-5 text-primary" />
+                出品中の商品
+              </h2>
+              <Link
+                href="/store/bags"
+                className="flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+              >
+                すべて管理 <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {activeBags.map((bag: any) => {
+                const remaining = bag.stockCount - (bag.reservedCount ?? 0);
+                return (
+                  <div
+                    key={bag.id}
+                    className="bg-white rounded-2xl border border-orange-100 shadow-[0_2px_8px_rgba(255,140,0,0.06)] px-4 py-3 flex items-center gap-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-foreground truncate">{bag.title}</p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        {bag.pickupStart && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {bag.pickupStart}〜{bag.pickupEnd}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Package2 className="w-3 h-3" />
+                          残り {remaining}個
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-base font-black text-primary">¥{bag.discountedPrice?.toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground line-through">¥{bag.originalPrice?.toLocaleString()}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── 本日の受取予定リスト ── */}
         <div>
