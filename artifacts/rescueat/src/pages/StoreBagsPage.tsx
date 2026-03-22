@@ -353,7 +353,7 @@ export default function StoreBagsPage() {
                             <button
                               onClick={() => setConfirmId(bag.id)}
                               disabled={togglingId === bag.id}
-                              className="flex flex-col items-center gap-0.5 text-muted-foreground/50 hover:text-red-400 transition-colors disabled:opacity-30"
+                              className="flex flex-col items-center gap-0.5 text-red-500 hover:text-red-700 transition-colors disabled:opacity-30"
                             >
                               <Trash2 className="w-4 h-4" />
                               <span className="text-[9px] font-bold">削除</span>
