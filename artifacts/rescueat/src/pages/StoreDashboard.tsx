@@ -466,6 +466,10 @@ function PostBagModal({
                         setForm(f => ({ ...f, stockCount: num }));
                       }
                     }}
+                    onFocus={e => {
+                      const len = e.target.value.length;
+                      e.target.setSelectionRange(len, len);
+                    }}
                     onBlur={() => {
                       const num = parseInt(stockCountStr, 10);
                       if (isNaN(num) || num < 1) {
