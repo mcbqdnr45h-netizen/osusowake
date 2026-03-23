@@ -388,7 +388,14 @@ export default function Home() {
   const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
 
   useEffect(() => {
-    if (!authLoading && profile?.role === 'store_owner') {
+    if (authLoading) return;
+    // 未ログイン → ウェルカム画面へ
+    if (!profile) {
+      navigate('/welcome', { replace: true });
+      return;
+    }
+    // 店舗オーナー → ダッシュボードへ
+    if (profile.role === 'store_owner') {
       navigate('/store/dashboard', { replace: true });
     }
   }, [authLoading, profile, navigate]);
@@ -428,7 +435,8 @@ export default function Home() {
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label || 'おすすめ順';
 
-  if (!authLoading && profile?.role === 'store_owner') return null;
+  // auth確認中・未ログイン・店舗オーナーはリダイレクト中なので何も表示しない
+  if (authLoading || !profile || profile.role === 'store_owner') return null;
 
   const areaTitle = geoLoading
     ? null

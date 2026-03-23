@@ -1,7 +1,8 @@
-import React from 'react';
-import { Link } from 'wouter';
+import React, { useEffect } from 'react';
+import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { ChevronRight, Sparkles } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -9,6 +10,22 @@ const fadeUp = {
 };
 
 export default function Welcome() {
+  const { user, profile, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  // ログイン済みなら適切なページへリダイレクト
+  useEffect(() => {
+    if (isLoading || !user) return;
+    if (profile?.role === 'store_owner') {
+      navigate('/store/dashboard', { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [isLoading, user, profile, navigate]);
+
+  // auth確認中 or ログイン済みはウェルカム画面を表示しない
+  if (isLoading || user) return null;
+
   // ?redirect= パラメータがあれば Login/SignUp リンクへ引き継ぐ
   const params = new URLSearchParams(
     typeof window !== 'undefined' ? window.location.search : ''
