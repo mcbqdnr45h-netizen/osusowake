@@ -90,9 +90,17 @@ router.post("/stores", async (req, res) => {
 router.post("/stores/apply", async (req, res) => {
   try {
     const body = req.body;
+    console.log("[/stores/apply] 申請受付 ownerId=", body.ownerId, "name=", body.name);
+
     if (!body.name || !body.address || !body.city || body.lat == null || body.lng == null) {
-      return res.status(400).json({ error: "bad_request", message: "Missing required fields" });
+      console.warn("[/stores/apply] 必須フィールド不足", { name: body.name, address: body.address, city: body.city, lat: body.lat, lng: body.lng });
+      return res.status(400).json({ error: "bad_request", message: "必須項目（店舗名・住所・市区町村・座標）が不足しています" });
     }
+    if (!body.ownerId) {
+      console.warn("[/stores/apply] ownerId が未設定。ログインが必要です。");
+      return res.status(400).json({ error: "bad_request", message: "ログインが必要です（ownerId が未設定）" });
+    }
+
     const [store] = await db.insert(storesTable).values({
       name: body.name,
       description: body.description ?? null,
@@ -105,16 +113,18 @@ router.post("/stores/apply", async (req, res) => {
       phone: body.phone ?? null,
       isActive: false,
       status: "pending",
-      ownerId: body.ownerId ?? null,
+      ownerId: body.ownerId,
       licenseNumber: body.licenseNumber ?? null,
       licenseImageUrl: body.licenseImageUrl ?? null,
       idImageUrl: body.idImageUrl ?? null,
       pledgeSigned: body.pledgeSigned === true,
     }).returning();
+
+    console.log("[/stores/apply] ✅ 店舗作成成功 id=", store.id, "ownerId=", store.ownerId);
     res.status(201).json({ ...store, totalBagsAvailable: 0 });
   } catch (err) {
-    console.error("Store apply error:", err);
-    res.status(400).json({ error: "bad_request", message: "Invalid store data" });
+    console.error("[/stores/apply] DB INSERT エラー:", err);
+    res.status(500).json({ error: "internal_error", message: "店舗情報の保存に失敗しました。もう一度お試しください。" });
   }
 });
 

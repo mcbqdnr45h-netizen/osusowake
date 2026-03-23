@@ -1,12 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMyStore } from '@/hooks/use-my-store';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Camera, FileText, ShieldCheck,
-  CheckCircle2, Upload, Store, AlertCircle, RefreshCw, Leaf,
+  CheckCircle2, Upload, Store, AlertCircle, RefreshCw, Leaf, Loader2,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -221,6 +222,7 @@ export default function StoreOnboarding() {
   const { toast } = useToast();
   const { user } = useAuth();
   const userId = user?.id;
+  const { store: existingStore, loading: storeLoading } = useMyStore();
 
   const [step, setStep] = useState<Step>('basic');
   const [submitting, setSubmitting] = useState(false);
@@ -239,6 +241,18 @@ export default function StoreOnboarding() {
 
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
 
+  // ── 既存ストアがある場合のリダイレクトガード ──────────────────────────────
+  useEffect(() => {
+    // フォーム提出中 or 新規ストア作成後は判定しない
+    if (storeLoading || step !== 'basic' || createdStoreId !== null) return;
+    if (!existingStore) return;
+
+    if (existingStore.status === 'applied' || existingStore.status === 'pending' || existingStore.status === 'pending_review') {
+      navigate('/mypage');
+    } else if (existingStore.status === 'approved') {
+      navigate('/store/bank-setup');
+    }
+  }, [existingStore, storeLoading, step, createdStoreId, navigate]);
 
   function handlePlaceSelected(result: PlaceResult) {
     setBasic(b => ({
@@ -265,42 +279,62 @@ export default function StoreOnboarding() {
 
   async function handleComplianceSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!userId) {
+      console.error('[StoreOnboarding] userId が null です。ログアウト後に再ログインしてください。');
+      return toast({ title: 'セッションエラー', description: '再ログインしてから申請してください', variant: 'destructive' });
+    }
     if (!comp.licenseNumber) return toast({ title: '営業許可証番号を入力してください', variant: 'destructive' });
     if (!comp.licenseImageUrl) return toast({ title: '営業許可証の写真をアップロードしてください', variant: 'destructive' });
     if (!comp.idImageUrl) return toast({ title: '本人確認書類の写真をアップロードしてください', variant: 'destructive' });
     if (!comp.pledgeSigned) return toast({ title: '誓約事項への同意が必要です', variant: 'destructive' });
+    if (!pinPos) {
+      return toast({ title: '位置情報が必要です', description: '検索ボックスでお店を検索して位置を確認してください', variant: 'destructive' });
+    }
 
     setSubmitting(true);
+    console.log('[StoreOnboarding] 申請開始 userId=', userId, 'name=', basic.name);
     try {
       // ① 店舗情報を DB に保存
+      const payload = {
+        name: basic.name,
+        address: basic.address,
+        city: basic.city,
+        category: basic.category,
+        phone: basic.phone || undefined,
+        imageUrl: basic.imageUrl || undefined,
+        lat: pinPos.lat,
+        lng: pinPos.lng,
+        ownerId: userId,
+        licenseNumber: comp.licenseNumber,
+        licenseImageUrl: comp.licenseImageUrl,
+        idImageUrl: comp.idImageUrl,
+        pledgeSigned: true,
+      };
+      console.log('[StoreOnboarding] POST /api/stores/apply payload:', { ...payload, licenseImageUrl: '[base64]', idImageUrl: '[base64]' });
+
       const res = await fetch(`${BASE}/api/stores/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: basic.name,
-          address: basic.address,
-          city: basic.city,
-          category: basic.category,
-          phone: basic.phone || undefined,
-          imageUrl: basic.imageUrl || undefined,
-          lat: pinPos!.lat,
-          lng: pinPos!.lng,
-          ownerId: userId,
-          licenseNumber: comp.licenseNumber,
-          licenseImageUrl: comp.licenseImageUrl,
-          idImageUrl: comp.idImageUrl,
-          pledgeSigned: true,
-        }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(await res.text());
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('[StoreOnboarding] API エラー status=', res.status, 'body=', errText);
+        throw new Error(`サーバーエラー (${res.status}): ${errText}`);
+      }
+
       const store = await res.json();
+      console.log('[StoreOnboarding] ✅ 店舗作成成功 store.id=', store.id, 'status=', store.status);
       setCreatedStoreId(store.id);
 
       // ② 自動審査ステップへ（ReviewingStep内でAPIを呼ぶ）
       setStep('reviewing');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      toast({ title: '申請失敗', description: err.message, variant: 'destructive' });
+      console.error('[StoreOnboarding] handleComplianceSubmit エラー:', err);
+      toast({ title: '申請に失敗しました', description: err.message ?? '通信エラーが発生しました。再度お試しください。', variant: 'destructive' });
       setStep('compliance');
     } finally {
       setSubmitting(false);
@@ -320,6 +354,17 @@ export default function StoreOnboarding() {
 
   const STEPS: Step[] = ['basic', 'compliance', 'done'];
   const stepIdx = (step === 'reviewing' || step === 'done') ? 2 : STEPS.indexOf(step);
+
+  // 既存ストア確認中はスピナー
+  if (storeLoading && step === 'basic' && createdStoreId === null) {
+    return (
+      <Layout showBottomNav={false}>
+        <div className="flex-1 flex items-center justify-center min-h-dvh">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout showBottomNav={false}>
