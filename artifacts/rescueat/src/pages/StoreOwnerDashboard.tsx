@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -116,7 +116,9 @@ export default function StoreOwnerDashboard() {
       setStore(data);
       return data as StoreData;
     } catch (err: any) {
-      setError(err.message); return null;
+      setError(err.message);
+      setStore(null);
+      return null;
     } finally {
       setLoadingStore(false);
     }
@@ -249,7 +251,7 @@ export default function StoreOwnerDashboard() {
     navigate('/store/login');
   };
 
-  if (authLoading || store === undefined) {
+  if (authLoading || loadingStore) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -263,11 +265,12 @@ export default function StoreOwnerDashboard() {
   if (!user) {
     return (
       <GuardScreen message="このページを表示するにはログインが必要です">
-        <Link href="/store/login">
-          <button className="mt-4 bg-primary text-primary-foreground font-bold px-6 py-3 rounded-xl hover:bg-primary/90 transition-colors">
-            ログインする
-          </button>
-        </Link>
+        <button
+          onClick={() => navigate('/store/login')}
+          className="mt-4 bg-primary text-primary-foreground font-bold px-6 py-3 rounded-xl hover:bg-primary/90 transition-colors"
+        >
+          ログインする
+        </button>
       </GuardScreen>
     );
   }
@@ -275,7 +278,12 @@ export default function StoreOwnerDashboard() {
   if (profile && profile.role !== 'store_owner') {
     return (
       <GuardScreen message="このページは店舗オーナー専用です">
-        <Link href="/"><button className="mt-4 bg-primary text-primary-foreground font-bold px-6 py-3 rounded-xl">ホームへ戻る</button></Link>
+        <button
+          onClick={() => navigate('/')}
+          className="mt-4 bg-primary text-primary-foreground font-bold px-6 py-3 rounded-xl"
+        >
+          ホームへ戻る
+        </button>
       </GuardScreen>
     );
   }
@@ -304,12 +312,13 @@ export default function StoreOwnerDashboard() {
               </div>
             ))}
           </div>
-          <Link href="/store-onboarding">
-            <button className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl text-base shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
-              <PlusCircle className="w-5 h-5" />
-              店舗申請を開始する
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate('/store-onboarding')}
+            className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl text-base shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          >
+            <PlusCircle className="w-5 h-5" />
+            店舗申請を開始する
+          </button>
         </motion.div>
       </div>
     );
@@ -344,11 +353,12 @@ export default function StoreOwnerDashboard() {
               </div>
             ))}
           </div>
-          <Link href="/">
-            <button className="w-full border border-border text-foreground font-bold py-3.5 rounded-2xl text-sm hover:bg-secondary/50 transition-colors">
-              ホームに戻る
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate('/')}
+            className="w-full border border-border text-foreground font-bold py-3.5 rounded-2xl text-sm hover:bg-secondary/50 transition-colors"
+          >
+            ホームに戻る
+          </button>
         </motion.div>
       </div>
     );
@@ -375,11 +385,12 @@ export default function StoreOwnerDashboard() {
             <ExternalLink className="w-4 h-4" />
             お問い合わせ・再申請
           </a>
-          <Link href="/">
-            <button className="w-full border border-border text-foreground font-bold py-3.5 rounded-2xl text-sm hover:bg-secondary/50 transition-colors">
-              ホームに戻る
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate('/')}
+            className="w-full border border-border text-foreground font-bold py-3.5 rounded-2xl text-sm hover:bg-secondary/50 transition-colors"
+          >
+            ホームに戻る
+          </button>
         </motion.div>
       </div>
     );
@@ -545,13 +556,14 @@ export default function StoreOwnerDashboard() {
 
         {/* ── 新規出品ボタン（承認済み店舗のみ） ── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Link href="/register-store">
-            <button className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2.5 shadow-lg shadow-primary/20 active:scale-[0.98] transition-transform">
-              <Zap className="w-5 h-5" />
-              新しいバッグを出品する
-              <ChevronRight className="w-4 h-4 ml-auto" />
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate('/register-store')}
+            className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2.5 shadow-lg shadow-primary/20 active:scale-[0.98] transition-transform"
+          >
+            <Zap className="w-5 h-5" />
+            新しいバッグを出品する
+            <ChevronRight className="w-4 h-4 ml-auto" />
+          </button>
         </motion.div>
 
         {/* ── 在庫管理リスト ── */}
@@ -683,13 +695,14 @@ export default function StoreOwnerDashboard() {
 
         {/* ── 詳細機能へ ── */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
-          <Link href="/store-dashboard">
-            <button className="w-full py-3.5 border-2 border-border rounded-2xl text-sm font-bold text-muted-foreground flex items-center justify-center gap-2 hover:border-primary/40 hover:text-foreground transition-colors">
-              <BarChart3 className="w-4 h-4" />
-              分析・予約管理・詳細設定
-              <ChevronRight className="w-4 h-4 ml-auto" />
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate('/store/dashboard')}
+            className="w-full py-3.5 border-2 border-border rounded-2xl text-sm font-bold text-muted-foreground flex items-center justify-center gap-2 hover:border-primary/40 hover:text-foreground transition-colors"
+          >
+            <BarChart3 className="w-4 h-4" />
+            分析・予約管理・詳細設定
+            <ChevronRight className="w-4 h-4 ml-auto" />
+          </button>
         </motion.div>
       </div>
     </div>
