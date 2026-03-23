@@ -114,6 +114,14 @@ function PostBagModal({
     pickupStart: '18:00',
     pickupEnd: '20:00',
   });
+  // 在庫数は文字列ステートで管理し、入力中の空文字や途中入力を正しく扱う
+  const [stockCountStr, setStockCountStr] = useState('3');
+
+  function updateStockCount(val: number) {
+    const clamped = Math.max(1, val);
+    setForm(f => ({ ...f, stockCount: clamped }));
+    setStockCountStr(String(clamped));
+  }
 
   // 過去の出品を選択したとき、その画像を引き継ぐ
   React.useEffect(() => {
@@ -442,18 +450,34 @@ function PostBagModal({
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">在庫数</label>
                 <div className="flex items-center w-36 bg-card border-2 border-border rounded-xl overflow-hidden h-12">
-                  <button type="button" onClick={() => setForm({ ...form, stockCount: Math.max(1, form.stockCount - 1) })}
+                  <button type="button" onClick={() => updateStockCount(form.stockCount - 1)}
                     className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">−</button>
                   <input
-                    type="number"
+                    type="text"
                     inputMode="numeric"
+                    pattern="[0-9]*"
                     required
-                    min="1"
-                    value={form.stockCount}
-                    onChange={e => setForm({ ...form, stockCount: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                    value={stockCountStr}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                      setStockCountStr(raw);
+                      const num = parseInt(raw, 10);
+                      if (!isNaN(num) && num >= 1) {
+                        setForm(f => ({ ...f, stockCount: num }));
+                      }
+                    }}
+                    onBlur={() => {
+                      const num = parseInt(stockCountStr, 10);
+                      if (isNaN(num) || num < 1) {
+                        setStockCountStr('1');
+                        setForm(f => ({ ...f, stockCount: 1 }));
+                      } else {
+                        setStockCountStr(String(num));
+                      }
+                    }}
                     className="flex-1 text-center font-bold text-lg bg-transparent border-none focus:ring-0 p-0 outline-none"
                   />
-                  <button type="button" onClick={() => setForm({ ...form, stockCount: form.stockCount + 1 })}
+                  <button type="button" onClick={() => updateStockCount(form.stockCount + 1)}
                     className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">＋</button>
                 </div>
               </div>
