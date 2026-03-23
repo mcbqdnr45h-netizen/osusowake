@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { loadStripe } from '@stripe/stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Building2, ChevronLeft, Loader2, CheckCircle2,
-  AlertCircle, ShieldCheck, Info, CreditCard,
+  AlertCircle, ShieldCheck, Info, CreditCard, PartyPopper,
 } from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
@@ -13,6 +14,8 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
 export default function StripeBankSetup() {
   const [, navigate] = useLocation();
   const { store, loading: loadingStore } = useMyStore();
+  const { session } = useAuth();
+  const notifiedRef = useRef(false);
 
   const [bankName, setBankName]           = useState('');
   const [bankCode, setBankCode]           = useState('');
@@ -30,6 +33,21 @@ export default function StripeBankSetup() {
     setTosAgreed(checked);
     setTosTime(checked ? Date.now() : null);
   };
+
+  // 承認検出時に通知APIを1回だけ呼ぶ
+  useEffect(() => {
+    if (!store || !session?.access_token) return;
+    if (store.status !== 'approved') return;
+    if (notifiedRef.current) return;
+    notifiedRef.current = true;
+
+    fetch('/api/stores/notify-approval', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    }).then(r => r.json())
+      .then(d => console.log('[notify-approval]', d))
+      .catch(e => console.warn('[notify-approval] error:', e));
+  }, [store?.status, session?.access_token]);
 
   const canSubmit =
     !loading &&
@@ -177,6 +195,39 @@ export default function StripeBankSetup() {
             <p className="text-xs text-gray-500">売上の受取口座を設定します</p>
           </div>
         </div>
+
+        {/* ── 🎉 審査通過お祝いバナー ── */}
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, type: 'spring', stiffness: 200, damping: 20 }}
+          className="relative overflow-hidden rounded-2xl mb-5 shadow-md"
+          style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)' }}
+        >
+          {/* 背景装飾 */}
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full pointer-events-none" />
+          <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/5 rounded-full pointer-events-none" />
+
+          <div className="relative px-5 py-5">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-11 h-11 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shrink-0">
+                <PartyPopper className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-white/80 text-[11px] font-bold tracking-widest uppercase leading-none mb-0.5">
+                  CONGRATULATIONS
+                </p>
+                <p className="text-white font-black text-lg leading-tight">
+                  審査が通過しました！
+                </p>
+              </div>
+            </div>
+            <p className="text-white/90 text-sm leading-relaxed">
+              おめでとうございます🎊 売上の受け取り先を登録して、<br className="hidden sm:inline" />
+              <strong className="text-white">おすそ分け袋の出品</strong>を始めましょう。
+            </p>
+          </div>
+        </motion.div>
 
         {/* ── セキュリティ説明バナー ── */}
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-5 flex gap-3">

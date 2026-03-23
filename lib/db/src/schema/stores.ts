@@ -42,6 +42,7 @@ export const storesTable = pgTable("stores", {
   licenseImageUrl: text("license_image_url"),
   idImageUrl: text("id_image_url"),
   pledgeSigned: boolean("pledge_signed").notNull().default(false),
+  approvalEmailSent: boolean("approval_email_sent").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

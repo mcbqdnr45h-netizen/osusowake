@@ -3,6 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { LayoutGrid, Package2, BarChart2, UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
+import { NotificationsBell } from '@/components/NotificationsBell';
 
 interface StoreLayoutProps {
   children: React.ReactNode;
@@ -44,6 +45,9 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
                 {store?.name ?? <span className="text-muted-foreground">読み込み中…</span>}
               </p>
             </div>
+
+            {/* 🔔 通知ベル */}
+            <NotificationsBell />
 
             {/* ステータスバッジ */}
             {store && (

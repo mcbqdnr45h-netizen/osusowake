@@ -1,0 +1,122 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Bell, X, CheckCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNotifications, AppNotification } from '@/hooks/use-notifications';
+import { formatDistanceToNow } from 'date-fns';
+import { ja } from 'date-fns/locale';
+
+function timeAgo(dateStr: string) {
+  try {
+    return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: ja });
+  } catch {
+    return '';
+  }
+}
+
+function NotificationItem({ n, onRead }: { n: AppNotification; onRead: (id: number) => void }) {
+  return (
+    <button
+      onClick={() => !n.read && onRead(n.id)}
+      className={`w-full text-left px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${
+        n.read ? 'bg-white' : 'bg-orange-50/60 hover:bg-orange-50'
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? 'bg-transparent' : 'bg-primary'}`} />
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm leading-snug ${n.read ? 'font-medium text-gray-600' : 'font-black text-gray-900'}`}>
+            {n.title}
+          </p>
+          {n.body && (
+            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{n.body}</p>
+          )}
+          <p className="text-[10px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+export function NotificationsBell() {
+  const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="relative w-9 h-9 rounded-xl flex items-center justify-center hover:bg-orange-50 active:scale-95 transition-all"
+      >
+        <Bell className="w-5 h-5 text-gray-600" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+            <span className="text-[9px] font-black text-white leading-none">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          </span>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 z-50 overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <p className="font-black text-sm text-gray-900">お知らせ</p>
+              <div className="flex items-center gap-1">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllRead}
+                    className="flex items-center gap-1 text-[11px] text-primary font-bold px-2 py-1 rounded-lg hover:bg-orange-50 transition-colors"
+                  >
+                    <CheckCheck className="w-3 h-3" />
+                    すべて既読
+                  </button>
+                )}
+                <button
+                  onClick={() => setOpen(false)}
+                  className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto">
+              {loading ? (
+                <div className="py-8 text-center">
+                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="py-10 text-center">
+                  <Bell className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400 font-medium">お知らせはありません</p>
+                </div>
+              ) : (
+                notifications.map(n => (
+                  <NotificationItem key={n.id} n={n} onRead={markRead} />
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

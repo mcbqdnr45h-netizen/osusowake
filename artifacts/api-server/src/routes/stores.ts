@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { storesTable, surpriseBagsTable, reportsTable, reviewsTable, reservationsTable } from "@workspace/db/schema";
+import { storesTable, surpriseBagsTable, reportsTable, reviewsTable, reservationsTable, notificationsTable } from "@workspace/db/schema";
 import { eq, sql, and, gte, count, desc } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import {
@@ -10,6 +10,7 @@ import {
   GetStoreParams,
   UpdateStoreParams,
 } from "@workspace/api-zod";
+import { Resend } from "resend";
 
 const REPORT_TYPES = ["closed", "temp_closed", "wrong_hours", "wrong_info", "other"] as const;
 type ReportType = typeof REPORT_TYPES[number];
@@ -842,6 +843,159 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       error: "stripe_error",
       message: err?.raw?.message ?? err?.message ?? "銀行口座の登録に失敗しました",
     });
+  }
+});
+
+// ── 審査承認通知（メール + アプリ内通知） ───────────────────────────────────
+router.post("/stores/notify-approval", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+
+  try {
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+
+    const [store] = await db
+      .select()
+      .from(storesTable)
+      .where(eq(storesTable.ownerId, user.id))
+      .limit(1);
+
+    if (!store) {
+      res.status(404).json({ error: "store_not_found" });
+      return;
+    }
+
+    if (store.status !== "approved") {
+      res.status(400).json({ error: "not_approved", message: "店舗がまだ承認されていません" });
+      return;
+    }
+
+    const results: { notification: boolean; email: boolean | string } = {
+      notification: false,
+      email: false,
+    };
+
+    // ── アプリ内通知を作成（未読がなければ追加）────────────────────────────
+    const existing = await db
+      .select()
+      .from(notificationsTable)
+      .where(and(
+        eq(notificationsTable.userId, user.id),
+        eq(notificationsTable.type, "store_approved"),
+      ))
+      .limit(1);
+
+    if (existing.length === 0) {
+      await db.insert(notificationsTable).values({
+        userId: user.id,
+        type: "store_approved",
+        title: "🎉 審査が承認されました！",
+        body: `${store.name} の審査が通過しました。振込先口座を登録して出品を始めましょう。`,
+        read: false,
+      });
+      results.notification = true;
+    }
+
+    // ── メール送信（approval_email_sent が false の場合のみ）──────────────
+    if (!store.approvalEmailSent) {
+      const resendApiKey = process.env.RESEND_API_KEY;
+
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
+        const toEmail = user.email!;
+
+        const { error: emailError } = await resend.emails.send({
+          from: `食べロス <${fromDomain}>`,
+          to: toEmail,
+          subject: "【食べロス】審査完了と口座登録のお願い",
+          html: `
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    
+    <!-- ヘッダー -->
+    <div style="background:linear-gradient(135deg,#FF8C00 0%,#FF6B00 60%,#E55A00 100%);padding:40px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">🎉</div>
+      <h1 style="color:#ffffff;font-size:24px;font-weight:900;margin:0 0 8px;">審査が通過しました！</h1>
+      <p style="color:rgba(255,255,255,0.9);font-size:14px;margin:0;">おめでとうございます</p>
+    </div>
+
+    <!-- 本文 -->
+    <div style="padding:32px;">
+      <p style="color:#333333;font-size:15px;line-height:1.7;margin:0 0 24px;">
+        <strong>${store.name}</strong> オーナー様<br><br>
+        このたびは食べロスへのご登録ありがとうございます。<br>
+        審査が無事に完了し、<strong>ご利用が承認</strong>されました。
+      </p>
+
+      <!-- ステップカード -->
+      <div style="background:#fff8f0;border:2px solid #FF8C00;border-radius:16px;padding:24px;margin-bottom:24px;">
+        <p style="color:#FF8C00;font-size:13px;font-weight:900;margin:0 0 16px;letter-spacing:0.05em;">NEXT STEP</p>
+        <p style="color:#333333;font-size:15px;font-weight:bold;margin:0 0 8px;">💳 振込先口座を登録する</p>
+        <p style="color:#666666;font-size:13px;line-height:1.6;margin:0;">
+          売上を受け取るために、振込先の銀行口座を登録してください。<br>
+          登録後すぐに「おすそ分け袋」の出品を開始できます。
+        </p>
+      </div>
+
+      <!-- CTAボタン -->
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${process.env.APP_URL ?? 'https://taberosu.app'}/store/bank-setup"
+           style="display:inline-block;background:linear-gradient(135deg,#FF8C00,#E55A00);color:#ffffff;font-size:16px;font-weight:900;padding:16px 40px;border-radius:14px;text-decoration:none;letter-spacing:0.02em;">
+          口座を登録して出品を始める →
+        </a>
+      </div>
+
+      <p style="color:#999999;font-size:12px;line-height:1.6;margin:0;text-align:center;">
+        ご不明な点がございましたら、アプリ内のサポートまでお問い合わせください。<br>
+        食べロス運営チーム
+      </p>
+    </div>
+
+    <!-- フッター -->
+    <div style="background:#f5f5f0;padding:20px 32px;text-align:center;">
+      <p style="color:#aaaaaa;font-size:11px;margin:0;">食べロス — お店の味を、誰かにおすそ分けしたい。</p>
+    </div>
+  </div>
+</body>
+</html>
+          `.trim(),
+        });
+
+        if (!emailError) {
+          await db
+            .update(storesTable)
+            .set({ approvalEmailSent: true })
+            .where(eq(storesTable.id, store.id));
+          results.email = true;
+          console.log(`✅ Approval email sent to ${toEmail}`);
+        } else {
+          console.error("Resend error:", emailError);
+          results.email = emailError.message ?? "email_failed";
+        }
+      } else {
+        console.warn("⚠️  RESEND_API_KEY not set — メール送信をスキップしました");
+        results.email = "no_api_key";
+      }
+    } else {
+      results.email = "already_sent";
+    }
+
+    res.json({ ok: true, ...results });
+  } catch (err: any) {
+    console.error("[notify-approval] error:", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });
 
