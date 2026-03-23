@@ -15,20 +15,34 @@ export function useMyStore() {
   const { user, isLoading: authLoading } = useAuth();
   const [store, setStore] = useState<MyStore | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   const fetchStore = useCallback(() => {
     if (!user) {
       setStore(null);
+      setFetchError(false);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setFetchError(false);
     fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, {
       cache: 'no-store',
     })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => setStore(data ?? null))
-      .catch(() => setStore(null))
+      .then(r => {
+        if (r.ok) return r.json();
+        if (r.status === 404) return null;
+        throw new Error(`API error: ${r.status}`);
+      })
+      .then(data => {
+        setStore(data ?? null);
+        setFetchError(false);
+      })
+      .catch(err => {
+        console.error('[useMyStore] fetch error:', err);
+        setFetchError(true);
+        setStore(null);
+      })
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -43,5 +57,5 @@ export function useMyStore() {
   const needsBankSetup =
     store?.status === 'approved' && !store?.stripeAccountId;
 
-  return { store, loading, isApprovedOwner, needsBankSetup, refetch: fetchStore };
+  return { store, loading, fetchError, isApprovedOwner, needsBankSetup, refetch: fetchStore };
 }

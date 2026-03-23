@@ -569,16 +569,17 @@ function ReservationCard({
 export default function StoreDashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { store, loading: storeLoading } = useMyStore();
+  const { store, loading: storeLoading, fetchError: storeFetchError } = useMyStore();
   const [, navigate] = useLocation();
   const storeId = store?.id ?? null;
 
-  // 店舗未登録なら登録画面へ自動遷移
+  // 店舗未登録なら登録画面へ自動遷移（APIエラー時はリダイレクトしない）
   useEffect(() => {
-    if (!storeLoading && !store) {
+    if (!storeLoading && !store && !storeFetchError) {
+      console.log('[StoreDashboard] no store found, redirecting to /store-onboarding');
       navigate('/store-onboarding', { replace: true });
     }
-  }, [store, storeLoading, navigate]);
+  }, [store, storeLoading, storeFetchError, navigate]);
 
   const [showPostModal, setShowPostModal] = useState(false);
   const [markingId, setMarkingId] = useState<number | null>(null);

@@ -144,29 +144,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         if (forceRole) {
           // ロールのみ更新（points_balance は既存値を保持する）
-          const { data: existing } = await supabase
+          const { data: existing, error: selectErr } = await supabase
             .from('users')
             .select('id')
             .eq('id', data.user.id)
             .single();
 
+          if (selectErr && selectErr.code !== 'PGRST116') {
+            console.error('[AuthContext] users select error:', selectErr);
+          }
+
           if (existing) {
-            await supabase
+            const { error: updateErr } = await supabase
               .from('users')
               .update({ role: forceRole })
               .eq('id', data.user.id);
+            if (updateErr) console.error('[AuthContext] users update error:', updateErr);
           } else {
-            await supabase
+            const { error: insertErr } = await supabase
               .from('users')
               .insert({ id: data.user.id, email: data.user.email!, role: forceRole, points_balance: 0 });
+            if (insertErr) console.error('[AuthContext] users insert error:', insertErr);
           }
         }
 
-        const { data: prof } = await supabase
+        const { data: prof, error: profErr } = await supabase
           .from('users')
           .select('role, points_balance, email')
           .eq('id', data.user.id)
           .single();
+        if (profErr) console.error('[AuthContext] profile fetch error:', profErr);
         if (prof) {
           role = prof.role;
           setProfile({
@@ -176,6 +183,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             points_balance: prof.points_balance,
             created_at: data.user.created_at,
           });
+          console.log('[AuthContext] profile set:', prof.email, 'role:', prof.role);
+        } else {
+          console.warn('[AuthContext] profile fetch returned null – profile will stay null');
         }
       }
     } finally {
