@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, LayoutDashboard, ClipboardCheck, Mail, Scale, Flame, TrendingUp, Star } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, ClipboardCheck, Mail, Scale, Flame, TrendingUp, Star } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
 import { useAuth } from '@/contexts/AuthContext';
@@ -287,19 +287,21 @@ export default function MyPage() {
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Link>
 
-          <Link
-            href="/store-onboarding"
-            className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
-          >
-            <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center shrink-0">
-              <ClipboardCheck className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <div className="font-bold text-foreground">店舗オンボーディング申請</div>
-              <div className="text-xs text-muted-foreground">新規出品者はこちらから</div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </Link>
+          {profile?.role === 'store_owner' && (
+            <Link
+              href="/store-onboarding"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            >
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center shrink-0">
+                <ClipboardCheck className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-foreground">店舗オンボーディング申請</div>
+                <div className="text-xs text-muted-foreground">店舗登録・審査状況の確認</div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </Link>
+          )}
 
           {isApprovedOwner && (
             <Link
@@ -313,20 +315,6 @@ export default function MyPage() {
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </Link>
           )}
-
-          <Link
-            href="/admin"
-            className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
-          >
-            <div className="w-10 h-10 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center shrink-0">
-              <LayoutDashboard className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <div className="font-bold text-foreground">管理者ダッシュボード</div>
-              <div className="text-xs text-muted-foreground">申請審査・店舗管理</div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </Link>
 
           <Link
             href="/settings"

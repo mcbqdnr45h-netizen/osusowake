@@ -67,6 +67,18 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
           return;
         }
 
+        // コンテナの幅がまだ 0 の場合（アニメーション中等）は
+        // rAF で少し待ってから再チェックする
+        if (mapDivRef.current.offsetWidth === 0) {
+          console.warn('[PlaceSearchMap] container width=0, waiting for layout...');
+          requestAnimationFrame(() => {
+            if (!alive || !mapDivRef.current) return;
+            console.log('[PlaceSearchMap] container size after rAF:', mapDivRef.current.offsetWidth, mapDivRef.current.offsetHeight);
+          });
+        } else {
+          console.log('[PlaceSearchMap] container size:', mapDivRef.current.offsetWidth, mapDivRef.current.offsetHeight);
+        }
+
         const center = hasInitial ? { lat: lat!, lng: lng! } : OSAKA;
         const map = new gm.Map(mapDivRef.current, {
           center,
@@ -117,12 +129,14 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
 
         if (hasInitial) upsertMarker({ lat: lat!, lng: lng! });
 
-        // framer-motion のページ遷移アニメーション（0.18s）完了後に
-        // リサイズをトリガーして地図タイルを正しく描画させる
+        // framer-motion アニメーション完了後にリサイズをトリガー
+        // Layout: 0.18s、StoreOnboarding ステップ: ~0.3s → 500ms で確実に完了後
         resizeTimer = setTimeout(() => {
           if (!alive) return;
           gm.event.trigger(map, 'resize');
           map.panTo(center);
+          // 念のためグローバルリサイズも発火（Maps が聞いている）
+          window.dispatchEvent(new Event('resize'));
         }, 500);
 
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
