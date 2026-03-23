@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useUserId } from '@/hooks/use-user';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -11,19 +11,26 @@ export type MyStore = {
 };
 
 export function useMyStore() {
-  const userId = useUserId();
+  const { user, isLoading: authLoading } = useAuth();
   const [store, setStore] = useState<MyStore | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (authLoading) return;
+
+    if (!user) {
+      setStore(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(userId)}`)
+    fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => setStore(data ?? null))
       .catch(() => setStore(null))
       .finally(() => setLoading(false));
-  }, [userId]);
+  }, [user, authLoading]);
 
   const isApprovedOwner = store?.status === 'approved';
 

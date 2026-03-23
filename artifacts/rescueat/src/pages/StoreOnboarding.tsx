@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Camera, FileText, ShieldCheck,
@@ -218,9 +219,8 @@ function ReviewingStep({
 export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const userId = (() => {
-    try { return localStorage.getItem('rescueat_user_id') || undefined; } catch { return undefined; }
-  })();
+  const { user } = useAuth();
+  const userId = user?.id;
 
   const [step, setStep] = useState<Step>('basic');
   const [submitting, setSubmitting] = useState(false);
