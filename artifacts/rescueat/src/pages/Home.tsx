@@ -8,7 +8,8 @@ import {
   Globe, Clock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
+import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Heart } from 'lucide-react';
@@ -380,9 +381,17 @@ export default function Home() {
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const { profile, isLoading: authLoading } = useAuth();
+  const [, navigate] = useLocation();
   const { isApprovedOwner } = useMyStore();
   const { data: bags, isLoading: isLoadingBags } = useListAllBags();
   const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
+
+  useEffect(() => {
+    if (!authLoading && profile?.role === 'store_owner') {
+      navigate('/store/dashboard', { replace: true });
+    }
+  }, [authLoading, profile, navigate]);
 
   const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || inStockOnly || sortKey !== 'default';
 
@@ -418,6 +427,8 @@ export default function Home() {
   }, []);
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label || 'おすすめ順';
+
+  if (!authLoading && profile?.role === 'store_owner') return null;
 
   const areaTitle = geoLoading
     ? null
