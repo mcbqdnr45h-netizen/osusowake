@@ -412,19 +412,6 @@ export default function MyPage() {
 
           {profile?.role === 'store_owner' && isApprovedOwner && (
             <Link
-              href="/store-dashboard"
-              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
-            >
-              <div className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
-                <StoreIcon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 font-bold text-foreground">店舗ダッシュボード</div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </Link>
-          )}
-
-          {profile?.role === 'store_owner' && isApprovedOwner && (
-            <Link
               href="/store/profile-edit"
               className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
             >
@@ -471,16 +458,18 @@ export default function MyPage() {
             </Link>
           )}
 
-          <Link
-            href="/settings"
-            className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
-          >
-            <div className="w-10 h-10 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
-              <Settings className="w-5 h-5" />
-            </div>
-            <div className="flex-1 font-bold text-foreground">アカウント設定</div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </Link>
+          {!isStoreOwner && (
+            <Link
+              href="/settings"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            >
+              <div className="w-10 h-10 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
+                <Settings className="w-5 h-5" />
+              </div>
+              <div className="flex-1 font-bold text-foreground">アカウント設定</div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </Link>
+          )}
 
           <a
             href="https://forms.gle/uhMoXjjF9YzkR52a6"
