@@ -99,8 +99,8 @@ export default function MyPage() {
               )}
             </div>
           </div>
-          {/* Points from Supabase */}
-          {profile && (
+          {/* Points from Supabase (カスタマーのみ) */}
+          {profile && !isStoreOwner && (
             <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Supabase ポイント残高</span>
               <span className="font-black text-amber-500">{profile.points_balance.toLocaleString()} pt</span>
@@ -108,8 +108,8 @@ export default function MyPage() {
           )}
         </div>
 
-        {/* ── Points Card ── */}
-        <div className="mb-4 rounded-2xl overflow-hidden shadow-sm border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
+        {/* ── Points Card（カスタマーのみ） ── */}
+        {!isStoreOwner && <div className="mb-4 rounded-2xl overflow-hidden shadow-sm border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
           {/* Top: balance */}
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-center justify-between mb-1">
@@ -161,10 +161,10 @@ export default function MyPage() {
               </p>
             </div>
           </div>
-        </div>
+        </div>}
 
-        {/* ── おすそ分けスコア ── */}
-        <div className="mb-4">
+        {/* ── おすそ分けスコア（カスタマーのみ） ── */}
+        {!isStoreOwner && <div className="mb-4">
 
           {/* ヒーローカード：スコア全体 */}
           <motion.div
@@ -271,7 +271,7 @@ export default function MyPage() {
               <p className={`text-sm font-black ${ecoRank.labelText}`}>🌳 {ecoRank.sublabel}</p>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* ── 店舗オーナー：未申請バナー（store が存在しない場合のみ） ── */}
         {profile?.role === 'store_owner' && !loadingStore && store === null && (
@@ -336,16 +336,18 @@ export default function MyPage() {
         {/* Menu List */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
 
-          <Link
-            href="/orders"
-            className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
-          >
-            <div className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
-              <Receipt className="w-5 h-5" />
-            </div>
-            <div className="flex-1 font-bold text-foreground">購入履歴・領収書</div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </Link>
+          {!isStoreOwner && (
+            <Link
+              href="/orders"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            >
+              <div className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div className="flex-1 font-bold text-foreground">購入履歴・領収書</div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </Link>
+          )}
 
           <Link
             href="/payment-methods"
