@@ -83,7 +83,7 @@ export default function StoreOwnerDashboard() {
   const [bags, setBags] = useState<BagData[]>([]);
   const [todaySales, setTodaySales] = useState<TodaySales | null>(null);
   const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
-  const [connectLoading, setConnectLoading] = useState(false);
+
   const [loadingStore, setLoadingStore] = useState(true);
   const [loadingBags, setLoadingBags] = useState(false);
   const [loadingSales, setLoadingSales] = useState(false);
@@ -154,27 +154,6 @@ export default function StoreOwnerDashboard() {
     } catch { }
   }, []);
 
-  const handleConnectOnboard = async () => {
-    if (!store) return;
-    setConnectLoading(true);
-    try {
-      const base = `${window.location.origin}${import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}`;
-      const res = await fetch(`/api/stores/${store.id}/connect/onboard`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          returnUrl: `${base}/store/dashboard?stripe_connect=return`,
-          refreshUrl: `${base}/store/dashboard?stripe_connect=refresh`,
-        }),
-      });
-      if (!res.ok) throw new Error('オンボーディングリンクの取得に失敗しました');
-      const { url } = await res.json();
-      window.location.href = url;
-    } catch (err: any) {
-      setError(err.message);
-      setConnectLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (!user) return;
@@ -465,14 +444,10 @@ export default function StoreOwnerDashboard() {
                 </div>
               </div>
               <button
-                onClick={handleConnectOnboard}
-                disabled={connectLoading}
+                onClick={() => navigate('/store/bank-setup')}
                 className="mt-3 w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 transition-colors active:scale-[0.98]"
               >
-                {connectLoading
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <><ExternalLink className="w-4 h-4" />今すぐ振込先を登録する</>
-                }
+                <CreditCard className="w-4 h-4" />今すぐ振込先を登録する
               </button>
             </motion.div>
           )}

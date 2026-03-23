@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { storesTable, surpriseBagsTable, reportsTable, reviewsTable, reservationsTable } from "@workspace/db/schema";
 import { eq, sql, and, gte, count, desc } from "drizzle-orm";
+import { supabaseAdmin } from "../lib/supabase";
 import {
   ListStoresQueryParams,
   CreateStoreBody,
@@ -736,6 +737,117 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
     }
     console.error("Stripe Connect status error:", err);
     res.status(500).json({ error: "stripe_error", message: "Failed to fetch connect status" });
+  }
+});
+
+// ─── Stripe Custom Account 銀行口座セットアップ ───────────────────────────────
+// POST /api/stores/:storeId/connect/bank-setup
+// Custom アカウントを作成（未作成なら）し、フロントエンドトークン化済みの銀行口座を紐付ける
+router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    const { bankToken, tosTimestamp } = req.body as { bankToken: string; tosTimestamp: number };
+
+    if (!bankToken || !tosTimestamp) {
+      res.status(400).json({ error: "bad_request", message: "bankToken と tosTimestamp は必須です" });
+      return;
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      res.status(503).json({ error: "stripe_not_configured", message: "Stripe が設定されていません" });
+      return;
+    }
+
+    const [store] = await db
+      .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "店舗が見つかりません" });
+      return;
+    }
+
+    // オーナーのメールアドレスを Supabase Auth から取得
+    let ownerEmail: string | undefined;
+    if (store.ownerId) {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(store.ownerId);
+      ownerEmail = userData?.user?.email;
+    }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    // クライアント IP 取得
+    const ip =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
+      req.ip ??
+      "127.0.0.1";
+
+    // プロジェクトのビジネス URL
+    const replitDomain =
+      (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
+      process.env["REPLIT_DEV_DOMAIN"] ||
+      "tabeross.replit.app";
+    const businessUrl = `https://${replitDomain}`;
+
+    let accountId = store.stripeAccountId;
+
+    if (!accountId) {
+      // Custom アカウントを新規作成
+      const account = await stripe.accounts.create({
+        type: "custom",
+        country: "JP",
+        ...(ownerEmail ? { email: ownerEmail } : {}),
+        capabilities: {
+          transfers: { requested: true },
+        },
+        business_profile: {
+          mcc: "5812",
+          url: businessUrl,
+        },
+        tos_acceptance: {
+          date: Math.floor(tosTimestamp / 1000),
+          ip,
+        },
+      });
+      accountId = account.id;
+
+      await db
+        .update(storesTable)
+        .set({ stripeAccountId: accountId })
+        .where(eq(storesTable.id, storeId));
+
+      console.log(`✅ Stripe Custom Account created: ${accountId} for store ${storeId}`);
+    } else {
+      // 既存アカウントのビジネス情報と ToS 同意を更新
+      await stripe.accounts.update(accountId, {
+        business_profile: {
+          mcc: "5812",
+          url: businessUrl,
+        },
+        tos_acceptance: {
+          date: Math.floor(tosTimestamp / 1000),
+          ip,
+        },
+      });
+      console.log(`ℹ️  Stripe Custom Account updated: ${accountId} for store ${storeId}`);
+    }
+
+    // 銀行口座トークンを外部アカウントとして紐付け
+    await stripe.accounts.createExternalAccount(accountId, {
+      external_account: bankToken,
+      default_for_currency: true,
+    });
+
+    console.log(`✅ Bank account attached to ${accountId}`);
+    res.json({ success: true, accountId });
+  } catch (err: any) {
+    console.error("Stripe bank-setup error:", err);
+    res.status(500).json({
+      error: "stripe_error",
+      message: err?.raw?.message ?? err?.message ?? "銀行口座の登録に失敗しました",
+    });
   }
 });
 

@@ -32,6 +32,7 @@ import Settings from "./pages/Settings";
 import PaymentMethods from "./pages/PaymentMethods";
 import Orders from "./pages/Orders";
 import StoreOnboarding from "./pages/StoreOnboarding";
+import StripeBankSetup from "./pages/StripeBankSetup";
 import AdminDashboard from "./pages/AdminDashboard";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import CheckoutCancel from "./pages/CheckoutCancel";
@@ -67,6 +68,7 @@ const GuardedStoreBags       = Protected(StoreBagsPage, 'store_owner');
 const GuardedStoreSales      = Protected(StoreSalesPage, 'store_owner');
 const GuardedRegisterStore   = Protected(RegisterStore, 'store_owner');
 const GuardedStoreOnboarding = Protected(StoreOnboarding, 'store_owner');
+const GuardedStripeBankSetup = Protected(StripeBankSetup, 'store_owner');
 const GuardedAdmin          = Protected(AdminDashboard);
 const GuardedAdminVerify    = Protected(AdminVerifyShops);
 
@@ -139,6 +141,7 @@ function AnimatedRoutes() {
           <Route path="/store-dashboard" component={GuardedStoreOwnerDash} />
           <Route path="/register-store"  component={GuardedRegisterStore} />
           <Route path="/store-onboarding" component={GuardedStoreOnboarding} />
+          <Route path="/store/bank-setup" component={GuardedStripeBankSetup} />
 
           {/* ── 管理者 ── */}
           <Route path="/admin" component={GuardedAdmin} />
