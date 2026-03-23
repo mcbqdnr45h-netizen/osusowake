@@ -164,11 +164,6 @@ export default function StoreOwnerDashboard() {
         fetchConnectStatus(s.id);
       }
     });
-    // Stripe オンボーディングからの戻り検出
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('stripe_connect') === 'return') {
-      window.history.replaceState({}, '', window.location.pathname);
-    }
   }, [user, fetchStore, fetchBags, fetchTodaySales, fetchConnectStatus]);
 
   const handleRefresh = async () => {

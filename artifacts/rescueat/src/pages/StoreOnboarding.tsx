@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Camera, FileText, ShieldCheck,
-  CheckCircle2, Clock, Upload, Store, AlertCircle, RefreshCw, Leaf,
+  CheckCircle2, Upload, Store, AlertCircle, RefreshCw, Leaf,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -43,7 +43,7 @@ async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<
 }
 
 
-type Step = 'basic' | 'compliance' | 'reviewing' | 'redirecting' | 'done';
+type Step = 'basic' | 'compliance' | 'reviewing' | 'done';
 
 interface BasicForm {
   name: string; address: string; city: string;
@@ -225,9 +225,6 @@ export default function StoreOnboarding() {
   const [step, setStep] = useState<Step>('basic');
   const [submitting, setSubmitting] = useState(false);
   const [createdStoreId, setCreatedStoreId] = useState<number | null>(null);
-  const [stripeConnected, setStripeConnected] = useState(false);
-  const [stripeUrl, setStripeUrl] = useState<string | null>(null);
-
   const [basic, setBasic] = useState<BasicForm>({
     name: '', address: '', city: '', category: 'restaurant',
     phone: '', imageUrl: '', imagePreview: '',
@@ -242,19 +239,6 @@ export default function StoreOnboarding() {
 
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Stripe から戻ってきた場合（?stripe_connect=return&storeId=XXX）
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const stripeReturn = params.get('stripe_connect');
-    const storeIdParam = params.get('storeId');
-    if ((stripeReturn === 'return' || stripeReturn === 'refresh') && storeIdParam) {
-      setCreatedStoreId(parseInt(storeIdParam));
-      setStripeConnected(stripeReturn === 'return');
-      setStep('done');
-      // URLパラメータをクリア
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
 
   function handlePlaceSelected(result: PlaceResult) {
     setBasic(b => ({
@@ -323,39 +307,11 @@ export default function StoreOnboarding() {
     }
   }
 
-  // 審査通過後に Stripe Connect へ進む
-  const handleAutoApproved = React.useCallback(async () => {
-    if (!createdStoreId) return;
-    setStep('redirecting');
+  // 審査通過後 → アプリ内口座登録フォームへ
+  const handleAutoApproved = React.useCallback(() => {
+    setStep('done');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    const origin = window.location.origin;
-    const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-    const returnUrl  = `${origin}${basePath}/store-onboarding?stripe_connect=return&storeId=${createdStoreId}`;
-    const refreshUrl = `${origin}${basePath}/store-onboarding?stripe_connect=refresh&storeId=${createdStoreId}`;
-
-    try {
-      const connectRes = await fetch(`${BASE}/api/stores/${createdStoreId}/connect/onboard`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ returnUrl, refreshUrl }),
-      });
-
-      if (!connectRes.ok) {
-        setStripeConnected(false);
-        setStep('done');
-        return;
-      }
-
-      const { url } = await connectRes.json();
-      // window.location.href はiframe環境でブロックされるため
-      // ステートに保存してユーザーが手動でクリックする方式に変更
-      setStripeUrl(url);
-    } catch {
-      setStripeConnected(false);
-      setStep('done');
-    }
-  }, [createdStoreId]);
+  }, []);
 
   const handleAutoFailed = React.useCallback((reason: string) => {
     toast({ title: '審査が完了しませんでした', description: reason, variant: 'destructive' });
@@ -363,7 +319,7 @@ export default function StoreOnboarding() {
   }, [toast]);
 
   const STEPS: Step[] = ['basic', 'compliance', 'done'];
-  const stepIdx = (step === 'reviewing' || step === 'redirecting') ? 2 : STEPS.indexOf(step);
+  const stepIdx = (step === 'reviewing' || step === 'done') ? 2 : STEPS.indexOf(step);
 
   return (
     <Layout showBottomNav={false}>
@@ -600,107 +556,33 @@ export default function StoreOnboarding() {
             />
           )}
 
-          {/* ── REDIRECTING（Stripeへ遷移中） ── */}
-          {step === 'redirecting' && (
-            <motion.div
-              key="redirecting"
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-12"
-            >
-              {!stripeUrl ? (
-                /* URL 生成中 */
-                <>
-                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-                    <CheckCircle2 className="w-10 h-10 text-primary" />
-                    <div className="absolute inset-0 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-                  </div>
-                  <h2 className="text-2xl font-black mb-2">口座登録URLを生成中…</h2>
-                  <p className="text-muted-foreground text-sm">Stripeと通信しています</p>
-                </>
-              ) : (
-                /* URL 取得完了 → ボタンで開く */
-                <>
-                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle2 className="w-12 h-12 text-primary" />
-                  </div>
-                  <h2 className="text-2xl font-black mb-2">審査が完了しました！</h2>
-                  <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-                    続けてStripeで銀行口座を登録してください。<br />
-                    登録後に商品の出品が可能になります。
-                  </p>
-                  <a
-                    href={stripeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 w-full max-w-xs mx-auto bg-primary text-primary-foreground font-black text-base rounded-2xl px-6 py-4 shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
-                  >
-                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                    Stripeで口座登録する
-                  </a>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    ※ 別タブで開きます
-                  </p>
-                </>
-              )}
-            </motion.div>
-          )}
-
-          {/* ── DONE ── */}
+          {/* ── DONE（審査通過 → 口座登録へ） ── */}
           {step === 'done' && (
             <motion.div
               key="done"
               initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
               className="text-center py-8"
             >
-              {/* メインアイコン */}
               <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5">
                 <CheckCircle2 className="w-12 h-12 text-primary" />
               </div>
-              <h2 className="text-2xl font-black text-foreground mb-2">
-                {stripeConnected ? '申請＆口座登録が完了しました！' : '申請を受け付けました！'}
-              </h2>
+              <h2 className="text-2xl font-black text-foreground mb-2">審査が完了しました！</h2>
               <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-                {stripeConnected
-                  ? '書類審査が完了次第、Stripeで登録した口座へ自動で売上が振り込まれます。'
-                  : '1〜2営業日以内に審査結果をお知らせします。承認後、すぐに出品を開始できます。'}
+                続けて振込先の銀行口座を登録してください。<br />
+                口座登録後すぐに出品を開始できます。
               </p>
 
-              {/* 申請番号 */}
               {createdStoreId && (
-                <div className="bg-secondary/50 rounded-2xl p-4 text-left mb-5">
+                <div className="bg-secondary/50 rounded-2xl p-4 text-left mb-6">
                   <p className="text-xs text-muted-foreground font-bold mb-1">申請番号</p>
                   <p className="font-black text-primary text-lg">STORE-{String(createdStoreId).padStart(5, '0')}</p>
                 </div>
               )}
 
-              {/* Stripe 接続ステータス */}
-              <div className={`rounded-2xl p-4 text-left mb-5 border ${stripeConnected ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'}`}>
-                <div className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${stripeConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}>
-                    {stripeConnected
-                      ? <CheckCircle2 className="w-5 h-5 text-white" />
-                      : <Clock className="w-5 h-5 text-white" />
-                    }
-                  </div>
-                  <div>
-                    <p className={`font-black text-sm mb-0.5 ${stripeConnected ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'}`}>
-                      {stripeConnected ? 'Stripe口座登録済み' : 'Stripe口座登録が未完了です'}
-                    </p>
-                    <p className={`text-xs leading-relaxed ${stripeConnected ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                      {stripeConnected
-                        ? '決済が発生した際、プラットフォーム手数料25%を除いた売上が自動送金されます。'
-                        : '後から店舗ダッシュボードで口座登録を完了できます。'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* ステップ一覧 */}
               <div className="space-y-3 text-left mb-8">
                 {[
-                  { icon: '📋', text: '書類審査（1〜2営業日）', done: false },
-                  { icon: '✅', text: '承認通知', done: false },
-                  { icon: '💳', text: 'Stripe口座登録', done: stripeConnected },
+                  { icon: '✅', text: '審査完了', done: true },
+                  { icon: '🏦', text: '振込先口座の登録', done: false },
                   { icon: '🚀', text: '即日出品スタート！', done: false },
                 ].map((item, i) => (
                   <div key={i} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${item.done ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}>
@@ -711,9 +593,17 @@ export default function StoreOnboarding() {
                 ))}
               </div>
 
-              <button onClick={() => navigate('/')}
-                className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl hover:bg-primary/90 transition-colors">
-                ホームに戻る
+              <button
+                onClick={() => navigate('/store/bank-setup')}
+                className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl hover:bg-primary/90 transition-colors mb-3"
+              >
+                振込先口座を登録する
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full bg-secondary text-foreground font-bold py-3 rounded-2xl hover:bg-secondary/80 transition-colors text-sm"
+              >
+                後で登録する（ホームへ）
               </button>
             </motion.div>
           )}
