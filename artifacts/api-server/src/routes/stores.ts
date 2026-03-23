@@ -38,6 +38,7 @@ const storeSelectFields = {
   idImageUrl: storesTable.idImageUrl,
   pledgeSigned: storesTable.pledgeSigned,
   createdAt: storesTable.createdAt,
+  stripeAccountId: storesTable.stripeAccountId,
   totalBagsAvailable: sql<number>`COALESCE(SUM(CASE WHEN ${surpriseBagsTable.isActive} = true THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
 

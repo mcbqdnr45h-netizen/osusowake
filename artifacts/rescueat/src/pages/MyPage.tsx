@@ -1,5 +1,6 @@
 import React from 'react';
 import { Layout } from '@/components/Layout';
+import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
@@ -13,7 +14,7 @@ const POINT_RATE = 0.03;
 
 export default function MyPage() {
   const userId = useUserId();
-  const { store, loading: loadingStore, isApprovedOwner } = useMyStore();
+  const { store, loading: loadingStore, isApprovedOwner, needsBankSetup } = useMyStore();
   const [, navigate] = useLocation();
   const { user, profile, signOut } = useAuth();
 
@@ -47,9 +48,10 @@ export default function MyPage() {
     navigate('/welcome');
   }
 
-  return (
-    <Layout>
-      <div className="max-w-md mx-auto py-8 px-4 pb-24">
+  const isStoreOwner = profile?.role === 'store_owner';
+
+  const pageContent = (
+    <div className="max-w-md mx-auto py-8 px-4 pb-24">
         <h1 className="text-2xl font-black mb-6 text-foreground">マイページ</h1>
 
         {/* Profile Card */}
@@ -293,6 +295,28 @@ export default function MyPage() {
           </div>
         )}
 
+        {/* ── 店舗オーナー：振込先口座が未登録（approved + stripeAccountId なし） ── */}
+        {profile?.role === 'store_owner' && !loadingStore && needsBankSetup && (
+          <div className="mb-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0">
+                <CreditCard className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-black text-foreground text-base">振込先口座の登録が必要です</p>
+                <p className="text-xs text-muted-foreground mt-0.5">売上を受け取るための口座を登録してください</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/store/bank-setup')}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <CreditCard className="w-5 h-5" />
+              振込先口座を登録する
+            </button>
+          </div>
+        )}
+
         {/* ── 店舗オーナー：口座登録済み・審査待ちバナー（applied） ── */}
         {profile?.role === 'store_owner' && !loadingStore && store?.status === 'applied' && (
           <div className="mb-4 bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm">
@@ -414,6 +438,10 @@ export default function MyPage() {
           </button>
         </div>
       </div>
-    </Layout>
   );
+
+  if (isStoreOwner) {
+    return <StoreLayout showHeader={false}>{pageContent}</StoreLayout>;
+  }
+  return <Layout>{pageContent}</Layout>;
 }

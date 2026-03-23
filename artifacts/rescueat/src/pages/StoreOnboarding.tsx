@@ -250,7 +250,13 @@ export default function StoreOnboarding() {
     if (existingStore.status === 'applied' || existingStore.status === 'pending' || existingStore.status === 'pending_review') {
       navigate('/mypage');
     } else if (existingStore.status === 'approved') {
-      navigate('/store/bank-setup');
+      if (existingStore.stripeAccountId) {
+        navigate('/store/dashboard');
+      } else {
+        navigate('/store/bank-setup');
+      }
+    } else if (existingStore.status === 'rejected') {
+      // 却下済み → 再申請可能（リダイレクトしない）
     }
   }, [existingStore, storeLoading, step, createdStoreId, navigate]);
 
