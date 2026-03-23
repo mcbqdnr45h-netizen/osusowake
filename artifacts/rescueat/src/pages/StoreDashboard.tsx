@@ -466,10 +466,7 @@ function PostBagModal({
                         setForm(f => ({ ...f, stockCount: num }));
                       }
                     }}
-                    onFocus={e => {
-                      const len = e.target.value.length;
-                      e.target.setSelectionRange(len, len);
-                    }}
+                    onFocus={e => e.target.select()}
                     onBlur={() => {
                       const num = parseInt(stockCountStr, 10);
                       if (isNaN(num) || num < 1) {
@@ -479,7 +476,7 @@ function PostBagModal({
                         setStockCountStr(String(num));
                       }
                     }}
-                    className="flex-1 text-center font-bold text-lg bg-transparent border-none focus:ring-0 p-0 outline-none"
+                    className="flex-1 text-center font-bold text-lg bg-transparent border-none focus:ring-0 px-2 py-0 outline-none"
                   />
                   <button type="button" onClick={() => updateStockCount(form.stockCount + 1)}
                     className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">＋</button>
