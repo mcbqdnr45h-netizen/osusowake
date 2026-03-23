@@ -349,17 +349,6 @@ export default function MyPage() {
             </Link>
           )}
 
-          <Link
-            href="/payment-methods"
-            className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
-          >
-            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <div className="flex-1 font-bold text-foreground">支払い管理センター</div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </Link>
-
           {profile?.role === 'store_owner' && (store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') && (
             <Link
               href="/store-dashboard"
