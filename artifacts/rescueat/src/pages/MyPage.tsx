@@ -62,7 +62,9 @@ export default function MyPage() {
               {user ? (
                 <>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-black text-foreground truncate">{user.email}</h2>
+                    <h2 className="text-lg font-black text-foreground truncate">
+                      {profile?.role === 'store_owner' && store?.name ? store.name : user.email}
+                    </h2>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0
                       ${profile?.role === 'store_owner'
                         ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
@@ -71,9 +73,16 @@ export default function MyPage() {
                       {profile?.role === 'store_owner' ? '🏪 店舗オーナー' : '👤 お客様'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
-                    <Mail className="w-3 h-3" />
-                    <span>Supabase Auth 認証済み</span>
+                  {profile?.role === 'store_owner' && store?.name ? (
+                    <p className="text-xs text-amber-600 font-bold mt-1">公式パートナー</p>
+                  ) : (
+                    <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
+                      <Mail className="w-3 h-3" />
+                      <span>{user.email}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground/70">
+                    <span>公式アカウント認証済み ✅</span>
                   </div>
                 </>
               ) : (
