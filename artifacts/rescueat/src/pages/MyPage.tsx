@@ -16,7 +16,7 @@ export default function MyPage() {
   const userId = useUserId();
   const { store, loading: loadingStore, isApprovedOwner, needsBankSetup } = useMyStore();
   const [, navigate] = useLocation();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, isLoading: authLoading, signOut } = useAuth();
 
   const { data: reservations } = useListReservations({ userId: userId || '' }, {
     query: { enabled: !!userId }
@@ -49,6 +49,35 @@ export default function MyPage() {
   }
 
   const isStoreOwner = profile?.role === 'store_owner';
+
+  // Auth確定前はスケルトン表示でフラッシュを防ぐ
+  if (authLoading || (isStoreOwner && loadingStore)) {
+    return (
+      <Layout showBottomNav>
+        <div className="max-w-md mx-auto py-8 px-4 pb-24 animate-pulse">
+          <div className="h-8 w-32 bg-muted rounded-xl mb-6" />
+          <div className="bg-card border border-border rounded-2xl p-5 mb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-muted rounded-full shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-5 w-40 bg-muted rounded-lg" />
+                <div className="h-4 w-24 bg-muted rounded-lg" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-2xl overflow-hidden mb-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 border-b border-border last:border-0">
+                <div className="w-10 h-10 bg-muted rounded-full shrink-0" />
+                <div className="h-4 flex-1 bg-muted rounded-lg" />
+                <div className="w-4 h-4 bg-muted rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   const pageContent = (
     <div className="max-w-md mx-auto py-8 px-4 pb-24">
