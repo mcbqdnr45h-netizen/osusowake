@@ -248,7 +248,7 @@ export default function StoreOnboarding() {
     if (!existingStore) return;
 
     if (existingStore.status === 'applied' || existingStore.status === 'pending' || existingStore.status === 'pending_review') {
-      navigate('/mypage');
+      navigate('/store/dashboard');
     } else if (existingStore.status === 'approved') {
       if (existingStore.stripeAccountId) {
         navigate('/store/dashboard');

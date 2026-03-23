@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -96,8 +96,21 @@ export function GuestRoute({
   const { user, profile, isLoading } = useAuth();
   const [, navigate] = useLocation();
 
+  // ページ初回表示時にすでにログイン済みだったかを記録
+  // → ログイン操作中のリダイレクトはページ側に任せ、ここでは干渉しない
+  const wasAlreadyLoggedIn = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isLoading && wasAlreadyLoggedIn.current === null) {
+      wasAlreadyLoggedIn.current = !!user;
+    }
+  }, [isLoading, user]);
+
   useEffect(() => {
     if (isLoading || !user) return;
+    // ページ表示時にまだ未ログインだった場合は自動リダイレクトしない
+    // （StoreLogin/Login ページが自分でリダイレクトを制御する）
+    if (!wasAlreadyLoggedIn.current) return;
 
     // ?redirect= が指定されていれば最優先
     const params = new URLSearchParams(window.location.search);
@@ -119,8 +132,10 @@ export function GuestRoute({
 
   // auth+profile 取得完了まで何も表示しない（ちらつき防止）
   if (isLoading) return null;
-  // ログイン済みなら effect がリダイレクト中 → 何も表示しない
-  if (user) return null;
+  // 初回ロード時にすでにログイン済みだった → effect がリダイレクト中
+  if (user && wasAlreadyLoggedIn.current) return null;
+  // ログイン操作完了直後 → ログインページが navigate するまで表示継続（ちらつき防止）
+  if (user && !wasAlreadyLoggedIn.current) return null;
 
   return <Component />;
 }

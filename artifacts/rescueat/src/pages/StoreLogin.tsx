@@ -22,7 +22,8 @@ export default function StoreLogin() {
     setError('');
     setIsLoading(true);
 
-    const { error: err, role } = await signIn(email, password);
+    // 店舗ログイン画面では role を強制的に store_owner に設定する
+    const { error: err } = await signIn(email, password, 'store_owner');
 
     setIsLoading(false);
 
@@ -31,19 +32,12 @@ export default function StoreLogin() {
       return;
     }
 
-    // 一般ユーザーアカウントで店舗ログインしようとした場合はブロック
-    if (role !== 'store_owner') {
-      setError('このアカウントは店舗オーナー用ではありません。ユーザーログインをご利用ください。');
-      return;
-    }
-
     // ?redirect= パラメータが指定されていれば最優先（店舗ページのみ許可）
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get('redirect');
     if (redirect) {
       const decoded = decodeURIComponent(redirect);
-      // セキュリティ: 店舗関連ページへのリダイレクトのみ許可
-      if (decoded.startsWith('/store/') || decoded.startsWith('/register-store')) {
+      if (decoded.startsWith('/store/') || decoded.startsWith('/register-store') || decoded.startsWith('/store-onboarding')) {
         navigate(decoded);
         return;
       }

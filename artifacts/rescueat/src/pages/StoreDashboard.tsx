@@ -12,7 +12,7 @@ import {
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
   History,
 } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -570,7 +570,15 @@ export default function StoreDashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { store, loading: storeLoading } = useMyStore();
+  const [, navigate] = useLocation();
   const storeId = store?.id ?? null;
+
+  // 店舗未登録なら登録画面へ自動遷移
+  useEffect(() => {
+    if (!storeLoading && !store) {
+      navigate('/store-onboarding', { replace: true });
+    }
+  }, [store, storeLoading, navigate]);
 
   const [showPostModal, setShowPostModal] = useState(false);
   const [markingId, setMarkingId] = useState<number | null>(null);

@@ -9,7 +9,7 @@ interface AuthContextValue {
   isLoading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signUpAsStore: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
-  signIn: (email: string, password: string) => Promise<{ error: string | null; role: string | null }>;
+  signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -131,12 +131,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null, needsConfirmation };
   }
 
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string, forceRole?: 'store_owner' | 'customer') {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: translateError(error.message), role: null };
 
     let role: string | null = 'customer';
     if (data.user) {
+      // forceRole 指定時はロールを強制設定（DB移行でリセットされた場合の自動復旧）
+      if (forceRole) {
+        await supabase.from('users').upsert({
+          id: data.user.id,
+          email: data.user.email!,
+          role: forceRole,
+          points_balance: 0,
+        }, { onConflict: 'id' });
+      }
+
       const { data: prof } = await supabase
         .from('users')
         .select('role, points_balance, email')
