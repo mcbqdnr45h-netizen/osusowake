@@ -6,7 +6,7 @@ import {
   Store, Package, LogOut, RefreshCw, Loader2, AlertCircle,
   ChevronRight, TrendingUp, ShoppingBag, PlusCircle,
   Minus, Plus, Power, BarChart3, Zap, ShieldAlert,
-  CreditCard, ExternalLink,
+  CreditCard, ExternalLink, Clock, XCircle, FileCheck,
 } from 'lucide-react';
 
 interface StoreData {
@@ -282,17 +282,105 @@ export default function StoreOwnerDashboard() {
 
   if (store === null) {
     return (
-      <div className="min-h-dvh bg-background px-4 py-10 flex flex-col items-center justify-center">
-        <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-5">
-          <Store className="w-10 h-10 text-primary" />
-        </div>
-        <h1 className="text-xl font-black text-foreground mb-2">店舗が登録されていません</h1>
-        <p className="text-muted-foreground text-sm mb-8 text-center">ダッシュボードを使い始める前に、まず店舗を登録してください。</p>
-        <Link href="/register-store">
-          <button className="bg-primary text-primary-foreground font-black px-8 py-4 rounded-2xl text-base shadow-lg shadow-primary/20 flex items-center gap-2">
-            <PlusCircle className="w-5 h-5" />店舗を登録する
-          </button>
-        </Link>
+      <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-sm w-full">
+          <div className="w-24 h-24 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <FileCheck className="w-12 h-12 text-primary" />
+          </div>
+          <h1 className="text-2xl font-black text-foreground mb-3">店舗申請を始めましょう</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-8">
+            おすそ分けバッグを出品するには、まず店舗の審査申請が必要です。<br />
+            書類審査（1〜2営業日）が通過すると出品できるようになります。
+          </p>
+          <div className="bg-secondary/50 rounded-2xl p-4 text-left mb-8 space-y-3">
+            {[
+              { step: '1', text: '店舗情報・写真を入力' },
+              { step: '2', text: '食品営業許可証を提出' },
+              { step: '3', text: '審査通過後、すぐに出品開始' },
+            ].map(({ step, text }) => (
+              <div key={step} className="flex items-center gap-3">
+                <div className="w-7 h-7 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xs font-black shrink-0">{step}</div>
+                <span className="text-sm font-medium text-foreground">{text}</span>
+              </div>
+            ))}
+          </div>
+          <Link href="/store-onboarding">
+            <button className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl text-base shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+              <PlusCircle className="w-5 h-5" />
+              店舗申請を開始する
+            </button>
+          </Link>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (store.status === 'pending' || store.status === 'pending_review') {
+    return (
+      <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-sm w-full">
+          <div className="w-24 h-24 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <Clock className="w-12 h-12 text-amber-500" />
+          </div>
+          <h1 className="text-2xl font-black text-foreground mb-3">審査中です</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+            申請を受け付けました。1〜2営業日以内に審査結果をお知らせします。
+            承認され次第、すぐに出品を開始できます。
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left mb-6">
+            <p className="text-xs font-black text-amber-700 mb-2">申請番号</p>
+            <p className="font-black text-primary text-lg">STORE-{String(store.id).padStart(5, '0')}</p>
+            <p className="text-xs text-muted-foreground mt-2">承認通知はご登録のメールアドレスに届きます</p>
+          </div>
+          <div className="space-y-2 text-left mb-8">
+            {[
+              { icon: '📋', text: '書類審査（1〜2営業日）', done: false },
+              { icon: '✅', text: '承認通知メール送信', done: false },
+              { icon: '🚀', text: '即日出品スタート！', done: false },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3">
+                <span className="text-lg">{item.icon}</span>
+                <span className="text-sm font-medium text-foreground">{item.text}</span>
+              </div>
+            ))}
+          </div>
+          <Link href="/">
+            <button className="w-full border border-border text-foreground font-bold py-3.5 rounded-2xl text-sm hover:bg-secondary/50 transition-colors">
+              ホームに戻る
+            </button>
+          </Link>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (store.status === 'rejected') {
+    return (
+      <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 text-center">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-sm w-full">
+          <div className="w-24 h-24 bg-red-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <XCircle className="w-12 h-12 text-red-500" />
+          </div>
+          <h1 className="text-2xl font-black text-foreground mb-3">申請が却下されました</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+            審査の結果、申請を承認できませんでした。<br />
+            詳細はメールをご確認ください。再申請は問い合わせフォームからお願いします。
+          </p>
+          <a
+            href="https://forms.gle/uhMoXjjF9YzkR52a6"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl text-base flex items-center justify-center gap-2 mb-3 active:scale-[0.98] transition-transform"
+          >
+            <ExternalLink className="w-4 h-4" />
+            お問い合わせ・再申請
+          </a>
+          <Link href="/">
+            <button className="w-full border border-border text-foreground font-bold py-3.5 rounded-2xl text-sm hover:bg-secondary/50 transition-colors">
+              ホームに戻る
+            </button>
+          </Link>
+        </motion.div>
       </div>
     );
   }
@@ -455,9 +543,9 @@ export default function StoreOwnerDashboard() {
           ))}
         </motion.div>
 
-        {/* ── 新規出品ボタン ── */}
+        {/* ── 新規出品ボタン（承認済み店舗のみ） ── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Link href="/store-dashboard">
+          <Link href="/register-store">
             <button className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2.5 shadow-lg shadow-primary/20 active:scale-[0.98] transition-transform">
               <Zap className="w-5 h-5" />
               新しいバッグを出品する

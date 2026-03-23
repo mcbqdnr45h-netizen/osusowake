@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, ClipboardCheck, Mail, Scale, Flame, TrendingUp, Star } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, ClipboardCheck, Mail, Scale, Flame, TrendingUp, Star, Clock, XCircle, FileCheck } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +13,7 @@ const POINT_RATE = 0.03;
 
 export default function MyPage() {
   const userId = useUserId();
-  const { isApprovedOwner } = useMyStore();
+  const { store, isApprovedOwner } = useMyStore();
   const [, navigate] = useLocation();
   const { user, profile, signOut } = useAuth();
 
@@ -287,19 +287,51 @@ export default function MyPage() {
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Link>
 
-          {profile?.role === 'store_owner' && (
+          {profile?.role === 'store_owner' && !store && (
             <Link
               href="/store-onboarding"
               className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
             >
               <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center shrink-0">
-                <ClipboardCheck className="w-5 h-5" />
+                <FileCheck className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <div className="font-bold text-foreground">店舗オンボーディング申請</div>
-                <div className="text-xs text-muted-foreground">店舗登録・審査状況の確認</div>
+                <div className="font-bold text-foreground">店舗申請を開始する</div>
+                <div className="text-xs text-muted-foreground">審査通過後に出品できます</div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </Link>
+          )}
+
+          {profile?.role === 'store_owner' && (store?.status === 'pending' || store?.status === 'pending_review') && (
+            <Link
+              href="/store-dashboard"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            >
+              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-foreground">店舗申請 — 審査中</div>
+                <div className="text-xs text-muted-foreground">1〜2営業日以内に結果をお知らせします</div>
+              </div>
+              <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">審査中</span>
+            </Link>
+          )}
+
+          {profile?.role === 'store_owner' && store?.status === 'rejected' && (
+            <Link
+              href="/store-dashboard"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            >
+              <div className="w-10 h-10 bg-red-100 text-red-500 rounded-full flex items-center justify-center shrink-0">
+                <XCircle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-foreground">店舗申請が却下されました</div>
+                <div className="text-xs text-muted-foreground">詳細を確認・再申請する</div>
+              </div>
+              <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">却下</span>
             </Link>
           )}
 
