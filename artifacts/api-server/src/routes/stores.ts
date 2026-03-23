@@ -129,6 +129,53 @@ router.post("/stores/apply", async (req, res) => {
   }
 });
 
+// Public: upload a store document image to Supabase Storage
+router.post("/stores/upload-document", async (req, res) => {
+  try {
+    const { imageBase64, fileType, userId } = req.body;
+
+    if (!imageBase64 || !fileType || !userId) {
+      return res.status(400).json({ error: "bad_request", message: "imageBase64, fileType, userId は必須です" });
+    }
+
+    // Extract MIME type and raw base64 data
+    const match = imageBase64.match(/^data:(image\/[\w+]+);base64,(.+)$/s);
+    if (!match) {
+      return res.status(400).json({ error: "bad_request", message: "無効な画像データ形式です" });
+    }
+
+    const contentType = match[1];
+    const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+    const buffer = Buffer.from(match[2], "base64");
+
+    const filePath = `${userId}/${Date.now()}-${fileType}.${ext}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("store-documents")
+      .upload(filePath, buffer, { contentType, upsert: false });
+
+    if (uploadError) {
+      console.error("[upload-document] Storage upload error:", uploadError);
+      return res.status(500).json({ error: "upload_failed", message: uploadError.message });
+    }
+
+    // Generate a long-lived signed URL (10 years) for admin review
+    const { data: signedData, error: signedError } = await supabaseAdmin.storage
+      .from("store-documents")
+      .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
+
+    if (signedError) {
+      console.warn("[upload-document] Failed to create signed URL:", signedError.message);
+    }
+
+    console.log("[upload-document] ✅ Uploaded:", filePath);
+    res.json({ path: filePath, url: signedData?.signedUrl ?? `storage://${filePath}` });
+  } catch (err) {
+    console.error("[upload-document] Error:", err);
+    res.status(500).json({ error: "internal_error", message: "アップロードに失敗しました" });
+  }
+});
+
 // Public: auto-review a store application — runs validation and approves if all checks pass
 router.post("/stores/:storeId/auto-review", async (req, res) => {
   try {

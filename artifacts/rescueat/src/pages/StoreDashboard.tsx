@@ -573,11 +573,27 @@ export default function StoreDashboard() {
   const [, navigate] = useLocation();
   const storeId = store?.id ?? null;
 
-  // 店舗未登録なら登録画面へ自動遷移（APIエラー時はリダイレクトしない）
+  // 各状態に応じて自動遷移
   useEffect(() => {
-    if (!storeLoading && !store && !storeFetchError) {
-      console.log('[StoreDashboard] no store found, redirecting to /store-onboarding');
+    if (storeLoading) return;
+    if (!store && !storeFetchError) {
+      // 店舗未登録
+      console.log('[StoreDashboard] no store found → /store-onboarding');
       navigate('/store-onboarding', { replace: true });
+      return;
+    }
+    if (store) {
+      if (store.status === 'pending' || store.status === 'applied' || store.status === 'pending_review') {
+        // 審査中 → オンボーディングの審査待ち画面へ
+        console.log('[StoreDashboard] store is pending → /store-onboarding (waiting screen)');
+        navigate('/store-onboarding', { replace: true });
+        return;
+      }
+      if (store.status === 'approved' && !store.stripeAccountId) {
+        // 承認済みだが口座未登録（スキップ不可）
+        console.log('[StoreDashboard] approved but no bank account → /store/bank-setup');
+        navigate('/store/bank-setup', { replace: true });
+      }
     }
   }, [store, storeLoading, storeFetchError, navigate]);
 

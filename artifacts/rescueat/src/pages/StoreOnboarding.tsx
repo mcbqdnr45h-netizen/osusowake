@@ -7,19 +7,19 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Camera, FileText, ShieldCheck,
-  CheckCircle2, Upload, Store, AlertCircle, RefreshCw, Leaf, Loader2,
+  CheckCircle2, Upload, AlertCircle, Leaf, Loader2, Clock, Home,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const CATEGORY_OPTIONS = [
-  { value: 'bakery', label: 'ベーカリー', emoji: '🥐' },
-  { value: 'restaurant', label: 'レストラン', emoji: '🍱' },
-  { value: 'cafe', label: 'カフェ', emoji: '☕' },
-  { value: 'supermarket', label: 'スーパー', emoji: '🛒' },
-  { value: 'convenience', label: 'コンビニ', emoji: '🏪' },
-  { value: 'other', label: 'その他', emoji: '🍴' },
+  { value: 'bakery',       label: 'ベーカリー',   emoji: '🥐' },
+  { value: 'restaurant',   label: 'レストラン',   emoji: '🍱' },
+  { value: 'cafe',         label: 'カフェ',       emoji: '☕' },
+  { value: 'supermarket',  label: 'スーパー',     emoji: '🛒' },
+  { value: 'convenience',  label: 'コンビニ',     emoji: '🏪' },
+  { value: 'other',        label: 'その他',       emoji: '🍴' },
 ];
 
 async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<string> {
@@ -44,8 +44,7 @@ async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<
   });
 }
 
-
-type Step = 'basic' | 'compliance' | 'reviewing' | 'done';
+type Step = 'basic' | 'compliance' | 'submitted';
 
 interface BasicForm {
   name: string; address: string; city: string;
@@ -92,131 +91,6 @@ function ImageUploadBox({
   );
 }
 
-const REVIEW_CHECKS = [
-  { icon: '🏪', label: '基本情報の確認', detail: '店舗名・住所・位置情報' },
-  { icon: '📄', label: '営業許可証番号の確認', detail: 'ライセンス番号の書式チェック' },
-  { icon: '🖼️', label: '営業許可証（写真）の確認', detail: '書類画像の読み取り' },
-  { icon: '🪪', label: '本人確認書類の確認', detail: '身分証明書の確認' },
-  { icon: '🤝', label: '誓約書への同意確認', detail: '利用規約への同意' },
-];
-
-function ReviewingStep({
-  storeId,
-  onApproved,
-  onFailed,
-}: {
-  storeId: number;
-  onApproved: () => void;
-  onFailed: (reason: string) => void;
-}) {
-  const [visibleCount, setVisibleCount] = useState(0);
-  const [checkedCount, setCheckedCount] = useState(0);
-  const [apiResult, setApiResult] = useState<{ approved: boolean; reason?: string } | null>(null);
-  const [done, setDone] = useState(false);
-
-  // APIを即時呼び出す（アニメーションと並行）
-  React.useEffect(() => {
-    fetch(`${BASE}/api/stores/${storeId}/auto-review`, { method: 'POST' })
-      .then(r => r.json())
-      .then(data => setApiResult(data))
-      .catch(() => setApiResult({ approved: true }));
-  }, [storeId]);
-
-  // チェック項目を順番に表示→チェック済みにする
-  React.useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    REVIEW_CHECKS.forEach((_, i) => {
-      timers.push(setTimeout(() => setVisibleCount(v => Math.max(v, i + 1)), i * 620));
-      timers.push(setTimeout(() => setCheckedCount(v => Math.max(v, i + 1)), i * 620 + 500));
-    });
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
-  // 全チェック完了 + API完了 → 結果へ
-  React.useEffect(() => {
-    if (checkedCount >= REVIEW_CHECKS.length && apiResult !== null && !done) {
-      setDone(true);
-      setTimeout(() => {
-        if (apiResult.approved) onApproved();
-        else onFailed(apiResult.reason ?? '審査が完了しませんでした');
-      }, 700);
-    }
-  }, [checkedCount, apiResult, done, onApproved, onFailed]);
-
-  const progress = Math.round((checkedCount / REVIEW_CHECKS.length) * 100);
-
-  return (
-    <motion.div
-      key="reviewing"
-      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      className="space-y-5"
-    >
-      <div className="text-center pt-4 pb-2">
-        <div className="relative w-20 h-20 mx-auto mb-4">
-          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
-            <circle
-              cx="40" cy="40" r="34" fill="none"
-              stroke="hsl(var(--primary))" strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={`${2 * Math.PI * 34}`}
-              strokeDashoffset={`${2 * Math.PI * 34 * (1 - progress / 100)}`}
-              className="transition-all duration-500"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-base font-black text-primary">{progress}%</span>
-          </div>
-        </div>
-        <h2 className="text-xl font-black mb-1">自動審査中...</h2>
-        <p className="text-sm text-muted-foreground">書類・情報を確認しています</p>
-      </div>
-
-      <div className="space-y-2.5">
-        {REVIEW_CHECKS.map((check, i) => {
-          const visible = i < visibleCount;
-          const checked = i < checkedCount;
-          return (
-            <motion.div
-              key={check.label}
-              initial={{ opacity: 0, x: 12 }}
-              animate={visible ? { opacity: 1, x: 0 } : { opacity: 0, x: 12 }}
-              transition={{ duration: 0.3 }}
-              className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 border transition-all duration-300
-                ${checked ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}
-            >
-              <span className="text-2xl shrink-0">{check.icon}</span>
-              <div className="flex-1 min-w-0">
-                <div className={`font-bold text-sm ${checked ? 'text-primary' : 'text-foreground'}`}>{check.label}</div>
-                <div className="text-xs text-muted-foreground">{check.detail}</div>
-              </div>
-              <div className="shrink-0 w-6 h-6 flex items-center justify-center">
-                {checked ? (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400 }}>
-                    <CheckCircle2 className="w-6 h-6 text-primary" />
-                  </motion.div>
-                ) : visible ? (
-                  <div className="w-4 h-4 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
-                ) : null}
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {done && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="bg-primary text-primary-foreground rounded-2xl p-4 text-center font-black text-base flex items-center justify-center gap-2"
-        >
-          <CheckCircle2 className="w-5 h-5" />
-          審査完了！口座登録ページへ移動します
-        </motion.div>
-      )}
-    </motion.div>
-  );
-}
-
 export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -226,7 +100,9 @@ export default function StoreOnboarding() {
 
   const [step, setStep] = useState<Step>('basic');
   const [submitting, setSubmitting] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
   const [createdStoreId, setCreatedStoreId] = useState<number | null>(null);
+
   const [basic, setBasic] = useState<BasicForm>({
     name: '', address: '', city: '', category: 'restaurant',
     phone: '', imageUrl: '', imagePreview: '',
@@ -241,23 +117,27 @@ export default function StoreOnboarding() {
 
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
 
-  // ── 既存ストアがある場合のリダイレクトガード ──────────────────────────────
+  // ── 既存ストアによるリダイレクト・画面切替 ──────────────────────────────
   useEffect(() => {
-    // フォーム提出中 or 新規ストア作成後は判定しない
-    if (storeLoading || step !== 'basic' || createdStoreId !== null) return;
+    if (storeLoading || step === 'submitted' || createdStoreId !== null) return;
     if (!existingStore) return;
 
-    if (existingStore.status === 'applied' || existingStore.status === 'pending' || existingStore.status === 'pending_review') {
-      navigate('/store/dashboard');
-    } else if (existingStore.status === 'approved') {
+    if (existingStore.status === 'approved') {
       if (existingStore.stripeAccountId) {
         navigate('/store/dashboard');
       } else {
         navigate('/store/bank-setup');
       }
-    } else if (existingStore.status === 'rejected') {
-      // 却下済み → 再申請可能（リダイレクトしない）
+    } else if (
+      existingStore.status === 'pending' ||
+      existingStore.status === 'applied' ||
+      existingStore.status === 'pending_review'
+    ) {
+      // 審査中の場合は書類受付済み画面を表示
+      setCreatedStoreId(existingStore.id);
+      setStep('submitted');
     }
+    // rejected → フォームで再申請可能（リダイレクトしない）
   }, [existingStore, storeLoading, step, createdStoreId, navigate]);
 
   function handlePlaceSelected(result: PlaceResult) {
@@ -283,11 +163,24 @@ export default function StoreOnboarding() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  async function uploadDocument(imageBase64: string, fileType: string): Promise<string> {
+    const res = await fetch(`${BASE}/api/stores/upload-document`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64, fileType, userId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message ?? `${fileType} のアップロードに失敗しました`);
+    }
+    const data = await res.json();
+    return data.url as string;
+  }
+
   async function handleComplianceSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (!userId) {
-      console.error('[StoreOnboarding] userId が null です。ログアウト後に再ログインしてください。');
       return toast({ title: 'セッションエラー', description: '再ログインしてから申請してください', variant: 'destructive' });
     }
     if (!comp.licenseNumber) return toast({ title: '営業許可証番号を入力してください', variant: 'destructive' });
@@ -295,13 +188,20 @@ export default function StoreOnboarding() {
     if (!comp.idImageUrl) return toast({ title: '本人確認書類の写真をアップロードしてください', variant: 'destructive' });
     if (!comp.pledgeSigned) return toast({ title: '誓約事項への同意が必要です', variant: 'destructive' });
     if (!pinPos) {
-      return toast({ title: '位置情報が必要です', description: '検索ボックスでお店を検索して位置を確認してください', variant: 'destructive' });
+      return toast({ title: '位置情報が必要です', description: '前の画面でお店を検索してください', variant: 'destructive' });
     }
 
     setSubmitting(true);
-    console.log('[StoreOnboarding] 申請開始 userId=', userId, 'name=', basic.name);
     try {
-      // ① 店舗情報を DB に保存
+      // ① 書類画像を Supabase Storage にアップロード
+      setUploadStatus('営業許可証をアップロード中...');
+      const licenseStorageUrl = await uploadDocument(comp.licenseImageUrl, 'license');
+
+      setUploadStatus('本人確認書類をアップロード中...');
+      const idStorageUrl = await uploadDocument(comp.idImageUrl, 'id');
+
+      // ② 店舗情報を DB に保存（status: "pending" のまま → 自動承認しない）
+      setUploadStatus('申請情報を送信中...');
       const payload = {
         name: basic.name,
         address: basic.address,
@@ -313,11 +213,10 @@ export default function StoreOnboarding() {
         lng: pinPos.lng,
         ownerId: userId,
         licenseNumber: comp.licenseNumber,
-        licenseImageUrl: comp.licenseImageUrl,
-        idImageUrl: comp.idImageUrl,
+        licenseImageUrl: licenseStorageUrl,
+        idImageUrl: idStorageUrl,
         pledgeSigned: true,
       };
-      console.log('[StoreOnboarding] POST /api/stores/apply payload:', { ...payload, licenseImageUrl: '[base64]', idImageUrl: '[base64]' });
 
       const res = await fetch(`${BASE}/api/stores/apply`, {
         method: 'POST',
@@ -327,41 +226,26 @@ export default function StoreOnboarding() {
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error('[StoreOnboarding] API エラー status=', res.status, 'body=', errText);
         throw new Error(`サーバーエラー (${res.status}): ${errText}`);
       }
 
       const store = await res.json();
-      console.log('[StoreOnboarding] ✅ 店舗作成成功 store.id=', store.id, 'status=', store.status);
+      console.log('[StoreOnboarding] ✅ 申請完了 store.id=', store.id, 'status=', store.status);
       setCreatedStoreId(store.id);
-
-      // ② 自動審査ステップへ（ReviewingStep内でAPIを呼ぶ）
-      setStep('reviewing');
+      setStep('submitted');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      console.error('[StoreOnboarding] handleComplianceSubmit エラー:', err);
+      console.error('[StoreOnboarding] 申請エラー:', err);
       toast({ title: '申請に失敗しました', description: err.message ?? '通信エラーが発生しました。再度お試しください。', variant: 'destructive' });
-      setStep('compliance');
     } finally {
       setSubmitting(false);
+      setUploadStatus('');
     }
   }
 
-  // 審査通過後 → アプリ内口座登録フォームへ
-  const handleAutoApproved = React.useCallback(() => {
-    setStep('done');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  const stepIdx = step === 'compliance' ? 1 : step === 'submitted' ? 2 : 0;
 
-  const handleAutoFailed = React.useCallback((reason: string) => {
-    toast({ title: '審査が完了しませんでした', description: reason, variant: 'destructive' });
-    setStep('compliance');
-  }, [toast]);
-
-  const STEPS: Step[] = ['basic', 'compliance', 'done'];
-  const stepIdx = (step === 'reviewing' || step === 'done') ? 2 : STEPS.indexOf(step);
-
-  // 既存ストア確認中はスピナー
+  // ── ロード中スピナー ──────────────────────────────────────────────────────
   if (storeLoading && step === 'basic' && createdStoreId === null) {
     return (
       <Layout showBottomNav={false}>
@@ -376,11 +260,12 @@ export default function StoreOnboarding() {
     <Layout showBottomNav={false}>
       <div className="max-w-xl mx-auto px-4 py-6 pb-24">
 
-        {/* Header */}
+        {/* ── ヘッダー ── */}
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => step === 'compliance' ? setStep('basic') : navigate('/register-store')}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
+            disabled={step === 'submitted'}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -390,8 +275,8 @@ export default function StoreOnboarding() {
           </div>
         </div>
 
-        {/* Step progress */}
-        {step !== 'done' && (
+        {/* ── ステップインジケーター ── */}
+        {step !== 'submitted' && (
           <div className="flex items-center gap-2 mb-6">
             {[
               { label: '基本情報', idx: 0 },
@@ -590,7 +475,7 @@ export default function StoreOnboarding() {
                 className="w-full bg-primary text-primary-foreground font-black text-lg py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-70 min-h-[56px]"
               >
                 {submitting ? (
-                  <><RefreshCw className="w-5 h-5 animate-spin" /> 申請中...</>
+                  <><Loader2 className="w-5 h-5 animate-spin" /> {uploadStatus || '申請中...'}</>
                 ) : (
                   <><ShieldCheck className="w-5 h-5" /> 申請を提出する</>
                 )}
@@ -598,63 +483,83 @@ export default function StoreOnboarding() {
             </motion.form>
           )}
 
-          {/* ── REVIEWING（自動審査中） ── */}
-          {step === 'reviewing' && createdStoreId && (
-            <ReviewingStep
-              storeId={createdStoreId}
-              onApproved={handleAutoApproved}
-              onFailed={handleAutoFailed}
-            />
-          )}
-
-          {/* ── DONE（審査通過 → 口座登録へ） ── */}
-          {step === 'done' && (
+          {/* ── 申請受付完了・書類審査中 ── */}
+          {step === 'submitted' && (
             <motion.div
-              key="done"
-              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-8"
+              key="submitted"
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-8 space-y-6"
             >
-              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5">
-                <CheckCircle2 className="w-12 h-12 text-primary" />
+              {/* アイコン */}
+              <div className="w-24 h-24 bg-amber-50 border-2 border-amber-200 rounded-full flex items-center justify-center mx-auto">
+                <Clock className="w-12 h-12 text-amber-500" />
               </div>
-              <h2 className="text-2xl font-black text-foreground mb-2">審査が完了しました！</h2>
-              <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-                続けて振込先の銀行口座を登録してください。<br />
-                口座登録後すぐに出品を開始できます。
-              </p>
 
+              {/* タイトル */}
+              <div>
+                <h2 className="text-2xl font-black text-foreground mb-2">申請を受け付けました</h2>
+                <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold px-4 py-2 rounded-full">
+                  <Clock className="w-4 h-4" />
+                  書類審査中（管理者が確認しています）
+                </div>
+              </div>
+
+              {/* 申請番号 */}
               {createdStoreId && (
-                <div className="bg-secondary/50 rounded-2xl p-4 text-left mb-6">
+                <div className="bg-secondary/50 rounded-2xl p-4 text-left">
                   <p className="text-xs text-muted-foreground font-bold mb-1">申請番号</p>
                   <p className="font-black text-primary text-lg">STORE-{String(createdStoreId).padStart(5, '0')}</p>
                 </div>
               )}
 
-              <div className="space-y-3 text-left mb-8">
+              {/* 今後の流れ */}
+              <div className="space-y-2.5 text-left">
                 {[
-                  { icon: '✅', text: '審査完了', done: true },
-                  { icon: '🏦', text: '振込先口座の登録', done: false },
-                  { icon: '🚀', text: '即日出品スタート！', done: false },
+                  {
+                    icon: '✅', title: '書類提出完了',
+                    desc: '営業許可証・本人確認書類を受け付けました',
+                    done: true,
+                  },
+                  {
+                    icon: '🔍', title: '運営による審査（1〜2営業日）',
+                    desc: '書類の内容を確認します。完了後にご連絡します',
+                    done: false,
+                  },
+                  {
+                    icon: '🏦', title: '売上受け取り口座の登録',
+                    desc: '承認後ログインすると口座登録画面が表示されます',
+                    done: false,
+                  },
+                  {
+                    icon: '🚀', title: 'おすそ分け出品スタート！',
+                    desc: '口座登録完了後すぐに出品できます',
+                    done: false,
+                  },
                 ].map((item, i) => (
-                  <div key={i} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${item.done ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}>
-                    <span className="text-xl">{item.icon}</span>
-                    <span className={`font-bold text-sm ${item.done ? 'text-primary' : 'text-foreground'}`}>{item.text}</span>
-                    {item.done && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
+                  <div key={i} className={`flex items-start gap-3 rounded-2xl px-4 py-3.5 border transition-all
+                    ${item.done ? 'bg-primary/5 border-primary/30' : 'bg-card border-border'}`}>
+                    <span className="text-xl shrink-0 mt-0.5">{item.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-bold text-sm ${item.done ? 'text-primary' : 'text-foreground'}`}>{item.title}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{item.desc}</div>
+                    </div>
+                    {item.done && <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />}
                   </div>
                 ))}
               </div>
 
-              <button
-                onClick={() => navigate('/store/bank-setup')}
-                className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl hover:bg-primary/90 transition-colors mb-3"
-              >
-                振込先口座を登録する
-              </button>
+              {/* 注意書き */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 text-left">
+                <p className="font-bold mb-1">📧 審査完了のお知らせ</p>
+                <p>承認または却下の際は、登録メールアドレスへご連絡します。承認後は再度ログインすると口座登録画面が表示されます。</p>
+              </div>
+
               <button
                 onClick={() => navigate('/')}
-                className="w-full bg-secondary text-foreground font-bold py-3 rounded-2xl hover:bg-secondary/80 transition-colors text-sm"
+                className="w-full bg-secondary text-foreground font-bold py-4 rounded-2xl hover:bg-secondary/80 transition-colors flex items-center justify-center gap-2"
               >
-                後で登録する（ホームへ）
+                <Home className="w-5 h-5" />
+                ホームに戻る
               </button>
             </motion.div>
           )}
