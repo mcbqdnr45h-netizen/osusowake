@@ -583,8 +583,8 @@ export default function StoreDashboard() {
       return;
     }
     if (store) {
-      if (store.status === 'pending' || store.status === 'applied' || store.status === 'pending_review') {
-        // 審査中 → オンボーディングの審査待ち画面へ
+      if (store.status === 'pending' || store.status === 'pending_review') {
+        // 管理者未承認 → オンボーディングの審査待ち画面へ
         console.log('[StoreDashboard] store is pending → /store-onboarding (waiting screen)');
         navigate('/store-onboarding', { replace: true });
         return;
@@ -594,6 +594,7 @@ export default function StoreDashboard() {
         console.log('[StoreDashboard] approved but no bank account → /store/bank-setup');
         navigate('/store/bank-setup', { replace: true });
       }
+      // applied（口座登録済み）または approved（口座登録済み）→ ダッシュボードを表示
     }
   }, [store, storeLoading, storeFetchError, navigate]);
 
@@ -689,8 +690,8 @@ export default function StoreDashboard() {
     );
   }
 
-  // ─── 申請済み（銀行口座登録完了・管理者審査待ち）────────────────────────
-  if (store.status === 'applied' || store.status === 'pending' || store.status === 'pending_review') {
+  // ─── 未承認（管理者審査待ち）────────────────────────────────────────────
+  if (store.status === 'pending' || store.status === 'pending_review') {
     return (
       <StoreLayout>
         <div className="flex-1 flex items-center justify-center px-6">
