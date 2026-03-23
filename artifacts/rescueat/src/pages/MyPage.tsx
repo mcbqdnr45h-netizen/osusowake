@@ -303,7 +303,7 @@ export default function MyPage() {
             </Link>
           )}
 
-          {isApprovedOwner && (
+          {profile?.role === 'store_owner' && isApprovedOwner && (
             <Link
               href="/store-dashboard"
               className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"

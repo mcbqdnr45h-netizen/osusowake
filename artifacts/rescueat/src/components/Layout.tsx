@@ -201,7 +201,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
                 <span className="text-xs text-muted-foreground">お店の味を、誰かにおすそ分けしよう</span>
               </div>
               <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
-                {isApprovedOwner && (
+                {profile?.role === 'store_owner' && isApprovedOwner && (
                   <>
                     <Link href="/store-dashboard" className="hover:text-primary transition-colors font-medium">店舗ダッシュボード</Link>
                     <span>·</span>
