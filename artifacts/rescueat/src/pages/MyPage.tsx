@@ -262,6 +262,28 @@ export default function MyPage() {
           )}
         </div>
 
+        {/* ── 店舗オーナー：店舗申請バナー ── */}
+        {profile?.role === 'store_owner' && !loadingStore && store === null && (
+          <div className="mb-4 bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-primary/30 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+                <FileCheck className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="font-black text-foreground text-base">店舗申請がまだ完了していません</p>
+                <p className="text-xs text-muted-foreground mt-0.5">審査通過後すぐに出品できます</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/store-onboarding')}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 px-4 rounded-lg shadow-md flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <FileCheck className="w-5 h-5" />
+              店舗情報を登録して申請する
+            </button>
+          </div>
+        )}
+
         {/* Menu List */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
 
@@ -286,27 +308,6 @@ export default function MyPage() {
             <div className="flex-1 font-bold text-foreground">支払い管理センター</div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Link>
-
-          {profile?.role === 'store_owner' && store === null && !loadingStore && (
-            <div className="p-4 border-b border-border">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center shrink-0">
-                  <FileCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="font-bold text-foreground text-sm">店舗申請がまだ完了していません</div>
-                  <div className="text-xs text-muted-foreground">審査通過後に出品できます</div>
-                </div>
-              </div>
-              <button
-                onClick={() => navigate('/store-onboarding')}
-                className="mt-2 w-full max-w-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 px-4 rounded-lg shadow-md flex items-center justify-center gap-2"
-              >
-                <FileCheck className="w-4 h-4" />
-                店舗情報を登録して申請する
-              </button>
-            </div>
-          )}
 
           {profile?.role === 'store_owner' && (store?.status === 'pending' || store?.status === 'pending_review') && (
             <Link
