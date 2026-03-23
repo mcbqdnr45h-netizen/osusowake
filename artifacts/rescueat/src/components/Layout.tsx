@@ -181,7 +181,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="flex-1 min-h-0 flex flex-col"
+            className="flex-1 flex flex-col"
           >
             {children}
           </motion.div>

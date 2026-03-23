@@ -52,6 +52,7 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
     }
 
     let alive = true;
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
     console.log('[PlaceSearchMap] loading Google Maps script…');
 
     loadGoogleMapsScript()
@@ -116,6 +117,14 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
 
         if (hasInitial) upsertMarker({ lat: lat!, lng: lng! });
 
+        // framer-motion のページ遷移アニメーション（0.18s）完了後に
+        // リサイズをトリガーして地図タイルを正しく描画させる
+        resizeTimer = setTimeout(() => {
+          if (!alive) return;
+          gm.event.trigger(map, 'resize');
+          map.panTo(center);
+        }, 500);
+
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
           if (!e.latLng) return;
           upsertMarker(e.latLng);
@@ -160,7 +169,10 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
         setStatus('error');
       });
 
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+      clearTimeout(resizeTimer);
+    };
   }, []);
 
   if (status === 'nokey') {
