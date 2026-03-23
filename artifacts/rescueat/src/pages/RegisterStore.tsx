@@ -1,12 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { useCreateStore, useCreateBag } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
-import { Store, ChevronLeft, CheckCircle, Camera, MapPin, RefreshCw, Info, Move } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Store, ChevronLeft, CheckCircle, Camera, RefreshCw, Info } from 'lucide-react';
+import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
 const CATEGORY_OPTIONS = [
   { value: 'bakery', label: 'ベーカリー', emoji: '🥐' },
@@ -60,86 +58,6 @@ async function compressImage(file: File, maxPx = 1200, quality = 0.75): Promise<
   });
 }
 
-// ── Geocoding with multi-strategy fallback ─────────────────────────────────
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  // ① 国土地理院 API（日本語住所専用・CORS対応・認証不要）
-  try {
-    const res = await fetch(
-      `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(address)}`,
-    );
-    const data = await res.json();
-    if (Array.isArray(data) && data.length > 0) {
-      const [lng, lat] = data[0].geometry.coordinates;
-      return { lat, lng };
-    }
-  } catch {}
-
-  // ② Nominatim フォールバック（番地を省いた住所でリトライ）
-  const queries = [address, address.replace(/\d+-\d+-?\d*/g, '').trim()];
-  for (const q of queries) {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Japan')}&format=json&limit=1&countrycodes=jp&accept-language=ja`,
-      );
-      const data = await res.json();
-      if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-    } catch {}
-  }
-  return null;
-}
-
-// ── Draggable pin map ──────────────────────────────────────────────────────
-const pinIcon = L.divIcon({
-  className: '',
-  html: `<div style="width:36px;height:36px;background:#2D5A51;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.3)"></div>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 36],
-});
-
-function MapClickHandler({ onMove }: { onMove: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click(e) { onMove(e.latlng.lat, e.latlng.lng); }
-  });
-  return null;
-}
-
-function PinMap({
-  lat, lng, onMove
-}: { lat: number; lng: number; onMove: (lat: number, lng: number) => void }) {
-  return (
-    <div className="relative w-full h-52 rounded-xl overflow-hidden border-2 border-primary/30 shadow-sm">
-      <MapContainer
-        center={[lat, lng]}
-        zoom={16}
-        scrollWheelZoom={false}
-        className="w-full h-full"
-        key={`${lat.toFixed(4)}-${lng.toFixed(4)}`}
-      >
-        <TileLayer
-          attribution='&copy; OpenStreetMap'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Marker
-          position={[lat, lng]}
-          icon={pinIcon}
-          draggable
-          eventHandlers={{
-            dragend: (e) => {
-              const m = e.target as L.Marker;
-              const pos = m.getLatLng();
-              onMove(pos.lat, pos.lng);
-            }
-          }}
-        />
-        <MapClickHandler onMove={onMove} />
-      </MapContainer>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 pointer-events-none z-[1000]">
-        <Move className="w-3 h-3" />
-        ピンをドラッグして位置を微調整
-      </div>
-    </div>
-  );
-}
 
 export default function RegisterStore() {
   const [, navigate] = useLocation();
@@ -147,7 +65,6 @@ export default function RegisterStore() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<'store' | 'bag' | 'done'>('store');
-  const [geocoding, setGeocoding] = useState(false);
   const [createdStoreId, setCreatedStoreId] = useState<number | null>(null);
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -180,38 +97,27 @@ export default function RegisterStore() {
     }
   };
 
-  // Auto-geocode when user stops typing address
-  const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleAddressChange = (value: string) => {
-    setStoreForm(f => ({ ...f, address: value }));
-    if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
-    if (value.length < 6) return;
-    geocodeTimer.current = setTimeout(async () => {
-      setGeocoding(true);
-      const result = await geocodeAddress(value);
-      setGeocoding(false);
-      if (result) setPinPos(result);
-    }, 1200);
-  };
+  function handlePlaceSelected(result: PlaceResult) {
+    setStoreForm(f => ({
+      ...f,
+      name:    result.name    || f.name,
+      address: result.address || f.address,
+      city:    result.city    || f.city,
+      phone:   result.phone   || f.phone,
+    }));
+    setPinPos({ lat: result.lat, lng: result.lng });
+  }
 
   const handleStoreSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    let geoResult = pinPos;
 
-    if (!geoResult) {
-      setGeocoding(true);
-      geoResult = await geocodeAddress(storeForm.address);
-      setGeocoding(false);
-
-      if (!geoResult) {
-        toast({
-          title: '住所を確認してください',
-          description: '位置情報を取得できませんでした。より詳しい住所（都道府県から）を入力してください。',
-          variant: 'destructive',
-        });
-        return;
-      }
-      setPinPos(geoResult);
+    if (!pinPos) {
+      toast({
+        title: '位置情報が必要です',
+        description: '上の検索ボックスでお店を検索してください。',
+        variant: 'destructive',
+      });
+      return;
     }
 
     try {
@@ -221,8 +127,8 @@ export default function RegisterStore() {
           address: storeForm.address,
           city: storeForm.city || storeForm.address.split('市')[0] + '市',
           category: storeForm.category as any,
-          lat: geoResult.lat,
-          lng: geoResult.lng,
+          lat: pinPos.lat,
+          lng: pinPos.lng,
           phone: storeForm.phone || undefined,
           imageUrl: storeForm.imageUrl || undefined,
         }
@@ -345,41 +251,37 @@ export default function RegisterStore() {
               />
             </div>
 
-            {/* Address with auto-geocode */}
+            {/* Google プレイス検索 + マップ */}
             <div>
-              <label className="block text-sm font-bold text-muted-foreground mb-1.5">
-                住所 <span className="text-destructive">*</span>
-                {geocoding && <span className="text-xs font-normal ml-2 text-primary animate-pulse">位置情報を検索中...</span>}
-                {!geocoding && pinPos && <span className="text-xs font-normal ml-2 text-emerald-600">✓ 位置を確認しました</span>}
+              <label className="block text-sm font-bold text-muted-foreground mb-2">
+                お店を検索して位置を確認
+                {pinPos && <span className="text-xs font-normal ml-2 text-emerald-600">✓ 位置を取得しました</span>}
               </label>
-              <div className="relative">
-                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  required value={storeForm.address}
-                  onChange={e => handleAddressChange(e.target.value)}
-                  className="w-full bg-background border border-input rounded-xl pl-10 pr-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-                  placeholder="例: 大阪府高槻市城西町1-1"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground/60 mt-1">都道府県から入力すると精度が上がります</p>
-            </div>
-
-            {/* Draggable pin map */}
-            {pinPos && (
-              <div>
-                <label className="block text-sm font-bold text-muted-foreground mb-2">
-                  ピンの位置確認・微調整
-                </label>
-                <PinMap
-                  lat={pinPos.lat}
-                  lng={pinPos.lng}
-                  onMove={(lat, lng) => setPinPos({ lat, lng })}
-                />
+              <PlaceSearchMap
+                lat={pinPos?.lat}
+                lng={pinPos?.lng}
+                onPlace={handlePlaceSelected}
+                onPinMove={(lat, lng) => setPinPos({ lat, lng })}
+              />
+              {pinPos && (
                 <p className="text-xs text-muted-foreground/60 mt-1">
                   緯度: {pinPos.lat.toFixed(5)} / 経度: {pinPos.lng.toFixed(5)}
                 </p>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* 住所（自動補完・編集可） */}
+            <div>
+              <label className="block text-sm font-bold text-muted-foreground mb-1.5">
+                住所 <span className="text-destructive">*</span>
+              </label>
+              <input
+                required value={storeForm.address}
+                onChange={e => setStoreForm(f => ({ ...f, address: e.target.value }))}
+                className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
+                placeholder="検索すると自動入力されます"
+              />
+            </div>
 
             {/* City */}
             <div>
@@ -426,10 +328,10 @@ export default function RegisterStore() {
 
             <button
               type="submit"
-              disabled={createStore.isPending || geocoding}
+              disabled={createStore.isPending}
               className="w-full bg-primary text-primary-foreground font-black text-lg py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-70 min-h-[56px]"
             >
-              {(createStore.isPending || geocoding)
+              {createStore.isPending
                 ? <><RefreshCw className="w-5 h-5 animate-spin" /> 処理中...</>
                 : '次へ：サプライズバッグを設定'
               }

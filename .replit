@@ -32,3 +32,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 Maps_API_KEY = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U"
+VITE_MAPS_API_KEY = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U"

@@ -11,7 +11,7 @@
 - **Frontend**: React + Vite (artifacts/rescueat) - メインカラー #2D5A51
 - **API framework**: Express 5 (artifacts/api-server)
 - **Database**: PostgreSQL + Drizzle ORM
-- **Map**: react-leaflet + leaflet.markercluster + OpenStreetMap（APIキー不要）
+- **Map**: Google Maps JS API（`VITE_MAPS_API_KEY`）+ Google Places Autocomplete（店舗登録）
 - **Payments**: Stripe（STRIPE_SECRET_KEY設定時）、未設定時はモック決済
 - **Validation**: Zod, drizzle-zod
 - **Font**: Noto Sans JP (body) + Outfit (display)

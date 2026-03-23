@@ -4,9 +4,10 @@ import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, ChevronRight, Camera, MapPin, FileText, ShieldCheck,
+  ChevronLeft, ChevronRight, Camera, FileText, ShieldCheck,
   CheckCircle2, Clock, Upload, Store, AlertCircle, RefreshCw, Leaf,
 } from 'lucide-react';
+import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -41,32 +42,6 @@ async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<
   });
 }
 
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  // ① 国土地理院 API（日本語住所専用・CORS対応・認証不要）
-  try {
-    const res = await fetch(
-      `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(address)}`,
-    );
-    const data = await res.json();
-    if (Array.isArray(data) && data.length > 0) {
-      const [lng, lat] = data[0].geometry.coordinates;
-      return { lat, lng };
-    }
-  } catch {}
-
-  // ② Nominatim フォールバック（番地を省いた住所でリトライ）
-  const queries = [address, address.replace(/\d+-\d+-?\d*/g, '').trim()];
-  for (const q of queries) {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Japan')}&format=json&limit=1&countrycodes=jp&accept-language=ja`,
-      );
-      const data = await res.json();
-      if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-    } catch {}
-  }
-  return null;
-}
 
 type Step = 'basic' | 'compliance' | 'reviewing' | 'redirecting' | 'done';
 
@@ -249,7 +224,6 @@ export default function StoreOnboarding() {
 
   const [step, setStep] = useState<Step>('basic');
   const [submitting, setSubmitting] = useState(false);
-  const [geocoding, setGeocoding] = useState(false);
   const [createdStoreId, setCreatedStoreId] = useState<number | null>(null);
   const [stripeConnected, setStripeConnected] = useState(false);
   const [stripeUrl, setStripeUrl] = useState<string | null>(null);
@@ -266,7 +240,6 @@ export default function StoreOnboarding() {
     pledgeSigned: false,
   });
 
-  const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
 
   // Stripe から戻ってきた場合（?stripe_connect=return&storeId=XXX）
@@ -283,16 +256,15 @@ export default function StoreOnboarding() {
     }
   }, []);
 
-  function handleAddressChange(val: string) {
-    setBasic(b => ({ ...b, address: val }));
-    if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
-    if (val.length < 6) return;
-    geocodeTimer.current = setTimeout(async () => {
-      setGeocoding(true);
-      const r = await geocodeAddress(val);
-      setGeocoding(false);
-      if (r) setPinPos(r);
-    }, 1200);
+  function handlePlaceSelected(result: PlaceResult) {
+    setBasic(b => ({
+      ...b,
+      name:    result.name    || b.name,
+      address: result.address || b.address,
+      city:    result.city    || b.city,
+      phone:   result.phone   || b.phone,
+    }));
+    setPinPos({ lat: result.lat, lng: result.lng });
   }
 
   async function handleBasicNext(e: React.FormEvent) {
@@ -301,11 +273,7 @@ export default function StoreOnboarding() {
       return toast({ title: '必須項目を入力してください', variant: 'destructive' });
     }
     if (!pinPos) {
-      setGeocoding(true);
-      const r = await geocodeAddress(basic.address);
-      setGeocoding(false);
-      if (!r) return toast({ title: '住所を確認してください', description: '都道府県から入力してください', variant: 'destructive' });
-      setPinPos(r);
+      return toast({ title: '位置情報が必要です', description: '検索ボックスでお店を検索して位置を確認してください', variant: 'destructive' });
     }
     setStep('compliance');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -471,17 +439,30 @@ export default function StoreOnboarding() {
               </div>
 
               <div>
+                <label className="block text-sm font-bold text-muted-foreground mb-2">
+                  お店を検索して位置を確認
+                  {pinPos && <span className="text-xs font-normal ml-2 text-emerald-600">✓ 位置を取得しました</span>}
+                </label>
+                <PlaceSearchMap
+                  lat={pinPos?.lat}
+                  lng={pinPos?.lng}
+                  onPlace={handlePlaceSelected}
+                  onPinMove={(lat, lng) => setPinPos({ lat, lng })}
+                />
+                {pinPos && (
+                  <p className="text-xs text-muted-foreground/60 mt-1">
+                    緯度: {pinPos.lat.toFixed(5)} / 経度: {pinPos.lng.toFixed(5)}
+                  </p>
+                )}
+              </div>
+
+              <div>
                 <label className="block text-sm font-bold text-muted-foreground mb-1.5">
                   住所 <span className="text-destructive">*</span>
-                  {geocoding && <span className="text-xs font-normal ml-2 text-primary animate-pulse">検索中...</span>}
-                  {!geocoding && pinPos && <span className="text-xs font-normal ml-2 text-emerald-600">✓ 確認済</span>}
                 </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input required value={basic.address} onChange={e => handleAddressChange(e.target.value)}
-                    className="w-full bg-background border border-input rounded-xl pl-10 pr-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-                    placeholder="例: 大阪府高槻市城西町1-1" />
-                </div>
+                <input required value={basic.address} onChange={e => setBasic(b => ({ ...b, address: e.target.value }))}
+                  className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
+                  placeholder="検索すると自動入力されます" />
               </div>
 
               <div>
@@ -514,10 +495,9 @@ export default function StoreOnboarding() {
                   placeholder="06-xxxx-xxxx" />
               </div>
 
-              <button type="submit" disabled={geocoding}
+              <button type="submit"
                 className="w-full bg-primary text-primary-foreground font-black text-lg py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-70 min-h-[56px]"
               >
-                {geocoding ? <RefreshCw className="w-5 h-5 animate-spin" /> : null}
                 次へ：書類を提出する
                 <ChevronRight className="w-5 h-5" />
               </button>

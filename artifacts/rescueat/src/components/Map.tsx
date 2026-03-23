@@ -4,30 +4,9 @@ import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
 import { LocateFixed, AlertTriangle } from 'lucide-react';
 
-const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
-const API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
-const MAPS_SCRIPT_ID = 'rescueat-google-maps';
+import { loadGoogleMapsScript } from '@/lib/maps-loader';
 
-function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).google?.maps?.Map) { resolve(); return; }
-    if (document.getElementById(MAPS_SCRIPT_ID)) {
-      const t = setInterval(() => {
-        if ((window as any).google?.maps?.Map) { clearInterval(t); resolve(); }
-      }, 80);
-      setTimeout(() => { clearInterval(t); reject(new Error('timeout')); }, 15000);
-      return;
-    }
-    const script = document.createElement('script');
-    script.id = MAPS_SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps&v=weekly&language=ja&region=JP`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = (e) => reject(new Error(`Maps script load failed: ${e}`));
-    document.head.appendChild(script);
-  });
-}
+const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
 
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: 'poi',            stylers: [{ visibility: 'off' }] },
@@ -149,7 +128,7 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
           );
         });
 
-        await loadGoogleMapsScript(API_KEY);
+        await loadGoogleMapsScript();
         if (cancelled || !containerRef.current) return;
 
         const gMaps = (window as any).google.maps as typeof google.maps;
