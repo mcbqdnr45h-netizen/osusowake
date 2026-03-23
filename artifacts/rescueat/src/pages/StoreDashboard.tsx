@@ -46,6 +46,27 @@ function isTodaysReservation(r: Reservation) {
   try { return isToday(parseISO(r.createdAt)); } catch { return false; }
 }
 
+type BagRealStatus = 'active' | 'expired' | 'soldout' | 'inactive';
+
+function getBagStatus(bag: { isActive: boolean; stockCount: number; pickupEnd: string | null; createdAt: string }, now: Date): BagRealStatus {
+  if (!bag.isActive) return 'inactive';
+
+  if (bag.pickupEnd) {
+    const created = new Date(bag.createdAt);
+    const isCreatedToday =
+      created.getFullYear() === now.getFullYear() &&
+      created.getMonth()    === now.getMonth()    &&
+      created.getDate()     === now.getDate();
+    if (!isCreatedToday) return 'expired';
+    const [h, m] = bag.pickupEnd.split(':').map(Number);
+    const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0, 0);
+    if (now > endTime) return 'expired';
+  }
+
+  if (bag.stockCount === 0) return 'soldout';
+  return 'active';
+}
+
 function statusLabel(s: ReservationStatus) {
   if (s === 'pending')    return { text: '決済待ち', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
   if (s === 'confirmed')  return { text: '確認済み', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
@@ -569,7 +590,9 @@ export default function StoreDashboard() {
   const todayPickedUp = (reservations as Reservation[]).filter(
     r => isTodaysReservation(r) && r.status === 'picked_up'
   );
-  const activeBags = (bags as any[]).filter((b: any) => b.isActive);
+  const now = new Date();
+  const activeBags     = (bags as any[]).filter((b: any) => getBagStatus(b, now) === 'active');
+  const nonIdleBags    = (bags as any[]).filter((b: any) => b.isActive); // 画面に表示する isActive 全件（expired/soldout 含む）
 
   // クイック出品用: title で重複排除（最新 id を優先）
   const deduplicatedBags: PastBag[] = React.useMemo(() => {
@@ -690,13 +713,13 @@ export default function StoreDashboard() {
           ))}
         </div>
 
-        {/* ── 出品中の商品 ── */}
-        {activeBags.length > 0 && (
+        {/* ── 公開中の商品（expired/soldout 含む）── */}
+        {nonIdleBags.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-black text-foreground flex items-center gap-2">
                 <Eye className="w-5 h-5 text-primary" />
-                出品中の商品
+                公開中の商品
               </h2>
               <Link
                 href="/store/bags"
@@ -706,14 +729,26 @@ export default function StoreDashboard() {
               </Link>
             </div>
             <div className="space-y-2">
-              {activeBags.map((bag: any) => {
+              {nonIdleBags.map((bag: any) => {
+                const status    = getBagStatus(bag, now);
                 const remaining = bag.stockCount - (bag.reservedCount ?? 0);
+                const statusBadge =
+                  status === 'active'   ? { text: '公開中',   cls: 'bg-green-50 text-green-700 border border-green-200' } :
+                  status === 'expired'  ? { text: '受付終了', cls: 'bg-slate-100 text-slate-500 border border-slate-200' } :
+                                          { text: '完売',     cls: 'bg-red-50 text-red-500 border border-red-200' };
                 return (
                   <div
                     key={bag.id}
-                    className="bg-white rounded-2xl border border-orange-100 shadow-[0_2px_8px_rgba(255,140,0,0.06)] px-4 py-3 flex items-center gap-3"
+                    className={`bg-white rounded-2xl border shadow-[0_2px_8px_rgba(0,0,0,0.05)] px-4 py-3 flex items-center gap-3 ${
+                      status === 'active' ? 'border-orange-100' : 'border-border opacity-70'
+                    }`}
                   >
                     <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${statusBadge.cls}`}>
+                          {statusBadge.text}
+                        </span>
+                      </div>
                       <p className="text-sm font-black text-foreground truncate">{bag.title}</p>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         {bag.pickupStart && (

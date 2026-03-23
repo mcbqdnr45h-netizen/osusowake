@@ -27,6 +27,34 @@ interface Bag {
   createdAt: string;
 }
 
+type BagRealStatus = 'active' | 'expired' | 'soldout' | 'inactive';
+
+function getBagStatus(bag: Bag, now: Date): BagRealStatus {
+  if (!bag.isActive) return 'inactive';
+
+  if (bag.pickupEnd) {
+    const created = new Date(bag.createdAt);
+    const isCreatedToday =
+      created.getFullYear() === now.getFullYear() &&
+      created.getMonth()    === now.getMonth()    &&
+      created.getDate()     === now.getDate();
+    if (!isCreatedToday) return 'expired';
+    const [h, m] = bag.pickupEnd.split(':').map(Number);
+    const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0, 0);
+    if (now > endTime) return 'expired';
+  }
+
+  if (bag.stockCount === 0) return 'soldout';
+  return 'active';
+}
+
+const STATUS_BADGE: Record<BagRealStatus, { text: string; cls: string }> = {
+  active:   { text: '公開中',   cls: 'bg-green-50 text-green-700 border border-green-200' },
+  expired:  { text: '受付終了', cls: 'bg-slate-100 text-slate-500 border border-slate-200' },
+  soldout:  { text: '完売',     cls: 'bg-red-50 text-red-500 border border-red-200' },
+  inactive: { text: '非公開',   cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
+};
+
 export default function StoreBagsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -149,8 +177,13 @@ export default function StoreBagsPage() {
     );
   }
 
-  const activeBags = (bags as Bag[]).filter(b => b.isActive);
-  const inactiveBags = (bags as Bag[]).filter(b => !b.isActive);
+  const now = new Date();
+  const allBags    = bags as Bag[];
+  const trulyActive  = allBags.filter(b => getBagStatus(b, now) === 'active');
+  const sortedBags   = [...allBags].sort((a, b) => {
+    const ORDER: Record<BagRealStatus, number> = { active: 0, soldout: 1, expired: 2, inactive: 3 };
+    return (ORDER[getBagStatus(a, now)] ?? 9) - (ORDER[getBagStatus(b, now)] ?? 9);
+  });
 
   return (
     <StoreLayout>
@@ -161,7 +194,7 @@ export default function StoreBagsPage() {
           <div>
             <h1 className="text-xl font-black text-foreground">出品・在庫管理</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              出品中 {activeBags.length}件 / 全{(bags as Bag[]).length}件
+              出品中 {trulyActive.length}件 / 全{allBags.length}件
             </p>
           </div>
           <button
@@ -284,23 +317,24 @@ export default function StoreBagsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {([...activeBags, ...inactiveBags] as Bag[]).map(bag => (
+            {sortedBags.map(bag => {
+              const realStatus = getBagStatus(bag, now);
+              const badge      = STATUS_BADGE[realStatus];
+              const isExpired  = realStatus === 'expired';
+              const isFaded    = realStatus !== 'active';
+              return (
               <div
                 key={bag.id}
                 className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-opacity ${
-                  bag.isActive ? 'border-orange-100' : 'border-border opacity-60'
+                  realStatus === 'active' ? 'border-orange-100' : 'border-border opacity-60'
                 }`}
               >
                 <div className="px-4 py-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                          bag.isActive
-                            ? 'bg-green-50 text-green-700 border border-green-200'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          {bag.isActive ? '公開中' : '非公開'}
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${badge.cls}`}>
+                          {badge.text}
                         </span>
                         <span className="text-[10px] text-muted-foreground font-medium">
                           在庫 {bag.stockCount}個
@@ -324,19 +358,20 @@ export default function StoreBagsPage() {
 
                     {/* 右側ボタン群 */}
                     <div className="shrink-0 flex flex-col items-center gap-2">
-                      {/* 公開/非公開トグル */}
+                      {/* 公開/非公開トグル（受付終了は操作不可）*/}
                       <button
                         onClick={() => { setConfirmId(null); handleToggleActive(bag); }}
-                        disabled={togglingId === bag.id || deletingId === bag.id}
-                        className="flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                        disabled={togglingId === bag.id || deletingId === bag.id || isExpired}
+                        title={isExpired ? '受付時間が終了しているため変更できません' : undefined}
+                        className="flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {togglingId === bag.id
                           ? <Loader2 className="w-6 h-6 animate-spin" />
                           : bag.isActive
-                            ? <ToggleRight className="w-8 h-8 text-primary" />
+                            ? <ToggleRight className={`w-8 h-8 ${isExpired ? 'text-slate-300' : 'text-primary'}`} />
                             : <ToggleLeft className="w-8 h-8" />
                         }
-                        <span className="text-[9px] font-bold">{bag.isActive ? '公開中' : '非公開'}</span>
+                        <span className="text-[9px] font-bold">{badge.text}</span>
                       </button>
 
                       {/* 削除ボタン（非公開のみ表示）*/}
@@ -375,7 +410,8 @@ export default function StoreBagsPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
