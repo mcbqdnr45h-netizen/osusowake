@@ -6,7 +6,7 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 export type MyStore = {
   id: number;
   name: string;
-  status: 'pending' | 'approved' | 'rejected' | 'pending_review';
+  status: 'pending' | 'approved' | 'rejected' | 'pending_review' | 'applied';
   ownerId: string | null;
 };
 

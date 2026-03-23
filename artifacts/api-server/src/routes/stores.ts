@@ -769,7 +769,14 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       default_for_currency: true,
     });
 
+    // 口座登録完了 → ステータスを 'applied'（申請済み・審査待ち）に更新
+    await db
+      .update(storesTable)
+      .set({ status: "applied" })
+      .where(eq(storesTable.id, storeId));
+
     console.log(`✅ Bank account attached to ${accountId}`);
+    console.log(`✅ Store ${storeId} status updated to 'applied'`);
     res.json({ success: true, accountId });
   } catch (err: any) {
     console.error("Stripe bank-setup error:", err);

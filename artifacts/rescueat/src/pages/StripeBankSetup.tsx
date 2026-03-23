@@ -83,7 +83,7 @@ export default function StripeBankSetup() {
       }
 
       setDone(true);
-      setTimeout(() => navigate('/store-dashboard'), 2500);
+      setTimeout(() => navigate('/mypage'), 2500);
     } catch (err: any) {
       setError(err?.message ?? '予期しないエラーが発生しました。');
     } finally {
@@ -95,6 +95,47 @@ export default function StripeBankSetup() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-orange-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!store) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-orange-400 mx-auto mb-3" />
+          <p className="font-black text-gray-900 mb-1">店舗が見つかりません</p>
+          <p className="text-sm text-gray-500 mb-4">先に店舗申請を完了してください。</p>
+          <button
+            onClick={() => navigate('/store-onboarding')}
+            className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl"
+          >
+            店舗申請へ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (store.status === 'applied') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShieldCheck className="w-10 h-10 text-amber-500" />
+          </div>
+          <h2 className="text-xl font-black text-gray-900 mb-2">口座登録済み・審査中</h2>
+          <p className="text-sm text-gray-500 mb-4 leading-relaxed">
+            銀行口座の登録が完了しています。<br />
+            管理者の審査が完了次第、出品が開始できます。
+          </p>
+          <button
+            onClick={() => navigate('/mypage')}
+            className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl w-full"
+          >
+            マイページへ
+          </button>
+        </div>
       </div>
     );
   }

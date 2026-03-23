@@ -664,6 +664,36 @@ export default function StoreDashboard() {
     );
   }
 
+  // ─── 申請済み（銀行口座登録完了・管理者審査待ち）────────────────────────
+  if (store.status === 'applied' || store.status === 'pending' || store.status === 'pending_review') {
+    return (
+      <StoreLayout>
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="text-center max-w-sm">
+            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-5">
+              <Eye className="w-10 h-10 text-amber-500" />
+            </div>
+            <h2 className="text-xl font-black mb-2">
+              {store.status === 'applied' ? '申請受付完了 — 審査中' : '審査中'}
+            </h2>
+            <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+              {store.status === 'applied'
+                ? '銀行口座の登録が完了しました。管理者が内容を確認しています。'
+                : '店舗情報を確認しています。'}
+            </p>
+            <p className="text-xs text-muted-foreground mb-6">審査完了後にダッシュボードがご利用いただけます。</p>
+            <a
+              href="/mypage"
+              className="inline-flex items-center gap-2 bg-secondary text-foreground font-bold px-6 py-3 rounded-2xl hover:bg-secondary/80 transition-colors"
+            >
+              マイページへ
+            </a>
+          </div>
+        </div>
+      </StoreLayout>
+    );
+  }
+
   const today = format(new Date(), 'M月d日（E）', { locale: ja });
 
   return (
