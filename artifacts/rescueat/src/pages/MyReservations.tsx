@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
+import { useAuth } from '@/contexts/AuthContext';
 import { useListReservations, useCancelReservation } from '@workspace/api-client-react';
 import { format, parseISO } from 'date-fns';
 import { Ticket, MapPin, Clock, ExternalLink, Star, PenLine, X, CheckCircle2, CreditCard, Ban, Trash2 } from 'lucide-react';
@@ -40,6 +42,7 @@ function isPickupExpired(pickupEnd?: string | null, createdAt?: string): boolean
 
 export default function MyReservations() {
   const userId = useUserId();
+  const { profile } = useAuth();
   const { toast } = useToast();
   const { data: reservations, isLoading, refetch } = useListReservations(
     { userId: userId || '' },
@@ -57,6 +60,9 @@ export default function MyReservations() {
   const [cancelling,    setCancelling]    = useState(false);
 
   const STATUS_ORDER: Record<string, number> = { confirmed: 0, pending: 1, picked_up: 2, cancelled: 3 };
+  const isStoreOwner = profile?.role === 'store_owner';
+  const PageWrapper = isStoreOwner ? StoreLayout : Layout;
+  const wrapperProps = isStoreOwner ? { showHeader: false } : {};
 
   const statusConfig = (status: string, expired = false) => {
     if (status === 'pending' && expired) {
@@ -105,7 +111,7 @@ export default function MyReservations() {
   }
 
   return (
-    <Layout>
+    <PageWrapper {...wrapperProps as any}>
       {/* レビューモーダル */}
       <AnimatePresence>
         {reviewTarget && userId && (
@@ -368,6 +374,6 @@ export default function MyReservations() {
           );
         })()}
       </div>
-    </Layout>
+    </PageWrapper>
   );
 }

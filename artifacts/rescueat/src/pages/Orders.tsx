@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { StoreLayout } from '@/components/StoreLayout';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUserId } from '@/hooks/use-user';
 import { useListReservations } from '@workspace/api-client-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -205,6 +207,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
 
 export default function Orders() {
   const userId = useUserId() || '';
+  const { profile } = useAuth();
   const [, navigate] = useLocation();
   const { data: reservations, isLoading } = useListReservations(
     { userId },
@@ -212,6 +215,8 @@ export default function Orders() {
   );
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | 'picked_up' | 'cancelled'>('all');
+
+  const isStoreOwner = profile?.role === 'store_owner';
 
   const filtered = (reservations || []).filter(r => {
     if (filter === 'all') return true;
@@ -228,8 +233,11 @@ export default function Orders() {
 
   const totalPoints = Math.floor(totalSpent * POINT_RATE);
 
+  const PageWrapper = isStoreOwner ? StoreLayout : Layout;
+  const wrapperProps = isStoreOwner ? { showHeader: false } : { showBottomNav: false };
+
   return (
-    <Layout showBottomNav={false}>
+    <PageWrapper {...wrapperProps as any}>
       <div className="max-w-md mx-auto pb-16">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 pt-12 pb-4 sticky top-0 bg-background/90 backdrop-blur-sm z-10 border-b border-border/50">
@@ -364,6 +372,6 @@ export default function Orders() {
           <ReceiptModal reservation={selected} onClose={() => setSelectedId(null)} />
         )}
       </AnimatePresence>
-    </Layout>
+    </PageWrapper>
   );
 }

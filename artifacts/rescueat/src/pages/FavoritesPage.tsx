@@ -1,6 +1,8 @@
 import React from 'react';
 import { Layout } from '@/components/Layout';
+import { StoreLayout } from '@/components/StoreLayout';
 import { Heart, Store, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { useListAllBags, useListStores } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -9,19 +11,20 @@ import { getCategoryIcon } from '@/lib/category-utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function FavoritesPage() {
+  const { profile } = useAuth();
   const { favorites, toggle, isFavorite } = useFavorites();
   const { data: bags, isLoading: bagsLoading } = useListAllBags();
   const { data: stores, isLoading: storesLoading } = useListStores();
 
   const isLoading = bagsLoading || storesLoading;
+  const isStoreOwner = profile?.role === 'store_owner';
 
   const favoriteStores = stores?.filter(s => isFavorite(s.id)) ?? [];
 
   const favoriteBags = bags?.filter(b => isFavorite(b.store.id)) ?? [];
 
-  return (
-    <Layout>
-      <div className="max-w-3xl mx-auto px-4 py-6 pb-24">
+  const content = (
+    <div className="max-w-3xl mx-auto px-4 py-6 pb-24">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -137,6 +140,8 @@ export default function FavoritesPage() {
           </>
         )}
       </div>
-    </Layout>
   );
+
+  if (isStoreOwner) return <StoreLayout showHeader={false}>{content}</StoreLayout>;
+  return <Layout>{content}</Layout>;
 }
