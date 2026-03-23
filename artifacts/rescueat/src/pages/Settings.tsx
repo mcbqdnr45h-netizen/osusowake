@@ -160,7 +160,8 @@ function SettingsWrapper({ children }: { children: React.ReactNode }) {
 
 export default function Settings() {
   const userId = useUserId() || '';
-  const { user, signOut: authSignOut } = useAuth();
+  const { user, profile, signOut: authSignOut } = useAuth();
+  const isStoreOwner = profile?.role === 'store_owner';
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { saved, save } = useLocalSettings(userId);
@@ -408,7 +409,8 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* ── REFERRAL ── */}
+          {/* ── REFERRAL（カスタマーのみ） ── */}
+          {!isStoreOwner && <>
           <SectionLabel>友達紹介</SectionLabel>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-1">
 
@@ -457,6 +459,7 @@ export default function Settings() {
               友達に教える（シェア）
             </button>
           </div>
+          </>}
 
           {/* ── LOGOUT ── */}
           <SectionLabel>アカウント</SectionLabel>
