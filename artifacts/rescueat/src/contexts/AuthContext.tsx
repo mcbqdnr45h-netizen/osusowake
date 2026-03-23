@@ -135,34 +135,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: translateError(error.message), role: null };
 
-    let role: string | null = 'customer';
-    if (data.user) {
-      // forceRole 指定時はロールを強制設定（DB移行でリセットされた場合の自動復旧）
-      if (forceRole) {
-        await supabase.from('users').upsert({
-          id: data.user.id,
-          email: data.user.email!,
-          role: forceRole,
-          points_balance: 0,
-        }, { onConflict: 'id' });
-      }
+    // onAuthStateChange が signIn と並行して fetchProfile を呼び出すのをブロック。
+    // upsert 完了前に古いロールで上書きされる race condition を防ぐ。
+    fetchingRef.current = true;
 
-      const { data: prof } = await supabase
-        .from('users')
-        .select('role, points_balance, email')
-        .eq('id', data.user.id)
-        .single();
-      if (prof) {
-        role = prof.role;
-        // onAuthStateChange より先に profile をセットしておく（ちらつき防止）
-        setProfile({
-          id: data.user.id,
-          email: prof.email,
-          role: prof.role,
-          points_balance: prof.points_balance,
-          created_at: data.user.created_at,
-        });
+    let role: string | null = 'customer';
+    try {
+      if (data.user) {
+        if (forceRole) {
+          // ロールのみ更新（points_balance は既存値を保持する）
+          const { data: existing } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', data.user.id)
+            .single();
+
+          if (existing) {
+            await supabase
+              .from('users')
+              .update({ role: forceRole })
+              .eq('id', data.user.id);
+          } else {
+            await supabase
+              .from('users')
+              .insert({ id: data.user.id, email: data.user.email!, role: forceRole, points_balance: 0 });
+          }
+        }
+
+        const { data: prof } = await supabase
+          .from('users')
+          .select('role, points_balance, email')
+          .eq('id', data.user.id)
+          .single();
+        if (prof) {
+          role = prof.role;
+          setProfile({
+            id: data.user.id,
+            email: prof.email,
+            role: prof.role,
+            points_balance: prof.points_balance,
+            created_at: data.user.created_at,
+          });
+        }
       }
+    } finally {
+      fetchingRef.current = false;
     }
 
     return { error: null, role };
