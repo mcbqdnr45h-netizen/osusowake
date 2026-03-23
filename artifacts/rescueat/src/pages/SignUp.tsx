@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, ChevronLeft, Mail, Lock, CheckCircle2, Gift, X } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, Mail, Lock, CheckCircle2, Gift, X, User, Phone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignUp() {
   const [, navigate] = useLocation();
   const { signUp } = useAuth();
 
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,7 +24,19 @@ export default function SignUp() {
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
   const passwordsMatch = confirmPassword === '' || password === confirmPassword;
-  const isValid = email.trim() && password.length >= 6 && password === confirmPassword && agreed && !isLoading;
+
+  // 日本の電話番号バリデーション（10〜11桁の数字、ハイフン・スペース除去後）
+  const normalizedPhone = phone.replace(/[-\s]/g, '');
+  const phoneValid = /^0[0-9]{9,10}$/.test(normalizedPhone);
+
+  const isValid =
+    name.trim().length >= 1 &&
+    phoneValid &&
+    email.trim() &&
+    password.length >= 6 &&
+    password === confirmPassword &&
+    agreed &&
+    !isLoading;
 
   function handleReferralChange(val: string) {
     const upper = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -36,13 +50,20 @@ export default function SignUp() {
     }
   }
 
+  function handlePhoneChange(val: string) {
+    // 数字・ハイフン・スペースのみ許可
+    const cleaned = val.replace(/[^\d\-\s]/g, '');
+    setPhone(cleaned);
+    setError('');
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isValid) return;
     setError('');
     setIsLoading(true);
 
-    const { error: err, needsConfirmation: confirm } = await signUp(email, password);
+    const { error: err, needsConfirmation: confirm } = await signUp(email, password, name, phone);
 
     setIsLoading(false);
 
@@ -55,7 +76,6 @@ export default function SignUp() {
     setDone(true);
 
     if (!confirm) {
-      // ?redirect= があればそちら、なければ商品一覧トップへ
       const params = new URLSearchParams(window.location.search);
       const redirect = params.get('redirect');
       setTimeout(() => navigate(redirect ? decodeURIComponent(redirect) : '/'), 1200);
@@ -142,9 +162,70 @@ export default function SignUp() {
           onSubmit={handleSubmit}
           className="flex flex-col gap-5 flex-1"
         >
+
+          {/* 氏名 */}
+          <div>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              氏名 <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <User className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type="text"
+                value={name}
+                onChange={e => { setName(e.target.value); setError(''); }}
+                placeholder="山田 太郎"
+                className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                autoComplete="name"
+                disabled={isLoading}
+                required
+              />
+            </div>
+          </div>
+
+          {/* 電話番号 */}
+          <div>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              電話番号 <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <Phone className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => handlePhoneChange(e.target.value)}
+                placeholder="090-0000-0000"
+                className={`w-full bg-card border-2 rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:ring-4 outline-none transition-all
+                  ${phone.length > 0 && !phoneValid
+                    ? 'border-destructive focus:border-destructive focus:ring-destructive/10'
+                    : phone.length > 0 && phoneValid
+                    ? 'border-green-500 focus:border-green-500 focus:ring-green-500/10'
+                    : 'border-border focus:border-primary focus:ring-primary/10'
+                  }`}
+                autoComplete="tel"
+                disabled={isLoading}
+                required
+              />
+            </div>
+            {phone.length > 0 && !phoneValid && (
+              <p className="text-destructive text-xs font-medium mt-1.5">
+                正しい電話番号を入力してください（例：090-0000-0000）
+              </p>
+            )}
+            {phone.length > 0 && phoneValid && (
+              <p className="text-green-600 text-xs font-medium mt-1.5">電話番号を確認しました ✓</p>
+            )}
+          </div>
+
           {/* Email */}
           <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">メールアドレス</label>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              メールアドレス <span className="text-destructive">*</span>
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                 <Mail className="w-4 h-4 text-muted-foreground" />
@@ -157,13 +238,16 @@ export default function SignUp() {
                 className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                 autoComplete="email"
                 disabled={isLoading}
+                required
               />
             </div>
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">パスワード</label>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              パスワード <span className="text-destructive">*</span>
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                 <Lock className="w-4 h-4 text-muted-foreground" />
@@ -176,6 +260,7 @@ export default function SignUp() {
                 className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                 autoComplete="new-password"
                 disabled={isLoading}
+                required
               />
               <button
                 type="button"
@@ -192,7 +277,9 @@ export default function SignUp() {
 
           {/* Confirm Password */}
           <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">パスワード（確認）</label>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              パスワード（確認） <span className="text-destructive">*</span>
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                 <Lock className="w-4 h-4 text-muted-foreground" />
@@ -211,6 +298,7 @@ export default function SignUp() {
                 }`}
                 autoComplete="new-password"
                 disabled={isLoading}
+                required
               />
               <button
                 type="button"
@@ -228,7 +316,7 @@ export default function SignUp() {
             )}
           </div>
 
-          {/* Referral Code */}
+          {/* 招待コード */}
           <div>
             <label className="block text-sm font-bold text-foreground mb-1.5">
               招待コード
@@ -285,7 +373,7 @@ export default function SignUp() {
             </AnimatePresence>
           </div>
 
-          {/* Error */}
+          {/* エラー表示 */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -299,7 +387,7 @@ export default function SignUp() {
 
           <div className="flex-1" />
 
-          {/* Terms */}
+          {/* 利用規約チェック */}
           <div
             onClick={() => setAgreed(v => !v)}
             className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all select-none
@@ -321,7 +409,7 @@ export default function SignUp() {
             </p>
           </div>
 
-          {/* Submit */}
+          {/* 送信ボタン */}
           <button
             type="submit"
             disabled={!isValid}

@@ -381,7 +381,7 @@ export default function Home() {
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { profile, isLoading: authLoading } = useAuth();
+  const { user, profile, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const { isApprovedOwner } = useMyStore();
   const { data: bags, isLoading: isLoadingBags } = useListAllBags();
@@ -389,16 +389,16 @@ export default function Home() {
 
   useEffect(() => {
     if (authLoading) return;
-    // 未ログイン → ウェルカム画面へ
-    if (!profile) {
+    // 未ログイン（user=nullが確定）→ ウェルカム画面へ
+    if (!user) {
       navigate('/welcome', { replace: true });
       return;
     }
-    // 店舗オーナー → ダッシュボードへ
-    if (profile.role === 'store_owner') {
+    // 店舗オーナー → ダッシュボードへ（profileが確定してから判定）
+    if (profile?.role === 'store_owner') {
       navigate('/store/dashboard', { replace: true });
     }
-  }, [authLoading, profile, navigate]);
+  }, [authLoading, user, profile, navigate]);
 
   const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || inStockOnly || sortKey !== 'default';
 
@@ -436,7 +436,7 @@ export default function Home() {
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label || 'おすすめ順';
 
   // auth確認中・未ログイン・店舗オーナーはリダイレクト中なので何も表示しない
-  if (authLoading || !profile || profile.role === 'store_owner') return null;
+  if (authLoading || !user || profile?.role === 'store_owner') return null;
 
   const areaTitle = geoLoading
     ? null

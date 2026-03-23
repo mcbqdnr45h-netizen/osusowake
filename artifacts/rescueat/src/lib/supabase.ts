@@ -21,4 +21,6 @@ export interface PublicUser {
   role: UserRole;
   points_balance: number;
   created_at: string;
+  full_name: string | null;
+  phone_number: string | null;
 }

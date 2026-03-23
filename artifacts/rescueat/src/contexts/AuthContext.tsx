@@ -7,7 +7,7 @@ interface AuthContextValue {
   profile: PublicUser | null;
   session: Session | null;
   isLoading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signUp: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signUpAsStore: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null }>;
   signOut: () => Promise<void>;
@@ -91,7 +91,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  async function signUp(email: string, password: string) {
+  async function signUp(email: string, password: string, name: string, phone: string) {
+    const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
+
+    // 電話番号の重複チェック（事前確認）
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('phone_number', normalizedPhone)
+      .maybeSingle();
+    if (existing) {
+      return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+    }
+
     const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
@@ -99,12 +111,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (data.user) {
-      await supabase.from('users').upsert({
+      const { error: upsertErr } = await supabase.from('users').upsert({
         id: data.user.id,
         email: data.user.email!,
         role: 'customer',
         points_balance: 0,
+        full_name: name.trim(),
+        phone_number: normalizedPhone,
       }, { onConflict: 'id' });
+
+      // UNIQUE制約違反（競合状態で発生しうる）
+      if (upsertErr?.code === '23505' || upsertErr?.message?.includes('unique')) {
+        return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+      }
     }
 
     const needsConfirmation = !data.session;
