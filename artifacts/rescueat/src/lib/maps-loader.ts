@@ -4,25 +4,50 @@ const SCRIPT_ID = 'rescueat-google-maps';
 let _promise: Promise<void> | null = null;
 
 export function loadGoogleMapsScript(): Promise<void> {
-  if ((window as any).google?.maps?.Map) return Promise.resolve();
+  if ((window as any).google?.maps?.Map) {
+    return Promise.resolve();
+  }
   if (_promise) return _promise;
 
   _promise = new Promise<void>((resolve, reject) => {
     if (document.getElementById(SCRIPT_ID)) {
       const t = setInterval(() => {
-        if ((window as any).google?.maps?.Map) { clearInterval(t); resolve(); }
+        if ((window as any).google?.maps?.Map) {
+          clearInterval(t);
+          resolve();
+        }
       }, 80);
-      setTimeout(() => { clearInterval(t); reject(new Error('timeout')); }, 15000);
+      setTimeout(() => {
+        clearInterval(t);
+        _promise = null;
+        reject(new Error('Google Maps load timeout'));
+      }, 20000);
       return;
     }
 
     const script = document.createElement('script');
     script.id = SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&libraries=maps,places&v=weekly&language=ja&region=JP`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&libraries=places&v=weekly&language=ja&region=JP`;
     script.async = true;
     script.defer = true;
-    script.onload  = () => resolve();
-    script.onerror = () => { _promise = null; reject(new Error('Maps script load failed')); };
+    script.onload = () => {
+      if ((window as any).google?.maps?.Map) {
+        resolve();
+      } else {
+        const t = setInterval(() => {
+          if ((window as any).google?.maps?.Map) {
+            clearInterval(t);
+            resolve();
+          }
+        }, 80);
+        setTimeout(() => { clearInterval(t); _promise = null; reject(new Error('google.maps not ready')); }, 10000);
+      }
+    };
+    script.onerror = (e) => {
+      console.error('[Maps] script load error:', e);
+      _promise = null;
+      reject(new Error('Maps script load failed'));
+    };
     document.head.appendChild(script);
   });
 
