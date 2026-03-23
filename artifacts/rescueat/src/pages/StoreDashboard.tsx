@@ -110,12 +110,12 @@ function PostBagModal({
     title: '',
     originalPrice: 1000,
     discountedPrice: 350,
-    stockCount: 3,
+    stockCount: 1,
     pickupStart: '18:00',
     pickupEnd: '20:00',
   });
   // 在庫数は文字列ステートで管理し、入力中の空文字や途中入力を正しく扱う
-  const [stockCountStr, setStockCountStr] = useState('3');
+  const [stockCountStr, setStockCountStr] = useState('1');
 
   function updateStockCount(val: number) {
     const clamped = Math.max(1, val);
