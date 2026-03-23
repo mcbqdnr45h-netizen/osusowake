@@ -271,32 +271,19 @@ export default function StoreOwnerDashboard() {
     return (
       <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-sm w-full">
-          <div className="w-24 h-24 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-            <FileCheck className="w-12 h-12 text-primary" />
+          <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-5">
+            <FileCheck className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="text-2xl font-black text-foreground mb-3">店舗申請を始めましょう</h1>
-          <p className="text-muted-foreground text-sm leading-relaxed mb-8">
-            おすそ分けバッグを出品するには、まず店舗の審査申請が必要です。<br />
-            書類審査（1〜2営業日）が通過すると出品できるようになります。
+          <h1 className="text-2xl font-black text-foreground mb-2">店舗申請を始めましょう</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-5">
+            おすそ分けバッグを出品するには、まず店舗の審査申請が必要です。
           </p>
-          <div className="bg-secondary/50 rounded-2xl p-4 text-left mb-8 space-y-3">
-            {[
-              { step: '1', text: '店舗情報・写真を入力' },
-              { step: '2', text: '食品営業許可証を提出' },
-              { step: '3', text: '審査通過後、すぐに出品開始' },
-            ].map(({ step, text }) => (
-              <div key={step} className="flex items-center gap-3">
-                <div className="w-7 h-7 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xs font-black shrink-0">{step}</div>
-                <span className="text-sm font-medium text-foreground">{text}</span>
-              </div>
-            ))}
-          </div>
           <button
             onClick={() => navigate('/store-onboarding')}
-            className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl text-base shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            className="mt-2 w-full max-w-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 px-4 rounded-lg shadow-md flex items-center justify-center gap-2"
           >
             <PlusCircle className="w-5 h-5" />
-            店舗申請を開始する
+            店舗情報を登録して申請する
           </button>
         </motion.div>
       </div>

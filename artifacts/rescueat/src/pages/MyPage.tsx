@@ -13,7 +13,7 @@ const POINT_RATE = 0.03;
 
 export default function MyPage() {
   const userId = useUserId();
-  const { store, isApprovedOwner } = useMyStore();
+  const { store, loading: loadingStore, isApprovedOwner } = useMyStore();
   const [, navigate] = useLocation();
   const { user, profile, signOut } = useAuth();
 
@@ -287,20 +287,25 @@ export default function MyPage() {
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Link>
 
-          {profile?.role === 'store_owner' && !store && (
-            <Link
-              href="/store-onboarding"
-              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
-            >
-              <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center shrink-0">
-                <FileCheck className="w-5 h-5" />
+          {profile?.role === 'store_owner' && store === null && !loadingStore && (
+            <div className="p-4 border-b border-border">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center shrink-0">
+                  <FileCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-bold text-foreground text-sm">店舗申請がまだ完了していません</div>
+                  <div className="text-xs text-muted-foreground">審査通過後に出品できます</div>
+                </div>
               </div>
-              <div className="flex-1">
-                <div className="font-bold text-foreground">店舗申請を開始する</div>
-                <div className="text-xs text-muted-foreground">審査通過後に出品できます</div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </Link>
+              <button
+                onClick={() => navigate('/store-onboarding')}
+                className="mt-2 w-full max-w-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 px-4 rounded-lg shadow-md flex items-center justify-center gap-2"
+              >
+                <FileCheck className="w-4 h-4" />
+                店舗情報を登録して申請する
+              </button>
+            </div>
           )}
 
           {profile?.role === 'store_owner' && (store?.status === 'pending' || store?.status === 'pending_review') && (
