@@ -5,7 +5,6 @@ import { useGetReservation } from '@workspace/api-client-react';
 import { CheckCircle2, ShieldCheck, CreditCard, Coins, Lock, Sparkles, ChevronLeft, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { Link } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 
 const POINT_RATE = 0.03;
@@ -19,6 +18,7 @@ export default function Checkout() {
   const { user } = useAuth();
 
   const { data: reservation, isLoading } = useGetReservation(reservationId);
+  const fromPath: string = (window.history.state as any)?.from || '';
 
   if (isLoading || !reservation) {
     return (
@@ -71,11 +71,12 @@ export default function Checkout() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Link href={`/bags/${reservation.bagId}`}>
-            <button className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-          </Link>
+          <button
+            onClick={() => navigate(fromPath || `/bags/${reservation.bagId}`)}
+            className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
           <h1 className="text-2xl font-black text-foreground">お支払い</h1>
         </div>
 

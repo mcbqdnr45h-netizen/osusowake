@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useListReservations, useCancelReservation } from '@workspace/api-client-react';
 import { format, parseISO } from 'date-fns';
 import { Ticket, MapPin, Clock, ExternalLink, Star, PenLine, X, CheckCircle2, CreditCard, Ban, Trash2 } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewModal } from '@/components/ReviewModal';
@@ -50,6 +50,7 @@ export default function MyReservations() {
   );
 
   const cancelMutation = useCancelReservation();
+  const [, navigate] = useLocation();
 
   const [reviewTarget,  setReviewTarget]  = useState<ReviewTarget | null>(null);
   const [reviewedIds,   setReviewedIds]   = useState<Set<number>>(new Set());
@@ -303,13 +304,14 @@ export default function MyReservations() {
                         </p>
                       </div>
                     ) : (
-                      <Link href={`/checkout/${res.id}`}>
-                        <span className="mt-1 w-full bg-amber-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-amber-600 active:scale-[0.98] transition-all cursor-pointer text-sm shadow-md shadow-amber-300/50">
-                          <CreditCard className="w-4 h-4" />
-                          決済を完了する
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </span>
-                      </Link>
+                      <button
+                        onClick={() => navigate(`/checkout/${res.id}`, { state: { from: '/my-reservations' } })}
+                        className="mt-1 w-full bg-amber-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-amber-600 active:scale-[0.98] transition-all cursor-pointer text-sm shadow-md shadow-amber-300/50"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        決済を完了する
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
                     )
                   )}
 
