@@ -4,7 +4,7 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, ClipboardCheck, Mail, Scale, Flame, TrendingUp, Star, Clock, XCircle, FileCheck } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, Coins, Lock, Sparkles, CreditCard, Receipt, ClipboardCheck, Mail, Scale, Flame, TrendingUp, Star, Clock, XCircle, FileCheck, Camera, MessageSquare } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
 import { useAuth } from '@/contexts/AuthContext';
@@ -390,6 +390,54 @@ export default function MyPage() {
                 <StoreIcon className="w-5 h-5" />
               </div>
               <div className="flex-1 font-bold text-foreground">店舗ダッシュボード</div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </Link>
+          )}
+
+          {profile?.role === 'store_owner' && isApprovedOwner && (
+            <Link
+              href="/store/profile-edit"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            >
+              <div className="w-10 h-10 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center shrink-0">
+                <Camera className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-foreground">店舗プロフィール編集</div>
+                <div className="text-xs text-muted-foreground">カバー写真・紹介文・営業時間など</div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </Link>
+          )}
+
+          {profile?.role === 'store_owner' && isApprovedOwner && (
+            <Link
+              href="/store/reviews"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            >
+              <div className="w-10 h-10 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center shrink-0">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-foreground">お客様からのレビュー</div>
+                <div className="text-xs text-muted-foreground">レビュー確認・返信管理</div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </Link>
+          )}
+
+          {profile?.role === 'store_owner' && isApprovedOwner && (
+            <Link
+              href="/store/legal"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            >
+              <div className="w-10 h-10 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0">
+                <Scale className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-foreground">特定商取引法に基づく表記の設定</div>
+                <div className="text-xs text-muted-foreground">販売事業者情報・法的表示事項</div>
+              </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </Link>
           )}

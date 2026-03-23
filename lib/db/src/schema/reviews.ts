@@ -10,6 +10,8 @@ export const reviewsTable = pgTable("reviews", {
   rating: integer("rating").notNull(),
   comment: text("comment"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  reply: text("reply"),
+  repliedAt: timestamp("replied_at"),
 });
 
 export type Review = typeof reviewsTable.$inferSelect;

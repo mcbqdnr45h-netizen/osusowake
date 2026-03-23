@@ -44,6 +44,16 @@ export const storesTable = pgTable("stores", {
   pledgeSigned: boolean("pledge_signed").notNull().default(false),
   approvalEmailSent: boolean("approval_email_sent").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  // Profile & hours
+  holiday: text("holiday"),
+  pickupHours: text("pickup_hours"),
+  // 特定商取引法 legal info
+  legalName: text("legal_name"),
+  legalRepresentative: text("legal_representative"),
+  legalAddress: text("legal_address"),
+  legalPhone: text("legal_phone"),
+  legalEmail: text("legal_email"),
+  legalOther: text("legal_other"),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });

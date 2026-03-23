@@ -40,6 +40,8 @@ const storeSelectFields = {
   pledgeSigned: storesTable.pledgeSigned,
   createdAt: storesTable.createdAt,
   stripeAccountId: storesTable.stripeAccountId,
+  holiday: storesTable.holiday,
+  pickupHours: storesTable.pickupHours,
   totalBagsAvailable: sql<number>`COALESCE(SUM(CASE WHEN ${surpriseBagsTable.isActive} = true THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
 
@@ -996,6 +998,170 @@ router.post("/stores/notify-approval", async (req, res) => {
   } catch (err: any) {
     console.error("[notify-approval] error:", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ─── 店舗オーナー向けレビュー一覧（バッグ名 join）─────────────────────────────
+router.get("/stores/:storeId/owner-reviews", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+      return;
+    }
+
+    const reviews = await db
+      .select({
+        id: reviewsTable.id,
+        rating: reviewsTable.rating,
+        comment: reviewsTable.comment,
+        createdAt: reviewsTable.createdAt,
+        reply: reviewsTable.reply,
+        repliedAt: reviewsTable.repliedAt,
+        bagTitle: surpriseBagsTable.title,
+        reservationId: reviewsTable.reservationId,
+      })
+      .from(reviewsTable)
+      .leftJoin(reservationsTable, eq(reviewsTable.reservationId, reservationsTable.id))
+      .leftJoin(surpriseBagsTable, eq(reservationsTable.bagId, surpriseBagsTable.id))
+      .where(eq(reviewsTable.storeId, storeId))
+      .orderBy(desc(reviewsTable.createdAt));
+
+    res.json({ reviews });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to fetch reviews" });
+  }
+});
+
+// ─── レビューへの返信（店舗オーナー）─────────────────────────────────────────
+router.patch("/stores/:storeId/reviews/:reviewId/reply", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    const reviewId = parseInt(req.params.reviewId);
+    const { reply } = req.body as { reply: string };
+
+    if (isNaN(storeId) || isNaN(reviewId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid id" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(reviewsTable)
+      .set({ reply: reply || null, repliedAt: reply ? new Date() : null })
+      .where(and(eq(reviewsTable.id, reviewId), eq(reviewsTable.storeId, storeId)))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Review not found" });
+      return;
+    }
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to update reply" });
+  }
+});
+
+// ─── 店舗プロフィール更新（カバー写真・紹介文・営業時間等）─────────────────
+router.put("/stores/:storeId/profile", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+      return;
+    }
+
+    const allowed = ["name", "description", "imageUrl", "phone", "openTime", "closeTime", "holiday", "pickupHours"] as const;
+    const body = req.body as Partial<Record<typeof allowed[number], string>>;
+    const patch: Record<string, string | null> = {};
+    for (const key of allowed) {
+      if (key in body) patch[key] = body[key] ?? null;
+    }
+
+    const [updated] = await db
+      .update(storesTable)
+      .set(patch)
+      .where(eq(storesTable.id, storeId))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Store not found" });
+      return;
+    }
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to update profile" });
+  }
+});
+
+// ─── 特定商取引法表記 取得（公開）─────────────────────────────────────────────
+router.get("/stores/:storeId/legal", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+      return;
+    }
+
+    const [store] = await db
+      .select({
+        name: storesTable.name,
+        legalName: storesTable.legalName,
+        legalRepresentative: storesTable.legalRepresentative,
+        legalAddress: storesTable.legalAddress,
+        legalPhone: storesTable.legalPhone,
+        legalEmail: storesTable.legalEmail,
+        legalOther: storesTable.legalOther,
+      })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "Store not found" });
+      return;
+    }
+    res.json(store);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to fetch legal info" });
+  }
+});
+
+// ─── 特定商取引法表記 更新（店舗オーナー）──────────────────────────────────────
+router.put("/stores/:storeId/legal", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+      return;
+    }
+
+    const { legalName, legalRepresentative, legalAddress, legalPhone, legalEmail, legalOther } =
+      req.body as {
+        legalName?: string;
+        legalRepresentative?: string;
+        legalAddress?: string;
+        legalPhone?: string;
+        legalEmail?: string;
+        legalOther?: string;
+      };
+
+    const [updated] = await db
+      .update(storesTable)
+      .set({ legalName, legalRepresentative, legalAddress, legalPhone, legalEmail, legalOther })
+      .where(eq(storesTable.id, storeId))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "Store not found" });
+      return;
+    }
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to update legal info" });
   }
 });
 
