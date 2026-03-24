@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
@@ -79,6 +79,8 @@ export default function StoreBagsPage() {
     pickupStart: '18:00',
     pickupEnd: '20:00',
   });
+  const [editingStock, setEditingStock] = useState(false);
+  const stockInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -269,45 +271,79 @@ export default function StoreBagsPage() {
                 </div>
               </div>
 
-              {/* 在庫数 ── 大型ステッパー */}
+              {/* 在庫数 ── ステッパー（枠からはみ出さない完全実装） */}
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-2">在庫数</label>
-                <div className="flex items-stretch gap-2 h-14">
+                <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 56px', gap: '8px', height: '56px' }}>
+
                   {/* − ボタン */}
                   <button
                     type="button"
-                    onClick={() => setForm({ ...form, stockCount: Math.max(1, form.stockCount - 1) })}
+                    onClick={() => setForm(f => ({ ...f, stockCount: Math.max(1, f.stockCount - 1) }))}
                     disabled={form.stockCount <= 1}
-                    className="w-14 shrink-0 flex items-center justify-center rounded-xl bg-secondary border-2 border-border text-foreground hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{ height: '56px', minWidth: '56px' }}
+                    className="flex items-center justify-center rounded-xl bg-secondary border-2 border-border text-foreground hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Minus className="w-5 h-5" strokeWidth={2.5} />
                   </button>
 
-                  {/* 数値表示 + 直接入力 */}
-                  <div className="flex-1 flex flex-col items-center justify-center bg-secondary/40 border-2 border-border rounded-xl">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      required
-                      value={form.stockCount}
-                      onChange={e => {
-                        const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                        setForm({ ...form, stockCount: isNaN(v) ? 1 : Math.max(1, v) });
-                      }}
-                      className="w-full text-center font-black text-2xl bg-transparent border-none focus:ring-0 p-0 outline-none leading-none"
-                    />
-                    <span className="text-[10px] font-bold text-muted-foreground mt-0.5">個</span>
+                  {/* 数値エリア：position:relative で input を絶対配置 → 絶対に枠外に出ない */}
+                  <div
+                    role="button"
+                    onClick={() => { setEditingStock(true); setTimeout(() => stockInputRef.current?.focus(), 0); }}
+                    style={{ position: 'relative', height: '56px', borderRadius: '12px', overflow: 'hidden' }}
+                    className="bg-secondary/40 border-2 border-border cursor-text"
+                  >
+                    {/* 数字ラベル（編集中は非表示） */}
+                    {!editingStock && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                        <span style={{ fontSize: '24px', fontWeight: 900, lineHeight: 1 }}>{form.stockCount}</span>
+                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>個</span>
+                      </div>
+                    )}
+                    {/* input：絶対配置でコンテナを満たす → はみ出し不可 */}
+                    {editingStock && (
+                      <input
+                        ref={stockInputRef}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoFocus
+                        value={form.stockCount}
+                        onChange={e => {
+                          const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                          setForm(f => ({ ...f, stockCount: isNaN(v) ? 1 : Math.max(1, v) }));
+                        }}
+                        onBlur={() => setEditingStock(false)}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          boxSizing: 'border-box',
+                          textAlign: 'center',
+                          fontSize: '24px',
+                          fontWeight: 900,
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          padding: 0,
+                          margin: 0,
+                        }}
+                      />
+                    )}
                   </div>
 
                   {/* ＋ ボタン */}
                   <button
                     type="button"
-                    onClick={() => setForm({ ...form, stockCount: form.stockCount + 1 })}
-                    className="w-14 shrink-0 flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 active:scale-95 transition-all shadow-md shadow-primary/25"
+                    onClick={() => setForm(f => ({ ...f, stockCount: f.stockCount + 1 }))}
+                    style={{ height: '56px', minWidth: '56px' }}
+                    className="flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 active:scale-95 transition-all shadow-md shadow-primary/25"
                   >
                     <Plus className="w-5 h-5" strokeWidth={2.5} />
                   </button>
+
                 </div>
               </div>
 
