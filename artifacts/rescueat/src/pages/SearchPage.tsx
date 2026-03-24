@@ -8,7 +8,7 @@ import {
   ArrowUpDown, MapPin, Clock, Package, ChevronRight, ShoppingBag, Navigation2,
   Croissant, Utensils, Coffee, ShoppingCart, Store as StoreIcon,
   Candy, Wheat, Sparkles, History, RefreshCw, Loader2, PackageOpen, Navigation,
-  RotateCcw,
+  RotateCcw, Apple, Fish, UtensilsCrossed, GlassWater, Gift,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
@@ -38,15 +38,20 @@ type SortKey  = 'default' | 'distance' | 'price_asc' | 'price_desc' | 'stock_des
 
 // ─── カテゴリー ───────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { label: 'すべて',       value: '',            icon: <Sparkles     className="w-4 h-4" /> },
-  { label: 'パン',         value: 'bakery',       icon: <Croissant    className="w-4 h-4" /> },
-  { label: 'お弁当・惣菜', value: 'restaurant',   icon: <Utensils     className="w-4 h-4" /> },
-  { label: 'カフェ',       value: 'cafe',         icon: <Coffee       className="w-4 h-4" /> },
-  { label: 'スーパー',     value: 'supermarket',  icon: <ShoppingCart className="w-4 h-4" /> },
-  { label: 'コンビニ',     value: 'convenience',  icon: <StoreIcon    className="w-4 h-4" /> },
-  { label: 'スイーツ',     value: 'sweets',       icon: <Candy        className="w-4 h-4" /> },
-  { label: 'その他',       value: 'other',        icon: <Wheat        className="w-4 h-4" /> },
-] as const;
+  { label: 'すべて',       value: '',            icon: <Sparkles        className="w-4 h-4" /> },
+  { label: 'パン',         value: 'bakery',       icon: <Croissant       className="w-4 h-4" /> },
+  { label: 'お弁当・惣菜', value: 'restaurant',   icon: <Utensils        className="w-4 h-4" /> },
+  { label: 'カフェ',       value: 'cafe',         icon: <Coffee          className="w-4 h-4" /> },
+  { label: 'スーパー',     value: 'supermarket',  icon: <ShoppingCart    className="w-4 h-4" /> },
+  { label: 'コンビニ',     value: 'convenience',  icon: <StoreIcon       className="w-4 h-4" /> },
+  { label: 'スイーツ',     value: 'sweets',       icon: <Candy           className="w-4 h-4" /> },
+  { label: 'その他・惣菜', value: 'other',        icon: <Wheat           className="w-4 h-4" /> },
+  { label: '野菜・果物',   value: 'produce',      icon: <Apple           className="w-4 h-4" /> },
+  { label: '肉・魚',       value: 'meat',         icon: <Fish            className="w-4 h-4" /> },
+  { label: '麺類',         value: 'noodles',      icon: <UtensilsCrossed className="w-4 h-4" /> },
+  { label: 'ドリンク',     value: 'drinks',       icon: <GlassWater      className="w-4 h-4" /> },
+  { label: '詰め合わせ',   value: 'assorted',     icon: <Gift            className="w-4 h-4" /> },
+];
 
 const SORT_OPTIONS: { label: string; value: SortKey; needsLocation?: boolean }[] = [
   { label: '近い順',       value: 'distance',   needsLocation: true },
