@@ -88,6 +88,8 @@ function stripeParamToField(param: string | null | undefined): string | null {
     'individual[address_kana][city]': 'cityKana',
     'individual[address_kana][town]': 'townKana',
     'individual[address_kana][line1]': 'line1Kana',
+    'individual[phone]': 'phone',
+    'individual[email]': 'email',
     'business_profile[product_description]': 'productDescription',
     'business_profile[url]': 'businessUrl',
     'business_type': 'businessType',
@@ -147,6 +149,8 @@ export default function StripeKYCPage() {
   const [firstNameKanji, setFirstNameKanji]   = useState('');
   const [lastNameKana, setLastNameKana]       = useState('');
   const [firstNameKana, setFirstNameKana]     = useState('');
+  const [phone, setPhone]                     = useState('');
+  const [email, setEmail]                     = useState('');
   const [dobYear, setDobYear]                 = useState('');
   const [dobMonth, setDobMonth]               = useState('');
   const [dobDay, setDobDay]                   = useState('');
@@ -251,6 +255,8 @@ export default function StripeKYCPage() {
     !loading &&
     lastNameKanji.trim() && firstNameKanji.trim() &&
     lastNameKana.trim() && firstNameKana.trim() &&
+    phone.trim().length >= 10 &&
+    email.trim().includes('@') &&
     dobYear && dobMonth && dobDay &&
     postalCode.length === 7 &&
     stateKanji && cityKanji && townKanji &&
@@ -281,6 +287,8 @@ export default function StripeKYCPage() {
             lastNameKanji:  lastNameKanji.trim(),
             firstNameKana:  firstNameKana.trim(),
             lastNameKana:   lastNameKana.trim(),
+            phone: phone.trim() || undefined,
+            email: email.trim() || undefined,
             dobYear:  parseInt(dobYear),
             dobMonth: parseInt(dobMonth),
             dobDay:   parseInt(dobDay),
@@ -342,6 +350,8 @@ export default function StripeKYCPage() {
       'townKana':      ['individual.address_kana.town'],
       'productDescription': ['business_profile.product_description'],
       'businessUrl':        ['business_profile.url'],
+      'phone': ['individual.phone', 'representative.phone'],
+      'email': ['individual.email', 'representative.email'],
     };
     return (reqMap[fieldKey] ?? []).some(k => pendingItems.includes(k));
   };
@@ -618,6 +628,15 @@ export default function StripeKYCPage() {
                   placeholder="タロウ" required className={fieldClass('firstNameKana')} />
               </FieldWrap>
             </div>
+            <FieldWrap label="電話番号" required hint="ハイフンなし（例: 09012345678）" error={fieldErrors.phone}>
+              <input type="tel" value={phone}
+                onChange={e => setPhone(e.target.value.replace(/[^\d+\-()]/g, ''))}
+                placeholder="09012345678" inputMode="tel" required className={fieldClass('phone')} />
+            </FieldWrap>
+            <FieldWrap label="メールアドレス" required error={fieldErrors.email}>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="owner@example.com" required className={fieldClass('email')} />
+            </FieldWrap>
           </Section>
 
           {/* ③ 生年月日 */}

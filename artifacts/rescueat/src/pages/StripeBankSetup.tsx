@@ -117,6 +117,8 @@ export default function StripeBankSetup() {
   const [firstNameKanji, setFirstNameKanji] = useState('');
   const [lastNameKana, setLastNameKana]     = useState('');
   const [firstNameKana, setFirstNameKana]   = useState('');
+  const [phone, setPhone]                   = useState('');
+  const [email, setEmail]                   = useState('');
 
   // ── KYC: 生年月日 ──
   const [dobYear, setDobYear]   = useState('');
@@ -215,6 +217,8 @@ export default function StripeBankSetup() {
   const missingFields: string[] = [];
   if (!lastNameKanji.trim() || !firstNameKanji.trim()) missingFields.push('代表者氏名（漢字）');
   if (!lastNameKana.trim()   || !firstNameKana.trim())  missingFields.push('代表者氏名（カタカナ）');
+  if (phone.trim().length < 10)  missingFields.push(`電話番号（現在${phone.trim().length}桁 / 10桁以上）`);
+  if (!email.trim().includes('@')) missingFields.push('メールアドレス（正しい形式で入力）');
   if (!dobYear || !dobMonth || !dobDay)                 missingFields.push('生年月日');
   if (postalCode.length !== 7)                          missingFields.push('郵便番号（7桁）');
   if (!stateKanji)                                      missingFields.push('都道府県');
@@ -284,6 +288,8 @@ export default function StripeBankSetup() {
             lastNameKanji:  lastNameKanji.trim(),
             firstNameKana:  firstNameKana.trim(),
             lastNameKana:   lastNameKana.trim(),
+            phone: phone.trim() || undefined,
+            email: email.trim() || undefined,
             dobYear:  parseInt(dobYear),
             dobMonth: parseInt(dobMonth),
             dobDay:   parseInt(dobDay),
@@ -572,6 +578,15 @@ export default function StripeBankSetup() {
                   placeholder="タロウ" required className={inputClass} />
               </Field>
             </div>
+            <Field label="電話番号" required hint="ハイフンなし（例: 09012345678）">
+              <input type="tel" value={phone}
+                onChange={e => setPhone(e.target.value.replace(/[^\d+\-()]/g, ''))}
+                placeholder="09012345678" inputMode="tel" required className={inputClass} />
+            </Field>
+            <Field label="メールアドレス" required>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="owner@example.com" required className={inputClass} />
+            </Field>
           </FormSection>
 
           {/* ── ③ 生年月日 ── */}

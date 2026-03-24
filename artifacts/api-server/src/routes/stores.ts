@@ -762,6 +762,8 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
         cityKana: string;
         townKana: string;
         line1Kana?: string;
+        phone?: string;
+        email?: string;
       };
       businessProfile: {
         productDescription?: string;
@@ -825,45 +827,54 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     };
 
     if (businessType === "individual") {
-      updateParams["individual"] = {
+      const indiv: Record<string, any> = {
         first_name: representative.firstNameKanji,
-        last_name: representative.lastNameKanji,
+        last_name:  representative.lastNameKanji,
         first_name_kana: representative.firstNameKana,
-        last_name_kana: representative.lastNameKana,
+        last_name_kana:  representative.lastNameKana,
         dob: {
-          day: Number(representative.dobDay),
+          day:   Number(representative.dobDay),
           month: Number(representative.dobMonth),
-          year: Number(representative.dobYear),
+          year:  Number(representative.dobYear),
         },
         address_kanji: addressKanji,
-        address_kana: addressKana,
+        address_kana:  addressKana,
       };
+      if (representative.phone) indiv["phone"] = representative.phone;
+      if (representative.email) indiv["email"] = representative.email;
+      updateParams["individual"] = indiv;
     } else {
       // company: 会社情報 + 代表者情報
-      updateParams["company"] = {
-        name: `${representative.lastNameKanji}${representative.firstNameKanji}`,
-        name_kana: `${representative.lastNameKana}${representative.firstNameKana}`,
+      const companyObj: Record<string, any> = {
+        name:       `${representative.lastNameKanji}${representative.firstNameKanji}`,
+        name_kana:  `${representative.lastNameKana}${representative.firstNameKana}`,
         address_kanji: addressKanji,
-        address_kana: addressKana,
+        address_kana:  addressKana,
       };
-      updateParams["representative"] = {
+      if (representative.phone) companyObj["phone"] = representative.phone;
+      updateParams["company"] = companyObj;
+
+      const rep: Record<string, any> = {
         first_name: representative.firstNameKanji,
-        last_name: representative.lastNameKanji,
+        last_name:  representative.lastNameKanji,
         first_name_kana: representative.firstNameKana,
-        last_name_kana: representative.lastNameKana,
+        last_name_kana:  representative.lastNameKana,
         dob: {
-          day: Number(representative.dobDay),
+          day:   Number(representative.dobDay),
           month: Number(representative.dobMonth),
-          year: Number(representative.dobYear),
+          year:  Number(representative.dobYear),
         },
         address_kanji: addressKanji,
-        address_kana: addressKana,
+        address_kana:  addressKana,
         relationship: {
           representative: true,
           owner: true,
           percent_ownership: 100,
         },
       };
+      if (representative.phone) rep["phone"] = representative.phone;
+      if (representative.email) rep["email"] = representative.email;
+      updateParams["representative"] = rep;
     }
 
     const account = await stripe.accounts.update(store.stripeAccountId, updateParams as any);
