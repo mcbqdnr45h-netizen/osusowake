@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Images, X, Loader2, RefreshCw } from 'lucide-react';
+import { ImagePlus, X, RefreshCw, AlertCircle } from 'lucide-react';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -9,19 +9,54 @@ interface ImageUploadProps {
   required?: boolean;
 }
 
+/** canvas で画像をリサイズ＋JPEG圧縮して File に変換（アップロード高速化） */
+async function compressImage(file: File, maxPx = 1024, quality = 0.82): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const { naturalWidth: w, naturalHeight: h } = img;
+      const scale = Math.min(1, maxPx / Math.max(w, h));
+      const cw = Math.round(w * scale);
+      const ch = Math.round(h * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width  = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, cw, ch);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        quality,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
-  const cameraRef  = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress]  = useState<string>('');
+  const [error, setError]        = useState<string | null>(null);
 
   async function handleFile(file: File) {
     if (!file) return;
     setError(null);
     setUploading(true);
     try {
+      setProgress('圧縮中...');
+      const compressed = await compressImage(file);
+      const sizeMB = (compressed.size / 1024 / 1024).toFixed(1);
+      setProgress(`送信中 (${sizeMB}MB)...`);
+
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressed);
       const res = await fetch(`${BASE}/api/upload/bag-image`, {
         method: 'POST',
         body: formData,
@@ -36,6 +71,7 @@ export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
       setError(e.message ?? 'アップロードエラー');
     } finally {
       setUploading(false);
+      setProgress('');
     }
   }
 
@@ -52,98 +88,77 @@ export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
       </label>
 
       {value ? (
+        /* ── 画像選択済み ── */
         <div className="relative rounded-2xl overflow-hidden border-2 border-primary/30 shadow-sm">
-          <img
-            src={value}
-            alt="商品写真"
-            className="w-full h-48 object-cover"
-          />
+          <img src={value} alt="商品写真" className="w-full h-48 object-cover" />
+
+          {/* 削除ボタン */}
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => { onChange(null); setError(null); }}
             className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
-          {/* 変更ボタン（カメラ / ライブラリ） */}
-          <div className="absolute bottom-2 right-2 flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => cameraRef.current?.click()}
-              className="flex items-center gap-1 bg-black/60 text-white text-xs font-bold px-2.5 py-1.5 rounded-full hover:bg-black/80 transition-colors"
-            >
-              <Camera className="w-3.5 h-3.5" />
-              カメラ
-            </button>
-            <button
-              type="button"
-              onClick={() => galleryRef.current?.click()}
-              className="flex items-center gap-1 bg-black/60 text-white text-xs font-bold px-2.5 py-1.5 rounded-full hover:bg-black/80 transition-colors"
-            >
-              <Images className="w-3.5 h-3.5" />
-              ライブラリ
-            </button>
-          </div>
+
+          {/* 変更ボタン（1つ・中央下） */}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-black/80 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            写真を変更
+          </button>
+
           {uploading && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-white" />
+            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
+              <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
+              <p className="text-white text-xs font-bold">{progress}</p>
             </div>
           )}
+        </div>
+      ) : uploading ? (
+        /* ── アップロード中 ── */
+        <div className="w-full h-44 border-2 border-dashed border-primary/40 rounded-2xl bg-primary/5 flex flex-col items-center justify-center gap-3">
+          <div className="w-9 h-9 border-[3px] border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-bold text-primary">{progress || 'アップロード中...'}</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {uploading ? (
-            <div className="w-full h-48 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-sm font-bold text-muted-foreground">アップロード中...</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {/* カメラで撮る */}
-              <button
-                type="button"
-                onClick={() => cameraRef.current?.click()}
-                className="h-24 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/3 transition-all group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                  <Camera className="w-5 h-5 text-primary" />
-                </div>
-                <p className="text-xs font-black text-foreground">カメラで撮る</p>
-              </button>
-
-              {/* ライブラリから選ぶ */}
-              <button
-                type="button"
-                onClick={() => galleryRef.current?.click()}
-                className="h-24 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/3 transition-all group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                  <Images className="w-5 h-5 text-primary" />
-                </div>
-                <p className="text-xs font-black text-foreground">ライブラリ</p>
-              </button>
-            </div>
-          )}
-        </div>
+        /* ── 未選択 ── */
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className={`w-full h-44 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 transition-all group ${
+            error
+              ? 'border-red-400 bg-red-50 hover:border-red-500'
+              : 'border-border hover:border-primary/50 hover:bg-primary/5'
+          }`}
+        >
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
+            error ? 'bg-red-100' : 'bg-primary/10 group-hover:bg-primary/15'
+          }`}>
+            <ImagePlus className={`w-7 h-7 ${error ? 'text-red-500' : 'text-primary'}`} />
+          </div>
+          <div className="text-center">
+            <p className={`text-sm font-black ${error ? 'text-red-600' : 'text-foreground'}`}>
+              タップして写真を選ぶ
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">カメラまたはライブラリから選択</p>
+          </div>
+        </button>
       )}
 
       {error && (
-        <p className="text-xs font-bold text-red-500">{error}</p>
+        <div className="flex items-center gap-1.5 text-red-500">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <p className="text-xs font-bold">{error}</p>
+        </div>
       )}
 
-      {/* カメラ専用 input */}
+      {/* ファイル選択 input — capture なし → iOS がカメラ/ライブラリ選択シートを表示 */}
       <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleChange}
-      />
-
-      {/* ライブラリ専用 input（capture なし → ギャラリー表示） */}
-      <input
-        ref={galleryRef}
+        ref={inputRef}
         type="file"
         accept="image/*"
         className="hidden"
