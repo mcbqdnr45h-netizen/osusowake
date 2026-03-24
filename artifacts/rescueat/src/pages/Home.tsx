@@ -389,13 +389,17 @@ export default function Home() {
 
   useEffect(() => {
     if (authLoading) return;
-    // 未ログイン（user=nullが確定）→ ウェルカム画面へ
+    // 未ログイン → ウェルカム画面へ
     if (!user) {
       navigate('/welcome', { replace: true });
       return;
     }
-    // 店舗オーナーもホームを閲覧可能（pending中でも公開ページは閲覧できるようにする）
-  }, [authLoading, user, navigate]);
+    // 店舗オーナーはダッシュボードへ（pending は StoreDashboard 内でオンボーディングへ誘導）
+    if (profile?.role === 'store_owner') {
+      navigate('/store/dashboard', { replace: true });
+      return;
+    }
+  }, [authLoading, user, profile, navigate]);
 
   const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || inStockOnly || sortKey !== 'default';
 

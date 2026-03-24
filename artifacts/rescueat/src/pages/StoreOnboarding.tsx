@@ -264,7 +264,7 @@ export default function StoreOnboarding() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => {
-              if (step === 'submitted') navigate('/');
+              if (step === 'submitted') navigate('/mypage');
               else if (step === 'compliance') setStep('basic');
               else navigate('/register-store');
             }}
@@ -558,11 +558,11 @@ export default function StoreOnboarding() {
               </div>
 
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/mypage')}
                 className="w-full bg-secondary text-foreground font-bold py-4 rounded-2xl hover:bg-secondary/80 transition-colors flex items-center justify-center gap-2"
               >
                 <Home className="w-5 h-5" />
-                ホームに戻る
+                マイページへ
               </button>
             </motion.div>
           )}

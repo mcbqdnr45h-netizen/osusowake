@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   Map, Search, Package, Heart, User, Menu, X,
-  FileText, Shield, Store, Settings, ChevronRight, Coins,
+  FileText, Shield, Store, Settings, ChevronRight, Coins, BarChart2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
@@ -33,11 +33,12 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
 
   const isStoreOwner = profile?.role === 'store_owner';
 
-  // 店舗オーナー用ナビ
+  // 店舗オーナー用ナビ（StoreLayout と同じ4タブ）
   const storeNavItems = [
-    { href: '/store/dashboard', icon: Store,   label: 'ダッシュボード', isUser: false },
-    { href: '/store/bags',      icon: Package, label: '出品管理',       isUser: false },
-    { href: '/mypage',          icon: User,    label: 'マイページ',     isUser: true  },
+    { href: '/store/dashboard', icon: Store,       label: 'ダッシュボード', isUser: false },
+    { href: '/store/bags',      icon: Package,     label: '出品管理',       isUser: false },
+    { href: '/store/sales',     icon: BarChart2,   label: '売上確認',       isUser: false },
+    { href: '/mypage',          icon: User,        label: 'マイページ',     isUser: true  },
   ];
 
   // 一般ユーザー用ナビ
