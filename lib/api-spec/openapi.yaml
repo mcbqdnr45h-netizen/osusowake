@@ -609,6 +609,10 @@ components:
           type: string
         pickupEnd:
           type: string
+        imageUrl:
+          type: string
+        category:
+          type: string
       required:
         - title
         - originalPrice

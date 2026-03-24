@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Camera, ImagePlus, X, Loader2 } from 'lucide-react';
+import { Camera, Images, X, Loader2, RefreshCw } from 'lucide-react';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -10,7 +10,8 @@ interface ImageUploadProps {
 }
 
 export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef  = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,50 +65,87 @@ export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
           >
             <X className="w-4 h-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-black/80 transition-colors"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            変更
-          </button>
+          {/* 変更ボタン（カメラ / ライブラリ） */}
+          <div className="absolute bottom-2 right-2 flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              className="flex items-center gap-1 bg-black/60 text-white text-xs font-bold px-2.5 py-1.5 rounded-full hover:bg-black/80 transition-colors"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              カメラ
+            </button>
+            <button
+              type="button"
+              onClick={() => galleryRef.current?.click()}
+              className="flex items-center gap-1 bg-black/60 text-white text-xs font-bold px-2.5 py-1.5 rounded-full hover:bg-black/80 transition-colors"
+            >
+              <Images className="w-3.5 h-3.5" />
+              ライブラリ
+            </button>
+          </div>
+          {uploading && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-white" />
+            </div>
+          )}
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          className="w-full h-48 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/3 transition-all group disabled:opacity-60"
-        >
+        <div className="space-y-2">
           {uploading ? (
-            <>
+            <div className="w-full h-48 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <p className="text-sm font-bold text-muted-foreground">アップロード中...</p>
-            </>
+            </div>
           ) : (
-            <>
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                <ImagePlus className="w-7 h-7 text-primary" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-black text-foreground">写真を追加</p>
-                <p className="text-xs text-muted-foreground mt-0.5">タップしてカメラロールから選択</p>
-              </div>
-            </>
+            <div className="grid grid-cols-2 gap-2">
+              {/* カメラで撮る */}
+              <button
+                type="button"
+                onClick={() => cameraRef.current?.click()}
+                className="h-24 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/3 transition-all group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                  <Camera className="w-5 h-5 text-primary" />
+                </div>
+                <p className="text-xs font-black text-foreground">カメラで撮る</p>
+              </button>
+
+              {/* ライブラリから選ぶ */}
+              <button
+                type="button"
+                onClick={() => galleryRef.current?.click()}
+                className="h-24 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-primary/3 transition-all group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                  <Images className="w-5 h-5 text-primary" />
+                </div>
+                <p className="text-xs font-black text-foreground">ライブラリ</p>
+              </button>
+            </div>
           )}
-        </button>
+        </div>
       )}
 
       {error && (
         <p className="text-xs font-bold text-red-500">{error}</p>
       )}
 
+      {/* カメラ専用 input */}
       <input
-        ref={inputRef}
+        ref={cameraRef}
         type="file"
         accept="image/*"
         capture="environment"
+        className="hidden"
+        onChange={handleChange}
+      />
+
+      {/* ライブラリ専用 input（capture なし → ギャラリー表示） */}
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
         className="hidden"
         onChange={handleChange}
       />

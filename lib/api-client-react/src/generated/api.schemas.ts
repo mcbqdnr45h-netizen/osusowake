@@ -139,6 +139,7 @@ export interface CreateBagRequest {
   stockCount: number;
   pickupStart?: string;
   pickupEnd?: string;
+  imageUrl?: string;
   category?: string;
 }
 

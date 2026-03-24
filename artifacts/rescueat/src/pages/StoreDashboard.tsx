@@ -226,7 +226,10 @@ function PostBagModal({
   }, [pastBag]);
 
   async function handleQuickSubmit() {
-    if (!pastBag) return;
+    if (!pastBag) {
+      toast({ title: '商品を選択してください', variant: 'destructive' });
+      return;
+    }
     if (!imageUrl) {
       toast({ title: '写真を追加してください', variant: 'destructive' });
       return;
@@ -238,8 +241,8 @@ function PostBagModal({
         data: {
           title: pastBag.title,
           description: '',
-          originalPrice: pastBag.originalPrice,
-          discountedPrice: pastBag.discountedPrice,
+          originalPrice: Number(pastBag.originalPrice),
+          discountedPrice: Number(pastBag.discountedPrice),
           stockCount: qty,
           pickupStart: quickPickupStart,
           pickupEnd: quickPickupEnd,
@@ -249,8 +252,10 @@ function PostBagModal({
       });
       toast({ title: '出品しました！', description: `${pastBag.title} × ${qty}個` });
       onSuccess();
-    } catch {
-      toast({ title: '出品に失敗しました', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('[handleQuickSubmit] error:', err);
+      const msg = err?.data?.message ?? err?.message ?? '出品に失敗しました';
+      toast({ title: '出品に失敗しました', description: msg, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -270,9 +275,9 @@ function PostBagModal({
         data: {
           title: form.title,
           description: '',
-          originalPrice: form.originalPrice,
-          discountedPrice: form.discountedPrice,
-          stockCount: form.stockCount,
+          originalPrice: Number(form.originalPrice),
+          discountedPrice: Number(form.discountedPrice),
+          stockCount: Number(form.stockCount),
           pickupStart: form.pickupStart,
           pickupEnd: form.pickupEnd,
           imageUrl,
@@ -281,8 +286,10 @@ function PostBagModal({
       });
       toast({ title: '出品しました！' });
       onSuccess();
-    } catch {
-      toast({ title: '出品に失敗しました', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('[handleManualSubmit] error:', err);
+      const msg = err?.data?.message ?? err?.message ?? '出品に失敗しました';
+      toast({ title: '出品に失敗しました', description: msg, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -504,9 +511,14 @@ function PostBagModal({
 
           {mode === 'manual' && (
             <form onSubmit={handleManualSubmit} className="space-y-4">
+              {/* 商品写真（最上部） */}
+              <ImageUpload value={imageUrl} onChange={handleImageChange} required />
+
               {/* 商品名 */}
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">商品名</label>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                  商品名 <span className="text-red-500">*</span>
+                </label>
                 <input
                   required
                   value={form.title}
@@ -516,13 +528,12 @@ function PostBagModal({
                 />
               </div>
 
-              {/* ラベル */}
-              <CategoryPicker value={bagCategory} onChange={setBagCategory} />
-
               {/* 価格 */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">通常価格</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                    通常価格 <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
                     <input
@@ -536,7 +547,9 @@ function PostBagModal({
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">販売価格</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                    販売価格 <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
                     <input
@@ -558,7 +571,9 @@ function PostBagModal({
 
               {/* 在庫 */}
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">在庫数</label>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                  在庫数 <span className="text-red-500">*</span>
+                </label>
                 <div className="flex items-center w-36 bg-card border-2 border-border rounded-xl overflow-hidden h-12">
                   <button type="button" onClick={() => updateStockCount(form.stockCount - 1)}
                     className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">−</button>
@@ -596,23 +611,24 @@ function PostBagModal({
               {/* 受取時間 */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取開始</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                    受取開始 <span className="text-red-500">*</span>
+                  </label>
                   <input type="time" required value={form.pickupStart}
                     onChange={e => setForm({ ...form, pickupStart: e.target.value })}
                     className="w-full bg-card border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取終了</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                    受取終了 <span className="text-red-500">*</span>
+                  </label>
                   <input type="time" required value={form.pickupEnd}
                     onChange={e => setForm({ ...form, pickupEnd: e.target.value })}
                     className="w-full bg-card border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
                 </div>
               </div>
 
-              {/* 写真アップロード */}
-              <ImageUpload value={imageUrl} onChange={handleImageChange} required />
-
-              {/* ラベル */}
+              {/* ラベル（1つだけ、AI対応） */}
               <CategoryPicker
                 value={bagCategory}
                 onChange={setBagCategory}
