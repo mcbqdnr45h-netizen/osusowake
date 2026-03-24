@@ -1003,6 +1003,124 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
   }
 });
 
+// ─── Stripe 本人確認書類アップロード ─────────────────────────────────────────
+// POST /api/stores/:storeId/connect/kyc-document
+// 1. base64 画像を Stripe Files API (purpose=identity_document) にアップロード
+// 2. 取得した fileId を individual.verification.document.front/back にセット
+// 3. requirements が完全にゼロになれば DB を 'approved' に更新
+router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    const { imageBase64, mimeType, side } = req.body as {
+      imageBase64: string;          // "data:image/jpeg;base64,..." or raw base64
+      mimeType: string;             // "image/jpeg" | "image/png"
+      side: "front" | "back";
+    };
+
+    if (!imageBase64 || !mimeType || !side) {
+      res.status(400).json({ error: "bad_request", message: "imageBase64, mimeType, side は必須です" });
+      return;
+    }
+    if (side !== "front" && side !== "back") {
+      res.status(400).json({ error: "bad_request", message: "side は 'front' または 'back' のみ有効です" });
+      return;
+    }
+
+    // ── 店舗取得 ──
+    const [store] = await db.select().from(storesTable).where(eq(storesTable.id, storeId)).limit(1);
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "店舗が見つかりません" });
+      return;
+    }
+    if (!store.stripeAccountId) {
+      res.status(400).json({ error: "no_stripe_account", message: "Stripeアカウントが未設定です。先に口座登録を行ってください。" });
+      return;
+    }
+
+    // ── Stripe キー取得 ──
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+      res.status(500).json({ error: "config_error", message: "Stripe設定が不足しています" });
+      return;
+    }
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    // ── base64 → Buffer 変換 ──
+    const base64Data = imageBase64.replace(/^data:[^;]+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
+    const ext = mimeType === "image/png" ? "png" : "jpg";
+    const fileName = `identity_document_${side}.${ext}`;
+
+    console.log(`📤 [KYC-DOC] Uploading ${side} document to Stripe Files for account ${store.stripeAccountId} (${(buffer.length / 1024).toFixed(1)} KB)`);
+
+    // ── Stripe Files API にアップロード ──
+    const file = await stripe.files.create({
+      purpose: "identity_document",
+      file: {
+        data:    buffer,
+        name:    fileName,
+        type:    mimeType as "image/jpeg" | "image/png",
+      },
+    });
+    console.log(`✅ [KYC-DOC] Stripe file created: ${file.id} (${file.filename})`);
+
+    // ── accounts.update で verification.document に fileId をセット ──
+    const account = await stripe.accounts.update(store.stripeAccountId, {
+      individual: {
+        verification: {
+          document: {
+            [side]: file.id,
+          },
+        },
+      } as any,
+    });
+
+    console.log(`✅ [KYC-DOC] accounts.update succeeded for store ${storeId}`);
+    console.log(`   requirements.currently_due:  ${JSON.stringify(account.requirements?.currently_due)}`);
+    console.log(`   requirements.eventually_due: ${JSON.stringify(account.requirements?.eventually_due)}`);
+    console.log(`   requirements.pending_verification: ${JSON.stringify(account.requirements?.pending_verification)}`);
+
+    // ── currently_due が空になれば DB を 'approved' に ──
+    const currentlyDue  = account.requirements?.currently_due  ?? [];
+    const eventuallyDue = account.requirements?.eventually_due ?? [];
+    const pendingVer    = account.requirements?.pending_verification ?? [];
+    const kycComplete   = currentlyDue.length === 0;
+
+    if (kycComplete) {
+      await db
+        .update(storesTable)
+        .set({ status: "approved" })
+        .where(eq(storesTable.id, storeId));
+      console.log(`✅ Store ${storeId} status → 'approved' (doc upload cleared currently_due)`);
+    }
+
+    res.json({
+      success:    true,
+      fileId:     file.id,
+      side,
+      kycComplete,
+      storeStatus: kycComplete ? "approved" : "applied",
+      requirements: {
+        currentlyDue,
+        eventuallyDue,
+        pendingVerification: pendingVer,
+      },
+    });
+  } catch (err: any) {
+    console.error("❌ [KYC-DOC] Failed:");
+    console.error("   type:    ", err?.type);
+    console.error("   code:    ", err?.raw?.code ?? err?.code);
+    console.error("   message: ", err?.raw?.message ?? err?.message);
+    console.error("   raw:     ", JSON.stringify(err?.raw ?? {}, null, 2));
+    res.status(500).json({
+      error:       "stripe_error",
+      message:     err?.raw?.message ?? err?.message ?? "書類のアップロードに失敗しました",
+      stripeCode:  err?.raw?.code ?? null,
+      stripeType:  err?.type ?? null,
+    });
+  }
+});
+
 // ─── Stripe Custom Account 銀行口座セットアップ ───────────────────────────────
 // POST /api/stores/:storeId/connect/bank-setup
 // Custom アカウントを作成（未作成なら）し、フロントエンドトークン化済みの銀行口座を紐付ける

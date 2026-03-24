@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
@@ -7,6 +7,7 @@ import {
   ChevronLeft, Loader2, CheckCircle2, AlertCircle,
   ShieldCheck, User, Building2, MapPin, FileText,
   TriangleAlert, Info, ClipboardCheck, RefreshCw,
+  Camera, Upload, ImageIcon, X, BadgeCheck,
 } from 'lucide-react';
 
 // ── 電話番号ユーティリティ ────────────────────────────────────────────
@@ -80,6 +81,16 @@ function translateRequirement(key: string): string {
     'representative.dob.year': '代表者 生年月日（年）',
     'representative.address_kanji.state': '代表者住所（都道府県）',
     'representative.relationship.representative': '代表者の関係性確認',
+    'individual.verification.document':       '本人確認書類',
+    'individual.verification.document.front': '本人確認書類（表面）',
+    'individual.verification.document.back':  '本人確認書類（裏面）',
+    'individual.verification.additional_document':       '補足確認書類',
+    'individual.verification.additional_document.front': '補足確認書類（表面）',
+    'individual.verification.additional_document.back':  '補足確認書類（裏面）',
+    'individual.first_name_kanji':  '代表者名（名・漢字）',
+    'individual.last_name_kanji':   '代表者名（姓・漢字）',
+    'individual.address_kanji.line1': '住所（番地・建物名）',
+    'individual.address_kana.line1':  '住所カナ（番地・建物名）',
   };
   return map[key] ?? key;
 }
@@ -197,6 +208,18 @@ export default function StripeKYCPage() {
   const [zipLoading, setZipLoading]           = useState(false);
   const [globalError, setGlobalError]         = useState<string | null>(null);
   const [fieldErrors, setFieldErrors]         = useState<Record<string, string>>({});
+
+  // ── 本人確認書類アップロード ──
+  const [docFrontFile, setDocFrontFile]       = useState<File | null>(null);
+  const [docFrontPreview, setDocFrontPreview] = useState<string | null>(null);
+  const [docBackFile, setDocBackFile]         = useState<File | null>(null);
+  const [docBackPreview, setDocBackPreview]   = useState<string | null>(null);
+  const [docLoading, setDocLoading]           = useState<'front' | 'back' | null>(null);
+  const [docError, setDocError]               = useState<string | null>(null);
+  const [docFrontDone, setDocFrontDone]       = useState(false);
+  const [docBackDone, setDocBackDone]         = useState(false);
+  const frontInputRef = useRef<HTMLInputElement>(null);
+  const backInputRef  = useRef<HTMLInputElement>(null);
 
   type KYCResult = {
     kycComplete: boolean;
@@ -369,6 +392,71 @@ export default function StripeKYCPage() {
       setGlobalError(err?.message ?? '予期しないエラーが発生しました。');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── 書類ファイル選択ハンドラ ──
+  const handleDocFileChange = (side: 'front' | 'back') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      if (side === 'front') { setDocFrontFile(file); setDocFrontPreview(url); setDocFrontDone(false); }
+      else                  { setDocBackFile(file);  setDocBackPreview(url);  setDocBackDone(false);  }
+    };
+    reader.readAsDataURL(file);
+    setDocError(null);
+  };
+
+  // ── 書類アップロード → Stripe Files → accounts.update ──
+  const handleDocUpload = async (side: 'front' | 'back') => {
+    if (!store?.id) return;
+    const file    = side === 'front' ? docFrontFile : docBackFile;
+    const preview = side === 'front' ? docFrontPreview : docBackPreview;
+    if (!file || !preview) return;
+
+    setDocLoading(side);
+    setDocError(null);
+    try {
+      const res = await fetch(`/api/stores/${store.id}/connect/kyc-document`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          imageBase64: preview,          // data:image/jpeg;base64,... 形式
+          mimeType:    file.type || 'image/jpeg',
+          side,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setDocError(data.message ?? '書類のアップロードに失敗しました');
+        return;
+      }
+
+      if (side === 'front') setDocFrontDone(true);
+      else                  setDocBackDone(true);
+
+      // ストアを refetch して MyPage を即時更新
+      await refetch();
+
+      // KYC 完了 → result 画面を更新
+      if (data.kycComplete) {
+        setResult(prev => prev ? {
+          ...prev,
+          kycComplete: true,
+          storeStatus: 'approved',
+          requirements: { ...prev.requirements, ...data.requirements },
+        } : null);
+      }
+    } catch (err: any) {
+      setDocError(err?.message ?? '予期しないエラーが発生しました');
+    } finally {
+      setDocLoading(null);
     }
   };
 
@@ -559,6 +647,53 @@ export default function StripeKYCPage() {
               {result.requirements.pendingVerification.map(req => (
                 <p key={req} className="text-sm text-blue-600">・{translateRequirement(req)}</p>
               ))}
+            </div>
+          )}
+
+          {/* ── 本人確認書類が不足している場合に結果画面でもアップロードを表示 ── */}
+          {remaining.some(r => r.includes('verification.document')) && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 mb-4 space-y-4">
+              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2">
+                <Camera className="w-4 h-4 text-orange-500" />本人確認書類をアップロード
+              </h3>
+              <p className="text-xs text-gray-500">
+                運転免許証・マイナンバーカード・パスポートの表面を撮影してアップロードしてください。
+              </p>
+
+              {docError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-700">{docError}</p>
+                </div>
+              )}
+
+              {/* 表面 */}
+              <input ref={frontInputRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif"
+                onChange={handleDocFileChange('front')} className="hidden" />
+              {docFrontPreview ? (
+                <div className="relative">
+                  <img src={docFrontPreview} alt="表面" className="w-full max-h-48 object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                  <button type="button"
+                    onClick={() => { setDocFrontFile(null); setDocFrontPreview(null); setDocFrontDone(false); if (frontInputRef.current) frontInputRef.current.value = ''; }}
+                    className="absolute top-2 right-2 w-7 h-7 bg-gray-800/60 rounded-full flex items-center justify-center">
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                  {docFrontDone
+                    ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-bold mt-2"><BadgeCheck className="w-4 h-4" />Stripeに送信済み</div>
+                    : <button type="button" disabled={docLoading === 'front'} onClick={() => handleDocUpload('front')}
+                        className="mt-2 w-full py-2.5 bg-orange-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
+                        {docLoading === 'front' ? <><Loader2 className="w-4 h-4 animate-spin" />送信中...</> : <><Upload className="w-4 h-4" />この画像を送信する</>}
+                      </button>
+                  }
+                </div>
+              ) : (
+                <button type="button" onClick={() => frontInputRef.current?.click()}
+                  className="w-full h-32 border-2 border-dashed border-orange-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-orange-50 transition-colors">
+                  <Camera className="w-8 h-8 text-orange-300" />
+                  <p className="text-xs text-orange-400 font-bold">タップして書類の表面を選択</p>
+                  <p className="text-xs text-gray-300">JPG / PNG / HEIC 対応</p>
+                </button>
+              )}
             </div>
           )}
 
@@ -792,6 +927,99 @@ export default function StripeKYCPage() {
               <input type="url" value={businessUrl} onChange={e => setBusinessUrl(e.target.value)}
                 placeholder="https://example.com" className={fieldClass('businessUrl')} />
             </FieldWrap>
+          </Section>
+
+          {/* ⑥ 本人確認書類 */}
+          <Section title="本人確認書類" icon={<Camera className="w-5 h-5 text-orange-500" />}>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              運転免許証・マイナンバーカード・パスポートなどをアップロードしてください。<br />
+              表面は必須、裏面は書類の種類に応じてアップロードしてください。
+            </p>
+
+            {/* docError */}
+            {docError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700">{docError}</p>
+              </div>
+            )}
+
+            {/* 表面 */}
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">表面 <span className="text-red-400">*</span></p>
+              <input ref={frontInputRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif"
+                onChange={handleDocFileChange('front')} className="hidden" />
+
+              {docFrontPreview ? (
+                <div className="relative">
+                  <img src={docFrontPreview} alt="表面プレビュー"
+                    className="w-full max-h-48 object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                  <button type="button"
+                    onClick={() => { setDocFrontFile(null); setDocFrontPreview(null); setDocFrontDone(false); if (frontInputRef.current) frontInputRef.current.value = ''; }}
+                    className="absolute top-2 right-2 w-7 h-7 bg-gray-800/60 rounded-full flex items-center justify-center">
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                  {docFrontDone
+                    ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-bold mt-2">
+                        <BadgeCheck className="w-4 h-4" />Stripeに送信済み
+                      </div>
+                    : <button type="button" disabled={docLoading === 'front'}
+                        onClick={() => handleDocUpload('front')}
+                        className="mt-2 w-full py-2.5 bg-orange-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
+                        {docLoading === 'front'
+                          ? <><Loader2 className="w-4 h-4 animate-spin" />Stripeにアップロード中...</>
+                          : <><Upload className="w-4 h-4" />この画像を表面として送信する</>
+                        }
+                      </button>
+                  }
+                </div>
+              ) : (
+                <button type="button" onClick={() => frontInputRef.current?.click()}
+                  className="w-full h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                  <ImageIcon className="w-8 h-8 text-gray-300" />
+                  <p className="text-xs text-gray-400 font-medium">タップして画像を選択</p>
+                  <p className="text-xs text-gray-300">JPG / PNG / HEIC 対応</p>
+                </button>
+              )}
+            </div>
+
+            {/* 裏面 */}
+            <div className="space-y-2 pt-2 border-t border-gray-100">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">裏面（任意）</p>
+              <input ref={backInputRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif"
+                onChange={handleDocFileChange('back')} className="hidden" />
+
+              {docBackPreview ? (
+                <div className="relative">
+                  <img src={docBackPreview} alt="裏面プレビュー"
+                    className="w-full max-h-48 object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                  <button type="button"
+                    onClick={() => { setDocBackFile(null); setDocBackPreview(null); setDocBackDone(false); if (backInputRef.current) backInputRef.current.value = ''; }}
+                    className="absolute top-2 right-2 w-7 h-7 bg-gray-800/60 rounded-full flex items-center justify-center">
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                  {docBackDone
+                    ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-bold mt-2">
+                        <BadgeCheck className="w-4 h-4" />Stripeに送信済み
+                      </div>
+                    : <button type="button" disabled={docLoading === 'back'}
+                        onClick={() => handleDocUpload('back')}
+                        className="mt-2 w-full py-2.5 bg-orange-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
+                        {docLoading === 'back'
+                          ? <><Loader2 className="w-4 h-4 animate-spin" />Stripeにアップロード中...</>
+                          : <><Upload className="w-4 h-4" />この画像を裏面として送信する</>
+                        }
+                      </button>
+                  }
+                </div>
+              ) : (
+                <button type="button" onClick={() => backInputRef.current?.click()}
+                  className="w-full h-28 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                  <ImageIcon className="w-7 h-7 text-gray-300" />
+                  <p className="text-xs text-gray-400 font-medium">裏面を追加する（任意）</p>
+                </button>
+              )}
+            </div>
           </Section>
 
           {/* グローバルエラー */}
