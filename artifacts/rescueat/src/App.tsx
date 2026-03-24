@@ -34,7 +34,6 @@ import PaymentMethods from "./pages/PaymentMethods";
 import Orders from "./pages/Orders";
 import StoreOnboarding from "./pages/StoreOnboarding";
 import StripeBankSetup from "./pages/StripeBankSetup";
-import StripeKYCPage from "./pages/StripeKYCPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import CheckoutCancel from "./pages/CheckoutCancel";
@@ -75,7 +74,6 @@ const GuardedStoreSales      = Protected(StoreSalesPage, 'store_owner');
 const GuardedRegisterStore   = Protected(RegisterStore, 'store_owner');
 const GuardedStoreOnboarding = Protected(StoreOnboarding, 'store_owner');
 const GuardedStripeBankSetup = Protected(StripeBankSetup, 'store_owner');
-const GuardedStripeKYC       = Protected(StripeKYCPage,  'store_owner');
 const GuardedAdmin           = Protected(AdminDashboard);
 const GuardedAdminVerify     = Protected(AdminVerifyShops);
 const GuardedStoreProfileEdit = Protected(StoreProfileEdit, 'store_owner');
@@ -157,7 +155,6 @@ function AnimatedRoutes() {
           <Route path="/register-store"  component={GuardedRegisterStore} />
           <Route path="/store-onboarding" component={GuardedStoreOnboarding} />
           <Route path="/store/bank-setup" component={GuardedStripeBankSetup} />
-          <Route path="/store/kyc-setup" component={GuardedStripeKYC} />
           <Route path="/store/profile-edit" component={GuardedStoreProfileEdit} />
           <Route path="/store/reviews"   component={GuardedStoreReviews} />
           <Route path="/store/legal"     component={GuardedStoreLegal} />

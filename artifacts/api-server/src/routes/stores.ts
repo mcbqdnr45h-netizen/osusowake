@@ -1123,14 +1123,51 @@ router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
 
 // ─── Stripe Custom Account 銀行口座セットアップ ───────────────────────────────
 // POST /api/stores/:storeId/connect/bank-setup
-// Custom アカウントを作成（未作成なら）し、フロントエンドトークン化済みの銀行口座を紐付ける
+// 口座登録・KYC情報送信・本人確認書類アップロードを一括処理し、DBステータスを approved に更新する
 router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
   try {
     const storeId = parseInt(req.params.storeId);
-    const { bankToken, tosTimestamp } = req.body as { bankToken: string; tosTimestamp: number };
+    const {
+      bankToken,
+      tosTimestamp,
+      kycData,
+      docFrontBase64,
+      docFrontMime,
+      docBackBase64,
+      docBackMime,
+    } = req.body as {
+      bankToken: string;
+      tosTimestamp: number;
+      kycData: {
+        firstNameKanji: string;
+        lastNameKanji: string;
+        firstNameKana: string;
+        lastNameKana: string;
+        phone: string;
+        email?: string;
+        dobYear: number;
+        dobMonth: number;
+        dobDay: number;
+        postalCode: string;
+        stateKanji: string;
+        cityKanji: string;
+        townKanji: string;
+        line1Kanji?: string;
+        stateKana: string;
+        cityKana: string;
+        townKana: string;
+        line1Kana?: string;
+        productDescription?: string;
+        businessUrl?: string;
+      };
+      docFrontBase64: string;
+      docFrontMime: string;
+      docBackBase64?: string;
+      docBackMime?: string;
+    };
 
-    if (!bankToken || !tosTimestamp) {
-      res.status(400).json({ error: "bad_request", message: "bankToken と tosTimestamp は必須です" });
+    if (!bankToken || !tosTimestamp || !kycData || !docFrontBase64 || !docFrontMime) {
+      res.status(400).json({ error: "bad_request", message: "bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime は必須です" });
       return;
     }
 
@@ -1154,7 +1191,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     let ownerEmail: string | undefined;
     if (store.ownerId) {
       const { data: userData } = await supabaseAdmin.auth.admin.getUserById(store.ownerId);
-      ownerEmail = userData?.user?.email;
+      ownerEmail = userData?.user?.email ?? kycData.email;
     }
 
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
@@ -1170,71 +1207,124 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
       process.env["REPLIT_DEV_DOMAIN"] ||
       "tabeross.replit.app";
-    const businessUrl = `https://${replitDomain}`;
+    const businessUrl = kycData.businessUrl?.trim() || `https://${replitDomain}`;
 
+    // ── STEP 1: Stripe Custom アカウント作成 or 更新 ──
     let accountId = store.stripeAccountId;
 
     if (!accountId) {
-      // Custom アカウントを新規作成
       const account = await stripe.accounts.create({
         type: "custom",
         country: "JP",
         ...(ownerEmail ? { email: ownerEmail } : {}),
-        capabilities: {
-          transfers: { requested: true },
-        },
-        business_profile: {
-          mcc: "5812",
-          url: businessUrl,
-        },
-        tos_acceptance: {
-          date: Math.floor(tosTimestamp / 1000),
-          ip,
-        },
+        capabilities: { transfers: { requested: true } },
+        business_profile: { mcc: "5812", url: businessUrl },
+        tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip },
       });
       accountId = account.id;
-
-      await db
-        .update(storesTable)
-        .set({ stripeAccountId: accountId })
-        .where(eq(storesTable.id, storeId));
-
-      console.log(`✅ Stripe Custom Account created: ${accountId} for store ${storeId}`);
+      await db.update(storesTable).set({ stripeAccountId: accountId }).where(eq(storesTable.id, storeId));
+      console.log(`✅ [bank-setup] Stripe Custom Account created: ${accountId} for store ${storeId}`);
     } else {
-      // 既存アカウントのビジネス情報と ToS 同意を更新
       await stripe.accounts.update(accountId, {
-        business_profile: {
-          mcc: "5812",
-          url: businessUrl,
-        },
-        tos_acceptance: {
-          date: Math.floor(tosTimestamp / 1000),
-          ip,
-        },
+        business_profile: { mcc: "5812", url: businessUrl },
+        tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip },
       });
-      console.log(`ℹ️  Stripe Custom Account updated: ${accountId} for store ${storeId}`);
+      console.log(`ℹ️  [bank-setup] Stripe Custom Account updated: ${accountId}`);
     }
 
-    // 銀行口座トークンを外部アカウントとして紐付け
+    // ── STEP 2: 銀行口座を外部アカウントとして紐付け ──
     await stripe.accounts.createExternalAccount(accountId, {
       external_account: bankToken,
       default_for_currency: true,
     });
+    console.log(`✅ [bank-setup] Bank account attached to ${accountId}`);
 
-    // 口座登録完了 → ステータスを 'applied'（申請済み・審査待ち）に更新
-    await db
-      .update(storesTable)
-      .set({ status: "applied" })
-      .where(eq(storesTable.id, storeId));
+    // ── STEP 3: 本人確認書類を Stripe Files API にアップロード ──
+    const toBuffer = (b64: string) => Buffer.from(b64.replace(/^data:[^;]+;base64,/, ""), "base64");
+    const frontExt = docFrontMime === "image/png" ? "png" : "jpg";
+    const frontFile = await stripe.files.create({
+      purpose: "identity_document",
+      file: { data: toBuffer(docFrontBase64), name: `id_front.${frontExt}`, type: docFrontMime as "image/jpeg" | "image/png" },
+    });
+    console.log(`✅ [bank-setup] Front doc uploaded: ${frontFile.id}`);
 
-    console.log(`✅ Bank account attached to ${accountId}`);
-    console.log(`✅ Store ${storeId} status updated to 'applied'`);
-    res.json({ success: true, accountId });
+    let backFileId: string | undefined;
+    if (docBackBase64 && docBackMime) {
+      const backExt = docBackMime === "image/png" ? "png" : "jpg";
+      const backFile = await stripe.files.create({
+        purpose: "identity_document",
+        file: { data: toBuffer(docBackBase64), name: `id_back.${backExt}`, type: docBackMime as "image/jpeg" | "image/png" },
+      });
+      backFileId = backFile.id;
+      console.log(`✅ [bank-setup] Back doc uploaded: ${backFileId}`);
+    }
+
+    // ── STEP 4: stripe.accounts.update で全 KYC データ + 書類を一括送信 ──
+    const k = kycData;
+
+    // 住所: line1 = city + town + line1 (Stripe Japan の必須フィールド)
+    const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
+    const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana].filter(Boolean).join(" ");
+
+    const addressKanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
+    const addressKana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+    const addressStd   = { postal_code: k.postalCode, country: "JP", state: k.stateKanji, city: k.cityKanji, line1: kanjiLine1 };
+
+    const indiv: Record<string, any> = {
+      first_name:       k.firstNameKana,
+      last_name:        k.lastNameKana,
+      first_name_kana:  k.firstNameKana,
+      last_name_kana:   k.lastNameKana,
+      first_name_kanji: k.firstNameKanji,
+      last_name_kanji:  k.lastNameKanji,
+      dob:  { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) },
+      address:       addressStd,
+      address_kanji: addressKanji,
+      address_kana:  addressKana,
+      phone:  toE164Japan(k.phone),
+      ...(ownerEmail ? { email: ownerEmail } : {}),
+      verification: {
+        document: {
+          front: frontFile.id,
+          ...(backFileId ? { back: backFileId } : {}),
+        },
+      },
+    };
+
+    const businessProfileUpdate: Record<string, string> = { mcc: "5812", url: businessUrl };
+    if (k.productDescription) businessProfileUpdate["product_description"] = k.productDescription;
+
+    console.log(`📤 [bank-setup] accounts.update payload for ${accountId}`);
+    const account = await stripe.accounts.update(accountId, {
+      business_type:    "individual",
+      business_profile: businessProfileUpdate,
+      individual:       indiv as any,
+    });
+
+    console.log(`✅ [bank-setup] accounts.update succeeded`);
+    console.log(`   charges_enabled: ${account.charges_enabled}`);
+    console.log(`   payouts_enabled: ${account.payouts_enabled}`);
+    console.log(`   currently_due:   ${JSON.stringify(account.requirements?.currently_due)}`);
+
+    // ── STEP 5: DBステータスを approved に更新（送信完了の証として）──
+    // currently_due の状態に関わらず approved にする
+    // （Stripeの審査はバックグラウンドで続くが、ユーザー側の入力はすべて完了した）
+    await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
+    console.log(`✅ [bank-setup] Store ${storeId} status → 'approved'`);
+
+    res.json({
+      success: true,
+      accountId,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      currentlyDue:   account.requirements?.currently_due ?? [],
+    });
   } catch (err: any) {
-    console.error("Stripe bank-setup error:", err);
+    console.error("❌ [bank-setup] Error:", err?.raw?.message ?? err?.message ?? err);
     res.status(500).json({
-      error: "stripe_error",
-      message: err?.raw?.message ?? err?.message ?? "銀行口座の登録に失敗しました",
+      error:   "stripe_error",
+      message: err?.raw?.message ?? err?.message ?? "登録処理に失敗しました",
+      param:   err?.raw?.param ?? null,
     });
   }
 });

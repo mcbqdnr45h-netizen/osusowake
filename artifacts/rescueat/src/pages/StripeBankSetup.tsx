@@ -7,8 +7,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Building2, ChevronLeft, Loader2, CheckCircle2,
   AlertCircle, ShieldCheck, Info, CreditCard, PartyPopper,
-  User, MapPin, FileText, TriangleAlert, ClipboardCheck,
-  Camera, Upload, ImageIcon, X, BadgeCheck,
+  User, MapPin, FileText, TriangleAlert,
+  Camera, ImageIcon, BadgeCheck,
 } from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
@@ -146,8 +146,6 @@ export default function StripeBankSetup() {
   const [docFrontPreview, setDocFrontPreview] = useState<string | null>(null);
   const [docBackFile, setDocBackFile]         = useState<File | null>(null);
   const [docBackPreview, setDocBackPreview]   = useState<string | null>(null);
-  const [docFrontDone, setDocFrontDone]       = useState(false);
-  const [docBackDone, setDocBackDone]         = useState(false);
   const [docError, setDocError]               = useState<string | null>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef  = useRef<HTMLInputElement>(null);
@@ -156,32 +154,7 @@ export default function StripeBankSetup() {
   const [loading, setLoading]       = useState(false);
   const [zipLoading, setZipLoading] = useState(false);
   const [error, setError]           = useState<string | null>(null);
-  const [step, setStep]             = useState<'form' | 'bank_done' | 'done'>('form');
-  const [kycResult, setKycResult]   = useState<{
-    kycComplete: boolean;
-    storeStatus: string;
-    chargesEnabled: boolean;
-    payoutsEnabled: boolean;
-    requirements: {
-      currentlyDue: string[];
-      eventuallyDue: string[];
-      errors: { code: string; reason: string; requirement: string }[];
-      pendingVerification: string[];
-      disabledReason: string | null;
-    };
-  } | null>(null);
-
-  // ── 審査通過通知 ──
-  useEffect(() => {
-    if (!store || !session?.access_token) return;
-    if (store.status !== 'approved') return;
-    if (notifiedRef.current) return;
-    notifiedRef.current = true;
-    fetch('/api/stores/notify-approval', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    }).catch(() => {});
-  }, [store?.status, session?.access_token]);
+  const [done, setDone]             = useState(false);
 
   // ── 郵便番号自動補完 ──
   const lookupZip = useCallback(async (zip: string) => {
@@ -226,8 +199,8 @@ export default function StripeBankSetup() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const url = ev.target?.result as string;
-      if (side === 'front') { setDocFrontFile(file); setDocFrontPreview(url); setDocFrontDone(false); }
-      else                  { setDocBackFile(file);  setDocBackPreview(url);  setDocBackDone(false);  }
+      if (side === 'front') { setDocFrontFile(file); setDocFrontPreview(url); }
+      else                  { setDocBackFile(file);  setDocBackPreview(url);  }
     };
     reader.readAsDataURL(file);
     setDocError(null);
@@ -269,7 +242,7 @@ export default function StripeBankSetup() {
     setError(null);
 
     try {
-      // ① Stripe.js でトークン生成
+      // ① Stripe.js で銀行口座トークン生成
       const stripe = await stripePromise;
       if (!stripe) throw new Error('Stripeの読み込みに失敗しました。ページを再読み込みしてください。');
 
@@ -287,96 +260,49 @@ export default function StripeBankSetup() {
         return;
       }
 
-      // ② 銀行口座登録 API
-      const bankRes = await fetch(`/api/stores/${store.id}/connect/bank-setup`, {
+      // ② 全データを一括送信（口座登録 + KYC + 書類アップロード + DB approved 更新）
+      const res = await fetch(`/api/stores/${store.id}/connect/bank-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bankToken: result.token.id, tosTimestamp: tosTime }),
-      });
-      const bankData = await bankRes.json();
-      if (!bankRes.ok) {
-        setError(bankData.message ?? '銀行口座の登録に失敗しました。しばらく後でお試しください。');
-        return;
-      }
-
-      setStep('bank_done');
-
-      // ③ KYC情報 + 本人確認書類を並行送信
-      const buildDocBody = (file: File, side: 'front' | 'back') => {
-        const fd = new FormData();
-        fd.append('document', file, `${side}.jpg`);
-        fd.append('side', side);
-        return fd;
-      };
-
-      const kycFetch = fetch(`/api/stores/${store.id}/connect/kyc`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
         body: JSON.stringify({
-          businessType,
-          representative: {
+          bankToken:    result.token.id,
+          tosTimestamp: tosTime,
+          kycData: {
             firstNameKanji: firstNameKanji.trim(),
             lastNameKanji:  lastNameKanji.trim(),
             firstNameKana:  firstNameKana.trim(),
             lastNameKana:   lastNameKana.trim(),
-            phone: phone.trim() || undefined,
-            email: email.trim() || undefined,
-            dobYear:  parseInt(dobYear),
-            dobMonth: parseInt(dobMonth),
-            dobDay:   parseInt(dobDay),
+            phone:          phone.trim(),
+            email:          email.trim() || undefined,
+            dobYear:        parseInt(dobYear),
+            dobMonth:       parseInt(dobMonth),
+            dobDay:         parseInt(dobDay),
             postalCode,
             stateKanji, cityKanji: cityKanji.trim(), townKanji: townKanji.trim(),
             line1Kanji: line1Kanji.trim() || undefined,
             stateKana,  cityKana:  cityKana.trim(),  townKana:  townKana.trim(),
             line1Kana:  line1Kana.trim() || undefined,
-          },
-          businessProfile: {
             productDescription: productDescription.trim() || undefined,
-            url: businessUrl.trim() || undefined,
+            businessUrl:        businessUrl.trim() || undefined,
           },
+          // 本人確認書類（base64 data URL のまま送信）
+          docFrontBase64: docFrontPreview,
+          docFrontMime:   docFrontFile?.type ?? 'image/jpeg',
+          docBackBase64:  docBackPreview ?? undefined,
+          docBackMime:    docBackFile?.type ?? undefined,
         }),
       });
 
-      const docFrontFetch = docFrontFile
-        ? fetch(`/api/stores/${store.id}/connect/kyc-document`, {
-            method: 'POST',
-            body: buildDocBody(docFrontFile, 'front'),
-          })
-        : Promise.resolve(null);
-
-      const docBackFetch = docBackFile
-        ? fetch(`/api/stores/${store.id}/connect/kyc-document`, {
-            method: 'POST',
-            body: buildDocBody(docBackFile, 'back'),
-          })
-        : Promise.resolve(null);
-
-      const [kycRes, frontRes, backRes] = await Promise.all([kycFetch, docFrontFetch, docBackFetch]);
-
-      const kycData = await kycRes.json();
-      if (!kycRes.ok) {
-        const fieldHint = kycData.param ? `（項目: ${kycData.param}）` : '';
-        setError(`KYC情報の送信に失敗しました: ${kycData.message ?? '不明なエラー'}${fieldHint}`);
-        setStep('done');
-        await refetch();
+      const data = await res.json();
+      if (!res.ok) {
+        const hint = data.param ? `（項目: ${data.param}）` : '';
+        setError(`${data.message ?? '登録に失敗しました。'}${hint}`);
         return;
       }
 
-      if (frontRes) {
-        if (frontRes.ok) setDocFrontDone(true);
-        else setDocError('本人確認書類（表面）のアップロードに失敗しました。マイページから再送信してください。');
-      }
-      if (backRes) {
-        if (backRes.ok) setDocBackDone(true);
-      }
-
-      // 全て完了 → ストアキャッシュをリフレッシュして警告を即時消す
+      // ③ 完了 → キャッシュ更新してマイページへ
       await refetch();
-      setKycResult(kycData);
-      setStep('done');
+      setDone(true);
     } catch (err: any) {
       setError(err?.message ?? '予期しないエラーが発生しました。');
     } finally {
@@ -410,25 +336,21 @@ export default function StripeBankSetup() {
     );
   }
 
-  // ────────── 口座登録済み（applied） ──────────
-  if (store.status === 'applied') {
+  // ────────── 口座登録済み or 承認済み（フォーム再表示を防ぐ） ──────────
+  if (store.status === 'applied' || store.status === 'approved') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
-          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShieldCheck className="w-10 h-10 text-amber-500" />
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-10 h-10 text-green-500" />
           </div>
-          <h2 className="text-xl font-black text-gray-900 mb-2">口座登録済み・審査中</h2>
-          <p className="text-sm text-gray-500 mb-4 leading-relaxed">
-            銀行口座の登録が完了しています。<br />
-            本人確認情報（KYC）の入力が必要な場合はマイページからご確認ください。
+          <h2 className="text-xl font-black text-gray-900 mb-2">登録情報を送信済みです</h2>
+          <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+            口座・本人確認情報の送信が完了しています。<br />
+            Stripeの審査はバックグラウンドで進行中です。
           </p>
-          <button onClick={() => navigate('/store/kyc-setup')}
-            className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl w-full mb-3">
-            本人確認情報（KYC）を入力する
-          </button>
           <button onClick={() => navigate('/mypage')}
-            className="border-2 border-gray-200 text-gray-600 font-bold px-6 py-3 rounded-2xl w-full">
+            className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl w-full">
             マイページへ戻る
           </button>
         </div>
@@ -436,113 +358,31 @@ export default function StripeBankSetup() {
     );
   }
 
-  // ────────── 完了後：結果画面 ──────────
-  if (step === 'done') {
-    const remaining = kycResult ? [
-      ...kycResult.requirements.currentlyDue,
-      ...kycResult.requirements.eventuallyDue,
-    ].filter((v, i, a) => a.indexOf(v) === i) : [];
-    const allClear = kycResult?.kycComplete ?? false;
-
+  // ────────── 完了後：成功画面 ──────────
+  if (done) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-        <div className="max-w-lg mx-auto px-4 pt-safe-or-4 pb-12">
-          <div className="flex items-center gap-3 py-5">
-            <button onClick={() => navigate('/store/dashboard')}
-              className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
-              <ChevronLeft className="w-5 h-5 text-gray-700" />
-            </button>
-            <h1 className="text-xl font-black text-gray-900">登録完了</h1>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          className="text-center max-w-sm w-full"
+        >
+          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <CheckCircle2 className="w-12 h-12 text-green-500" />
           </div>
-
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl shadow-sm p-6 text-center mb-4"
+          <h2 className="text-2xl font-black text-gray-900 mb-2">登録完了！</h2>
+          <p className="text-sm text-gray-500 leading-relaxed mb-2">
+            口座情報・本人確認書類・代表者情報をすべてStripeへ送信しました。
+          </p>
+          <p className="text-xs text-gray-400 leading-relaxed mb-8">
+            Stripeの審査はバックグラウンドで進行します。審査が通過次第、出品の売上を受け取れるようになります。
+          </p>
+          <button
+            onClick={() => navigate('/mypage')}
+            className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black text-base rounded-2xl shadow-lg active:scale-[0.98] transition-transform"
           >
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${
-              allClear ? 'bg-green-100' : 'bg-amber-100'
-            }`}>
-              {allClear
-                ? <CheckCircle2 className="w-10 h-10 text-green-500" />
-                : <ClipboardCheck className="w-10 h-10 text-amber-500" />
-              }
-            </div>
-            <h2 className="text-xl font-black text-gray-900 mb-2">
-              {allClear ? '✅ Stripe連携完了！' : '銀行口座を登録しました'}
-            </h2>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              {allClear
-                ? 'すべての本人確認情報が揃い、Stripeアカウントの制限が解除されました。出品を開始できます！'
-                : '銀行口座の登録が完了しました。本人確認情報をStripeに送信中です。'
-              }
-            </p>
-
-            {kycResult && (
-              <div className="flex items-center justify-center gap-3 mt-4 flex-wrap">
-                <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
-                  kycResult.chargesEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {kycResult.chargesEnabled ? '✅ 支払い受取：有効' : '⏳ 支払い受取：審査中'}
-                </span>
-                <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
-                  kycResult.payoutsEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {kycResult.payoutsEnabled ? '✅ 振込：有効' : '⏳ 振込：審査中'}
-                </span>
-              </div>
-            )}
-          </motion.div>
-
-          {/* エラーメッセージ（KYC失敗時） */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3 mb-4">
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
-
-          {/* 残り要件 */}
-          {remaining.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
-              <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2">
-                <TriangleAlert className="w-4 h-4 text-amber-500" />
-                Stripeに追加情報が必要です（{remaining.length}件）
-              </h3>
-              <ul className="space-y-2 mb-4">
-                {remaining.map(req => (
-                  <li key={req} className="flex items-start gap-2 text-sm">
-                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-2 shrink-0" />
-                    <span className="text-gray-700">{translateRequirement(req)}</span>
-                  </li>
-                ))}
-              </ul>
-              <button onClick={() => navigate('/store/kyc-setup')}
-                className="w-full py-2.5 border-2 border-orange-400 text-orange-500 font-bold text-sm rounded-xl">
-                KYC情報を追加入力する
-              </button>
-            </div>
-          )}
-
-          {/* Stripeエラー */}
-          {kycResult && kycResult.requirements.errors.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-4">
-              <h3 className="font-black text-red-700 text-sm mb-3 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                Stripeからのエラー
-              </h3>
-              {kycResult.requirements.errors.map((err, i) => (
-                <p key={i} className="text-sm text-red-600">
-                  <span className="font-bold">{translateRequirement(err.requirement)}</span>：{err.reason}
-                </p>
-              ))}
-            </div>
-          )}
-
-          <button onClick={() => navigate('/store/dashboard')}
-            className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black text-base rounded-2xl shadow-lg">
-            ダッシュボードへ
+            マイページへ
           </button>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -801,9 +641,7 @@ export default function StripeBankSetup() {
                     <>
                       <img src={docFrontPreview} alt="表面プレビュー" className="absolute inset-0 w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
-                        {docFrontDone
-                          ? <CheckCircle2 className="w-7 h-7 text-green-400" />
-                          : <Camera className="w-6 h-6 text-white opacity-80" />}
+                        <Camera className="w-6 h-6 text-white opacity-80" />
                         <span className="text-xs text-white font-medium">タップして変更</span>
                       </div>
                     </>
@@ -827,9 +665,7 @@ export default function StripeBankSetup() {
                     <>
                       <img src={docBackPreview} alt="裏面プレビュー" className="absolute inset-0 w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
-                        {docBackDone
-                          ? <CheckCircle2 className="w-7 h-7 text-green-400" />
-                          : <Camera className="w-6 h-6 text-white opacity-80" />}
+                        <Camera className="w-6 h-6 text-white opacity-80" />
                         <span className="text-xs text-white font-medium">タップして変更</span>
                       </div>
                     </>
@@ -879,7 +715,7 @@ export default function StripeBankSetup() {
 
           {/* エラー */}
           <AnimatePresence>
-            {error && step === 'form' && (
+            {error && (
               <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
@@ -888,15 +724,14 @@ export default function StripeBankSetup() {
             )}
           </AnimatePresence>
 
-          {/* 送信中ステップ表示 */}
-          {loading && step === 'bank_done' && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+          {/* 送信中インジケーター */}
+          {loading && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-orange-500 animate-spin shrink-0" />
               <div>
-                <p className="text-sm font-bold text-green-700">銀行口座を登録しました</p>
-                <p className="text-xs text-green-600">本人確認情報を送信中...</p>
+                <p className="text-sm font-bold text-orange-700">登録処理中...</p>
+                <p className="text-xs text-orange-600">口座・書類・本人確認情報をStripeへ送信しています</p>
               </div>
-              <Loader2 className="w-4 h-4 text-green-500 animate-spin ml-auto" />
             </div>
           )}
 

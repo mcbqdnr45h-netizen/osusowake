@@ -53,6 +53,18 @@
 **東京エリア**: 渋谷、新宿、表参道、上野、池袋、青山 × 6店舗
 **大阪エリア（デモ用）**: 江坂、吹田、高槻、千里中央、摂津 × 8店舗
 
+## Stripe KYC フロー（重要）
+
+- **一括処理設計**: `/store/kyc-setup` ページは廃止。`/store/bank-setup` 1画面ですべて完結
+- `POST /api/stores/:id/connect/bank-setup` が以下を一括処理:
+  1. Stripe Custom Account作成/更新（TOS同意含む）
+  2. 銀行口座トークンを外部アカウントとして紐付け
+  3. 本人確認書類（表面/裏面）を `stripe.files.create` でアップロード
+  4. `stripe.accounts.update` で全KYCデータ（氏名漢字/カナ・住所・DOB・電話）+ 書類IDを一括送信
+  5. DBステータスを `approved` に更新（入力完了の証として強制セット）
+- `applied` ステータス → マイページに「審査中」バナーのみ表示（KYCボタンなし）
+- `approved` ステータス → `bank-setup` ページはフォームを再表示せず「登録済み」画面へ
+
 ## API Routes
 
 - `GET /api/stores` - 全店舗一覧

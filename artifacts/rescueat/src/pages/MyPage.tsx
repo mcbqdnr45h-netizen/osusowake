@@ -4,7 +4,7 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, ClipboardCheck, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
@@ -251,28 +251,18 @@ export default function MyPage() {
         {/* ── 店舗オーナー：口座登録済み・審査待ちバナー（applied） ── */}
         {profile?.role === 'store_owner' && !loadingStore && store?.status === 'applied' && (
           <div className="mb-4 bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center shrink-0">
                 <Clock className="w-6 h-6 text-amber-600" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="font-black text-foreground text-base">申請受付完了 — 審査中</p>
-                <p className="text-xs text-muted-foreground mt-0.5">銀行口座の登録が完了しました。</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  口座・本人確認情報を受け付けました。Stripeの審査がバックグラウンドで進行中です。
+                </p>
               </div>
               <span className="ml-auto text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded-full shrink-0">審査中</span>
             </div>
-            <div className="bg-amber-100 rounded-xl p-3 mb-3">
-              <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                ⚠️ Stripeの「制限あり」を解除するため、本人確認情報（KYC）の入力が必要な場合があります。
-              </p>
-            </div>
-            <button
-              onClick={() => navigate('/store/kyc-setup')}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-            >
-              <ClipboardCheck className="w-4 h-4" />
-              本人確認情報（KYC）を入力する
-            </button>
           </div>
         )}
 
