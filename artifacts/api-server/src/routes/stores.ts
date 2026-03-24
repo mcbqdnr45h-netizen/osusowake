@@ -905,6 +905,9 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     res.status(500).json({
       error: "stripe_error",
       message: err?.raw?.message ?? err?.message ?? "KYC情報の送信に失敗しました",
+      // フロントがフィールド別エラー表示に使う
+      param: err?.raw?.param ?? null,
+      stripeCode: err?.raw?.code ?? null,
     });
   }
 });

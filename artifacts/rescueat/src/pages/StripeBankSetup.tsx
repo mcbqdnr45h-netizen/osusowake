@@ -96,7 +96,7 @@ function Field({ label, hint, required, children }: { label: string; hint?: stri
 // ────────────────────────────────────────────────────────────────────────────
 export default function StripeBankSetup() {
   const [, navigate] = useLocation();
-  const { store, loading: loadingStore } = useMyStore();
+  const { store, loading: loadingStore, refetch } = useMyStore();
   const { session } = useAuth();
   const notifiedRef = useRef(false);
 
@@ -300,11 +300,16 @@ export default function StripeBankSetup() {
       const kycData = await kycRes.json();
       if (!kycRes.ok) {
         // KYC失敗でも銀行口座は登録済みなのでエラーを表示しつつ続行
-        setError(`KYC情報の送信に失敗しました: ${kycData.message ?? '不明なエラー'}。マイページの「本人確認情報」から再送信できます。`);
+        const fieldHint = kycData.param ? `（項目: ${kycData.param}）` : '';
+        setError(`KYC情報の送信に失敗しました: ${kycData.message ?? '不明なエラー'}${fieldHint}。マイページの「本人確認情報」から再送信できます。`);
         setStep('done');
         return;
       }
 
+      // KYC完了 → ストアキャッシュをリフレッシュして「審査中」バナーを即時消す
+      if (kycData.kycComplete) {
+        await refetch();
+      }
       setKycResult(kycData);
       setStep('done');
     } catch (err: any) {
