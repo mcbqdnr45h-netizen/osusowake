@@ -278,7 +278,10 @@ export default function StoreBagsPage() {
                   {/* − ボタン */}
                   <button
                     type="button"
-                    onClick={() => setForm(f => ({ ...f, stockCount: Math.max(1, f.stockCount - 1) }))}
+                    onClick={() => {
+                      setForm(f => ({ ...f, stockCount: Math.max(1, f.stockCount - 1) }));
+                      stockInputRef.current?.focus();
+                    }}
                     disabled={form.stockCount <= 1}
                     style={{ height: '56px', minWidth: '56px' }}
                     className="flex items-center justify-center rounded-xl bg-secondary border-2 border-border text-foreground hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
@@ -354,7 +357,10 @@ export default function StoreBagsPage() {
                   {/* ＋ ボタン */}
                   <button
                     type="button"
-                    onClick={() => setForm(f => ({ ...f, stockCount: f.stockCount + 1 }))}
+                    onClick={() => {
+                      setForm(f => ({ ...f, stockCount: f.stockCount + 1 }));
+                      stockInputRef.current?.focus();
+                    }}
                     style={{ height: '56px', minWidth: '56px' }}
                     className="flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 active:scale-95 transition-all shadow-md shadow-primary/25"
                   >
