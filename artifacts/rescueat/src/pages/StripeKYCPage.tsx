@@ -9,6 +9,23 @@ import {
   TriangleAlert, Info, ClipboardCheck, RefreshCw,
 } from 'lucide-react';
 
+// ── 電話番号ユーティリティ ────────────────────────────────────────────
+/** 日本の電話番号を Stripe が要求する E.164 国際形式（+81...）に変換 */
+function formatPhoneToE164(raw: string): string {
+  const digits = raw.replace(/[\s\-().]/g, '');
+  if (digits.startsWith('+')) return digits;        // すでに国際形式
+  if (digits.startsWith('0')) return '+81' + digits.slice(1); // 0 → +81
+  return '+81' + digits;
+}
+
+/** 日本の電話番号として有効かチェック（国内形式・国際形式どちらも可） */
+function isValidJapanPhone(raw: string): boolean {
+  const digits = raw.replace(/[\s\-().]/g, '');
+  if (digits.startsWith('+81') && digits.length >= 12 && digits.length <= 13) return true;
+  if (digits.startsWith('0')   && digits.length >= 10 && digits.length <= 11) return true;
+  return false;
+}
+
 // ── 都道府県リスト ──────────────────────────────────────────────────
 const PREFECTURES_KANJI = [
   '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
@@ -251,11 +268,16 @@ export default function StripeKYCPage() {
   };
 
   // ── バリデーション ──
+  const phoneValid = isValidJapanPhone(phone.trim());
+  const phoneError = phone.trim().length > 0 && !phoneValid
+    ? '0から始まる10〜11桁の数字で入力してください（例: 09012345678）'
+    : null;
+
   const canSubmit =
     !loading &&
     lastNameKanji.trim() && firstNameKanji.trim() &&
     lastNameKana.trim() && firstNameKana.trim() &&
-    phone.trim().length >= 10 &&
+    phoneValid &&
     email.trim().includes('@') &&
     dobYear && dobMonth && dobDay &&
     postalCode.length === 7 &&
@@ -287,7 +309,7 @@ export default function StripeKYCPage() {
             lastNameKanji:  lastNameKanji.trim(),
             firstNameKana:  firstNameKana.trim(),
             lastNameKana:   lastNameKana.trim(),
-            phone: phone.trim() || undefined,
+            phone: phoneValid ? formatPhoneToE164(phone.trim()) : undefined,
             email: email.trim() || undefined,
             dobYear:  parseInt(dobYear),
             dobMonth: parseInt(dobMonth),
@@ -628,10 +650,11 @@ export default function StripeKYCPage() {
                   placeholder="タロウ" required className={fieldClass('firstNameKana')} />
               </FieldWrap>
             </div>
-            <FieldWrap label="電話番号" required hint="ハイフンなし（例: 09012345678）" error={fieldErrors.phone}>
+            <FieldWrap label="電話番号" required hint="ハイフンなし（例: 09012345678）" error={fieldErrors.phone || phoneError || undefined}>
               <input type="tel" value={phone}
                 onChange={e => setPhone(e.target.value.replace(/[^\d+\-()]/g, ''))}
-                placeholder="09012345678" inputMode="tel" required className={fieldClass('phone')} />
+                placeholder="09012345678" inputMode="tel" required
+                className={phoneError || fieldErrors.phone ? errInput : fieldClass('phone')} />
             </FieldWrap>
             <FieldWrap label="メールアドレス" required error={fieldErrors.email}>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}

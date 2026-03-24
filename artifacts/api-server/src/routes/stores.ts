@@ -15,6 +15,14 @@ import { Resend } from "resend";
 const REPORT_TYPES = ["closed", "temp_closed", "wrong_hours", "wrong_info", "other"] as const;
 type ReportType = typeof REPORT_TYPES[number];
 
+/** 日本の電話番号を Stripe が要求する E.164 形式（+81...）に変換するサーバーサイド安全変換 */
+function toE164Japan(phone: string): string {
+  const digits = phone.replace(/[\s\-().]/g, '');
+  if (digits.startsWith('+')) return digits;
+  if (digits.startsWith('0')) return '+81' + digits.slice(1);
+  return '+81' + digits;
+}
+
 const router: IRouter = Router();
 
 const storeSelectFields = {
@@ -840,7 +848,7 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
         address_kanji: addressKanji,
         address_kana:  addressKana,
       };
-      if (representative.phone) indiv["phone"] = representative.phone;
+      if (representative.phone) indiv["phone"] = toE164Japan(representative.phone);
       if (representative.email) indiv["email"] = representative.email;
       updateParams["individual"] = indiv;
     } else {
@@ -851,7 +859,7 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
         address_kanji: addressKanji,
         address_kana:  addressKana,
       };
-      if (representative.phone) companyObj["phone"] = representative.phone;
+      if (representative.phone) companyObj["phone"] = toE164Japan(representative.phone);
       updateParams["company"] = companyObj;
 
       const rep: Record<string, any> = {
@@ -872,7 +880,7 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
           percent_ownership: 100,
         },
       };
-      if (representative.phone) rep["phone"] = representative.phone;
+      if (representative.phone) rep["phone"] = toE164Japan(representative.phone);
       if (representative.email) rep["email"] = representative.email;
       updateParams["representative"] = rep;
     }
