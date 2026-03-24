@@ -221,7 +221,7 @@ export default function RegisterStore() {
             {/* Photo */}
             <div>
               <label className="block text-sm font-bold text-muted-foreground mb-2">
-                店舗写真（任意）
+                店舗写真
                 <span className="text-xs font-normal ml-2 text-muted-foreground/60">自動圧縮されます</span>
               </label>
               <div

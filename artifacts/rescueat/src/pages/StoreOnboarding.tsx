@@ -323,7 +323,7 @@ export default function StoreOnboarding() {
 
               {/* Store image */}
               <ImageUploadBox
-                label="店舗写真（任意）"
+                label="店舗写真"
                 preview={basic.imagePreview}
                 hint="JPG・PNG・HEIC対応"
                 onFile={async (f) => {
