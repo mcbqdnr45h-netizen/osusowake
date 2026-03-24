@@ -870,17 +870,34 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
 
     console.log(`✅ Stripe KYC updated for store ${storeId} (${store.stripeAccountId})`);
 
+    // eventually_due が空 = Stripeの必要情報がすべて揃った → DBステータスを 'approved' に更新
+    const eventuallyDue = account.requirements?.eventually_due ?? [];
+    const currentlyDue  = account.requirements?.currently_due ?? [];
+    const kycComplete   = eventuallyDue.length === 0 && currentlyDue.length === 0;
+
+    let newStatus: string | null = null;
+    if (kycComplete) {
+      await db
+        .update(storesTable)
+        .set({ status: "approved" })
+        .where(eq(storesTable.id, storeId));
+      newStatus = "approved";
+      console.log(`✅ Store ${storeId} status updated to 'approved' (KYC complete)`);
+    }
+
     res.json({
       success: true,
+      kycComplete,
+      storeStatus: newStatus ?? "applied",
       chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled,
       detailsSubmitted: account.details_submitted,
       requirements: {
-        currentlyDue: account.requirements?.currently_due ?? [],
-        eventuallyDue: account.requirements?.eventually_due ?? [],
-        errors: account.requirements?.errors ?? [],
+        currentlyDue:        currentlyDue,
+        eventuallyDue:       eventuallyDue,
+        errors:              account.requirements?.errors ?? [],
         pendingVerification: account.requirements?.pending_verification ?? [],
-        disabledReason: account.requirements?.disabled_reason ?? null,
+        disabledReason:      account.requirements?.disabled_reason ?? null,
       },
     });
   } catch (err: any) {
