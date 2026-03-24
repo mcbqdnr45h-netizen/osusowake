@@ -16,26 +16,33 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// タイムアウト付きPromise競走（PromiseLike にも対応）
+function raceTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise<null>(resolve => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]       = useState<User | null>(null);
   const [profile, setProfile] = useState<PublicUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-
-  // isLoading = true until the FIRST auth+profile check is fully complete
   const [isLoading, setIsLoading] = useState(true);
-
-  // prevent concurrent fetchProfile calls from racing
   const fetchingRef = useRef(false);
 
   async function fetchProfile(userId: string): Promise<void> {
     fetchingRef.current = true;
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      if (data) setProfile(data as PublicUser);
+      const result = await raceTimeout(
+        supabase.from('users').select('*').eq('id', userId).single().then(r => r),
+        5000  // 5秒でタイムアウト
+      );
+      if (result && result.data) {
+        setProfile(result.data as PublicUser);
+      }
+    } catch (err) {
+      console.warn('[AuthContext] fetchProfile error:', err);
     } finally {
       fetchingRef.current = false;
     }
@@ -48,34 +55,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    // ── 初回セッション確認（await fetchProfile してから isLoading=false）──────────
+    // 絶対タイムアウト: 8秒で強制的に isLoading=false
+    const absoluteTimeout = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[AuthContext] initAuth absolute timeout — forcing isLoading=false');
+        setIsLoading(false);
+      }
+    }, 8000);
+
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const sessionResult = await raceTimeout(
+          supabase.auth.getSession().then(r => r),
+          6000
+        );
         if (cancelled) return;
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);   // ← await で確実にプロフィール取得後に進む
+
+        const sess = sessionResult?.data?.session ?? null;
+        setSession(sess);
+        setUser(sess?.user ?? null);
+        if (sess?.user) {
+          await fetchProfile(sess.user.id);
         }
-      } catch (_) {
-        // ignore network errors on init
+      } catch (err) {
+        console.warn('[AuthContext] initAuth error:', err);
       } finally {
-        if (!cancelled) setIsLoading(false);     // ← profile 取得後に初めて false
+        clearTimeout(absoluteTimeout);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     initAuth();
 
-    // ── 以降の認証状態変化（ログイン/ログアウト/トークン更新）────────────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (cancelled) return;
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          // signIn() が手動で setProfile する場合と競合しないよう、
-          // まだフェッチ中でなければ最新プロフィールを取得
           if (!fetchingRef.current) {
             fetchProfile(session.user.id);
           }
@@ -87,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
+      clearTimeout(absoluteTimeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -94,7 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signUp(email: string, password: string, name: string, phone: string) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
 
-    // 電話番号の重複チェック（事前確認）
     const { data: existing } = await supabase
       .from('users')
       .select('id')
@@ -120,7 +137,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone_number: normalizedPhone,
       }, { onConflict: 'id' });
 
-      // UNIQUE制約違反（競合状態で発生しうる）
       if (upsertErr?.code === '23505' || upsertErr?.message?.includes('unique')) {
         return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
       }
@@ -154,58 +170,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: translateError(error.message), role: null };
 
-    // onAuthStateChange が signIn と並行して fetchProfile を呼び出すのをブロック。
-    // upsert 完了前に古いロールで上書きされる race condition を防ぐ。
+    // onAuthStateChange が並走して fetchProfile を呼ばないよう制御
     fetchingRef.current = true;
 
-    let role: string | null = 'customer';
+    let role: string | null = forceRole ?? 'customer';
     try {
       if (data.user) {
         if (forceRole) {
-          // ロールのみ更新（points_balance は既存値を保持する）
-          const { data: existing, error: selectErr } = await supabase
-            .from('users')
-            .select('id')
-            .eq('id', data.user.id)
-            .single();
-
-          if (selectErr && selectErr.code !== 'PGRST116') {
-            console.error('[AuthContext] users select error:', selectErr);
-          }
-
-          if (existing) {
-            const { error: updateErr } = await supabase
-              .from('users')
-              .update({ role: forceRole })
-              .eq('id', data.user.id);
-            if (updateErr) console.error('[AuthContext] users update error:', updateErr);
+          // ロール更新 or 初回挿入
+          const existResult = await raceTimeout(
+            supabase.from('users').select('id').eq('id', data.user.id).single().then(r => r),
+            5000
+          );
+          if (existResult?.data) {
+            await supabase.from('users').update({ role: forceRole }).eq('id', data.user.id);
           } else {
-            const { error: insertErr } = await supabase
-              .from('users')
-              .insert({ id: data.user.id, email: data.user.email!, role: forceRole, points_balance: 0 });
-            if (insertErr) console.error('[AuthContext] users insert error:', insertErr);
+            await supabase.from('users').insert({
+              id: data.user.id,
+              email: data.user.email!,
+              role: forceRole,
+              points_balance: 0,
+            });
           }
         }
 
-        const { data: prof, error: profErr } = await supabase
-          .from('users')
-          .select('role, points_balance, email')
-          .eq('id', data.user.id)
-          .single();
-        if (profErr) console.error('[AuthContext] profile fetch error:', profErr);
-        if (prof) {
+        // プロフィール取得（5秒タイムアウト）
+        const profResult = await raceTimeout(
+          supabase.from('users').select('role, points_balance, email, full_name, phone_number')
+            .eq('id', data.user.id).single().then(r => r),
+          5000
+        );
+
+        if (profResult?.data) {
+          const prof = profResult.data;
           role = prof.role;
           setProfile({
             id: data.user.id,
             email: prof.email,
             role: prof.role,
             points_balance: prof.points_balance,
+            full_name: prof.full_name ?? null,
+            phone_number: prof.phone_number ?? null,
             created_at: data.user.created_at,
           });
           console.log('[AuthContext] profile set:', prof.email, 'role:', prof.role);
         } else {
-          console.warn('[AuthContext] profile fetch returned null – profile will stay null');
+          // タイムアウトまたはDBエラー → フォールバックプロフィール
+          role = forceRole ?? 'customer';
+          setProfile({
+            id: data.user.id,
+            email: data.user.email!,
+            role: forceRole ?? 'customer',
+            points_balance: 0,
+            full_name: null,
+            phone_number: null,
+            created_at: data.user.created_at,
+          });
+          console.warn('[AuthContext] profile fetch failed — using fallback profile');
         }
+      }
+    } catch (err) {
+      console.warn('[AuthContext] signIn profile error:', err);
+      // タイムアウト時もフォールバック
+      if (data.user) {
+        role = forceRole ?? 'customer';
+        setProfile({
+          id: data.user.id,
+          email: data.user.email!,
+          role: forceRole ?? 'customer',
+          points_balance: 0,
+          full_name: null,
+          phone_number: null,
+          created_at: data.user.created_at,
+        });
       }
     } finally {
       fetchingRef.current = false;
