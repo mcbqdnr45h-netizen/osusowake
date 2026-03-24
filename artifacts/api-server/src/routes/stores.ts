@@ -828,6 +828,77 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
   }
 });
 
+// ─── Stripe 残高・ペイアウト情報 ─────────────────────────────────────────────
+// GET /api/stores/:storeId/connect/balance
+router.get("/stores/:storeId/connect/balance", async (req, res) => {
+  const storeId = parseInt(req.params.storeId);
+  if (isNaN(storeId)) return res.status(400).json({ error: "bad_request" });
+
+  const stripeKey = process.env["STRIPE_SECRET_KEY"];
+  if (!stripeKey) return res.status(503).json({ error: "stripe_not_configured" });
+
+  const [store] = await db
+    .select({ stripeAccountId: storesTable.stripeAccountId })
+    .from(storesTable)
+    .where(eq(storesTable.id, storeId));
+
+  if (!store?.stripeAccountId) {
+    return res.json({ connected: false, pending: 0, available: 0, payoutSchedule: null, nextPayoutDate: null });
+  }
+
+  try {
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+    const [balance, account] = await Promise.all([
+      stripe.balance.retrieve({ stripeAccount: store.stripeAccountId }),
+      stripe.accounts.retrieve(store.stripeAccountId),
+    ]);
+
+    const pending   = balance.pending.reduce((s, b) => s + b.amount, 0);
+    const available = balance.available.reduce((s, b) => s + b.amount, 0);
+
+    // 次回ペイアウト日を計算（週次・月曜なら次の月曜）
+    const schedule = (account.settings as any)?.payouts?.schedule as {
+      interval: string; weekly_anchor?: string; monthly_anchor?: number; delay_days?: number;
+    } | null;
+
+    let nextPayoutDate: string | null = null;
+    if (schedule?.interval === "weekly" && schedule.weekly_anchor) {
+      const dayMap: Record<string, number> = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 0 };
+      const anchor = dayMap[schedule.weekly_anchor] ?? 1;
+      const now    = new Date(Date.now() + 9 * 60 * 60 * 1000); // JST
+      const today  = now.getDay();
+      let diff     = anchor - today;
+      if (diff <= 0) diff += 7;
+      const next = new Date(now.getTime() + diff * 24 * 60 * 60 * 1000);
+      nextPayoutDate = next.toISOString().slice(0, 10);
+    } else if (schedule?.interval === "monthly" && schedule.monthly_anchor) {
+      const now  = new Date(Date.now() + 9 * 60 * 60 * 1000);
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const anchor = schedule.monthly_anchor;
+      let next = new Date(year, month, anchor);
+      if (next <= now) next = new Date(year, month + 1, anchor);
+      nextPayoutDate = next.toISOString().slice(0, 10);
+    }
+
+    res.json({
+      connected:     true,
+      accountId:     store.stripeAccountId,
+      pending,
+      available,
+      currency:      "jpy",
+      payoutsEnabled: account.payouts_enabled,
+      chargesEnabled: account.charges_enabled,
+      payoutSchedule: schedule,
+      nextPayoutDate,
+      delayDays:     schedule?.delay_days ?? 4,
+    });
+  } catch (err: any) {
+    console.error("[balance] error:", err?.message);
+    res.status(500).json({ error: "stripe_error", message: err?.message });
+  }
+});
+
 // ─── Stripe KYC 情報送信 ────────────────────────────────────────────────────
 // PUT /api/stores/:storeId/connect/kyc
 // 代表者情報・事業形態・事業内容を Stripe Account Update API に送信する

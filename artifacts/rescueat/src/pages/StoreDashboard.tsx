@@ -15,7 +15,7 @@ import {
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, isToday, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ImageUpload } from '@/components/ImageUpload';
@@ -775,6 +775,20 @@ export default function StoreDashboard() {
       },
     });
 
+  // Stripe 残高・ペイアウト情報
+  const { data: balanceData, isLoading: balanceLoading } = useQuery({
+    queryKey: [`/api/stores/${storeId}/connect/balance`],
+    queryFn: async () => {
+      if (!storeId) return null;
+      const res = await fetch(`${BASE}/api/stores/${storeId}/connect/balance`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!storeId && !!store?.stripeAccountId,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
   const updateStatus = useUpdateReservationStatus();
 
   // 今日の未受取予約
@@ -1018,6 +1032,74 @@ export default function StoreDashboard() {
             </div>
           ))}
         </div>
+
+        {/* ── Stripe 残高カード ── */}
+        {store.stripeAccountId && (
+          <div className="bg-white border border-orange-100 rounded-2xl p-4 shadow-[0_2px_12px_rgba(255,140,0,0.06)]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                </div>
+                <p className="text-sm font-black text-foreground">売上残高</p>
+              </div>
+              {balanceLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+            </div>
+
+            {balanceData && (
+              <div className="space-y-2.5">
+                {/* 残高2列 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+                    <p className="text-xs font-bold text-amber-600 mb-0.5">保留中</p>
+                    <p className="text-xl font-black text-amber-800">¥{balanceData.pending.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 text-center">
+                    <p className="text-xs font-bold text-green-600 mb-0.5">振込可能</p>
+                    <p className="text-xl font-black text-green-800">¥{balanceData.available.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {/* 保留中の説明 */}
+                {balanceData.pending > 0 && (
+                  <div className="bg-amber-50/60 border border-amber-100 rounded-xl px-3 py-2 flex items-start gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-amber-700 font-bold">保留中とは？</p>
+                      <p className="text-[11px] text-amber-600 leading-relaxed mt-0.5">
+                        決済から{balanceData.delayDays ?? 4}営業日後に「振込可能」へ移動します。
+                        {balanceData.nextPayoutDate && (
+                          <> 次回振込予定日は <span className="font-black">{balanceData.nextPayoutDate.replace(/-/g, '/')} </span>です。</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ペイアウトスケジュール */}
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-0.5">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {balanceData.payoutSchedule?.interval === 'weekly'
+                      ? '週次振込（毎週月曜）'
+                      : balanceData.payoutSchedule?.interval === 'monthly'
+                        ? '月次振込'
+                        : '自動振込'}
+                  </span>
+                  {balanceData.nextPayoutDate && (
+                    <span className="font-bold text-foreground/70">
+                      次回: {balanceData.nextPayoutDate.replace(/-/g, '/')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!balanceData && !balanceLoading && (
+              <p className="text-xs text-muted-foreground text-center py-2">残高情報を取得できませんでした</p>
+            )}
+          </div>
+        )}
 
         {/* ── 出品中の商品（isActive 全件）── */}
         {nonIdleBags.length > 0 && (
