@@ -139,6 +139,7 @@ export interface CreateBagRequest {
   stockCount: number;
   pickupStart?: string;
   pickupEnd?: string;
+  category?: string;
 }
 
 export interface UpdateBagRequest {
@@ -150,6 +151,7 @@ export interface UpdateBagRequest {
   pickupStart?: string;
   pickupEnd?: string;
   isActive?: boolean;
+  category?: string;
 }
 
 export type ReservationStatus =

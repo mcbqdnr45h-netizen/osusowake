@@ -419,7 +419,7 @@ export default function Home() {
         b.store.category?.toLowerCase().includes(q)
       );
     }
-    if (activeCategory !== 'all') result = result.filter(b => b.store.category === activeCategory);
+    if (activeCategory !== 'all') result = result.filter(b => (b as any).category ? (b as any).category === activeCategory : b.store.category === activeCategory);
     if (inStockOnly)               result = result.filter(b => b.stockCount > 0);
     if (sortKey === 'time_asc')   result = [...result].sort((a, b) => (a.pickupStart || '').localeCompare(b.pickupStart || ''));
     if (sortKey === 'price_asc')  result = [...result].sort((a, b) => a.discountedPrice - b.discountedPrice);

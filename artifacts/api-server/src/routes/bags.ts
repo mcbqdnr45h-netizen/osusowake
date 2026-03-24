@@ -98,6 +98,7 @@ router.get("/bags", async (_req, res) => {
         pickupStart: surpriseBagsTable.pickupStart,
         pickupEnd: surpriseBagsTable.pickupEnd,
         imageUrl: surpriseBagsTable.imageUrl,
+        category: surpriseBagsTable.category,
         isActive: surpriseBagsTable.isActive,
         createdAt: surpriseBagsTable.createdAt,
         store: storesTable,
@@ -136,6 +137,7 @@ router.get("/bags/:bagId", async (req, res) => {
         pickupStart: surpriseBagsTable.pickupStart,
         pickupEnd: surpriseBagsTable.pickupEnd,
         imageUrl: surpriseBagsTable.imageUrl,
+        category: surpriseBagsTable.category,
         isActive: surpriseBagsTable.isActive,
         createdAt: surpriseBagsTable.createdAt,
         store: storesTable,
@@ -190,6 +192,7 @@ router.post("/stores/:storeId/bags", async (req, res) => {
       pickupStart: body.pickupStart ?? null,
       pickupEnd: body.pickupEnd ?? null,
       imageUrl: body.imageUrl ?? null,
+      category: body.category ?? null,
       isActive: true,
     }).returning();
     res.status(201).json(bag);

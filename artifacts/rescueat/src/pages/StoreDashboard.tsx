@@ -61,6 +61,59 @@ interface PastBag {
   originalPrice: number;
   discountedPrice: number;
   imageUrl: string | null;
+  category?: string | null;
+}
+
+// ─── ラベル（カテゴリー）一覧 ─────────────────────────────────────────────
+const BAG_LABELS = [
+  { value: 'bakery',      label: 'パン',       emoji: '🥐' },
+  { value: 'restaurant',  label: 'お弁当',     emoji: '🍱' },
+  { value: 'sweets',      label: 'スイーツ',   emoji: '🍰' },
+  { value: 'other',       label: '惣菜',       emoji: '🥗' },
+  { value: 'cafe',        label: 'カフェ',     emoji: '☕' },
+  { value: 'convenience', label: 'コンビニ',   emoji: '🏪' },
+  { value: 'supermarket', label: 'スーパー',   emoji: '🛒' },
+  { value: 'produce',     label: '野菜・果物', emoji: '🍎' },
+  { value: 'meat',        label: '肉・魚',     emoji: '🥩' },
+  { value: 'noodles',     label: '麺類',       emoji: '🍜' },
+  { value: 'drinks',      label: 'ドリンク',   emoji: '🥤' },
+  { value: 'assorted',    label: '詰め合わせ', emoji: '🎁' },
+];
+
+// ─── カテゴリーピッカー ───────────────────────────────────────────────────
+function CategoryPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-bold text-muted-foreground mb-2">
+        ラベル <span className="text-muted-foreground/60 font-normal">（任意）</span>
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {BAG_LABELS.map((cat) => {
+          const isActive = value === cat.value;
+          return (
+            <button
+              key={cat.value}
+              type="button"
+              onClick={() => onChange(isActive ? '' : cat.value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${
+                isActive
+                  ? 'bg-primary border-primary text-white shadow-sm shadow-primary/25'
+                  : 'bg-white border-border text-foreground hover:border-primary/40'
+              }`}
+            >
+              <span>{cat.emoji}</span>
+              <span>{cat.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {value && (
+        <p className="text-[11px] text-primary font-bold mt-1.5">
+          ✓ 「{BAG_LABELS.find(c => c.value === value)?.label}」を選択中
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ─── 出品モーダル ────────────────────────────────────────────────────────
@@ -79,6 +132,7 @@ function PostBagModal({
   const createBag = useCreateBag();
   const [mode, setMode] = useState<'quick' | 'manual'>('quick');
   const [pastBag, setPastBag] = useState<PastBag | null>(null);
+  const [bagCategory, setBagCategory] = useState<string>('');
   const [qty, setQty] = useState(3);
   const [quickPickupStart, setQuickPickupStart] = useState('18:00');
   const [quickPickupEnd, setQuickPickupEnd] = useState('20:00');
@@ -103,9 +157,10 @@ function PostBagModal({
     setStockCountStr(String(clamped));
   }
 
-  // 過去の出品を選択したとき、その画像を引き継ぐ
+  // 過去の出品を選択したとき、画像とカテゴリーを引き継ぐ
   React.useEffect(() => {
-    if (pastBag?.imageUrl) setImageUrl(pastBag.imageUrl);
+    if (pastBag?.imageUrl)  setImageUrl(pastBag.imageUrl);
+    if (pastBag?.category)  setBagCategory(pastBag.category);
   }, [pastBag]);
 
   async function handleQuickSubmit() {
@@ -127,6 +182,7 @@ function PostBagModal({
           pickupStart: quickPickupStart,
           pickupEnd: quickPickupEnd,
           imageUrl,
+          category: bagCategory || undefined,
         },
       });
       toast({ title: '出品しました！', description: `${pastBag.title} × ${qty}個` });
@@ -158,6 +214,7 @@ function PostBagModal({
           pickupStart: form.pickupStart,
           pickupEnd: form.pickupEnd,
           imageUrl,
+          category: bagCategory || undefined,
         },
       });
       toast({ title: '出品しました！' });
@@ -352,6 +409,9 @@ function PostBagModal({
                     {/* 写真（過去の画像を引き継ぎ、変更も可） */}
                     <ImageUpload value={imageUrl} onChange={setImageUrl} required />
 
+                    {/* ラベル */}
+                    <CategoryPicker value={bagCategory} onChange={setBagCategory} />
+
                     {/* 出品ボタン */}
                     <button
                       onClick={handleQuickSubmit}
@@ -388,6 +448,9 @@ function PostBagModal({
                   className="w-full bg-card border-2 border-border rounded-xl px-4 py-3 font-bold text-foreground placeholder:text-muted-foreground/50 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                 />
               </div>
+
+              {/* ラベル */}
+              <CategoryPicker value={bagCategory} onChange={setBagCategory} />
 
               {/* 価格 */}
               <div className="grid grid-cols-2 gap-3">

@@ -203,6 +203,7 @@ export const CreateBagBody = zod.object({
   pickupStart: zod.string().optional(),
   pickupEnd: zod.string().optional(),
   imageUrl: zod.string().optional(),
+  category: zod.string().optional(),
 });
 
 /**
@@ -322,6 +323,7 @@ export const UpdateBagBody = zod.object({
   pickupStart: zod.string().optional(),
   pickupEnd: zod.string().optional(),
   isActive: zod.boolean().optional(),
+  category: zod.string().optional(),
 });
 
 export const UpdateBagResponse = zod.object({
