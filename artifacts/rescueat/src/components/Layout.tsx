@@ -229,7 +229,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground/60 text-center">
-              初期費用・月額0円。売れた場合のみ手数料20%が発生する成果報酬型。手数料は決済額から自動控除されます。
+              初期費用・月額0円。売れた場合のみ手数料25%が発生する成果報酬型。手数料は決済額から自動控除されます。
             </div>
           </div>
         </footer>

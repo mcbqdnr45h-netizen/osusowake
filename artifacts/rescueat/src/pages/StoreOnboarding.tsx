@@ -135,6 +135,10 @@ export default function StoreOnboarding() {
       return;
     }
 
+    if (!form.imageUrl) {
+      toast({ title: '店舗写真を追加してください', variant: 'destructive' });
+      return;
+    }
     if (!form.name.trim() || !form.address.trim() || !form.city.trim() || !form.category) {
       toast({ title: '必須項目を入力してください', variant: 'destructive' });
       return;
@@ -188,6 +192,9 @@ export default function StoreOnboarding() {
             navigate('/store/bank-setup');
           }
           return;
+        }
+        if (res.status === 404 || res.status === 503 || res.status === 502) {
+          throw new Error('サーバーに接続できませんでした。少し時間をおいて再度お試しください。');
         }
         const msg = body?.message || body?.error || `登録に失敗しました（HTTP ${res.status}）`;
         throw new Error(msg);
@@ -267,13 +274,15 @@ export default function StoreOnboarding() {
             <Leaf className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
               <div className="font-black text-foreground">完全成果報酬型</div>
-              <div className="text-muted-foreground">初期費用・月額0円。売れた分だけ手数料20%</div>
+              <div className="text-muted-foreground">初期費用・月額0円。売れた分だけ手数料25%</div>
             </div>
           </div>
 
           {/* 店舗写真 */}
           <div>
-            <label className="block text-sm font-bold text-muted-foreground mb-2">店舗写真（任意）</label>
+            <label className="block text-sm font-bold text-muted-foreground mb-2">
+              店舗写真 <span className="text-destructive">*</span>
+            </label>
             <label className="block cursor-pointer">
               <input
                 type="file"
@@ -282,7 +291,7 @@ export default function StoreOnboarding() {
                 onChange={e => e.target.files?.[0] && handleImageFile(e.target.files[0])}
               />
               <div className={`relative w-full aspect-video rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 overflow-hidden transition-all
-                ${imagePreview ? 'border-primary/40' : 'border-border bg-secondary/40 hover:border-primary/40 hover:bg-primary/5'}`}>
+                ${imagePreview ? 'border-primary/40' : 'border-red-300 bg-red-50/40 hover:border-primary/40 hover:bg-primary/5'}`}>
                 {imagePreview ? (
                   <img src={imagePreview} alt="" className="absolute inset-0 w-full h-full object-cover" />
                 ) : (
