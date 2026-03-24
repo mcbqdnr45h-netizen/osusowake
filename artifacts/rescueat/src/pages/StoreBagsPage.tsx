@@ -3,8 +3,8 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
 import {
-  Plus, Package2, Clock, AlertCircle, Loader2,
-  ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Trash2,
+  Plus, Minus, Package2, Clock, AlertCircle, Loader2,
+  ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Trash2, Zap,
 } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -218,70 +218,118 @@ export default function StoreBagsPage() {
             >
               <h3 className="font-black text-foreground">新しいサプライズバッグ</h3>
 
+              {/* 商品名 */}
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">商品名</label>
                 <input
                   required
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
-                  placeholder="例: 本日のパン詰め合わせ"
+                  placeholder="例：本日のお惣菜3点盛り"
                   className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 font-bold placeholder:text-muted-foreground/50 placeholder:font-normal focus:border-primary outline-none transition-all"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">通常価格</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
-                    <input
-                      type="number" inputMode="numeric" required
-                      value={form.originalPrice || ''}
-                      onChange={e => setForm({ ...form, originalPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                      className="w-full bg-secondary/40 border-2 border-border rounded-xl pl-7 pr-3 py-3 font-bold focus:border-primary outline-none transition-all"
-                    />
-                  </div>
+              {/* 価格（割引率リアルタイム表示付き） */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-muted-foreground">価格設定</label>
+                  {form.originalPrice > 0 && form.discountedPrice > 0 && form.discountedPrice < form.originalPrice && (
+                    <span className="flex items-center gap-1 text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                      <Zap className="w-3 h-3" />
+                      {Math.round((1 - form.discountedPrice / form.originalPrice) * 100)}% OFF
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">販売価格</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
-                    <input
-                      type="number" inputMode="numeric" required
-                      value={form.discountedPrice || ''}
-                      onChange={e => setForm({ ...form, discountedPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                      className="w-full bg-secondary/40 border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary focus:border-primary outline-none transition-all"
-                    />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">通常価格</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
+                      <input
+                        type="number" inputMode="numeric" required
+                        value={form.originalPrice || ''}
+                        onChange={e => setForm({ ...form, originalPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        className="w-full bg-secondary/40 border-2 border-border rounded-xl pl-7 pr-3 py-3 font-bold focus:border-primary outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">販売価格</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
+                      <input
+                        type="number" inputMode="numeric" required
+                        value={form.discountedPrice || ''}
+                        onChange={e => setForm({ ...form, discountedPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        className="w-full bg-secondary/40 border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary focus:border-primary outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
+              {/* 在庫数（スマホ対応 −/＋ ボタン） */}
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">在庫数</label>
-                <div className="flex items-center w-36 bg-secondary/40 border-2 border-border rounded-xl overflow-hidden h-12">
-                  <button type="button" onClick={() => setForm({ ...form, stockCount: Math.max(1, form.stockCount - 1) })}
-                    className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">−</button>
-                  <input
-                    type="number" inputMode="numeric" required min="1"
-                    value={form.stockCount}
-                    onChange={e => setForm({ ...form, stockCount: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                    className="flex-1 text-center font-bold text-lg bg-transparent border-none focus:ring-0 p-0 outline-none"
-                  />
-                  <button type="button" onClick={() => setForm({ ...form, stockCount: form.stockCount + 1 })}
-                    className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">＋</button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center bg-secondary/40 border-2 border-border rounded-xl overflow-hidden h-12 w-44">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, stockCount: Math.max(1, form.stockCount - 1) })}
+                      className="w-12 h-full flex items-center justify-center hover:bg-muted active:bg-muted/80 transition-colors shrink-0"
+                    >
+                      <Minus className="w-4 h-4 text-foreground" />
+                    </button>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      required
+                      value={form.stockCount}
+                      onChange={e => {
+                        const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                        setForm({ ...form, stockCount: isNaN(v) ? 1 : Math.max(1, v) });
+                      }}
+                      className="flex-1 text-center font-bold text-lg bg-transparent border-none focus:ring-0 p-0 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, stockCount: form.stockCount + 1 })}
+                      className="w-12 h-full flex items-center justify-center hover:bg-muted active:bg-muted/80 transition-colors shrink-0"
+                    >
+                      <Plus className="w-4 h-4 text-foreground" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">個</p>
                 </div>
               </div>
 
+              {/* 受取時間（開始に「今すぐ」ボタン） */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取開始</label>
-                  <input type="time" required value={form.pickupStart}
-                    onChange={e => setForm({ ...form, pickupStart: e.target.value })}
-                    className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
+                  <div className="flex gap-1.5">
+                    <input type="time" required value={form.pickupStart ?? ''}
+                      onChange={e => setForm({ ...form, pickupStart: e.target.value })}
+                      className="flex-1 min-w-0 bg-secondary/40 border-2 border-border rounded-xl px-2 py-3 font-bold focus:border-primary outline-none transition-all text-sm" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const hh = now.getHours().toString().padStart(2, '0');
+                        const mm = now.getMinutes().toString().padStart(2, '0');
+                        setForm({ ...form, pickupStart: `${hh}:${mm}` });
+                      }}
+                      className="shrink-0 px-2 py-1 bg-primary/10 text-primary text-[10px] font-black rounded-lg hover:bg-primary/20 active:bg-primary/30 transition-colors leading-tight text-center"
+                    >
+                      今<br />すぐ
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取終了</label>
-                  <input type="time" required value={form.pickupEnd}
+                  <input type="time" required value={form.pickupEnd ?? ''}
                     onChange={e => setForm({ ...form, pickupEnd: e.target.value })}
                     className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
                 </div>
