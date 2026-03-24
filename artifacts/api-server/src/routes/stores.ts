@@ -164,10 +164,62 @@ router.post("/stores/apply", async (req, res) => {
     }).returning();
 
     console.log("[/stores/apply] ✅ 店舗作成・即承認 id=", store.id, "ownerId=", store.ownerId);
+
+    // ── オーナーの role を store_owner に更新（customer から登録した場合も対応）──
+    try {
+      const { error: roleErr } = await supabaseAdmin
+        .from("users")
+        .update({ role: "store_owner" })
+        .eq("id", body.ownerId);
+      if (roleErr) console.warn("[/stores/apply] users.role 更新失敗:", roleErr.message);
+      else console.log("[/stores/apply] ✅ users.role → store_owner (ownerId=", body.ownerId, ")");
+    } catch (roleEx: any) {
+      console.warn("[/stores/apply] users.role 更新例外:", roleEx?.message);
+    }
+
     res.status(201).json({ ...store, totalBagsAvailable: 0 });
   } catch (err) {
     console.error("[/stores/apply] DB INSERT エラー:", err);
     res.status(500).json({ error: "internal_error", message: "店舗情報の保存に失敗しました" });
+  }
+});
+
+// POST /api/stores/fix-owner-role
+// ストアを所有するユーザーの role を store_owner に修正（既存ユーザー向け救済エンドポイント）
+router.post("/stores/fix-owner-role", async (req, res) => {
+  try {
+    const { ownerId } = req.body;
+    if (!ownerId) {
+      return res.status(400).json({ error: "bad_request", message: "ownerId は必須です" });
+    }
+
+    // 本当にストアを所有しているか確認
+    const [store] = await db
+      .select({ id: storesTable.id })
+      .from(storesTable)
+      .where(eq(storesTable.ownerId, ownerId))
+      .limit(1);
+
+    if (!store) {
+      return res.status(403).json({ error: "forbidden", message: "このユーザーはストアを所有していません" });
+    }
+
+    // Supabase の users テーブルの role を store_owner に更新
+    const { error: roleErr } = await supabaseAdmin
+      .from("users")
+      .update({ role: "store_owner" })
+      .eq("id", ownerId);
+
+    if (roleErr) {
+      console.warn("[fix-owner-role] 更新失敗:", roleErr.message);
+      return res.status(500).json({ error: "update_failed", message: roleErr.message });
+    }
+
+    console.log("[fix-owner-role] ✅ users.role → store_owner (ownerId=", ownerId, ")");
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[fix-owner-role] エラー:", err?.message);
+    res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });
 
@@ -1398,15 +1450,30 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         console.warn(`   param: ${kycErr?.raw?.param ?? kycErr?.param}`);
       }
 
-      // STEP 5: DB 更新
+      // STEP 5: DB 更新 + オーナーの role を確実に store_owner に設定
       await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
       console.log(`✅ [bank-setup] BG Store ${storeId} status → 'approved'`);
+
+      if (store.ownerId) {
+        try {
+          await supabaseAdmin.from("users").update({ role: "store_owner" }).eq("id", store.ownerId);
+          console.log(`✅ [bank-setup] BG users.role → store_owner (ownerId=${store.ownerId})`);
+        } catch (roleEx: any) {
+          console.warn(`⚠️  [bank-setup] BG role update failed:`, roleEx?.message);
+        }
+      }
 
     } catch (bgErr: any) {
       console.error(`❌ [bank-setup] BG error:`, bgErr?.message ?? bgErr);
       try {
         await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
       } catch (_) {}
+      // フォールバック: role 更新を試みる
+      if (store.ownerId) {
+        try {
+          await supabaseAdmin.from("users").update({ role: "store_owner" }).eq("id", store.ownerId);
+        } catch (_) {}
+      }
     }
   })();
 });

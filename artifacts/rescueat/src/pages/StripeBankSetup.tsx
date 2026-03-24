@@ -168,7 +168,7 @@ function Field({ label, hint, required, children }: { label: string; hint?: stri
 export default function StripeBankSetup() {
   const [, navigate] = useLocation();
   const { store, loading: loadingStore, fetchError, refetch } = useMyStore();
-  const { session } = useAuth();
+  const { session, refreshProfile } = useAuth();
   const notifiedRef = useRef(false);
 
   // ── localStorage から下書きを復元（useState より先に宣言）──
@@ -430,10 +430,11 @@ export default function StripeBankSetup() {
         return;
       }
 
-      // ③ 完了 → 下書き削除・キャッシュ更新・マイページへ
+      // ③ 完了 → 下書き削除・プロフィール更新・マイページへ
       setSubmitStatus('登録完了！');
       console.log('[StripeBankSetup] ✅ 登録成功 → /mypage へ遷移');
       clearDraft();
+      try { await refreshProfile(); } catch (_) {}
       try { await refetch(); } catch (_) {}
       navigate('/mypage');
     } catch (err: any) {
@@ -443,6 +444,7 @@ export default function StripeBankSetup() {
         console.log('[StripeBankSetup] AbortError (タイムアウト) → /mypage へ遷移');
         setSubmitStatus('処理完了！');
         clearDraft();
+        try { await refreshProfile(); } catch (_) {}
         try { await refetch(); } catch (_) {}
         navigate('/mypage');
         return;

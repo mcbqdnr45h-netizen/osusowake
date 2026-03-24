@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
@@ -15,7 +15,23 @@ export default function MyPage() {
   const userId = useUserId();
   const { store, loading: loadingStore, isApprovedOwner, needsBankSetup } = useMyStore();
   const [, navigate] = useLocation();
-  const { user, profile, isLoading: authLoading, signOut } = useAuth();
+  const { user, profile, isLoading: authLoading, signOut, refreshProfile } = useAuth();
+  const roleFixedRef = useRef(false);
+
+  // ── ストアがあるのに customer 表示の場合 → role を修正してプロフィールを再取得 ──
+  useEffect(() => {
+    if (!loadingStore && !authLoading && store && user && profile?.role !== 'store_owner' && !roleFixedRef.current) {
+      roleFixedRef.current = true;
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
+      fetch(`${base}/api/stores/fix-owner-role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerId: user.id }),
+      })
+        .then(() => refreshProfile())
+        .catch(() => {});
+    }
+  }, [loadingStore, authLoading, store, user, profile?.role]);
 
   const { data: reservations } = useListReservations({ userId: userId || '' }, {
     query: { enabled: !!userId }
