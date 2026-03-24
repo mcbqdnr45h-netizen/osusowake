@@ -31,13 +31,25 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
 
   useEffect(() => { setMenuOpen(false); }, [location]);
 
-  const navItems = [
-    { href: '/',                icon: Map,     label: '発見'       },
-    { href: '/search',          icon: Search,  label: '検索'       },
-    { href: '/my-reservations', icon: Package, label: 'お届け'     },
-    { href: '/favorites',       icon: Heart,   label: 'お気に入り' },
-    { href: user ? '/mypage' : '/welcome', icon: User, label: user ? 'マイページ' : 'ログイン' },
+  const isStoreOwner = profile?.role === 'store_owner';
+
+  // 店舗オーナー用ナビ
+  const storeNavItems = [
+    { href: '/store/dashboard', icon: Store,   label: 'ダッシュボード', isUser: false },
+    { href: '/store/bags',      icon: Package, label: '出品管理',       isUser: false },
+    { href: '/mypage',          icon: User,    label: 'マイページ',     isUser: true  },
   ];
+
+  // 一般ユーザー用ナビ
+  const customerNavItems = [
+    { href: '/',                                   icon: Map,     label: '発見',       isUser: false },
+    { href: '/search',                             icon: Search,  label: '検索',       isUser: false },
+    { href: '/my-reservations',                    icon: Package, label: 'お届け',     isUser: false },
+    { href: '/favorites',                          icon: Heart,   label: 'お気に入り', isUser: false },
+    { href: user ? '/mypage' : '/welcome',         icon: User,    label: user ? 'マイページ' : 'ログイン', isUser: true },
+  ];
+
+  const navItems = isStoreOwner ? storeNavItems : customerNavItems;
 
   const desktopNavItems = [
     { href: '/',                label: '発見'   },
@@ -230,9 +242,12 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
             {navItems.map((item) => {
               const isActive = location === item.href ||
                 (item.href === '/my-reservations' && location.startsWith('/my-reservations')) ||
-                (item.href === '/favorites' && location === '/favorites');
+                (item.href === '/favorites' && location === '/favorites') ||
+                // 店舗オーナー用：ダッシュボード・申請・銀行口座設定は同じタブをアクティブに
+                (item.href === '/store/dashboard' && (location === '/store-onboarding' || location === '/store/bank-setup')) ||
+                (item.href === '/store/bags' && location.startsWith('/store/bag'));
               const Icon = item.icon;
-              const isUser = item.href === '/mypage' || item.href === '/welcome';
+              const isUser = item.isUser ?? (item.href === '/mypage' || item.href === '/welcome');
 
               return (
                 <Link key={item.href} href={item.href}

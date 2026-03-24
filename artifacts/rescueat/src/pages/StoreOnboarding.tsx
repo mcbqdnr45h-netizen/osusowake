@@ -263,9 +263,12 @@ export default function StoreOnboarding() {
         {/* ── ヘッダー ── */}
         <div className="flex items-center gap-3 mb-6">
           <button
-            onClick={() => step === 'compliance' ? setStep('basic') : navigate('/register-store')}
+            onClick={() => {
+              if (step === 'submitted') navigate('/');
+              else if (step === 'compliance') setStep('basic');
+              else navigate('/register-store');
+            }}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
-            disabled={step === 'submitted'}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
