@@ -269,18 +269,22 @@ export default function StoreBagsPage() {
                 </div>
               </div>
 
-              {/* 在庫数（スマホ対応 −/＋ ボタン） */}
+              {/* 在庫数 ── 大型ステッパー */}
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">在庫数</label>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center bg-secondary/40 border-2 border-border rounded-xl overflow-hidden h-12 w-44">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, stockCount: Math.max(1, form.stockCount - 1) })}
-                      className="w-12 h-full flex items-center justify-center hover:bg-muted active:bg-muted/80 transition-colors shrink-0"
-                    >
-                      <Minus className="w-4 h-4 text-foreground" />
-                    </button>
+                <label className="block text-xs font-bold text-muted-foreground mb-2">在庫数</label>
+                <div className="flex items-stretch gap-2 h-14">
+                  {/* − ボタン */}
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, stockCount: Math.max(1, form.stockCount - 1) })}
+                    disabled={form.stockCount <= 1}
+                    className="w-14 shrink-0 flex items-center justify-center rounded-xl bg-secondary border-2 border-border text-foreground hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <Minus className="w-5 h-5" strokeWidth={2.5} />
+                  </button>
+
+                  {/* 数値表示 + 直接入力 */}
+                  <div className="flex-1 flex flex-col items-center justify-center bg-secondary/40 border-2 border-border rounded-xl">
                     <input
                       type="text"
                       inputMode="numeric"
@@ -291,17 +295,19 @@ export default function StoreBagsPage() {
                         const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
                         setForm({ ...form, stockCount: isNaN(v) ? 1 : Math.max(1, v) });
                       }}
-                      className="flex-1 text-center font-bold text-lg bg-transparent border-none focus:ring-0 p-0 outline-none"
+                      className="w-full text-center font-black text-2xl bg-transparent border-none focus:ring-0 p-0 outline-none leading-none"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, stockCount: form.stockCount + 1 })}
-                      className="w-12 h-full flex items-center justify-center hover:bg-muted active:bg-muted/80 transition-colors shrink-0"
-                    >
-                      <Plus className="w-4 h-4 text-foreground" />
-                    </button>
+                    <span className="text-[10px] font-bold text-muted-foreground mt-0.5">個</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">個</p>
+
+                  {/* ＋ ボタン */}
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, stockCount: form.stockCount + 1 })}
+                    className="w-14 shrink-0 flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 active:scale-95 transition-all shadow-md shadow-primary/25"
+                  >
+                    <Plus className="w-5 h-5" strokeWidth={2.5} />
+                  </button>
                 </div>
               </div>
 
