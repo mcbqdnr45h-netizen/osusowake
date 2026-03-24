@@ -332,7 +332,10 @@ export default function StoreBagsPage() {
                       exit={{ opacity: 0, y: -6, height: 0 }}
                       style={{ overflow: 'hidden', marginTop: '8px' }}
                     >
-                      <div className="flex items-center bg-secondary/40 border-2 border-primary rounded-xl px-4" style={{ height: '56px' }}>
+                      {/* ── full-width スタンドアロン input ──
+                          flex コンテナなし・padding なし・width:100% で
+                          カーソルが絶対に枠外に出ない構造 */}
+                      <div style={{ position: 'relative' }}>
                         <input
                           ref={stockInputRef}
                           type="text"
@@ -350,20 +353,50 @@ export default function StoreBagsPage() {
                           }}
                           onBlur={() => setEditingStock(false)}
                           style={{
-                            flex: 1,
+                            display: 'block',
+                            width: '100%',
+                            height: '56px',
+                            boxSizing: 'border-box',
+                            /* padding は左右とも 0 でカーソルはみ出しを防ぐ */
+                            padding: '0',
+                            paddingTop: '0',
+                            paddingBottom: '0',
+                            paddingLeft: '0',
+                            paddingRight: '0',
+                            margin: '0',
+                            /* 中央揃え */
                             textAlign: 'center',
-                            fontSize: '24px',
+                            /* フォント */
+                            fontSize: '28px',
                             fontWeight: 900,
-                            background: 'transparent',
-                            border: 'none',
+                            lineHeight: '56px',
+                            /* ボーダー */
+                            border: '2px solid var(--primary)',
+                            borderRadius: '12px',
                             outline: 'none',
-                            padding: 0,
-                            margin: 0,
-                            color: 'var(--foreground)',
+                            /* 背景 */
+                            backgroundColor: 'transparent',
+                            background: 'transparent',
+                            /* ブラウザデフォルトスタイル削除 */
                             WebkitAppearance: 'none' as React.CSSProperties['WebkitAppearance'],
+                            appearance: 'none' as React.CSSProperties['appearance'],
+                            color: 'var(--foreground)',
                           }}
                         />
-                        <span className="text-sm font-bold text-muted-foreground ml-1">個</span>
+                        {/* 「個」は input の外に重ねる（幅に干渉しない） */}
+                        <span style={{
+                          position: 'absolute',
+                          right: '14px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: 'var(--muted-foreground)',
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                        }}>
+                          個
+                        </span>
                       </div>
                     </motion.div>
                   )}
