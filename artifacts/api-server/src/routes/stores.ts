@@ -718,6 +718,13 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
       detailsSubmitted: account.details_submitted,
       chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled,
+      requirements: {
+        currentlyDue: account.requirements?.currently_due ?? [],
+        eventuallyDue: account.requirements?.eventually_due ?? [],
+        errors: account.requirements?.errors ?? [],
+        pendingVerification: account.requirements?.pending_verification ?? [],
+        disabledReason: account.requirements?.disabled_reason ?? null,
+      },
     });
   } catch (err: any) {
     // アカウントが削除されている場合など
@@ -727,6 +734,161 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
     }
     console.error("Stripe Connect status error:", err);
     res.status(500).json({ error: "stripe_error", message: "Failed to fetch connect status" });
+  }
+});
+
+// ─── Stripe KYC 情報送信 ────────────────────────────────────────────────────
+// PUT /api/stores/:storeId/connect/kyc
+// 代表者情報・事業形態・事業内容を Stripe Account Update API に送信する
+router.put("/stores/:storeId/connect/kyc", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    const { businessType, representative, businessProfile } = req.body as {
+      businessType: "individual" | "company";
+      representative: {
+        firstNameKanji: string;
+        lastNameKanji: string;
+        firstNameKana: string;
+        lastNameKana: string;
+        dobYear: number;
+        dobMonth: number;
+        dobDay: number;
+        postalCode: string;
+        stateKanji: string;
+        cityKanji: string;
+        townKanji: string;
+        line1Kanji?: string;
+        stateKana: string;
+        cityKana: string;
+        townKana: string;
+        line1Kana?: string;
+      };
+      businessProfile: {
+        productDescription?: string;
+        url?: string;
+      };
+    };
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      res.status(503).json({ error: "stripe_not_configured", message: "Stripe が設定されていません" });
+      return;
+    }
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "店舗が見つかりません" });
+      return;
+    }
+
+    if (!store.stripeAccountId) {
+      res.status(400).json({ error: "no_stripe_account", message: "先に振込先口座を登録してください" });
+      return;
+    }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    // 住所オブジェクト（漢字・カナ）
+    const addressKanji: Record<string, string> = {
+      postal_code: representative.postalCode,
+      state: representative.stateKanji,
+      city: representative.cityKanji,
+      town: representative.townKanji,
+    };
+    if (representative.line1Kanji) addressKanji["line1"] = representative.line1Kanji;
+
+    const addressKana: Record<string, string> = {
+      postal_code: representative.postalCode,
+      state: representative.stateKana,
+      city: representative.cityKana,
+      town: representative.townKana,
+    };
+    if (representative.line1Kana) addressKana["line1"] = representative.line1Kana;
+
+    // 事業内容
+    const businessProfileUpdate: Record<string, string> = { mcc: "5812" };
+    if (businessProfile.productDescription) {
+      businessProfileUpdate["product_description"] = businessProfile.productDescription;
+    }
+    if (businessProfile.url) {
+      businessProfileUpdate["url"] = businessProfile.url;
+    }
+
+    // Stripe Account Update パラメータを構築
+    const updateParams: Record<string, any> = {
+      business_type: businessType,
+      business_profile: businessProfileUpdate,
+    };
+
+    if (businessType === "individual") {
+      updateParams["individual"] = {
+        first_name: representative.firstNameKanji,
+        last_name: representative.lastNameKanji,
+        first_name_kana: representative.firstNameKana,
+        last_name_kana: representative.lastNameKana,
+        dob: {
+          day: Number(representative.dobDay),
+          month: Number(representative.dobMonth),
+          year: Number(representative.dobYear),
+        },
+        address_kanji: addressKanji,
+        address_kana: addressKana,
+      };
+    } else {
+      // company: 会社情報 + 代表者情報
+      updateParams["company"] = {
+        name: `${representative.lastNameKanji}${representative.firstNameKanji}`,
+        name_kana: `${representative.lastNameKana}${representative.firstNameKana}`,
+        address_kanji: addressKanji,
+        address_kana: addressKana,
+      };
+      updateParams["representative"] = {
+        first_name: representative.firstNameKanji,
+        last_name: representative.lastNameKanji,
+        first_name_kana: representative.firstNameKana,
+        last_name_kana: representative.lastNameKana,
+        dob: {
+          day: Number(representative.dobDay),
+          month: Number(representative.dobMonth),
+          year: Number(representative.dobYear),
+        },
+        address_kanji: addressKanji,
+        address_kana: addressKana,
+        relationship: {
+          representative: true,
+          owner: true,
+          percent_ownership: 100,
+        },
+      };
+    }
+
+    const account = await stripe.accounts.update(store.stripeAccountId, updateParams as any);
+
+    console.log(`✅ Stripe KYC updated for store ${storeId} (${store.stripeAccountId})`);
+
+    res.json({
+      success: true,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      detailsSubmitted: account.details_submitted,
+      requirements: {
+        currentlyDue: account.requirements?.currently_due ?? [],
+        eventuallyDue: account.requirements?.eventually_due ?? [],
+        errors: account.requirements?.errors ?? [],
+        pendingVerification: account.requirements?.pending_verification ?? [],
+        disabledReason: account.requirements?.disabled_reason ?? null,
+      },
+    });
+  } catch (err: any) {
+    console.error("Stripe KYC update error:", err);
+    res.status(500).json({
+      error: "stripe_error",
+      message: err?.raw?.message ?? err?.message ?? "KYC情報の送信に失敗しました",
+    });
   }
 });
 
