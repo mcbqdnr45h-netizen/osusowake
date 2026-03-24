@@ -10,7 +10,7 @@ import {
 import {
   Plus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
-  History,
+  History, Sparkles,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -77,19 +77,52 @@ const BAG_LABELS = [
   { value: 'meat',        label: '肉・魚',     emoji: '🥩' },
   { value: 'noodles',     label: '麺類',       emoji: '🍜' },
   { value: 'drinks',      label: 'ドリンク',   emoji: '🥤' },
-  { value: 'assorted',    label: '詰め合わせ', emoji: '🎁' },
 ];
 
 // ─── カテゴリーピッカー ───────────────────────────────────────────────────
-function CategoryPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function CategoryPicker({
+  value, onChange, classifying = false, aiSuggested = null,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  classifying?: boolean;
+  aiSuggested?: string | null;
+}) {
+  const suggestedCat = BAG_LABELS.find(c => c.value === aiSuggested);
+
   return (
     <div>
-      <label className="block text-xs font-bold text-muted-foreground mb-2">
-        ラベル <span className="text-muted-foreground/60 font-normal">（任意）</span>
-      </label>
+      <div className="flex items-center gap-2 mb-2">
+        <label className="text-xs font-bold text-muted-foreground">
+          ラベル <span className="text-muted-foreground/60 font-normal">（任意）</span>
+        </label>
+        {classifying && (
+          <span className="flex items-center gap-1 text-[10px] text-violet-500 font-bold">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            AIが判定中...
+          </span>
+        )}
+        {!classifying && suggestedCat && value !== aiSuggested && (
+          <button
+            type="button"
+            onClick={() => onChange(aiSuggested!)}
+            className="flex items-center gap-1 text-[10px] bg-violet-50 text-violet-600 border border-violet-200 rounded-full px-2 py-0.5 font-bold hover:bg-violet-100 transition-colors"
+          >
+            <Sparkles className="w-2.5 h-2.5" />
+            AI判定: {suggestedCat.emoji} {suggestedCat.label}
+          </button>
+        )}
+        {!classifying && suggestedCat && value === aiSuggested && (
+          <span className="flex items-center gap-1 text-[10px] text-violet-500 font-bold">
+            <Sparkles className="w-2.5 h-2.5" />
+            AI自動判定
+          </span>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2">
         {BAG_LABELS.map((cat) => {
           const isActive = value === cat.value;
+          const isAI     = cat.value === aiSuggested && !classifying;
           return (
             <button
               key={cat.value}
@@ -98,20 +131,18 @@ function CategoryPicker({ value, onChange }: { value: string; onChange: (v: stri
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${
                 isActive
                   ? 'bg-primary border-primary text-white shadow-sm shadow-primary/25'
-                  : 'bg-white border-border text-foreground hover:border-primary/40'
+                  : isAI && value === ''
+                    ? 'bg-violet-50 border-violet-300 text-violet-700 ring-1 ring-violet-300 ring-offset-1'
+                    : 'bg-white border-border text-foreground hover:border-primary/40'
               }`}
             >
               <span>{cat.emoji}</span>
               <span>{cat.label}</span>
+              {isAI && !isActive && <Sparkles className="w-2.5 h-2.5 text-violet-400" />}
             </button>
           );
         })}
       </div>
-      {value && (
-        <p className="text-[11px] text-primary font-bold mt-1.5">
-          ✓ 「{BAG_LABELS.find(c => c.value === value)?.label}」を選択中
-        </p>
-      )}
     </div>
   );
 }
@@ -133,6 +164,8 @@ function PostBagModal({
   const [mode, setMode] = useState<'quick' | 'manual'>('quick');
   const [pastBag, setPastBag] = useState<PastBag | null>(null);
   const [bagCategory, setBagCategory] = useState<string>('');
+  const [aiSuggested, setAiSuggested] = useState<string | null>(null);
+  const [classifying, setClassifying] = useState(false);
   const [qty, setQty] = useState(3);
   const [quickPickupStart, setQuickPickupStart] = useState('18:00');
   const [quickPickupEnd, setQuickPickupEnd] = useState('20:00');
@@ -156,6 +189,35 @@ function PostBagModal({
     setForm(f => ({ ...f, stockCount: clamped }));
     setStockCountStr(String(clamped));
   }
+
+  // 画像変更ハンドラ：アップロード後に AI 自動分類を実行
+  const handleImageChange = React.useCallback(async (url: string | null) => {
+    setImageUrl(url);
+    if (!url || url.startsWith('http')) {
+      // 外部URLや null は分類しない（過去出品引き継ぎ時も含む）
+      return;
+    }
+    try {
+      setClassifying(true);
+      const apiBase = import.meta.env.VITE_API_URL ?? '';
+      const res = await fetch(`${apiBase}/api/suggest-category`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: url }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { category: string | null };
+        if (data.category) {
+          setAiSuggested(data.category);
+          setBagCategory(prev => prev || data.category!); // 未選択なら自動適用
+        }
+      }
+    } catch {
+      // 分類失敗は無視
+    } finally {
+      setClassifying(false);
+    }
+  }, []);
 
   // 過去の出品を選択したとき、画像とカテゴリーを引き継ぐ
   React.useEffect(() => {
@@ -407,10 +469,15 @@ function PostBagModal({
                     </div>
 
                     {/* 写真（過去の画像を引き継ぎ、変更も可） */}
-                    <ImageUpload value={imageUrl} onChange={setImageUrl} required />
+                    <ImageUpload value={imageUrl} onChange={handleImageChange} required />
 
                     {/* ラベル */}
-                    <CategoryPicker value={bagCategory} onChange={setBagCategory} />
+                    <CategoryPicker
+                      value={bagCategory}
+                      onChange={setBagCategory}
+                      classifying={classifying}
+                      aiSuggested={aiSuggested}
+                    />
 
                     {/* 出品ボタン */}
                     <button
@@ -543,7 +610,15 @@ function PostBagModal({
               </div>
 
               {/* 写真アップロード */}
-              <ImageUpload value={imageUrl} onChange={setImageUrl} required />
+              <ImageUpload value={imageUrl} onChange={handleImageChange} required />
+
+              {/* ラベル */}
+              <CategoryPicker
+                value={bagCategory}
+                onChange={setBagCategory}
+                classifying={classifying}
+                aiSuggested={aiSuggested}
+              />
 
               <button
                 type="submit"

@@ -7,6 +7,7 @@ import paymentRouter from "./payment";
 import supabaseTestRouter from "./supabase-test";
 import uploadRouter from "./upload";
 import notificationsRouter from "./notifications";
+import classifyRouter from "./classify";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 const router: IRouter = Router();
@@ -19,6 +20,7 @@ router.use(paymentRouter);
 router.use(supabaseTestRouter);
 router.use(uploadRouter);
 router.use(notificationsRouter);
+router.use(classifyRouter);
 
 router.get("/me", async (req, res) => {
   const authHeader = req.headers.authorization;
