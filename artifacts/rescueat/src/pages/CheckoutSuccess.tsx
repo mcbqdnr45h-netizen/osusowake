@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import {
-  Coins, Package, Store, Clock, QrCode,
+  Package, Store, Clock, QrCode,
   ChevronRight, Home, Copy, Check, Sparkles, Receipt,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 
-const POINT_RATE = 0.03;
 
 interface OrderReceipt {
   status: string;
@@ -69,8 +68,6 @@ export default function CheckoutSuccess() {
       setTimeout(() => setCodeCopied(false), 2000);
     });
   }
-
-  const pointsEarned = receipt ? Math.floor(receipt.totalPrice * POINT_RATE) : 0;
 
   if (loading) {
     return (
@@ -229,25 +226,6 @@ export default function CheckoutSuccess() {
                 <><Copy className="w-4 h-4" />コードをコピー</>
               )}
             </button>
-          </motion.div>
-        )}
-
-        {/* ── 獲得ポイント ── */}
-        {pointsEarned > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl p-5 shadow-lg shadow-orange-200/60 mb-5 flex items-center gap-4"
-          >
-            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
-              <Coins className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <p className="text-white/80 text-xs font-bold">今回のおすそ分けで獲得！</p>
-              <p className="text-white font-black text-3xl">+{pointsEarned} pt</p>
-              <p className="text-white/70 text-xs mt-0.5">次回のおすそ分けに使えます</p>
-            </div>
           </motion.div>
         )}
 

@@ -6,13 +6,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Clock, MapPin, CheckCircle2,
-  ChevronRight, AlertCircle, Coins, Leaf,
+  ChevronRight, AlertCircle, Leaf,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ReviewModal } from '@/components/ReviewModal';
 import { useUserId } from '@/hooks/use-user';
-
-const POINT_RATE = 0.03;
 
 // ─── localStorage helpers ─────────────────────────────────────────────────
 
@@ -280,7 +278,6 @@ export default function OrderTicket() {
   const isPickedUp = !!(ticket || reservation.status === 'picked_up');
   const isCancelled = reservation.status === 'cancelled';
   const displayCode = toDisplayCode(reservation.pickupCode, reservationId);
-  const points = Math.floor(reservation.totalPrice * POINT_RATE);
   const pickedUpAtStr = ticket?.pickedUpAt ? formatDatetime(ticket.pickedUpAt) : formatDatetime(new Date().toISOString());
 
   return (
@@ -403,22 +400,15 @@ export default function OrderTicket() {
                   <motion.div key="stamp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-4">
                     <PickedUpStamp pickedUpAt={pickedUpAtStr} />
 
-                    {points > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                        className="mt-5 flex items-center justify-center gap-4 bg-secondary/50 rounded-2xl py-3 px-4"
-                      >
-                        <div className="flex items-center gap-1.5 text-amber-500">
-                          <Coins className="w-4 h-4" />
-                          <span className="text-sm font-black">+{points}pt 獲得</span>
-                        </div>
-                        <div className="w-px h-4 bg-border" />
-                        <div className="flex items-center gap-1.5 text-emerald-600">
-                          <Leaf className="w-4 h-4" />
-                          <span className="text-sm font-black">CO₂ 2.5kg削減</span>
-                        </div>
-                      </motion.div>
-                    )}
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+                      className="mt-5 flex items-center justify-center gap-4 bg-secondary/50 rounded-2xl py-3 px-4"
+                    >
+                      <div className="flex items-center gap-1.5 text-emerald-600">
+                        <Leaf className="w-4 h-4" />
+                        <span className="text-sm font-black">CO₂ 2.5kg削減</span>
+                      </div>
+                    </motion.div>
                   </motion.div>
 
                 ) : isCancelled ? (

@@ -2,12 +2,10 @@ import React, { useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetReservation } from '@workspace/api-client-react';
-import { CheckCircle2, ShieldCheck, CreditCard, Coins, Lock, Sparkles, ChevronLeft, ExternalLink } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, CreditCard, ChevronLeft, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-
-const POINT_RATE = 0.03;
 
 export default function Checkout() {
   const [, params] = useRoute('/checkout/:id');
@@ -29,8 +27,6 @@ export default function Checkout() {
       </Layout>
     );
   }
-
-  const pointsToEarn = Math.floor(reservation.totalPrice * POINT_RATE);
 
   const handleStripeCheckout = async () => {
     setIsRedirecting(true);
@@ -113,58 +109,6 @@ export default function Checkout() {
             </div>
           </motion.div>
 
-          {/* Points Preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-            className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-                <Coins className="w-5 h-5 text-amber-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-black text-amber-800">今回の購入で獲得予定</p>
-                <p className="text-xs text-amber-600 mt-0.5">決済完了後に付与されます（{(POINT_RATE * 100).toFixed(0)}%還元）</p>
-              </div>
-              <div className="text-right shrink-0">
-                <span className="text-2xl font-black text-amber-500">+{pointsToEarn}</span>
-                <span className="text-sm font-bold text-amber-500 ml-0.5">pt</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Points Redemption — Coming Soon */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="bg-card border border-border rounded-2xl p-5 shadow-sm relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-10 rounded-2xl" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center z-20 gap-2">
-              <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full">
-                <Lock className="w-3.5 h-3.5" />
-                <span className="text-xs font-black">Coming Soon</span>
-              </div>
-              <p className="text-xs text-muted-foreground font-medium text-center px-4">
-                ポイント利用機能は準備中です。<br />今のうちにポイントを貯めておきましょう！
-              </p>
-            </div>
-            <div className="pointer-events-none select-none opacity-40">
-              <h2 className="text-base font-black mb-3 flex items-center gap-2">
-                <Coins className="w-4 h-4 text-amber-500" />
-                ポイントを利用する
-              </h2>
-              <div className="flex items-center justify-between bg-secondary/50 rounded-xl p-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">保有ポイント</p>
-                  <p className="text-xl font-black text-foreground">0 pt</p>
-                </div>
-                <div className="w-10 h-6 bg-muted rounded-full relative">
-                  <div className="absolute left-1 top-1 w-4 h-4 bg-muted-foreground/30 rounded-full" />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
           {/* Payment Method */}
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
@@ -209,11 +153,7 @@ export default function Checkout() {
               )}
             </button>
 
-            <p className="text-center text-xs text-amber-600 font-bold mt-2.5 flex items-center justify-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              決済後に {pointsToEarn}pt を獲得できます
-            </p>
-            <p className="text-center text-[11px] text-muted-foreground mt-1">
+            <p className="text-center text-[11px] text-muted-foreground mt-2.5">
               Stripeのテスト環境です。カード番号: 4242 4242 4242 4242
             </p>
           </motion.div>

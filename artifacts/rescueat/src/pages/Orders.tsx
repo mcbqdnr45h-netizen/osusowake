@@ -8,11 +8,9 @@ import { useListReservations } from '@workspace/api-client-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Receipt, ShoppingBag, CheckCircle2, XCircle,
-  Clock, Store, Download, Share2, Coins, ChevronRight, X,
+  Clock, Store, Download, Share2, ChevronRight, X,
   QrCode, Leaf,
 } from 'lucide-react';
-
-const POINT_RATE = 0.03;
 
 type ReservationStatus = 'pending' | 'confirmed' | 'picked_up' | 'cancelled' | 'no_show';
 
@@ -69,7 +67,6 @@ function formatDateShort(dateStr?: string | null) {
 function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () => void }) {
   const status = (reservation.status as ReservationStatus) || 'pending';
   const meta = STATUS_META[status] || STATUS_META.pending;
-  const pointsEarned = status === 'picked_up' ? Math.floor(reservation.totalPrice * POINT_RATE) : 0;
   const orderId = `ORD-${String(reservation.id).padStart(8, '0')}`;
   const co2Saved = status === 'picked_up' ? 2.5 : 0;
 
@@ -143,24 +140,15 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                 <span className="text-muted-foreground">小計</span>
                 <span className="font-medium text-foreground">¥{reservation.totalPrice.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">ポイント利用</span>
-                <span className="font-medium text-foreground">- ¥0</span>
-              </div>
               <div className="flex justify-between font-black text-base border-t border-border pt-2.5 mt-2.5">
                 <span>合計</span>
                 <span className="text-primary">¥{reservation.totalPrice.toLocaleString()}</span>
               </div>
             </div>
 
-            {/* Points & eco */}
+            {/* Eco */}
             {status === 'picked_up' && (
-              <div className="grid grid-cols-2 gap-2 mb-5">
-                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center">
-                  <Coins className="w-4 h-4 text-amber-500 mx-auto mb-1" />
-                  <p className="text-lg font-black text-amber-600">+{pointsEarned}pt</p>
-                  <p className="text-[10px] text-amber-500 font-bold">獲得ポイント</p>
-                </div>
+              <div className="mb-5">
                 <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 text-center">
                   <Leaf className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
                   <p className="text-lg font-black text-emerald-600">{co2Saved}kg</p>
@@ -231,8 +219,6 @@ export default function Orders() {
     .filter(r => r.status === 'picked_up')
     .reduce((s, r) => s + r.totalPrice, 0);
 
-  const totalPoints = Math.floor(totalSpent * POINT_RATE);
-
   const PageWrapper = isStoreOwner ? StoreLayout : Layout;
   const wrapperProps = isStoreOwner ? { showHeader: false } : { showBottomNav: false };
 
@@ -265,11 +251,6 @@ export default function Orders() {
             <div className="flex-1 text-center">
               <p className="text-2xl font-black text-primary">¥{totalSpent.toLocaleString()}</p>
               <p className="text-[11px] font-bold text-primary/70 mt-0.5">総購入額</p>
-            </div>
-            <div className="w-px bg-primary/20" />
-            <div className="flex-1 text-center">
-              <p className="text-2xl font-black text-amber-500">{totalPoints}</p>
-              <p className="text-[11px] font-bold text-amber-500/70 mt-0.5">獲得ポイント</p>
             </div>
           </div>
 
@@ -310,7 +291,6 @@ export default function Orders() {
               {filtered.map(r => {
                 const status = (r.status as ReservationStatus) || 'pending';
                 const meta = STATUS_META[status] || STATUS_META.pending;
-                const pts = status === 'picked_up' ? Math.floor(r.totalPrice * POINT_RATE) : 0;
                 return (
                   <motion.button
                     key={r.id}
@@ -349,9 +329,6 @@ export default function Orders() {
                             <span>{formatDateShort(r.createdAt)}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {pts > 0 && (
-                              <span className="text-[10px] font-bold text-amber-500">+{pts}pt</span>
-                            )}
                             <span className="font-black text-foreground">¥{r.totalPrice.toLocaleString()}</span>
                           </div>
                         </div>
