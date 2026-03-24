@@ -88,23 +88,32 @@ function translateRequirement(key: string): string {
 function stripeParamToField(param: string | null | undefined): string | null {
   if (!param) return null;
   const map: Record<string, string> = {
-    'individual[first_name]': 'firstNameKanji',
-    'individual[last_name]': 'lastNameKanji',
-    'individual[first_name_kana]': 'firstNameKana',
-    'individual[last_name_kana]': 'lastNameKana',
-    'individual[dob][year]': 'dobYear',
+    // ── 氏名（グローバル標準フィールド）──
+    'individual[first_name]':        'firstNameKana',
+    'individual[last_name]':         'lastNameKana',
+    // ── 氏名（カナ）──
+    'individual[first_name_kana]':   'firstNameKana',
+    'individual[last_name_kana]':    'lastNameKana',
+    // ── 氏名（漢字）— Stripe Japan 専用 ──
+    'individual[first_name_kanji]':  'firstNameKanji',
+    'individual[last_name_kanji]':   'lastNameKanji',
+    // ── 生年月日 ──
+    'individual[dob][year]':  'dobYear',
     'individual[dob][month]': 'dobMonth',
-    'individual[dob][day]': 'dobDay',
+    'individual[dob][day]':   'dobDay',
+    // ── 住所（漢字）── line1 は cityKanji+townKanji で構成するので townKanji を強調
     'individual[address_kanji][postal_code]': 'postalCode',
-    'individual[address_kanji][state]': 'stateKanji',
-    'individual[address_kanji][city]': 'cityKanji',
-    'individual[address_kanji][town]': 'townKanji',
-    'individual[address_kanji][line1]': 'line1Kanji',
+    'individual[address_kanji][state]':       'stateKanji',
+    'individual[address_kanji][city]':        'cityKanji',
+    'individual[address_kanji][town]':        'townKanji',
+    'individual[address_kanji][line1]':       'townKanji',  // line1=city+town なので town を強調
+    // ── 住所（カナ）──
     'individual[address_kana][postal_code]': 'postalCode',
-    'individual[address_kana][state]': 'stateKana',
-    'individual[address_kana][city]': 'cityKana',
-    'individual[address_kana][town]': 'townKana',
-    'individual[address_kana][line1]': 'line1Kana',
+    'individual[address_kana][state]':       'stateKana',
+    'individual[address_kana][city]':        'cityKana',
+    'individual[address_kana][town]':        'townKana',
+    'individual[address_kana][line1]':       'townKana',    // line1=city+town なので town を強調
+    // ── その他 ──
     'individual[phone]': 'phone',
     'individual[email]': 'email',
     'business_profile[product_description]': 'productDescription',
@@ -330,21 +339,31 @@ export default function StripeKYCPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        // Stripe フィールド別エラーをインライン表示
+        // ── Stripe invalid_request_error: どのフィールドが原因か特定してアラート ──
         const fieldKey = stripeParamToField(data.param);
+        const stripeField = data.param ?? null;
+
         if (fieldKey) {
+          // フィールド別エラー: 該当欄を赤枠 + グローバルバナーにフィールド名を明示
           setFieldErrors({ [fieldKey]: data.message ?? 'この項目に誤りがあります' });
-          setGlobalError('入力内容にエラーがあります。赤くハイライトされた項目をご確認ください。');
+          const fieldLabel = stripeField ? `（Stripeフィールド: ${stripeField}）` : '';
+          setGlobalError(
+            `入力エラー${fieldLabel}：赤くハイライトされた項目をご確認ください。\n${data.message ?? ''}`.trim()
+          );
+        } else if (stripeField) {
+          // Stripe がフィールドを返したが対応するフォーム欄が不明な場合
+          setGlobalError(
+            `Stripeエラー（フィールド: ${stripeField}）\n${data.message ?? '送信に失敗しました。'}`
+          );
         } else {
           setGlobalError(data.message ?? '送信に失敗しました。入力内容をご確認ください。');
         }
         return;
       }
 
-      // 成功 → ストアキャッシュをリフレッシュして「審査中」バナーを即時消す
-      if (data.kycComplete) {
-        await refetch();
-      }
+      // ── 送信成功 → 常に refetch してマイページ・審査バナーを即時更新 ──
+      await refetch();
+
       setResult(data);
     } catch (err: any) {
       setGlobalError(err?.message ?? '予期しないエラーが発生しました。');
@@ -356,20 +375,32 @@ export default function StripeKYCPage() {
   // ── 要件が特定フィールドに対応するか判定（赤枠表示用） ──
   const isRequired = (fieldKey: string): boolean => {
     const reqMap: Record<string, string[]> = {
-      'firstNameKanji': ['individual.first_name', 'representative.first_name'],
-      'lastNameKanji':  ['individual.last_name',  'representative.last_name'],
-      'firstNameKana':  ['individual.first_name_kana', 'representative.first_name_kana'],
-      'lastNameKana':   ['individual.last_name_kana',  'representative.last_name_kana'],
-      'dobYear':   ['individual.dob.year',  'representative.dob.year'],
-      'dobMonth':  ['individual.dob.month', 'representative.dob.month'],
-      'dobDay':    ['individual.dob.day',   'representative.dob.day'],
-      'postalCode':    ['individual.address_kanji.postal_code'],
-      'stateKanji':    ['individual.address_kanji.state'],
-      'cityKanji':     ['individual.address_kanji.city'],
-      'townKanji':     ['individual.address_kanji.town'],
-      'stateKana':     ['individual.address_kana.state'],
-      'cityKana':      ['individual.address_kana.city'],
-      'townKana':      ['individual.address_kana.town'],
+      // 氏名（漢字）
+      'firstNameKanji': [
+        'individual.first_name', 'individual.first_name_kanji',
+        'representative.first_name', 'representative.first_name_kanji',
+      ],
+      'lastNameKanji': [
+        'individual.last_name', 'individual.last_name_kanji',
+        'representative.last_name', 'representative.last_name_kanji',
+      ],
+      // 氏名（カナ）
+      'firstNameKana': ['individual.first_name_kana', 'representative.first_name_kana'],
+      'lastNameKana':  ['individual.last_name_kana',  'representative.last_name_kana'],
+      // 生年月日
+      'dobYear':  ['individual.dob.year',  'representative.dob.year'],
+      'dobMonth': ['individual.dob.month', 'representative.dob.month'],
+      'dobDay':   ['individual.dob.day',   'representative.dob.day'],
+      // 住所（漢字） — line1 は city+town で構成するので town に line1 も含める
+      'postalCode': ['individual.address_kanji.postal_code', 'individual.address_kana.postal_code'],
+      'stateKanji': ['individual.address_kanji.state'],
+      'cityKanji':  ['individual.address_kanji.city'],
+      'townKanji':  ['individual.address_kanji.town', 'individual.address_kanji.line1'],
+      // 住所（カナ）
+      'stateKana': ['individual.address_kana.state'],
+      'cityKana':  ['individual.address_kana.city'],
+      'townKana':  ['individual.address_kana.town', 'individual.address_kana.line1'],
+      // その他
       'productDescription': ['business_profile.product_description'],
       'businessUrl':        ['business_profile.url'],
       'phone': ['individual.phone', 'representative.phone'],

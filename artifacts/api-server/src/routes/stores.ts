@@ -821,14 +821,25 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
 
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
+    // ── address_kanji.line1 = 「市区町村 + 町名・番地 [+ 建物名]」
+    //    Stripe Japan は line1 を必須要求するため、常に値を設定する
+    const kanjiLine1Parts = [representative.cityKanji, representative.townKanji];
+    if (representative.line1Kanji) kanjiLine1Parts.push(representative.line1Kanji);
+    const kanjiLine1 = kanjiLine1Parts.filter(Boolean).join(" ");
+
+    // ── address_kana.line1 = 「市区町村カナ + 町名カナ [+ 建物カナ]」
+    const kanaLine1Parts = [representative.cityKana, representative.townKana];
+    if (representative.line1Kana) kanaLine1Parts.push(representative.line1Kana);
+    const kanaLine1 = kanaLine1Parts.filter(Boolean).join(" ");
+
     // ── 住所オブジェクト（漢字）──
     const addressKanji: Record<string, string> = {
       postal_code: representative.postalCode,
       state:       representative.stateKanji,
       city:        representative.cityKanji,
       town:        representative.townKanji,
+      line1:       kanjiLine1,               // 必須: 市区町村+番地の完全形式
     };
-    if (representative.line1Kanji) addressKanji["line1"] = representative.line1Kanji;
 
     // ── 住所オブジェクト（カナ）──
     const addressKana: Record<string, string> = {
@@ -836,8 +847,8 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       state:       representative.stateKana,
       city:        representative.cityKana,
       town:        representative.townKana,
+      line1:       kanaLine1,                // 必須: 市区町村カナ+番地カナの完全形式
     };
-    if (representative.line1Kana) addressKana["line1"] = representative.line1Kana;
 
     // ── 標準住所（kanji/kana と並列で送信） ──
     const addressStandard: Record<string, string> = {
@@ -845,7 +856,7 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       country:     "JP",
       state:       representative.stateKanji,
       city:        representative.cityKanji,
-      line1:       representative.townKanji + (representative.line1Kanji ? ` ${representative.line1Kanji}` : ""),
+      line1:       kanjiLine1,
     };
 
     // ── 事業内容 ──
@@ -864,12 +875,6 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     };
 
     if (businessType === "individual") {
-      // address_kanji.line1 と address_kana.line1 は Stripe が必須要求する。
-      // ユーザーが建物名を入力していない場合は town（番地）を line1 にも設定する。
-      if (!addressKanji["line1"]) addressKanji["line1"] = representative.townKanji;
-      if (!addressKana["line1"])  addressKana["line1"]  = representative.townKana;
-      if (!addressStandard["line1"]) addressStandard["line1"] = representative.townKanji;
-
       const indiv: Record<string, any> = {
         // ASCII/Kana 名（Stripe グローバル標準フィールド）
         first_name:      representative.firstNameKana,
@@ -944,10 +949,11 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     console.log(`   requirements.errors:         ${JSON.stringify(account.requirements?.errors)}`);
     console.log(`   requirements.disabled_reason: ${account.requirements?.disabled_reason}`);
 
-    // eventually_due が空 = Stripeの必要情報がすべて揃った → DBステータスを 'approved' に更新
+    // currently_due が空 = Stripe への必須送信フィールドがすべて揃った
+    // → 即座に DBステータスを 'approved' に更新してマイページの読み込みを終了させる
     const eventuallyDue = account.requirements?.eventually_due ?? [];
     const currentlyDue  = account.requirements?.currently_due ?? [];
-    const kycComplete   = eventuallyDue.length === 0 && currentlyDue.length === 0;
+    const kycComplete   = currentlyDue.length === 0;   // currently_due 空 = 送信完了
 
     let newStatus: string | null = null;
     if (kycComplete) {
@@ -956,7 +962,12 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
         .set({ status: "approved" })
         .where(eq(storesTable.id, storeId));
       newStatus = "approved";
-      console.log(`✅ Store ${storeId} status updated to 'approved' (KYC complete)`);
+      console.log(
+        `✅ Store ${storeId} status → 'approved'` +
+        (eventuallyDue.length > 0
+          ? ` (currently_due 空 / eventually_due ${eventuallyDue.length} 件残: ${JSON.stringify(eventuallyDue)})`
+          : " (KYC 完全完了)")
+      );
     }
 
     res.json({
