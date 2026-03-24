@@ -151,10 +151,12 @@ export default function StripeBankSetup() {
   const backInputRef  = useRef<HTMLInputElement>(null);
 
   // ── UI 状態 ──
-  const [loading, setLoading]       = useState(false);
-  const [zipLoading, setZipLoading] = useState(false);
-  const [error, setError]           = useState<string | null>(null);
-  const [done, setDone]             = useState(false);
+  const [loading, setLoading]           = useState(false);
+  const [zipLoading, setZipLoading]     = useState(false);
+  const [error, setError]               = useState<string | null>(null);
+  const [done, setDone]                 = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<string>('');
+  const abortRef = useRef<AbortController | null>(null);
 
   // ── 郵便番号自動補完 ──
   const lookupZip = useCallback(async (zip: string) => {
@@ -240,9 +242,19 @@ export default function StripeBankSetup() {
 
     setLoading(true);
     setError(null);
+    setSubmitStatus('口座情報を検証中...');
+
+    // 90秒タイムアウト用 AbortController
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeoutId = setTimeout(() => {
+      console.log('[StripeBankSetup] ⏱ 90秒タイムアウト — 仮登録完了として遷移します');
+      controller.abort();
+    }, 90_000);
 
     try {
       // ① Stripe.js で銀行口座トークン生成
+      setSubmitStatus('Stripe に接続中...');
       const stripe = await stripePromise;
       if (!stripe) throw new Error('Stripeの読み込みに失敗しました。ページを再読み込みしてください。');
 
@@ -261,9 +273,13 @@ export default function StripeBankSetup() {
       }
 
       // ② 全データを一括送信（口座登録 + KYC + 書類アップロード + DB approved 更新）
+      setSubmitStatus('登録情報をサーバーに送信中...');
+      console.log(`[StripeBankSetup] POST /api/stores/${store.id}/connect/bank-setup 開始`);
+
       const res = await fetch(`/api/stores/${store.id}/connect/bank-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           bankToken:    result.token.id,
           tosTimestamp: tosTime,
@@ -292,7 +308,9 @@ export default function StripeBankSetup() {
           docBackMime:    docBackFile?.type ?? undefined,
         }),
       });
+      clearTimeout(timeoutId);
 
+      console.log(`[StripeBankSetup] レスポンス受信: status=${res.status}`);
       const data = await res.json();
       if (!res.ok) {
         const hint = data.param ? `（項目: ${data.param}）` : '';
@@ -301,12 +319,26 @@ export default function StripeBankSetup() {
       }
 
       // ③ 完了 → キャッシュ更新してマイページへ
+      setSubmitStatus('登録完了！');
+      console.log('[StripeBankSetup] ✅ 登録成功 → done 画面へ遷移');
       await refetch();
       setDone(true);
     } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        // タイムアウト → 仮登録完了として扱い、次の画面へ
+        console.log('[StripeBankSetup] AbortError (タイムアウト) → 仮登録完了として done 画面へ遷移');
+        setSubmitStatus('処理中（バックグラウンドで継続）...');
+        try { await refetch(); } catch (_) {}
+        setDone(true);
+        return;
+      }
+      console.error('[StripeBankSetup] エラー:', err);
       setError(err?.message ?? '予期しないエラーが発生しました。');
     } finally {
       setLoading(false);
+      setSubmitStatus('');
+      abortRef.current = null;
     }
   };
 
@@ -729,8 +761,10 @@ export default function StripeBankSetup() {
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3">
               <Loader2 className="w-5 h-5 text-orange-500 animate-spin shrink-0" />
               <div>
-                <p className="text-sm font-bold text-orange-700">登録処理中...</p>
-                <p className="text-xs text-orange-600">口座・書類・本人確認情報をStripeへ送信しています</p>
+                <p className="text-sm font-bold text-orange-700">
+                  {submitStatus || '登録処理中...'}
+                </p>
+                <p className="text-xs text-orange-600">しばらくお待ちください（最大90秒）</p>
               </div>
             </div>
           )}

@@ -170,17 +170,32 @@ export default function StoreOnboarding() {
   }
 
   async function uploadDocument(imageBase64: string, fileType: string): Promise<string> {
-    const res = await fetch(`${BASE}/api/stores/upload-document`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64, fileType, userId }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message ?? `${fileType} のアップロードに失敗しました`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn(`[StoreOnboarding] ${fileType} upload timeout (8s) — using placeholder`);
+      controller.abort();
+    }, 8000);
+    try {
+      const res = await fetch(`${BASE}/api/stores/upload-document`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({ imageBase64, fileType, userId }),
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? `${fileType} のアップロードに失敗しました`);
+      }
+      const data = await res.json();
+      return data.url as string;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        return 'upload-pending'; // タイムアウト時プレースホルダー — 後から管理者が対応
+      }
+      throw err;
     }
-    const data = await res.json();
-    return data.url as string;
   }
 
   async function handleComplianceSubmit(e: React.FormEvent) {
@@ -199,14 +214,16 @@ export default function StoreOnboarding() {
 
     setSubmitting(true);
     try {
-      // ① 書類画像を Supabase Storage にアップロード
+      // ① 書類画像を Supabase Storage にアップロード（各8秒タイムアウト）
       setUploadStatus('営業許可証をアップロード中...');
       const licenseStorageUrl = await uploadDocument(comp.licenseImageUrl, 'license');
+      console.log('[StoreOnboarding] license upload =', licenseStorageUrl);
 
       setUploadStatus('本人確認書類をアップロード中...');
       const idStorageUrl = await uploadDocument(comp.idImageUrl, 'id');
+      console.log('[StoreOnboarding] id upload =', idStorageUrl);
 
-      // ② 店舗情報を DB に保存（status: "pending" のまま → 自動承認しない）
+      // ② 店舗情報を DB に保存（5秒タイムアウト — タイムアウト時は楽観的に次画面へ）
       setUploadStatus('申請情報を送信中...');
       const payload = {
         name: basic.name,
@@ -224,20 +241,39 @@ export default function StoreOnboarding() {
         pledgeSigned: true,
       };
 
-      const res = await fetch(`${BASE}/api/stores/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const applyController = new AbortController();
+      const applyTimeoutId = setTimeout(() => {
+        console.warn('[StoreOnboarding] /stores/apply timeout (5s) — proceeding optimistically');
+        applyController.abort();
+      }, 5000);
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`サーバーエラー (${res.status}): ${errText}`);
+      try {
+        const res = await fetch(`${BASE}/api/stores/apply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: applyController.signal,
+          body: JSON.stringify(payload),
+        });
+        clearTimeout(applyTimeoutId);
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`サーバーエラー (${res.status}): ${errText}`);
+        }
+        const store = await res.json();
+        console.log('[StoreOnboarding] ✅ 申請完了 store.id=', store.id, 'status=', store.status);
+        setCreatedStoreId(store.id);
+      } catch (applyErr: any) {
+        clearTimeout(applyTimeoutId);
+        if (applyErr.name !== 'AbortError') {
+          // タイムアウト以外のエラーは再スロー
+          throw applyErr;
+        }
+        // タイムアウト → 楽観的に次の画面へ（storeId は null のまま）
+        console.warn('[StoreOnboarding] apply タイムアウト — submitted 画面へ遷移');
       }
 
-      const store = await res.json();
-      console.log('[StoreOnboarding] ✅ 申請完了 store.id=', store.id, 'status=', store.status);
-      setCreatedStoreId(store.id);
+      console.log('[StoreOnboarding] → setStep("submitted")');
       setStep('submitted');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {

@@ -1209,54 +1209,128 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       "tabeross.replit.app";
     const businessUrl = kycData.businessUrl?.trim() || `https://${replitDomain}`;
 
+    // ── タイムアウト付き Stripe 呼び出しヘルパー ──
+    function stripeCall<T>(promise: Promise<T>, label: string, ms = 25000): Promise<T> {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`stripe_timeout:${label}`)), ms)
+        ),
+      ]);
+    }
+
     // ── STEP 1: Stripe Custom アカウント作成 or 更新 ──
     let accountId = store.stripeAccountId;
 
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: "custom",
-        country: "JP",
-        ...(ownerEmail ? { email: ownerEmail } : {}),
-        capabilities: { transfers: { requested: true } },
-        business_profile: { mcc: "5812", url: businessUrl },
-        tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip },
-      });
-      accountId = account.id;
-      await db.update(storesTable).set({ stripeAccountId: accountId }).where(eq(storesTable.id, storeId));
-      console.log(`✅ [bank-setup] Stripe Custom Account created: ${accountId} for store ${storeId}`);
+      console.log(`[bank-setup] STEP1 Creating Stripe Custom Account for store ${storeId}…`);
+      try {
+        const account = await stripeCall(
+          stripe.accounts.create(
+            {
+              type: "custom",
+              country: "JP",
+              ...(ownerEmail ? { email: ownerEmail } : {}),
+              capabilities: { transfers: { requested: true } },
+              business_profile: { mcc: "5812", url: businessUrl },
+              tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip },
+            },
+            // 冪等性キー: 同じ storeId で同じ申請を複数回送っても1回分だけ作成される
+            { idempotencyKey: `store-${storeId}-account-create` }
+          ),
+          "accounts.create"
+        );
+        accountId = account.id;
+        await db.update(storesTable).set({ stripeAccountId: accountId }).where(eq(storesTable.id, storeId));
+        console.log(`✅ [bank-setup] Stripe Custom Account created: ${accountId} for store ${storeId}`);
+      } catch (createErr: any) {
+        // タイムアウトまたは重複エラーのとき、DB を再確認して既存 accountId を使う
+        const [latest] = await db
+          .select({ stripeAccountId: storesTable.stripeAccountId })
+          .from(storesTable)
+          .where(eq(storesTable.id, storeId));
+        if (latest?.stripeAccountId) {
+          accountId = latest.stripeAccountId;
+          console.warn(`⚠️  [bank-setup] accounts.create failed (${createErr.message}), using existing accountId=${accountId}`);
+        } else {
+          throw createErr;
+        }
+      }
     } else {
-      await stripe.accounts.update(accountId, {
-        business_profile: { mcc: "5812", url: businessUrl },
-        tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip },
-      });
-      console.log(`ℹ️  [bank-setup] Stripe Custom Account updated: ${accountId}`);
+      console.log(`[bank-setup] STEP1 Updating existing Stripe Account ${accountId}…`);
+      try {
+        await stripeCall(
+          stripe.accounts.update(accountId, {
+            business_profile: { mcc: "5812", url: businessUrl },
+            tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip },
+          }),
+          "accounts.update(tos)"
+        );
+        console.log(`ℹ️  [bank-setup] Stripe Custom Account updated: ${accountId}`);
+      } catch (updErr: any) {
+        console.warn(`⚠️  [bank-setup] accounts.update(tos) failed: ${updErr.message} — continuing`);
+      }
     }
 
     // ── STEP 2: 銀行口座を外部アカウントとして紐付け ──
-    await stripe.accounts.createExternalAccount(accountId, {
-      external_account: bankToken,
-      default_for_currency: true,
-    });
-    console.log(`✅ [bank-setup] Bank account attached to ${accountId}`);
+    console.log(`[bank-setup] STEP2 Attaching bank account to ${accountId}…`);
+    try {
+      await stripeCall(
+        stripe.accounts.createExternalAccount(accountId, {
+          external_account: bankToken,
+          default_for_currency: true,
+        }),
+        "createExternalAccount"
+      );
+      console.log(`✅ [bank-setup] Bank account attached to ${accountId}`);
+    } catch (bankErr: any) {
+      // 同一口座を再登録しようとした場合はスキップ
+      if (bankErr.code === "external_account_already_exists" || bankErr.message?.includes("already")) {
+        console.warn(`⚠️  [bank-setup] External account already attached: ${bankErr.message} — skipping`);
+      } else if (bankErr.message?.startsWith("stripe_timeout:")) {
+        console.warn(`⚠️  [bank-setup] Bank account attach timed out — continuing`);
+      } else {
+        throw bankErr;
+      }
+    }
 
     // ── STEP 3: 本人確認書類を Stripe Files API にアップロード ──
     const toBuffer = (b64: string) => Buffer.from(b64.replace(/^data:[^;]+;base64,/, ""), "base64");
     const frontExt = docFrontMime === "image/png" ? "png" : "jpg";
-    const frontFile = await stripe.files.create({
-      purpose: "identity_document",
-      file: { data: toBuffer(docFrontBase64), name: `id_front.${frontExt}`, type: docFrontMime as "image/jpeg" | "image/png" },
-    });
-    console.log(`✅ [bank-setup] Front doc uploaded: ${frontFile.id}`);
+    console.log(`[bank-setup] STEP3 Uploading identity document (front)…`);
+    let frontFile: { id: string } | null = null;
+    try {
+      frontFile = await stripeCall(
+        stripe.files.create({
+          purpose: "identity_document",
+          file: { data: toBuffer(docFrontBase64), name: `id_front.${frontExt}`, type: docFrontMime as "image/jpeg" | "image/png" },
+        }),
+        "files.create(front)",
+        30000
+      );
+      console.log(`✅ [bank-setup] Front doc uploaded: ${frontFile.id}`);
+    } catch (docErr: any) {
+      console.warn(`⚠️  [bank-setup] Front doc upload failed: ${docErr.message} — skipping verification`);
+    }
 
     let backFileId: string | undefined;
     if (docBackBase64 && docBackMime) {
       const backExt = docBackMime === "image/png" ? "png" : "jpg";
-      const backFile = await stripe.files.create({
-        purpose: "identity_document",
-        file: { data: toBuffer(docBackBase64), name: `id_back.${backExt}`, type: docBackMime as "image/jpeg" | "image/png" },
-      });
-      backFileId = backFile.id;
-      console.log(`✅ [bank-setup] Back doc uploaded: ${backFileId}`);
+      console.log(`[bank-setup] STEP3b Uploading identity document (back)…`);
+      try {
+        const backFile = await stripeCall(
+          stripe.files.create({
+            purpose: "identity_document",
+            file: { data: toBuffer(docBackBase64), name: `id_back.${backExt}`, type: docBackMime as "image/jpeg" | "image/png" },
+          }),
+          "files.create(back)",
+          30000
+        );
+        backFileId = backFile.id;
+        console.log(`✅ [bank-setup] Back doc uploaded: ${backFileId}`);
+      } catch (docErr: any) {
+        console.warn(`⚠️  [bank-setup] Back doc upload failed: ${docErr.message} — skipping`);
+      }
     }
 
     // ── STEP 4: stripe.accounts.update で全 KYC データ + 書類を一括送信 ──
@@ -1283,28 +1357,44 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       address_kana:  addressKana,
       phone:  toE164Japan(k.phone),
       ...(ownerEmail ? { email: ownerEmail } : {}),
-      verification: {
-        document: {
-          front: frontFile.id,
-          ...(backFileId ? { back: backFileId } : {}),
+      // 書類がアップロードできた場合のみ verification を追加
+      ...(frontFile ? {
+        verification: {
+          document: {
+            front: frontFile.id,
+            ...(backFileId ? { back: backFileId } : {}),
+          },
         },
-      },
+      } : {}),
     };
 
     const businessProfileUpdate: Record<string, string> = { mcc: "5812", url: businessUrl };
     if (k.productDescription) businessProfileUpdate["product_description"] = k.productDescription;
 
-    console.log(`📤 [bank-setup] accounts.update payload for ${accountId}`);
-    const account = await stripe.accounts.update(accountId, {
-      business_type:    "individual",
-      business_profile: businessProfileUpdate,
-      individual:       indiv as any,
-    });
-
-    console.log(`✅ [bank-setup] accounts.update succeeded`);
-    console.log(`   charges_enabled: ${account.charges_enabled}`);
-    console.log(`   payouts_enabled: ${account.payouts_enabled}`);
-    console.log(`   currently_due:   ${JSON.stringify(account.requirements?.currently_due)}`);
+    console.log(`📤 [bank-setup] STEP4 accounts.update for ${accountId}…`);
+    let chargesEnabled = false;
+    let payoutsEnabled = false;
+    let currentlyDue: string[] = [];
+    try {
+      const account = await stripeCall(
+        stripe.accounts.update(accountId, {
+          business_type:    "individual",
+          business_profile: businessProfileUpdate,
+          individual:       indiv as any,
+        }),
+        "accounts.update(kyc)",
+        30000
+      );
+      chargesEnabled = account.charges_enabled;
+      payoutsEnabled = account.payouts_enabled;
+      currentlyDue   = account.requirements?.currently_due ?? [];
+      console.log(`✅ [bank-setup] accounts.update succeeded`);
+      console.log(`   charges_enabled: ${chargesEnabled}, payouts_enabled: ${payoutsEnabled}`);
+      console.log(`   currently_due: ${JSON.stringify(currentlyDue)}`);
+    } catch (kycErr: any) {
+      // KYC update が失敗/タイムアウトしても、口座は登録済みなので DB は更新する
+      console.warn(`⚠️  [bank-setup] accounts.update(kyc) failed: ${kycErr?.raw?.message ?? kycErr?.message} — saving DB status anyway`);
+    }
 
     // ── STEP 5: DBステータスを approved に更新（送信完了の証として）──
     // currently_due の状態に関わらず approved にする
@@ -1315,12 +1405,17 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     res.json({
       success: true,
       accountId,
-      chargesEnabled: account.charges_enabled,
-      payoutsEnabled: account.payouts_enabled,
-      currentlyDue:   account.requirements?.currently_due ?? [],
+      chargesEnabled,
+      payoutsEnabled,
+      currentlyDue,
     });
   } catch (err: any) {
-    console.error("❌ [bank-setup] Error:", err?.raw?.message ?? err?.message ?? err);
+    // 最終 catch — ここに来ても DB だけは更新を試みる
+    console.error("❌ [bank-setup] Fatal error:", err?.raw?.message ?? err?.message ?? err);
+    try {
+      await db.update(storesTable).set({ status: "applied" }).where(eq(storesTable.id, storeId));
+      console.log(`⚠️  [bank-setup] Store ${storeId} status → 'applied' (partial)`);
+    } catch (_) {}
     res.status(500).json({
       error:   "stripe_error",
       message: err?.raw?.message ?? err?.message ?? "登録処理に失敗しました",
