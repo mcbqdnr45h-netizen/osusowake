@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
@@ -7,6 +7,7 @@ import {
   ChevronUp, ChevronDown, Zap,
 } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
+import { CategoryPicker } from '@/components/CategoryPicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -49,6 +50,34 @@ export default function StoreBagsPage() {
   });
   const [editingStock, setEditingStock] = useState(false);
   const stockInputRef = useRef<HTMLInputElement>(null);
+  const [bagCategory, setBagCategory] = useState('');
+  const [aiSuggested, setAiSuggested] = useState<string | null>(null);
+  const [classifying, setClassifying] = useState(false);
+
+  const handleImageChange = useCallback(async (url: string | null) => {
+    setImageUrl(url);
+    if (!url || url.startsWith('http')) return;
+    try {
+      setClassifying(true);
+      const apiBase = import.meta.env.VITE_API_URL ?? '';
+      const res = await fetch(`${apiBase}/api/suggest-category`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: url }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { category: string | null };
+        if (data.category) {
+          setAiSuggested(data.category);
+          setBagCategory(prev => prev || data.category!);
+        }
+      }
+    } catch {
+      // 分類失敗は無視
+    } finally {
+      setClassifying(false);
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,12 +99,15 @@ export default function StoreBagsPage() {
           pickupStart: form.pickupStart,
           pickupEnd: form.pickupEnd,
           imageUrl,
+          category: bagCategory || undefined,
         },
       });
       toast({ title: '出品しました！' });
       queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
       setShowForm(false);
       setImageUrl(null);
+      setBagCategory('');
+      setAiSuggested(null);
       setForm({ title: '', originalPrice: 1000, discountedPrice: 350, stockCount: 3, pickupStart: '18:00', pickupEnd: '20:00' });
     } catch {
       toast({ title: '出品に失敗しました', variant: 'destructive' });
@@ -420,7 +452,14 @@ export default function StoreBagsPage() {
                 </div>
               </div>
 
-              <ImageUpload value={imageUrl} onChange={setImageUrl} required />
+              <ImageUpload value={imageUrl} onChange={handleImageChange} required />
+
+              <CategoryPicker
+                value={bagCategory}
+                onChange={setBagCategory}
+                classifying={classifying}
+                aiSuggested={aiSuggested}
+              />
 
               <div className="flex gap-3">
                 <button type="button" onClick={() => setShowForm(false)}
