@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   ChevronLeft, Loader2, CheckCircle2, AlertCircle,
   ShieldCheck, User, Building2, MapPin, FileText,
-  TriangleAlert, Info, ClipboardCheck, RefreshCw,
+  TriangleAlert, Info, ClipboardCheck,
   Camera, Upload, ImageIcon, X, BadgeCheck,
 } from 'lucide-react';
 
@@ -175,11 +175,6 @@ export default function StripeKYCPage() {
   const { store, loading: loadingStore, refetch } = useMyStore();
   const { session } = useAuth();
 
-  // ── 現在の Stripe 不足要件（マウント時取得） ──
-  const [pendingItems, setPendingItems]       = useState<string[]>([]);
-  const [loadingStatus, setLoadingStatus]     = useState(false);
-  const [statusChecked, setStatusChecked]     = useState(false);
-
   // ── フォーム値 ──
   const [businessType, setBusinessType]       = useState<'individual' | 'company'>('individual');
   const [lastNameKanji, setLastNameKanji]     = useState('');
@@ -235,26 +230,6 @@ export default function StripeKYCPage() {
     };
   };
   const [result, setResult] = useState<KYCResult | null>(null);
-
-  // ── マウント時: Stripe から現在の不足要件を取得 ──
-  useEffect(() => {
-    if (!store?.id || !store?.stripeAccountId) return;
-    setLoadingStatus(true);
-    fetch(`/api/stores/${store.id}/connect/status`)
-      .then(r => r.json())
-      .then(data => {
-        if (data?.requirements) {
-          const all = [
-            ...(data.requirements.currentlyDue ?? []),
-            ...(data.requirements.eventuallyDue ?? []),
-          ].filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
-          setPendingItems(all);
-        }
-        setStatusChecked(true);
-      })
-      .catch(() => setStatusChecked(true))
-      .finally(() => setLoadingStatus(false));
-  }, [store?.id, store?.stripeAccountId]);
 
   // ── 郵便番号→住所自動補完 ──
   const lookupZip = useCallback(async (zip: string) => {
@@ -315,9 +290,10 @@ export default function StripeKYCPage() {
     postalCode.length === 7 &&
     stateKanji && cityKanji && townKanji &&
     stateKana && cityKana && townKana &&
-    productDescription.trim().length >= 10;
+    productDescription.trim().length >= 10 &&
+    !!docFrontPreview;
 
-  // ── 送信 ──
+  // ── 送信（テキスト情報 + 書類画像を一括並行送信） ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!store || !canSubmit) return;
@@ -325,15 +301,17 @@ export default function StripeKYCPage() {
     setLoading(true);
     setGlobalError(null);
     setFieldErrors({});
+    setDocError(null);
     setResult(null);
 
+    const authHeader = session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` } : {};
+
     try {
-      const res = await fetch(`/api/stores/${store.id}/connect/kyc`, {
+      // ① KYC テキスト情報送信
+      const kycFetch = fetch(`/api/stores/${store.id}/connect/kyc`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({
           businessType,
           representative: {
@@ -359,35 +337,60 @@ export default function StripeKYCPage() {
         }),
       });
 
-      const data = await res.json();
+      // ② 書類アップロード（表面・裏面を並行送信）
+      const docFetch = (side: 'front' | 'back') => {
+        const preview = side === 'front' ? docFrontPreview : docBackPreview;
+        const file    = side === 'front' ? docFrontFile    : docBackFile;
+        if (!preview || !file) return Promise.resolve(null);
+        return fetch(`/api/stores/${store.id}/connect/kyc-document`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader },
+          body: JSON.stringify({ imageBase64: preview, mimeType: file.type || 'image/jpeg', side }),
+        });
+      };
 
-      if (!res.ok) {
-        // ── Stripe invalid_request_error: どのフィールドが原因か特定してアラート ──
-        const fieldKey = stripeParamToField(data.param);
-        const stripeField = data.param ?? null;
+      // すべて並行実行
+      const [kycRes, frontRes, backRes] = await Promise.all([
+        kycFetch,
+        docFetch('front'),
+        docFetch('back'),
+      ]);
 
+      // ── KYC テキストエラー処理 ──
+      const kycData = await kycRes.json();
+      if (!kycRes.ok) {
+        const fieldKey    = stripeParamToField(kycData.param);
+        const stripeField = kycData.param ?? null;
         if (fieldKey) {
-          // フィールド別エラー: 該当欄を赤枠 + グローバルバナーにフィールド名を明示
-          setFieldErrors({ [fieldKey]: data.message ?? 'この項目に誤りがあります' });
-          const fieldLabel = stripeField ? `（Stripeフィールド: ${stripeField}）` : '';
+          setFieldErrors({ [fieldKey]: kycData.message ?? 'この項目に誤りがあります' });
           setGlobalError(
-            `入力エラー${fieldLabel}：赤くハイライトされた項目をご確認ください。\n${data.message ?? ''}`.trim()
-          );
-        } else if (stripeField) {
-          // Stripe がフィールドを返したが対応するフォーム欄が不明な場合
-          setGlobalError(
-            `Stripeエラー（フィールド: ${stripeField}）\n${data.message ?? '送信に失敗しました。'}`
+            `入力エラー${stripeField ? `（Stripeフィールド: ${stripeField}）` : ''}：赤くハイライトされた項目をご確認ください。\n${kycData.message ?? ''}`.trim()
           );
         } else {
-          setGlobalError(data.message ?? '送信に失敗しました。入力内容をご確認ください。');
+          setGlobalError(
+            stripeField
+              ? `Stripeエラー（フィールド: ${stripeField}）\n${kycData.message ?? '送信に失敗しました。'}`
+              : kycData.message ?? '送信に失敗しました。入力内容をご確認ください。'
+          );
         }
         return;
       }
 
-      // ── 送信成功 → 常に refetch してマイページ・審査バナーを即時更新 ──
-      await refetch();
+      // ── 書類アップロード結果処理 ──
+      if (frontRes) {
+        const d = await frontRes.json();
+        if (frontRes.ok) setDocFrontDone(true);
+        else setDocError(`書類（表面）のアップロードに失敗しました: ${d.message ?? ''}`);
+      }
+      if (backRes) {
+        const d = await backRes.json();
+        if (backRes.ok) setDocBackDone(true);
+        else setDocError(`書類（裏面）のアップロードに失敗しました: ${d.message ?? ''}`);
+      }
 
-      setResult(data);
+      // ── 成功 → refetch してマイページを即時更新 ──
+      await refetch();
+      setResult(kycData);
     } catch (err: any) {
       setGlobalError(err?.message ?? '予期しないエラーが発生しました。');
     } finally {
@@ -460,50 +463,13 @@ export default function StripeKYCPage() {
     }
   };
 
-  // ── 要件が特定フィールドに対応するか判定（赤枠表示用） ──
-  const isRequired = (fieldKey: string): boolean => {
-    const reqMap: Record<string, string[]> = {
-      // 氏名（漢字）
-      'firstNameKanji': [
-        'individual.first_name', 'individual.first_name_kanji',
-        'representative.first_name', 'representative.first_name_kanji',
-      ],
-      'lastNameKanji': [
-        'individual.last_name', 'individual.last_name_kanji',
-        'representative.last_name', 'representative.last_name_kanji',
-      ],
-      // 氏名（カナ）
-      'firstNameKana': ['individual.first_name_kana', 'representative.first_name_kana'],
-      'lastNameKana':  ['individual.last_name_kana',  'representative.last_name_kana'],
-      // 生年月日
-      'dobYear':  ['individual.dob.year',  'representative.dob.year'],
-      'dobMonth': ['individual.dob.month', 'representative.dob.month'],
-      'dobDay':   ['individual.dob.day',   'representative.dob.day'],
-      // 住所（漢字） — line1 は city+town で構成するので town に line1 も含める
-      'postalCode': ['individual.address_kanji.postal_code', 'individual.address_kana.postal_code'],
-      'stateKanji': ['individual.address_kanji.state'],
-      'cityKanji':  ['individual.address_kanji.city'],
-      'townKanji':  ['individual.address_kanji.town', 'individual.address_kanji.line1'],
-      // 住所（カナ）
-      'stateKana': ['individual.address_kana.state'],
-      'cityKana':  ['individual.address_kana.city'],
-      'townKana':  ['individual.address_kana.town', 'individual.address_kana.line1'],
-      // その他
-      'productDescription': ['business_profile.product_description'],
-      'businessUrl':        ['business_profile.url'],
-      'phone': ['individual.phone', 'representative.phone'],
-      'email': ['individual.email', 'representative.email'],
-    };
-    return (reqMap[fieldKey] ?? []).some(k => pendingItems.includes(k));
-  };
-
   const fieldClass = (key: string) =>
     fieldErrors[key]
       ? (key === 'businessType' ? '' : errInput)
-      : (key === 'businessType' ? '' : isRequired(key) ? `${baseInput} border-amber-400 focus:border-orange-400` : okInput);
+      : (key === 'businessType' ? '' : okInput);
 
   const selectFieldClass = (key: string) =>
-    fieldErrors[key] ? errSelect : isRequired(key) ? `${okSelect} border-amber-400` : okSelect;
+    fieldErrors[key] ? errSelect : okSelect;
 
   // ── ローディング ──
   if (loadingStore) {
@@ -617,7 +583,7 @@ export default function StripeKYCPage() {
                   </li>
                 ))}
               </ul>
-              <button onClick={() => { setResult(null); setPendingItems(remaining); }}
+              <button onClick={() => setResult(null)}
                 className="w-full py-2.5 border-2 border-orange-400 text-orange-500 font-bold text-sm rounded-xl">
                 フォームに戻って追記する
               </button>
@@ -723,55 +689,17 @@ export default function StripeKYCPage() {
           </div>
         </div>
 
-        {/* 説明バナー */}
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 flex gap-3">
-          <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-          <p className="text-sm text-blue-700 leading-relaxed">
-            入力した情報はStripeのサーバーに直接送信されます。外部サイトへの移動は一切ありません。
-          </p>
-        </div>
-
-        {/* 現在の不足要件バナー（Stripe から取得） */}
-        {loadingStatus && (
-          <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 flex items-center gap-3">
-            <Loader2 className="w-5 h-5 text-orange-400 animate-spin shrink-0" />
-            <p className="text-sm text-gray-500">Stripeの審査状況を確認中...</p>
-          </div>
-        )}
-
-        {statusChecked && pendingItems.length > 0 && !result && (
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 mb-4">
-            <h3 className="font-black text-amber-800 text-sm mb-2 flex items-center gap-2">
-              <TriangleAlert className="w-4 h-4" />
-              現在Stripeに不足している情報（{pendingItems.length}件）
-            </h3>
-            <ul className="space-y-1 mb-3">
-              {pendingItems.slice(0, 6).map(req => (
-                <li key={req} className="text-xs text-amber-700 flex items-center gap-1.5">
-                  <span className="w-1 h-1 bg-amber-500 rounded-full shrink-0" />
-                  {translateRequirement(req)}
-                </li>
-              ))}
-              {pendingItems.length > 6 && (
-                <li className="text-xs text-amber-600">… 他 {pendingItems.length - 6} 件</li>
-              )}
-            </ul>
-            <p className="text-xs text-amber-700">
-              ⬇️ 下のフォームに入力して「送信する」を押してください。<br />
-              <span className="font-bold">オレンジ枠</span>の項目がStripeに必要な情報です。
+        {/* 安心バナー：所要時間 + 必要なもの */}
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 flex gap-3">
+          <span className="text-2xl shrink-0">🪪</span>
+          <div>
+            <p className="text-sm font-black text-orange-700">最短3分で完了します。免許証をご準備ください</p>
+            <p className="text-xs text-orange-500 mt-0.5">
+              運転免許証・マイナンバーカード・パスポートのいずれか1枚。<br />
+              入力情報はStripeのサーバーに直接・安全に送信されます。
             </p>
           </div>
-        )}
-
-        {statusChecked && pendingItems.length === 0 && !loadingStatus && !result && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 flex gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-bold text-green-700">Stripeの不足情報はありません</p>
-              <p className="text-xs text-green-600 mt-0.5">情報の追加・修正が必要な場合はフォームから送信できます。</p>
-            </div>
-          </div>
-        )}
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
 
@@ -933,10 +861,9 @@ export default function StripeKYCPage() {
           <Section title="本人確認書類" icon={<Camera className="w-5 h-5 text-orange-500" />}>
             <p className="text-xs text-gray-500 leading-relaxed">
               運転免許証・マイナンバーカード・パスポートなどをアップロードしてください。<br />
-              表面は必須、裏面は書類の種類に応じてアップロードしてください。
+              表面は必須。裏面は運転免許証など書類の種類に応じて追加してください。
             </p>
 
-            {/* docError */}
             {docError && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -944,47 +871,44 @@ export default function StripeKYCPage() {
               </div>
             )}
 
-            {/* 表面 */}
+            {/* 表面（必須） */}
             <div className="space-y-2">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">表面 <span className="text-red-400">*</span></p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                表面 <span className="text-red-400">*</span>
+              </p>
               <input ref={frontInputRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif"
                 onChange={handleDocFileChange('front')} className="hidden" />
 
               {docFrontPreview ? (
                 <div className="relative">
                   <img src={docFrontPreview} alt="表面プレビュー"
-                    className="w-full max-h-48 object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
-                  <button type="button"
-                    onClick={() => { setDocFrontFile(null); setDocFrontPreview(null); setDocFrontDone(false); if (frontInputRef.current) frontInputRef.current.value = ''; }}
-                    className="absolute top-2 right-2 w-7 h-7 bg-gray-800/60 rounded-full flex items-center justify-center">
-                    <X className="w-4 h-4 text-white" />
-                  </button>
-                  {docFrontDone
-                    ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-bold mt-2">
-                        <BadgeCheck className="w-4 h-4" />Stripeに送信済み
-                      </div>
-                    : <button type="button" disabled={docLoading === 'front'}
-                        onClick={() => handleDocUpload('front')}
-                        className="mt-2 w-full py-2.5 bg-orange-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
-                        {docLoading === 'front'
-                          ? <><Loader2 className="w-4 h-4 animate-spin" />Stripeにアップロード中...</>
-                          : <><Upload className="w-4 h-4" />この画像を表面として送信する</>
-                        }
-                      </button>
-                  }
+                    className="w-full max-h-48 object-contain rounded-xl border-2 border-green-300 bg-gray-50" />
+                  {!docFrontDone && (
+                    <button type="button"
+                      onClick={() => { setDocFrontFile(null); setDocFrontPreview(null); setDocFrontDone(false); if (frontInputRef.current) frontInputRef.current.value = ''; }}
+                      className="absolute top-2 right-2 w-7 h-7 bg-gray-800/60 rounded-full flex items-center justify-center">
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {docFrontDone
+                      ? <><BadgeCheck className="w-4 h-4 text-green-500" /><span className="text-xs text-green-600 font-bold">Stripeに送信済み</span></>
+                      : <><CheckCircle2 className="w-4 h-4 text-orange-400" /><span className="text-xs text-orange-500 font-bold">選択済み — 下の「送信」ボタンで一括送信します</span></>
+                    }
+                  </div>
                 </div>
               ) : (
                 <button type="button" onClick={() => frontInputRef.current?.click()}
-                  className="w-full h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-orange-400 hover:bg-orange-50 transition-colors">
-                  <ImageIcon className="w-8 h-8 text-gray-300" />
-                  <p className="text-xs text-gray-400 font-medium">タップして画像を選択</p>
+                  className="w-full h-36 border-2 border-dashed border-orange-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                  <Camera className="w-9 h-9 text-orange-300" />
+                  <p className="text-sm text-orange-400 font-bold">タップして表面を選択</p>
                   <p className="text-xs text-gray-300">JPG / PNG / HEIC 対応</p>
                 </button>
               )}
             </div>
 
-            {/* 裏面 */}
-            <div className="space-y-2 pt-2 border-t border-gray-100">
+            {/* 裏面（任意） */}
+            <div className="space-y-2 pt-3 border-t border-gray-100">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">裏面（任意）</p>
               <input ref={backInputRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif"
                 onChange={handleDocFileChange('back')} className="hidden" />
@@ -992,25 +916,20 @@ export default function StripeKYCPage() {
               {docBackPreview ? (
                 <div className="relative">
                   <img src={docBackPreview} alt="裏面プレビュー"
-                    className="w-full max-h-48 object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
-                  <button type="button"
-                    onClick={() => { setDocBackFile(null); setDocBackPreview(null); setDocBackDone(false); if (backInputRef.current) backInputRef.current.value = ''; }}
-                    className="absolute top-2 right-2 w-7 h-7 bg-gray-800/60 rounded-full flex items-center justify-center">
-                    <X className="w-4 h-4 text-white" />
-                  </button>
-                  {docBackDone
-                    ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-bold mt-2">
-                        <BadgeCheck className="w-4 h-4" />Stripeに送信済み
-                      </div>
-                    : <button type="button" disabled={docLoading === 'back'}
-                        onClick={() => handleDocUpload('back')}
-                        className="mt-2 w-full py-2.5 bg-orange-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
-                        {docLoading === 'back'
-                          ? <><Loader2 className="w-4 h-4 animate-spin" />Stripeにアップロード中...</>
-                          : <><Upload className="w-4 h-4" />この画像を裏面として送信する</>
-                        }
-                      </button>
-                  }
+                    className="w-full max-h-48 object-contain rounded-xl border-2 border-green-300 bg-gray-50" />
+                  {!docBackDone && (
+                    <button type="button"
+                      onClick={() => { setDocBackFile(null); setDocBackPreview(null); setDocBackDone(false); if (backInputRef.current) backInputRef.current.value = ''; }}
+                      className="absolute top-2 right-2 w-7 h-7 bg-gray-800/60 rounded-full flex items-center justify-center">
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {docBackDone
+                      ? <><BadgeCheck className="w-4 h-4 text-green-500" /><span className="text-xs text-green-600 font-bold">Stripeに送信済み</span></>
+                      : <><CheckCircle2 className="w-4 h-4 text-orange-400" /><span className="text-xs text-orange-500 font-bold">選択済み — 下の「送信」ボタンで一括送信します</span></>
+                    }
+                  </div>
                 </div>
               ) : (
                 <button type="button" onClick={() => backInputRef.current?.click()}
@@ -1035,12 +954,20 @@ export default function StripeKYCPage() {
             )}
           </AnimatePresence>
 
+          {/* 書類未選択の場合の注意 */}
+          {!docFrontPreview && (
+            <p className="text-xs text-red-500 text-center flex items-center justify-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              本人確認書類（表面）を選択してから送信できます
+            </p>
+          )}
+
           {/* 送信ボタン */}
           <button type="submit" disabled={!canSubmit}
             className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black text-base rounded-2xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity active:scale-[0.98]">
             {loading
-              ? <><Loader2 className="w-5 h-5 animate-spin" />Stripeに送信中...</>
-              : <><RefreshCw className="w-5 h-5" />KYC情報をStripeに送信する</>
+              ? <><Loader2 className="w-5 h-5 animate-spin" />入力情報と書類を送信中...</>
+              : <><Upload className="w-5 h-5" />入力情報と書類を一括送信する</>
             }
           </button>
 
