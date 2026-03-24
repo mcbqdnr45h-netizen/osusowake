@@ -97,7 +97,7 @@ function Field({ label, hint, required, children }: { label: string; hint?: stri
 // ────────────────────────────────────────────────────────────────────────────
 export default function StripeBankSetup() {
   const [, navigate] = useLocation();
-  const { store, loading: loadingStore, refetch } = useMyStore();
+  const { store, loading: loadingStore, fetchError, refetch } = useMyStore();
   const { session } = useAuth();
   const notifiedRef = useRef(false);
 
@@ -352,16 +352,28 @@ export default function StripeBankSetup() {
     );
   }
 
-  // ────────── 店舗なし ──────────
+  // ────────── 店舗なし（取得エラー or 未登録）──────────
   if (!store) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
-        <div className="text-center">
+        <div className="text-center max-w-sm">
           <AlertCircle className="w-12 h-12 text-orange-400 mx-auto mb-3" />
-          <p className="font-black text-gray-900 mb-1">店舗が見つかりません</p>
-          <p className="text-sm text-gray-500 mb-4">先に店舗申請を完了してください。</p>
+          <p className="font-black text-gray-900 mb-1">
+            {fetchError ? '読み込みに失敗しました' : '店舗が見つかりません'}
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            {fetchError
+              ? 'ネットワーク状況を確認して、再度お試しください。'
+              : '先に店舗申請を完了してください。'}
+          </p>
+          {fetchError ? (
+            <button onClick={refetch}
+              className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl w-full mb-3">
+              再読み込み
+            </button>
+          ) : null}
           <button onClick={() => navigate('/store-onboarding')}
-            className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl">
+            className={`font-bold px-6 py-3 rounded-2xl w-full ${fetchError ? 'bg-white text-orange-500 border-2 border-orange-300' : 'bg-orange-500 text-white'}`}>
             店舗申請へ
           </button>
         </div>

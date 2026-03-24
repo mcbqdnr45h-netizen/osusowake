@@ -113,11 +113,9 @@ export default function StoreOnboarding() {
 
     setIsSubmitting(true);
 
-    // 2秒タイムアウト — タイムアウトしても bank-setup へ遷移
+    // 15秒タイムアウト（Supabase のネットワーク遅延を考慮）
     const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, 2000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
       const res = await fetch(`${BASE}/api/stores/apply`, {
@@ -142,25 +140,45 @@ export default function StoreOnboarding() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        // 既存店舗エラーは無視して bank-setup へ
-        if (err?.error !== 'already_exists') {
-          throw new Error(err?.message || '登録に失敗しました');
+        if (err?.error === 'already_exists') {
+          // 既に登録済み → bank-setup へ
+          console.log('[StoreOnboarding] already_exists → /store/bank-setup');
+          navigate('/store/bank-setup');
+          return;
         }
+        throw new Error(err?.message || '登録に失敗しました');
       }
+
+      // 登録成功
+      console.log('[StoreOnboarding] ✅ 登録成功 → /store/bank-setup');
+      navigate('/store/bank-setup');
     } catch (err: unknown) {
       clearTimeout(timeout);
-      const isAbort = err instanceof Error && err.name === 'AbortError';
-      if (!isAbort) {
+
+      if (err instanceof Error && err.name === 'AbortError') {
+        // タイムアウト → 店舗が実際に作成されたか確認してから遷移
+        console.warn('[StoreOnboarding] タイムアウト — 店舗作成を確認中...');
+        try {
+          const check = await fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
+          if (check.ok) {
+            console.log('[StoreOnboarding] タイムアウト後、店舗確認 OK → /store/bank-setup');
+            navigate('/store/bank-setup');
+            return;
+          }
+        } catch (_) {}
+        // 店舗が見つからない → エラー表示（画面を維持）
+        toast({ title: 'サーバーへの接続がタイムアウトしました', description: 'ネットワーク状況を確認して、もう一度お試しください。', variant: 'destructive' });
+      } else {
         console.warn('[StoreOnboarding] apply error:', err);
-        // エラーでも続行 — bank-setup へ遷移
+        toast({
+          title: '登録に失敗しました',
+          description: err instanceof Error ? err.message : '時間をおいて再度お試しください。',
+          variant: 'destructive',
+        });
       }
     } finally {
       setIsSubmitting(false);
     }
-
-    // 常に bank-setup へ遷移
-    console.log('[StoreOnboarding] → /store/bank-setup');
-    navigate('/store/bank-setup');
   };
 
   // ロード中
