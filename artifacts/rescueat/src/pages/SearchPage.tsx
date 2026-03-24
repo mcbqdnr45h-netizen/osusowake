@@ -105,7 +105,12 @@ function StoreBottomSheet({
   store: Store; bags: SurpriseBagWithStore[];
   userPos: { lat: number; lng: number } | null; onClose: () => void;
 }) {
-  const storeBags = bags.filter(b => b.store.id === store.id);
+  const allStoreBags = bags.filter(b => b.store.id === store.id);
+  // 出品中（在庫あり）を先頭、完売を末尾にソート
+  const storeBags = [...allStoreBags].sort((a, b) => {
+    if ((a.stockCount > 0) === (b.stockCount > 0)) return 0;
+    return a.stockCount > 0 ? -1 : 1;
+  });
   const hasBags   = storeBags.length > 0;
   const bagCount  = store.totalBagsAvailable ?? storeBags.filter(b => b.stockCount > 0).length;
 
@@ -164,7 +169,7 @@ function StoreBottomSheet({
                 )}
                 {walkLabel && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black text-sky-600 bg-sky-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    <Navigation className="w-2.5 h-2.5" />徒歩{walkLabel}
+                    <Navigation className="w-2.5 h-2.5" />{walkLabel}
                   </span>
                 )}
               </div>
@@ -226,12 +231,12 @@ function StoreBottomSheet({
                             </div>
                             {!isSoldOut ? (
                               <Link href={`/bags/${bag.id}`}>
-                                <button className="flex items-center gap-1 bg-primary text-primary-foreground text-[11px] font-black px-3 py-1.5 rounded-xl tap-scale shadow-sm shadow-primary/20">
-                                  おすそ分け <ChevronRight className="w-3 h-3" />
+                                <button className="flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-black px-4 py-2 rounded-xl tap-scale shadow-md shadow-primary/25 hover:bg-primary/90 active:scale-95 transition-all">
+                                  おすそ分け <ChevronRight className="w-4 h-4" />
                                 </button>
                               </Link>
                             ) : (
-                              <span className="text-[11px] text-muted-foreground font-bold px-2 py-1 bg-secondary rounded-xl">完売御礼</span>
+                              <span className="text-xs text-muted-foreground font-bold px-2.5 py-1.5 bg-secondary rounded-xl">完売御礼</span>
                             )}
                           </div>
                         </div>
@@ -380,8 +385,13 @@ export default function SearchPage() {
     setPendingBounds(null);
   }
 
-  const { data: bags, isLoading: bagsLoading } = useListAllBags();
-  const { data: stores } = useListStores();
+  const { data: bags, isLoading: bagsLoading } = useListAllBags(
+    { query: { staleTime: 0, refetchOnMount: 'always' } }
+  );
+  const { data: stores } = useListStores(
+    undefined,
+    { query: { staleTime: 0, refetchOnMount: 'always' } }
+  );
 
   // 検索実行（キーボードを閉じる + ローダー演出）
   const executeSearch = useCallback((q: string) => {

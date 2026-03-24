@@ -122,55 +122,76 @@ router.post("/reservations", async (req, res) => {
   try {
     const body = CreateReservationBody.parse(req.body);
 
-    const [bag] = await db
-      .select()
-      .from(surpriseBagsTable)
-      .where(and(eq(surpriseBagsTable.id, body.bagId), eq(surpriseBagsTable.isActive, true)));
+    // ── トランザクション内で在庫確認 + デクリメントを原子的に実行 ──
+    let reservationId: number | null = null;
 
-    if (!bag) {
+    await db.transaction(async (tx) => {
+      // FOR UPDATE ロックで同時購入の競合を防止
+      const [bag] = await tx
+        .select()
+        .from(surpriseBagsTable)
+        .where(and(eq(surpriseBagsTable.id, body.bagId), eq(surpriseBagsTable.isActive, true)))
+        .for("update");
+
+      if (!bag) {
+        throw Object.assign(new Error("not_found"), { code: "not_found" });
+      }
+
+      if (isBagExpired(bag)) {
+        throw Object.assign(new Error("expired"), { code: "expired" });
+      }
+
+      if (bag.stockCount < body.quantity) {
+        throw Object.assign(new Error("out_of_stock"), { code: "out_of_stock" });
+      }
+
+      const totalPrice = bag.discountedPrice * body.quantity;
+      const parsed = insertReservationSchema.parse({
+        userId: body.userId,
+        bagId: body.bagId,
+        storeId: bag.storeId,
+        quantity: body.quantity,
+        totalPrice,
+        status: "pending",
+        paymentStatus: "unpaid",
+      });
+
+      const [reservation] = await tx.insert(reservationsTable).values(parsed).returning();
+      const pickupCode = generatePickupCode(reservation.id);
+      await tx
+        .update(reservationsTable)
+        .set({ pickupCode })
+        .where(eq(reservationsTable.id, reservation.id));
+
+      // 在庫を購入数だけ原子的にデクリメント（マイナスにならないよう GREATEST で保護）
+      const newStock = Math.max(0, bag.stockCount - body.quantity);
+      await tx
+        .update(surpriseBagsTable)
+        .set({
+          stockCount: newStock,
+          // 在庫がなくなったら自動的に非公開にする
+          ...(newStock === 0 ? { isActive: false } : {}),
+        })
+        .where(eq(surpriseBagsTable.id, body.bagId));
+
+      reservationId = reservation.id;
+    });
+
+    const full = await getReservationWithDetails(reservationId!);
+    res.status(201).json(full);
+  } catch (err: any) {
+    if (err?.code === "not_found") {
       res.status(400).json({ error: "not_found", message: "Bag not found or inactive" });
       return;
     }
-
-    // 受取時間チェック（深夜またぎ対応）
-    if (isBagExpired(bag)) {
+    if (err?.code === "expired") {
       res.status(410).json({ error: "expired", message: "この商品の受取時間が過ぎています" });
       return;
     }
-
-    if (bag.stockCount < body.quantity) {
+    if (err?.code === "out_of_stock") {
       res.status(400).json({ error: "out_of_stock", message: "Not enough stock available" });
       return;
     }
-
-    const totalPrice = bag.discountedPrice * body.quantity;
-    const parsed = insertReservationSchema.parse({
-      userId: body.userId,
-      bagId: body.bagId,
-      storeId: bag.storeId,
-      quantity: body.quantity,
-      totalPrice,
-      status: "pending",
-      paymentStatus: "unpaid",
-    });
-
-    const [reservation] = await db.insert(reservationsTable).values(parsed).returning();
-
-    const pickupCode = generatePickupCode(reservation.id);
-    const [updated] = await db
-      .update(reservationsTable)
-      .set({ pickupCode })
-      .where(eq(reservationsTable.id, reservation.id))
-      .returning();
-
-    await db
-      .update(surpriseBagsTable)
-      .set({ stockCount: bag.stockCount - body.quantity })
-      .where(eq(surpriseBagsTable.id, body.bagId));
-
-    const full = await getReservationWithDetails(updated.id);
-    res.status(201).json(full);
-  } catch (err) {
     console.error(err);
     res.status(400).json({ error: "bad_request", message: "Invalid reservation data" });
   }

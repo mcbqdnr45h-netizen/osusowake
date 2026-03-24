@@ -350,17 +350,8 @@ router.get("/checkout/verify", async (req, res) => {
         })
         .where(eq(reservationsTable.id, reservationId));
 
-      // ── 4. 在庫デクリメント（stockCount >= 1 のとき）──────────
-      if (reservationFull.bagId && (reservationFull.stockCount ?? 0) > 0) {
-        await db
-          .update(surpriseBagsTable)
-          .set({ stockCount: sql`GREATEST(stock_count - 1, 0)` })
-          .where(eq(surpriseBagsTable.id, reservationFull.bagId));
-
-        console.log(`✅ 在庫デクリメント: bag_id=${reservationFull.bagId}`);
-      }
-
-      // ── 5. Supabase orders に書き込み ─────────────────────────
+      // ── 4. Supabase orders に書き込み ─────────────────────────
+      // 在庫デクリメントは POST /reservations で実施済みのためここでは行わない
       const targetUserId = supabaseUserId || reservationFull.userId;
       if (targetUserId) {
         try {
