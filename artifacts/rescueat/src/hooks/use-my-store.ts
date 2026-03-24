@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
@@ -13,9 +13,10 @@ export type MyStore = {
 
 export function useMyStore() {
   const { user, isLoading: authLoading } = useAuth();
-  const [store, setStore] = useState<MyStore | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [store, setStore]           = useState<MyStore | null>(null);
+  const [loading, setLoading]       = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const retryTimerRef               = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchStore = useCallback(() => {
     if (!user) {
@@ -26,6 +27,8 @@ export function useMyStore() {
     }
     setLoading(true);
     setFetchError(false);
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+
     fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, {
       cache: 'no-store',
     })
@@ -39,16 +42,21 @@ export function useMyStore() {
         setFetchError(false);
       })
       .catch(err => {
-        console.error('[useMyStore] fetch error:', err);
+        console.warn('[useMyStore] fetch error (will retry in 4s):', err);
         setFetchError(true);
-        setStore(null);
+        // エラー時は store を null にしない（古いデータを維持）
+        // 4秒後に自動リトライ
+        retryTimerRef.current = setTimeout(fetchStore, 4000);
       })
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (authLoading) return;
     fetchStore();
+    return () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
   }, [user, authLoading, fetchStore]);
 
   const isApprovedOwner =

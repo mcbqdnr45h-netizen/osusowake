@@ -13,7 +13,7 @@ import { getTownStage, TOWN_STAGES } from '@/lib/town-stage';
 
 export default function MyPage() {
   const userId = useUserId();
-  const { store, loading: loadingStore, isApprovedOwner, needsBankSetup } = useMyStore();
+  const { store, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStore();
   const [, navigate] = useLocation();
   const { user, profile, isLoading: authLoading, signOut, refreshProfile } = useAuth();
   const roleFixedRef = useRef(false);
@@ -220,8 +220,19 @@ export default function MyPage() {
           <MyTown purchaseCount={pickedUpCount} />
         </div>}
 
+        {/* ── 店舗オーナー：接続エラー中（リトライ待機）── */}
+        {profile?.role === 'store_owner' && !loadingStore && store === null && fetchError && (
+          <div className="mb-4 bg-muted/50 border border-border rounded-2xl p-5 flex items-center gap-3">
+            <div className="w-8 h-8 border-[3px] border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+            <div>
+              <p className="font-bold text-foreground text-sm">店舗情報を確認中...</p>
+              <p className="text-xs text-muted-foreground mt-0.5">しばらくお待ちください</p>
+            </div>
+          </div>
+        )}
+
         {/* ── 店舗オーナー：未申請バナー（store が存在しない場合のみ） ── */}
-        {profile?.role === 'store_owner' && !loadingStore && store === null && (
+        {profile?.role === 'store_owner' && !loadingStore && store === null && !fetchError && (
           <div className="mb-4 bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-primary/30 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
