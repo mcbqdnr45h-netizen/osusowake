@@ -19,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { format, isToday, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ImageUpload } from '@/components/ImageUpload';
+import { BagManageCard, getBagStatus, type Bag, type BagRealStatus } from '@/components/BagManageCard';
 
 // ─── 型 ────────────────────────────────────────────────────────────────────
 type ReservationStatus = 'pending' | 'confirmed' | 'picked_up' | 'cancelled';
@@ -44,27 +45,6 @@ interface Reservation {
 // ─── ヘルパー ───────────────────────────────────────────────────────────────
 function isTodaysReservation(r: Reservation) {
   try { return isToday(parseISO(r.createdAt)); } catch { return false; }
-}
-
-type BagRealStatus = 'active' | 'expired' | 'soldout' | 'inactive';
-
-function getBagStatus(bag: { isActive: boolean; stockCount: number; pickupEnd: string | null; createdAt: string }, now: Date): BagRealStatus {
-  if (!bag.isActive) return 'inactive';
-
-  if (bag.pickupEnd) {
-    const created = new Date(bag.createdAt);
-    const isCreatedToday =
-      created.getFullYear() === now.getFullYear() &&
-      created.getMonth()    === now.getMonth()    &&
-      created.getDate()     === now.getDate();
-    if (!isCreatedToday) return 'expired';
-    const [h, m] = bag.pickupEnd.split(':').map(Number);
-    const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0, 0);
-    if (now > endTime) return 'expired';
-  }
-
-  if (bag.stockCount === 0) return 'soldout';
-  return 'active';
 }
 
 function statusLabel(s: ReservationStatus) {
@@ -624,7 +604,13 @@ export default function StoreDashboard() {
   }, [store, storeLoading, storeFetchError, navigate]);
 
   const [showPostModal, setShowPostModal] = useState(false);
-  const [markingId, setMarkingId] = useState<number | null>(null);
+  const [markingId, setMarkingId]         = useState<number | null>(null);
+  const [togglingId, setTogglingId]       = useState<number | null>(null);
+  const [adjustingId, setAdjustingId]     = useState<number | null>(null);
+  const [deletingId, setDeletingId]       = useState<number | null>(null);
+  const [confirmId, setConfirmId]         = useState<number | null>(null);
+
+  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
   const { data: reservations = [], isLoading: resLoading, refetch } =
     useListReservations({ storeId: storeId ?? 0 }, { query: { enabled: !!storeId } });
@@ -675,6 +661,68 @@ export default function StoreDashboard() {
       toast({ title: '更新に失敗しました', variant: 'destructive' });
     } finally {
       setMarkingId(null);
+    }
+  }
+
+  // 公開/非公開トグル
+  async function handleToggleActive(bag: Bag) {
+    if (!storeId) return;
+    setTogglingId(bag.id);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !bag.isActive }),
+      });
+      if (!res.ok) throw new Error();
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      toast({ title: bag.isActive ? '非公開にしました' : '公開しました' });
+    } catch {
+      toast({ title: '更新に失敗しました', variant: 'destructive' });
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  // 在庫調整
+  async function handleStockAdjust(bag: Bag, delta: number) {
+    if (!storeId) return;
+    const next = Math.max(0, bag.stockCount + delta);
+    setAdjustingId(bag.id);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stockCount: next }),
+      });
+      if (!res.ok) throw new Error();
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+    } catch {
+      toast({ title: '在庫の更新に失敗しました', variant: 'destructive' });
+    } finally {
+      setAdjustingId(null);
+    }
+  }
+
+  // 削除（非公開バッグのみ）
+  async function handleDeleteBag(bag: Bag) {
+    if (!storeId) return;
+    setDeletingId(bag.id);
+    setConfirmId(null);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? '削除に失敗しました');
+      }
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      toast({ title: '商品を削除しました' });
+    } catch (err: any) {
+      toast({ title: err.message ?? '削除に失敗しました', variant: 'destructive' });
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -794,13 +842,13 @@ export default function StoreDashboard() {
           ))}
         </div>
 
-        {/* ── 公開中の商品（expired/soldout 含む）── */}
+        {/* ── 出品中の商品（isActive 全件）── */}
         {nonIdleBags.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-black text-foreground flex items-center gap-2">
                 <Eye className="w-5 h-5 text-primary" />
-                公開中の商品
+                出品中の商品
               </h2>
               <Link
                 href="/store/bags"
@@ -809,48 +857,21 @@ export default function StoreDashboard() {
                 すべて管理 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <div className="space-y-2">
-              {nonIdleBags.map((bag: any) => {
-                const status    = getBagStatus(bag, now);
-                const remaining = bag.stockCount - (bag.reservedCount ?? 0);
-                const statusBadge =
-                  status === 'active'   ? { text: '公開中',   cls: 'bg-green-50 text-green-700 border border-green-200' } :
-                  status === 'expired'  ? { text: '受付終了', cls: 'bg-slate-100 text-slate-500 border border-slate-200' } :
-                                          { text: '完売',     cls: 'bg-red-50 text-red-500 border border-red-200' };
-                return (
-                  <div
-                    key={bag.id}
-                    className={`bg-white rounded-2xl border shadow-[0_2px_8px_rgba(0,0,0,0.05)] px-4 py-3 flex items-center gap-3 ${
-                      status === 'active' ? 'border-orange-100' : 'border-border opacity-70'
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${statusBadge.cls}`}>
-                          {statusBadge.text}
-                        </span>
-                      </div>
-                      <p className="text-sm font-black text-foreground truncate">{bag.title}</p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        {bag.pickupStart && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {bag.pickupStart}〜{bag.pickupEnd}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <Package2 className="w-3 h-3" />
-                          残り {remaining}個
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-base font-black text-primary">¥{bag.discountedPrice?.toLocaleString()}</p>
-                      <p className="text-[10px] text-muted-foreground line-through">¥{bag.originalPrice?.toLocaleString()}</p>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="space-y-3">
+              {nonIdleBags.map((bag: any) => (
+                <BagManageCard
+                  key={bag.id}
+                  bag={bag as Bag}
+                  togglingId={togglingId}
+                  deletingId={deletingId}
+                  adjustingId={adjustingId}
+                  confirmId={confirmId}
+                  onToggle={handleToggleActive}
+                  onDelete={handleDeleteBag}
+                  onStockAdjust={handleStockAdjust}
+                  onConfirmChange={setConfirmId}
+                />
+              ))}
             </div>
           </div>
         )}

@@ -3,8 +3,8 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
 import {
-  Plus, Minus, Package2, Clock, AlertCircle, Loader2,
-  ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Trash2, Zap,
+  Plus, Minus, Package2, AlertCircle, Loader2,
+  ChevronUp, ChevronDown, Zap,
 } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,48 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { BagManageCard, getBagStatus, type Bag, type BagRealStatus } from '@/components/BagManageCard';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-
-interface Bag {
-  id: number;
-  title: string;
-  discountedPrice: number;
-  originalPrice: number;
-  stockCount: number;
-  pickupStart: string | null;
-  pickupEnd: string | null;
-  isActive: boolean;
-  createdAt: string;
-}
-
-type BagRealStatus = 'active' | 'expired' | 'soldout' | 'inactive';
-
-function getBagStatus(bag: Bag, now: Date): BagRealStatus {
-  if (!bag.isActive) return 'inactive';
-
-  if (bag.pickupEnd) {
-    const created = new Date(bag.createdAt);
-    const isCreatedToday =
-      created.getFullYear() === now.getFullYear() &&
-      created.getMonth()    === now.getMonth()    &&
-      created.getDate()     === now.getDate();
-    if (!isCreatedToday) return 'expired';
-    const [h, m] = bag.pickupEnd.split(':').map(Number);
-    const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0, 0);
-    if (now > endTime) return 'expired';
-  }
-
-  if (bag.stockCount === 0) return 'soldout';
-  return 'active';
-}
-
-const STATUS_BADGE: Record<BagRealStatus, { text: string; cls: string }> = {
-  active:   { text: '公開中',   cls: 'bg-green-50 text-green-700 border border-green-200' },
-  expired:  { text: '受付終了', cls: 'bg-slate-100 text-slate-500 border border-slate-200' },
-  soldout:  { text: '完売',     cls: 'bg-red-50 text-red-500 border border-red-200' },
-  inactive: { text: '非公開',   cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
-};
 
 export default function StoreBagsPage() {
   const queryClient = useQueryClient();
@@ -64,10 +25,11 @@ export default function StoreBagsPage() {
   const { data: bags = [], isLoading } = useListStoreBags(storeId ?? 0, { query: { enabled: !!storeId } });
   const createBag = useCreateBag();
 
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm]       = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingId, setTogglingId]   = useState<number | null>(null);
   const [deletingId, setDeletingId]   = useState<number | null>(null);
+  const [adjustingId, setAdjustingId] = useState<number | null>(null);
   const [confirmId, setConfirmId]     = useState<number | null>(null);
   const [imageUrl, setImageUrl]       = useState<string | null>(null);
 
@@ -153,6 +115,25 @@ export default function StoreBagsPage() {
       toast({ title: err.message ?? '削除に失敗しました', variant: 'destructive' });
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleStockAdjust(bag: Bag, delta: number) {
+    if (!storeId) return;
+    const next = Math.max(0, bag.stockCount + delta);
+    setAdjustingId(bag.id);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stockCount: next }),
+      });
+      if (!res.ok) throw new Error();
+      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+    } catch {
+      toast({ title: '在庫の更新に失敗しました', variant: 'destructive' });
+    } finally {
+      setAdjustingId(null);
     }
   }
 
@@ -463,101 +444,20 @@ export default function StoreBagsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {sortedBags.map(bag => {
-              const realStatus = getBagStatus(bag, now);
-              const badge      = STATUS_BADGE[realStatus];
-              const isExpired  = realStatus === 'expired';
-              const isFaded    = realStatus !== 'active';
-              return (
-              <div
+            {sortedBags.map(bag => (
+              <BagManageCard
                 key={bag.id}
-                className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-opacity ${
-                  realStatus === 'active' ? 'border-orange-100' : 'border-border opacity-60'
-                }`}
-              >
-                <div className="px-4 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${badge.cls}`}>
-                          {badge.text}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-medium">
-                          在庫 {bag.stockCount}個
-                        </span>
-                      </div>
-                      <p className="font-black text-foreground">{bag.title}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs line-through text-muted-foreground">¥{bag.originalPrice.toLocaleString()}</span>
-                        <span className="text-sm font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
-                        <span className="text-[10px] font-bold bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full">
-                          {Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)}%OFF
-                        </span>
-                      </div>
-                      {(bag.pickupStart || bag.pickupEnd) && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                          <Clock className="w-3 h-3" />
-                          {bag.pickupStart}〜{bag.pickupEnd}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* 右側ボタン群 */}
-                    <div className="shrink-0 flex flex-col items-center gap-2">
-                      {/* 公開/非公開トグル（受付終了は操作不可）*/}
-                      <button
-                        onClick={() => { setConfirmId(null); handleToggleActive(bag); }}
-                        disabled={togglingId === bag.id || deletingId === bag.id || isExpired}
-                        title={isExpired ? '受付時間が終了しているため変更できません' : undefined}
-                        className="flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {togglingId === bag.id
-                          ? <Loader2 className="w-6 h-6 animate-spin" />
-                          : bag.isActive
-                            ? <ToggleRight className={`w-8 h-8 ${isExpired ? 'text-slate-300' : 'text-primary'}`} />
-                            : <ToggleLeft className="w-8 h-8" />
-                        }
-                        <span className="text-[9px] font-bold">{badge.text}</span>
-                      </button>
-
-                      {/* 削除ボタン（非公開のみ表示）*/}
-                      {!bag.isActive && (
-                        <div className="flex flex-col items-center gap-1">
-                          {confirmId === bag.id ? (
-                            // 確認ステップ
-                            <div className="flex flex-col items-center gap-1">
-                              <button
-                                onClick={() => handleDelete(bag)}
-                                disabled={deletingId === bag.id}
-                                className="text-[9px] font-black text-white bg-red-500 px-2 py-1 rounded-lg active:scale-95 transition-transform disabled:opacity-50"
-                              >
-                                {deletingId === bag.id ? <Loader2 className="w-3 h-3 animate-spin" /> : '削除する'}
-                              </button>
-                              <button
-                                onClick={() => setConfirmId(null)}
-                                className="text-[9px] text-muted-foreground underline"
-                              >
-                                戻る
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmId(bag.id)}
-                              disabled={togglingId === bag.id}
-                              className="flex flex-col items-center gap-0.5 text-red-500 hover:text-red-700 transition-colors disabled:opacity-30"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              <span className="text-[9px] font-bold">削除</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              );
-            })}
+                bag={bag as Bag}
+                togglingId={togglingId}
+                deletingId={deletingId}
+                adjustingId={adjustingId}
+                confirmId={confirmId}
+                onToggle={handleToggleActive}
+                onDelete={handleDelete}
+                onStockAdjust={handleStockAdjust}
+                onConfirmChange={setConfirmId}
+              />
+            ))}
           </div>
         )}
       </div>
