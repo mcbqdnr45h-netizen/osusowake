@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import {
@@ -8,9 +8,9 @@ import {
   useUpdateReservationStatus,
 } from '@workspace/api-client-react';
 import {
-  Plus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
+  Plus, Minus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
-  History, CreditCard,
+  History, CreditCard, Zap,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -96,18 +96,12 @@ function PostBagModal({
     title: '',
     originalPrice: 1000,
     discountedPrice: 350,
-    stockCount: 1,
+    stockCount: 3,
     pickupStart: '18:00',
     pickupEnd: '20:00',
   });
-  // 在庫数は文字列ステートで管理し、入力中の空文字や途中入力を正しく扱う
-  const [stockCountStr, setStockCountStr] = useState('1');
-
-  function updateStockCount(val: number) {
-    const clamped = Math.max(1, val);
-    setForm(f => ({ ...f, stockCount: clamped }));
-    setStockCountStr(String(clamped));
-  }
+  const [editingStock, setEditingStock] = useState(false);
+  const stockInputRef = useRef<HTMLInputElement>(null);
 
   // 画像変更ハンドラ：アップロード後に AI 自動分類を実行
   const handleImageChange = React.useCallback(async (url: string | null) => {
@@ -430,124 +424,182 @@ function PostBagModal({
 
           {mode === 'manual' && (
             <form onSubmit={handleManualSubmit} className="space-y-4">
-              {/* 商品写真（最上部） */}
-              <ImageUpload value={imageUrl} onChange={handleImageChange} required />
 
               {/* 商品名 */}
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-                  商品名 <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">商品名</label>
                 <input
                   required
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
-                  placeholder="例: 本日のパン詰め合わせ"
-                  className="w-full bg-card border-2 border-border rounded-xl px-4 py-3 font-bold text-foreground placeholder:text-muted-foreground/50 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                  placeholder="例：本日のパン詰め合わせ"
+                  className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 font-bold placeholder:text-muted-foreground/50 placeholder:font-normal focus:border-primary outline-none transition-all"
                 />
               </div>
 
-              {/* 価格 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-                    通常価格 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      required
-                      value={form.originalPrice || ''}
-                      onChange={e => setForm({ ...form, originalPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                      className="w-full bg-card border-2 border-border rounded-xl pl-7 pr-3 py-3 font-bold focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-                    販売価格 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      required
-                      value={form.discountedPrice || ''}
-                      onChange={e => setForm({ ...form, discountedPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                      className="w-full bg-card border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
-                    />
-                  </div>
-                  {form.originalPrice > 0 && form.discountedPrice > 0 && (
-                    <p className="text-[10px] font-bold text-orange-500 mt-1">
+              {/* 価格（割引率リアルタイム表示付き） */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-muted-foreground">価格設定</label>
+                  {form.originalPrice > 0 && form.discountedPrice > 0 && form.discountedPrice < form.originalPrice && (
+                    <span className="flex items-center gap-1 text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                      <Zap className="w-3 h-3" />
                       {Math.round((1 - form.discountedPrice / form.originalPrice) * 100)}% OFF
-                    </p>
+                    </span>
                   )}
                 </div>
-              </div>
-
-              {/* 在庫 */}
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-                  在庫数 <span className="text-red-500">*</span>
-                </label>
-                <div className="flex items-center w-36 bg-card border-2 border-border rounded-xl overflow-hidden h-12">
-                  <button type="button" onClick={() => updateStockCount(form.stockCount - 1)}
-                    className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">−</button>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    required
-                    value={stockCountStr}
-                    onChange={e => {
-                      const raw = e.target.value.replace(/[^0-9]/g, '');
-                      setStockCountStr(raw);
-                      const num = parseInt(raw, 10);
-                      if (!isNaN(num) && num >= 1) {
-                        setForm(f => ({ ...f, stockCount: num }));
-                      }
-                    }}
-                    onFocus={e => e.target.select()}
-                    onBlur={() => {
-                      const num = parseInt(stockCountStr, 10);
-                      if (isNaN(num) || num < 1) {
-                        setStockCountStr('1');
-                        setForm(f => ({ ...f, stockCount: 1 }));
-                      } else {
-                        setStockCountStr(String(num));
-                      }
-                    }}
-                    className="flex-1 text-center font-bold text-lg bg-transparent border-none focus:ring-0 px-2 py-0 outline-none"
-                  />
-                  <button type="button" onClick={() => updateStockCount(form.stockCount + 1)}
-                    className="w-10 h-full flex items-center justify-center hover:bg-muted transition-colors font-bold text-xl">＋</button>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">通常価格</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
+                      <input
+                        type="number" inputMode="numeric" required
+                        value={form.originalPrice || ''}
+                        onChange={e => setForm({ ...form, originalPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        className="w-full bg-secondary/40 border-2 border-border rounded-xl pl-7 pr-3 py-3 font-bold focus:border-primary outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">販売価格</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
+                      <input
+                        type="number" inputMode="numeric" required
+                        value={form.discountedPrice || ''}
+                        onChange={e => setForm({ ...form, discountedPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        className="w-full bg-secondary/40 border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary focus:border-primary outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* 受取時間 */}
+              {/* 在庫数（大きなステッパー＋タップ展開） */}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-2">在庫数</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 56px', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, stockCount: Math.max(1, f.stockCount - 1) }))}
+                    disabled={form.stockCount <= 1}
+                    style={{ height: '56px', minWidth: '56px' }}
+                    className="flex items-center justify-center rounded-xl bg-secondary border-2 border-border text-foreground hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <Minus className="w-5 h-5" strokeWidth={2.5} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingStock(true);
+                      setTimeout(() => {
+                        stockInputRef.current?.focus();
+                        stockInputRef.current?.select();
+                      }, 30);
+                    }}
+                    style={{ height: '56px' }}
+                    className={`flex flex-col items-center justify-center rounded-xl border-2 transition-all ${
+                      editingStock ? 'bg-primary/5 border-primary' : 'bg-secondary/40 border-border'
+                    }`}
+                  >
+                    <span className="text-2xl font-black leading-none">{form.stockCount}</span>
+                    <span className="text-[10px] text-muted-foreground mt-0.5">
+                      {editingStock ? '編集中…' : '個（タップで入力）'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, stockCount: f.stockCount + 1 }))}
+                    style={{ height: '56px', minWidth: '56px' }}
+                    className="flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 active:scale-95 transition-all shadow-md shadow-primary/25"
+                  >
+                    <Plus className="w-5 h-5" strokeWidth={2.5} />
+                  </button>
+                </div>
+                <AnimatePresence>
+                  {editingStock && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -6, height: 0 }}
+                      style={{ overflow: 'hidden', marginTop: '8px' }}
+                    >
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          ref={stockInputRef}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={String(form.stockCount)}
+                          onChange={e => {
+                            const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                            setForm(f => ({ ...f, stockCount: isNaN(v) ? 1 : Math.max(1, v) }));
+                          }}
+                          onFocus={e => {
+                            const t = e.target;
+                            setTimeout(() => t.setSelectionRange(0, t.value.length), 0);
+                            setTimeout(() => stockInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+                          }}
+                          onBlur={() => setEditingStock(false)}
+                          style={{
+                            display: 'block', width: '100%', height: '56px',
+                            boxSizing: 'border-box', padding: '0',
+                            margin: '0', textAlign: 'center',
+                            fontSize: '28px', fontWeight: 900, lineHeight: '56px',
+                            border: '2px solid var(--primary)', borderRadius: '12px',
+                            outline: 'none', backgroundColor: 'transparent',
+                            WebkitAppearance: 'none' as React.CSSProperties['WebkitAppearance'],
+                            appearance: 'none' as React.CSSProperties['appearance'],
+                            color: 'var(--foreground)',
+                          }}
+                        />
+                        <span style={{
+                          position: 'absolute', right: '14px', top: '50%',
+                          transform: 'translateY(-50%)', fontSize: '13px',
+                          fontWeight: 700, color: 'var(--muted-foreground)',
+                          pointerEvents: 'none', userSelect: 'none',
+                        }}>個</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* 受取時間（開始に「今すぐ」ボタン） */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-                    受取開始 <span className="text-red-500">*</span>
-                  </label>
-                  <input type="time" required value={form.pickupStart}
-                    onChange={e => setForm({ ...form, pickupStart: e.target.value })}
-                    className="w-full bg-card border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取開始</label>
+                  <div className="flex gap-1.5">
+                    <input type="time" required value={form.pickupStart}
+                      onChange={e => setForm({ ...form, pickupStart: e.target.value })}
+                      className="flex-1 min-w-0 bg-secondary/40 border-2 border-border rounded-xl px-2 py-3 font-bold focus:border-primary outline-none transition-all text-sm" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const hh = now.getHours().toString().padStart(2, '0');
+                        const mm = now.getMinutes().toString().padStart(2, '0');
+                        setForm({ ...form, pickupStart: `${hh}:${mm}` });
+                      }}
+                      className="shrink-0 px-2 py-1 bg-primary/10 text-primary text-[10px] font-black rounded-lg hover:bg-primary/20 active:bg-primary/30 transition-colors leading-tight text-center"
+                    >
+                      今<br />すぐ
+                    </button>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-                    受取終了 <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取終了</label>
                   <input type="time" required value={form.pickupEnd}
                     onChange={e => setForm({ ...form, pickupEnd: e.target.value })}
-                    className="w-full bg-card border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
+                    className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
                 </div>
               </div>
 
-              {/* ラベル（1つだけ、AI対応） */}
+              {/* 商品写真 */}
+              <ImageUpload value={imageUrl} onChange={handleImageChange} required />
+
+              {/* ラベル（AI対応） */}
               <CategoryPicker
                 value={bagCategory}
                 onChange={setBagCategory}
