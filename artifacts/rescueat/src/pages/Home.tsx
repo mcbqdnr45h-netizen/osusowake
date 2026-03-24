@@ -394,11 +394,8 @@ export default function Home() {
       navigate('/welcome', { replace: true });
       return;
     }
-    // 店舗オーナー → ダッシュボードへ（profileが確定してから判定）
-    if (profile?.role === 'store_owner') {
-      navigate('/store/dashboard', { replace: true });
-    }
-  }, [authLoading, user, profile, navigate]);
+    // 店舗オーナーもホームを閲覧可能（pending中でも公開ページは閲覧できるようにする）
+  }, [authLoading, user, navigate]);
 
   const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || inStockOnly || sortKey !== 'default';
 
@@ -435,8 +432,8 @@ export default function Home() {
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label || 'おすすめ順';
 
-  // auth確認中・未ログイン・店舗オーナーはリダイレクト中なので何も表示しない
-  if (authLoading || !user || profile?.role === 'store_owner') return null;
+  // auth確認中・未ログイン はリダイレクト中なので何も表示しない（店舗オーナーはホームを閲覧可）
+  if (authLoading || !user) return null;
 
   const areaTitle = geoLoading
     ? null

@@ -10,18 +10,15 @@ const fadeUp = {
 };
 
 export default function Welcome() {
-  const { user, profile, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();
 
   // ログイン済みなら適切なページへリダイレクト
   useEffect(() => {
     if (isLoading || !user) return;
-    if (profile?.role === 'store_owner') {
-      navigate('/store/dashboard', { replace: true });
-    } else {
-      navigate('/', { replace: true });
-    }
-  }, [isLoading, user, profile, navigate]);
+    // store_ownerも含めてホームへ（/store/dashboardを経由するとpending時にループするため）
+    navigate('/', { replace: true });
+  }, [isLoading, user, navigate]);
 
   // auth確認中 or ログイン済みはウェルカム画面を表示しない
   if (isLoading || user) return null;
