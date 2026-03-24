@@ -50,7 +50,26 @@ const storeSelectFields = {
   stripeAccountId: storesTable.stripeAccountId,
   holiday: storesTable.holiday,
   pickupHours: storesTable.pickupHours,
-  totalBagsAvailable: sql<number>`COALESCE(SUM(CASE WHEN ${surpriseBagsTable.isActive} = true THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
+  totalBagsAvailable: sql<number>`COALESCE(SUM(CASE
+    WHEN ${surpriseBagsTable.isActive} = true
+      AND (
+        ${surpriseBagsTable.pickupEnd} IS NULL
+        OR (
+          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
+          AND ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
+          AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
+        )
+        OR (
+          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
+          AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
+        )
+        OR (
+          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day'
+          AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
+          AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
+        )
+      )
+    THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
 
 // Public: list approved + pending_review stores (both are publicly visible)
