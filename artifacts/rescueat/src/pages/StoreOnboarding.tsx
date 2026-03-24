@@ -123,12 +123,28 @@ export default function StoreOnboarding() {
       toast({ title: 'ログインが必要です', variant: 'destructive' });
       return;
     }
+
+    // ─ 既存店舗がある場合は適切なページへ転送（再送信ガード）─
+    if (existingStore && !storeLoading) {
+      console.log('[StoreOnboarding] existing store detected before submit → redirect');
+      if (existingStore.stripeAccountId) {
+        navigate('/store/dashboard');
+      } else {
+        navigate('/store/bank-setup');
+      }
+      return;
+    }
+
     if (!form.name.trim() || !form.address.trim() || !form.city.trim() || !form.category) {
       toast({ title: '必須項目を入力してください', variant: 'destructive' });
       return;
     }
     if (!pledgeSigned) {
       toast({ title: '利用規約への同意が必要です', variant: 'destructive' });
+      return;
+    }
+    if (!user.id) {
+      toast({ title: 'ログイン情報を取得できませんでした', description: 'いったんログアウトして再度ログインしてください。', variant: 'destructive' });
       return;
     }
 
@@ -160,14 +176,21 @@ export default function StoreOnboarding() {
       clearTimeout(timeout);
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        if (err?.error === 'already_exists') {
-          // 既に登録済み → bank-setup へ
-          console.log('[StoreOnboarding] already_exists → /store/bank-setup');
-          navigate('/store/bank-setup');
+        const body = await res.json().catch(() => ({}));
+        if (body?.error === 'already_exists') {
+          // 既に登録済み → 状態に応じて適切なページへ
+          const stored = body?.store;
+          console.log('[StoreOnboarding] already_exists stripeAccountId=', stored?.stripeAccountId);
+          clearOnboardingDraft();
+          if (stored?.stripeAccountId) {
+            navigate('/store/dashboard');
+          } else {
+            navigate('/store/bank-setup');
+          }
           return;
         }
-        throw new Error(err?.message || '登録に失敗しました');
+        const msg = body?.message || body?.error || `登録に失敗しました（HTTP ${res.status}）`;
+        throw new Error(msg);
       }
 
       // 登録成功 → 下書きクリアして bank-setup へ
@@ -183,12 +206,13 @@ export default function StoreOnboarding() {
         try {
           const check = await fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
           if (check.ok) {
-            console.log('[StoreOnboarding] タイムアウト後、店舗確認 OK → /store/bank-setup');
-            navigate('/store/bank-setup');
+            const checkStore = await check.json().catch(() => null);
+            console.log('[StoreOnboarding] タイムアウト後、店舗確認 OK → 遷移');
+            clearOnboardingDraft();
+            navigate(checkStore?.stripeAccountId ? '/store/dashboard' : '/store/bank-setup');
             return;
           }
         } catch (_) {}
-        // 店舗が見つからない → エラー表示（画面を維持）
         toast({ title: 'サーバーへの接続がタイムアウトしました', description: 'ネットワーク状況を確認して、もう一度お試しください。', variant: 'destructive' });
       } else {
         console.warn('[StoreOnboarding] apply error:', err);
