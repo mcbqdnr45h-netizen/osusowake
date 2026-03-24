@@ -1514,8 +1514,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       const step4Payload: Record<string, any> = {
         business_type:    "individual",
         business_profile: bizProfile,
-        // ToS 再確認（service_agreement: 'full' が JP では必須）
-        tos_acceptance:   { service_agreement: "full" },
+        // ToS 再確認（JP では date・ip・service_agreement の3点セットが必須）
+        tos_acceptance:   { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
         // 送金スケジュール: 毎日自動・2日後（要件充足後即時送金を有効にする）
         settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
       };
