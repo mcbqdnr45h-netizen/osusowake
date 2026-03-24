@@ -6,6 +6,7 @@ import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute, GuestRoute } from "@/components/ProtectedRoute";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
 
 import Home from "./pages/Home";
 import BagDetail from "./pages/BagDetail";
@@ -102,6 +103,11 @@ const pageVariants = {
 
 function AnimatedRoutes() {
   const [location] = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+
   return (
     <AnimatePresence mode="wait">
       <motion.div

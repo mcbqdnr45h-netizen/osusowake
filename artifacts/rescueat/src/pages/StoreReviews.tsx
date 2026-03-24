@@ -240,7 +240,6 @@ export default function StoreReviews() {
                 rows={4}
                 placeholder="ご来店・ご購入ありがとうございました！…"
                 className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none mb-4"
-                autoFocus
               />
               <button
                 onClick={() => submitReply(replyingId)}
