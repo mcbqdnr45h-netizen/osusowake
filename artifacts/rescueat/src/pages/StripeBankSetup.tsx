@@ -211,21 +211,23 @@ export default function StripeBankSetup() {
     setTosTime(checked ? Date.now() : null);
   };
 
-  // ── バリデーション ──
-  const kycValid =
-    lastNameKanji.trim() && firstNameKanji.trim() &&
-    lastNameKana.trim() && firstNameKana.trim() &&
-    dobYear && dobMonth && dobDay &&
-    postalCode.length === 7 &&
-    stateKanji && cityKanji && townKanji &&
-    stateKana && cityKana && townKana &&
-    productDescription.trim().length >= 10;
+  // ── バリデーション：不足項目リスト ──
+  const missingFields: string[] = [];
+  if (!lastNameKanji.trim() || !firstNameKanji.trim()) missingFields.push('代表者氏名（漢字）');
+  if (!lastNameKana.trim()   || !firstNameKana.trim())  missingFields.push('代表者氏名（カタカナ）');
+  if (!dobYear || !dobMonth || !dobDay)                 missingFields.push('生年月日');
+  if (postalCode.length !== 7)                          missingFields.push('郵便番号（7桁）');
+  if (!stateKanji)                                      missingFields.push('都道府県');
+  if (!cityKanji.trim() || !townKanji.trim())           missingFields.push('住所（市区町村・町名）漢字');
+  if (!cityKana.trim()  || !townKana.trim())            missingFields.push('住所（市区町村・町名）カナ');
+  if (productDescription.trim().length < 10)            missingFields.push(`事業内容の説明（現在${productDescription.trim().length}文字 / 10文字以上必要）`);
+  if (bankCode.length !== 4)                            missingFields.push(`銀行コード（${bankCode.length}桁 → 4桁で入力）`);
+  if (branchCode.length !== 3)                          missingFields.push(`支店コード（${branchCode.length}桁 → 3桁で入力）`);
+  if (!accountNumber.trim())                            missingFields.push('口座番号');
+  if (!holderName.trim())                               missingFields.push('口座名義（カタカナ）');
+  if (!tosAgreed)                                       missingFields.push('利用規約への同意');
 
-  const canSubmit =
-    !loading && tosAgreed &&
-    bankCode.length === 4 && branchCode.length === 3 &&
-    accountNumber.length >= 1 && holderName.trim().length >= 1 &&
-    kycValid;
+  const canSubmit = !loading && missingFields.length === 0;
 
   // ── 送信 ──
   const handleSubmit = async (e: React.FormEvent) => {
@@ -753,6 +755,29 @@ export default function StripeBankSetup() {
               <Loader2 className="w-4 h-4 text-green-500 animate-spin ml-auto" />
             </div>
           )}
+
+          {/* 不足項目リスト（ボタンが押せない理由を表示） */}
+          <AnimatePresence>
+            {!canSubmit && !loading && missingFields.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4"
+              >
+                <p className="text-xs font-black text-amber-800 mb-2 flex items-center gap-1.5">
+                  <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
+                  あと {missingFields.length} 項目を入力するとボタンが押せます
+                </p>
+                <ul className="space-y-1">
+                  {missingFields.map(f => (
+                    <li key={f} className="text-xs text-amber-700 flex items-center gap-1.5">
+                      <span className="w-1 h-1 bg-amber-500 rounded-full shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 送信ボタン */}
           <button type="submit" disabled={!canSubmit}
