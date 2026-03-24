@@ -105,16 +105,19 @@ export default function MyPage() {
                     </span>
                   </div>
                   {profile?.role === 'store_owner' && store?.name ? (
-                    <p className="text-xs text-amber-600 font-bold mt-1">公式パートナー</p>
+                    isApprovedOwner ? (
+                      <p className="text-xs text-green-600 font-bold mt-1 flex items-center gap-1">
+                        ✅ Stripe連携済み・公式パートナー
+                      </p>
+                    ) : (
+                      <p className="text-xs text-amber-600 font-bold mt-1">公式パートナー（審査中）</p>
+                    )
                   ) : (
                     <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
                       <Mail className="w-3 h-3" />
                       <span>{user.email}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground/70">
-                    <span>公式アカウント認証済み ✅</span>
-                  </div>
                 </>
               ) : (
                 <>
@@ -372,6 +375,33 @@ export default function MyPage() {
               本人確認情報（KYC）を入力する
             </button>
           </div>
+        )}
+
+        {/* ── 店舗オーナー：承認済み・Stripe連携完了（緑カード） ── */}
+        {profile?.role === 'store_owner' && !loadingStore && isApprovedOwner && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, type: 'spring', stiffness: 200, damping: 22 }}
+            className="mb-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-5 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center shrink-0">
+                <FileCheck className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-green-900 text-base leading-tight">
+                  ✅ 公式アカウント認証済み
+                </p>
+                <p className="text-xs text-green-700 font-semibold mt-0.5">
+                  入金設定完了 — 出品・売上受取が可能です
+                </p>
+              </div>
+              <span className="text-[10px] font-black bg-green-200 text-green-800 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
+                有効
+              </span>
+            </div>
+          </motion.div>
         )}
 
         {/* Menu List */}
