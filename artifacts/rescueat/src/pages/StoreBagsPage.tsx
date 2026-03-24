@@ -79,6 +79,7 @@ export default function StoreBagsPage() {
     pickupStart: '18:00',
     pickupEnd: '20:00',
   });
+  const [editingStock, setEditingStock] = useState(false);
   const stockInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -270,18 +271,17 @@ export default function StoreBagsPage() {
                 </div>
               </div>
 
-              {/* 在庫数 ── ステッパー（枠からはみ出さない完全実装） */}
+              {/* 在庫数 ── ステッパー（カーソルバグ根絶版） */}
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-2">在庫数</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 56px', gap: '8px', height: '56px' }}>
+
+                {/* 行1：[−]  [数字表示]  [+]  ← 中央は div 表示のみ（input なし） */}
+                <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 56px', gap: '8px' }}>
 
                   {/* − ボタン */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setForm(f => ({ ...f, stockCount: Math.max(1, f.stockCount - 1) }));
-                      stockInputRef.current?.focus();
-                    }}
+                    onClick={() => setForm(f => ({ ...f, stockCount: Math.max(1, f.stockCount - 1) }))}
                     disabled={form.stockCount <= 1}
                     style={{ height: '56px', minWidth: '56px' }}
                     className="flex items-center justify-center rounded-xl bg-secondary border-2 border-border text-foreground hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
@@ -289,85 +289,85 @@ export default function StoreBagsPage() {
                     <Minus className="w-5 h-5" strokeWidth={2.5} />
                   </button>
 
-                  {/* 数値エリア：overflow:hidden + input を absolute で封じ込め */}
-                  <div
-                    style={{ position: 'relative', height: '56px', borderRadius: '12px', overflow: 'hidden' }}
-                    className="bg-secondary/40 border-2 border-border"
+                  {/* 中央：数字を div で表示（input 不使用 → カーソル溢れゼロ） */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingStock(true);
+                      setTimeout(() => {
+                        stockInputRef.current?.focus();
+                        stockInputRef.current?.select();
+                      }, 30);
+                    }}
+                    style={{ height: '56px' }}
+                    className={`flex flex-col items-center justify-center rounded-xl border-2 transition-all ${
+                      editingStock
+                        ? 'bg-primary/5 border-primary'
+                        : 'bg-secondary/40 border-border'
+                    }`}
                   >
-                    {/* input：常時 DOM に存在、絶対配置でコンテナを完全に満たす */}
-                    <input
-                      ref={stockInputRef}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={String(form.stockCount)}
-                      onChange={e => {
-                        const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                        setForm(f => ({ ...f, stockCount: isNaN(v) ? 1 : Math.max(1, v) }));
-                      }}
-                      onFocus={e => {
-                        // 全選択（スマホでも即書き換え可能に）
-                        const t = e.target;
-                        setTimeout(() => t.setSelectionRange(0, t.value.length), 0);
-                        // キーボードが開いた後に入力欄が隠れないよう中央にスクロール
-                        setTimeout(() => stockInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
-                      }}
-                      style={{
-                        position: 'absolute',
-                        inset: '0',
-                        width: '100%',
-                        height: '100%',
-                        boxSizing: 'border-box',
-                        padding: '0',
-                        paddingLeft: '0',
-                        paddingRight: '0',
-                        paddingTop: '0',
-                        paddingBottom: '0',
-                        margin: '0',
-                        textAlign: 'center',
-                        WebkitTextAlign: 'center' as React.CSSProperties['textAlign'],
-                        fontSize: '24px',
-                        fontWeight: 900,
-                        lineHeight: '1',
-                        background: 'transparent',
-                        border: 'none',
-                        outline: 'none',
-                        color: 'var(--foreground)',
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                      }}
-                    />
-                    {/* 「個」ラベル：input の上に重ねる（ポインターイベントを貫通させる） */}
-                    <span style={{
-                      position: 'absolute',
-                      bottom: '5px',
-                      left: 0,
-                      right: 0,
-                      textAlign: 'center',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      color: 'var(--muted-foreground)',
-                      pointerEvents: 'none',
-                      userSelect: 'none',
-                    }}>
-                      個
+                    <span className="text-2xl font-black leading-none">{form.stockCount}</span>
+                    <span className="text-[10px] text-muted-foreground mt-0.5">
+                      {editingStock ? '編集中…' : '個（タップで入力）'}
                     </span>
-                  </div>
+                  </button>
 
                   {/* ＋ ボタン */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setForm(f => ({ ...f, stockCount: f.stockCount + 1 }));
-                      stockInputRef.current?.focus();
-                    }}
+                    onClick={() => setForm(f => ({ ...f, stockCount: f.stockCount + 1 }))}
                     style={{ height: '56px', minWidth: '56px' }}
                     className="flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 active:scale-95 transition-all shadow-md shadow-primary/25"
                   >
                     <Plus className="w-5 h-5" strokeWidth={2.5} />
                   </button>
-
                 </div>
+
+                {/* 行2：直接入力欄（ステッパー下に全幅で展開 → 絶対配置不使用） */}
+                <AnimatePresence>
+                  {editingStock && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -6, height: 0 }}
+                      style={{ overflow: 'hidden', marginTop: '8px' }}
+                    >
+                      <div className="flex items-center bg-secondary/40 border-2 border-primary rounded-xl px-4" style={{ height: '56px' }}>
+                        <input
+                          ref={stockInputRef}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={String(form.stockCount)}
+                          onChange={e => {
+                            const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                            setForm(f => ({ ...f, stockCount: isNaN(v) ? 1 : Math.max(1, v) }));
+                          }}
+                          onFocus={e => {
+                            const t = e.target;
+                            setTimeout(() => t.setSelectionRange(0, t.value.length), 0);
+                            setTimeout(() => stockInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+                          }}
+                          onBlur={() => setEditingStock(false)}
+                          style={{
+                            flex: 1,
+                            textAlign: 'center',
+                            fontSize: '24px',
+                            fontWeight: 900,
+                            background: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            padding: 0,
+                            margin: 0,
+                            color: 'var(--foreground)',
+                            WebkitAppearance: 'none' as React.CSSProperties['WebkitAppearance'],
+                          }}
+                        />
+                        <span className="text-sm font-bold text-muted-foreground ml-1">個</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* 受取時間（開始に「今すぐ」ボタン） */}
