@@ -821,24 +821,34 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
 
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-    // 住所オブジェクト（漢字・カナ）
+    // ── 住所オブジェクト（漢字）──
     const addressKanji: Record<string, string> = {
       postal_code: representative.postalCode,
-      state: representative.stateKanji,
-      city: representative.cityKanji,
-      town: representative.townKanji,
+      state:       representative.stateKanji,
+      city:        representative.cityKanji,
+      town:        representative.townKanji,
     };
     if (representative.line1Kanji) addressKanji["line1"] = representative.line1Kanji;
 
+    // ── 住所オブジェクト（カナ）──
     const addressKana: Record<string, string> = {
       postal_code: representative.postalCode,
-      state: representative.stateKana,
-      city: representative.cityKana,
-      town: representative.townKana,
+      state:       representative.stateKana,
+      city:        representative.cityKana,
+      town:        representative.townKana,
     };
     if (representative.line1Kana) addressKana["line1"] = representative.line1Kana;
 
-    // 事業内容
+    // ── 標準住所（kanji/kana と並列で送信） ──
+    const addressStandard: Record<string, string> = {
+      postal_code: representative.postalCode,
+      country:     "JP",
+      state:       representative.stateKanji,
+      city:        representative.cityKanji,
+      line1:       representative.townKanji + (representative.line1Kanji ? ` ${representative.line1Kanji}` : ""),
+    };
+
+    // ── 事業内容 ──
     const businessProfileUpdate: Record<string, string> = { mcc: "5812" };
     if (businessProfile.productDescription) {
       businessProfileUpdate["product_description"] = businessProfile.productDescription;
@@ -847,16 +857,16 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       businessProfileUpdate["url"] = businessProfile.url;
     }
 
-    // Stripe Account Update パラメータを構築
+    // ── Stripe Account Update パラメータを構築 ──
     const updateParams: Record<string, any> = {
-      business_type: businessType,
+      business_type: "individual",          // 常に individual に固定
       business_profile: businessProfileUpdate,
     };
 
     if (businessType === "individual") {
       const indiv: Record<string, any> = {
-        first_name: representative.firstNameKanji,
-        last_name:  representative.lastNameKanji,
+        first_name:      representative.firstNameKanji,
+        last_name:       representative.lastNameKanji,
         first_name_kana: representative.firstNameKana,
         last_name_kana:  representative.lastNameKana,
         dob: {
@@ -864,6 +874,7 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
           month: Number(representative.dobMonth),
           year:  Number(representative.dobYear),
         },
+        address:       addressStandard,
         address_kanji: addressKanji,
         address_kana:  addressKana,
       };
@@ -873,8 +884,9 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     } else {
       // company: 会社情報 + 代表者情報
       const companyObj: Record<string, any> = {
-        name:       `${representative.lastNameKanji}${representative.firstNameKanji}`,
-        name_kana:  `${representative.lastNameKana}${representative.firstNameKana}`,
+        name:          `${representative.lastNameKanji}${representative.firstNameKanji}`,
+        name_kana:     `${representative.lastNameKana}${representative.firstNameKana}`,
+        address:       addressStandard,
         address_kanji: addressKanji,
         address_kana:  addressKana,
       };
@@ -882,8 +894,8 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       updateParams["company"] = companyObj;
 
       const rep: Record<string, any> = {
-        first_name: representative.firstNameKanji,
-        last_name:  representative.lastNameKanji,
+        first_name:      representative.firstNameKanji,
+        last_name:       representative.lastNameKanji,
         first_name_kana: representative.firstNameKana,
         last_name_kana:  representative.lastNameKana,
         dob: {
@@ -891,11 +903,12 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
           month: Number(representative.dobMonth),
           year:  Number(representative.dobYear),
         },
+        address:       addressStandard,
         address_kanji: addressKanji,
         address_kana:  addressKana,
         relationship: {
           representative: true,
-          owner: true,
+          owner:          true,
           percent_ownership: 100,
         },
       };
@@ -904,9 +917,21 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       updateParams["representative"] = rep;
     }
 
+    // ── Stripe 送信前ペイロードをフルログ ──
+    console.log(`📤 [KYC] Stripe accounts.update payload for account ${store.stripeAccountId}:`);
+    console.log(JSON.stringify(updateParams, null, 2));
+
     const account = await stripe.accounts.update(store.stripeAccountId, updateParams as any);
 
-    console.log(`✅ Stripe KYC updated for store ${storeId} (${store.stripeAccountId})`);
+    // ── Stripe レスポンスをフルログ ──
+    console.log(`✅ [KYC] Stripe accounts.update succeeded for store ${storeId}`);
+    console.log(`   charges_enabled:  ${account.charges_enabled}`);
+    console.log(`   payouts_enabled:  ${account.payouts_enabled}`);
+    console.log(`   details_submitted: ${account.details_submitted}`);
+    console.log(`   requirements.currently_due:  ${JSON.stringify(account.requirements?.currently_due)}`);
+    console.log(`   requirements.eventually_due: ${JSON.stringify(account.requirements?.eventually_due)}`);
+    console.log(`   requirements.errors:         ${JSON.stringify(account.requirements?.errors)}`);
+    console.log(`   requirements.disabled_reason: ${account.requirements?.disabled_reason}`);
 
     // eventually_due が空 = Stripeの必要情報がすべて揃った → DBステータスを 'approved' に更新
     const eventuallyDue = account.requirements?.eventually_due ?? [];
@@ -939,13 +964,19 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       },
     });
   } catch (err: any) {
-    console.error("Stripe KYC update error:", err);
+    console.error("❌ [KYC] Stripe accounts.update FAILED:");
+    console.error("   type:      ", err?.type);
+    console.error("   code:      ", err?.raw?.code ?? err?.code);
+    console.error("   param:     ", err?.raw?.param ?? err?.param);
+    console.error("   message:   ", err?.raw?.message ?? err?.message);
+    console.error("   statusCode:", err?.statusCode);
+    console.error("   raw error: ", JSON.stringify(err?.raw ?? {}, null, 2));
     res.status(500).json({
       error: "stripe_error",
       message: err?.raw?.message ?? err?.message ?? "KYC情報の送信に失敗しました",
-      // フロントがフィールド別エラー表示に使う
       param: err?.raw?.param ?? null,
       stripeCode: err?.raw?.code ?? null,
+      stripeType: err?.type ?? null,
     });
   }
 });
