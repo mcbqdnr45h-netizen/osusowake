@@ -134,8 +134,8 @@ export function GuestRoute({
   if (isLoading) return null;
   // 初回ロード時にすでにログイン済みだった → effect がリダイレクト中
   if (user && wasAlreadyLoggedIn.current) return null;
-  // ログイン操作完了直後 → ログインページが navigate するまで表示継続（ちらつき防止）
-  if (user && !wasAlreadyLoggedIn.current) return null;
+  // ログイン/登録操作完了直後 → 各ページが自分でナビゲートするまで表示継続
+  // （return null にするとフォームが消え成功画面が表示されない）
 
   return <Component />;
 }

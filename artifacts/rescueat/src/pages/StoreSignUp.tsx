@@ -46,7 +46,8 @@ export default function StoreSignUp() {
     setDone(true);
 
     if (!confirm) {
-      setTimeout(() => navigate('/store/dashboard'), 1200);
+      // 成功画面を一瞬見せてから店舗情報入力へ（/store/dashboardは店舗なしで/store-onboardingへリダイレクトするため直接遷移）
+      setTimeout(() => navigate('/store-onboarding'), 2000);
     }
   }
 
@@ -63,7 +64,7 @@ export default function StoreSignUp() {
             <span className="text-5xl">{needsConfirmation ? '📧' : '🏪'}</span>
           </div>
           <h2 className="text-2xl font-black text-foreground mb-3">
-            {needsConfirmation ? '確認メールを送信しました' : '登録完了！'}
+            {needsConfirmation ? '確認メールを送信しました' : 'アカウント登録完了！'}
           </h2>
           {needsConfirmation ? (
             <>
@@ -79,7 +80,12 @@ export default function StoreSignUp() {
               </Link>
             </>
           ) : (
-            <p className="text-muted-foreground text-sm">店舗ダッシュボードへ移動します...</p>
+            <>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+                登録が完了しました。<br />続けて店舗情報を入力してください。
+              </p>
+              <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </>
           )}
         </motion.div>
       </div>
