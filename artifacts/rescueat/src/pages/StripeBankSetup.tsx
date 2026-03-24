@@ -318,21 +318,22 @@ export default function StripeBankSetup() {
         return;
       }
 
-      // ③ 完了 → キャッシュ更新してマイページへ
+      // ③ 完了 → キャッシュ更新してマイページへ直接遷移
       setSubmitStatus('登録完了！');
-      console.log('[StripeBankSetup] ✅ 登録成功 → done 画面へ遷移');
-      await refetch();
-      setDone(true);
+      console.log('[StripeBankSetup] ✅ 登録成功 → /mypage へ遷移');
+      try { await refetch(); } catch (_) {}
+      navigate('/mypage');
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        // タイムアウト → 仮登録完了として扱い、次の画面へ
-        console.log('[StripeBankSetup] AbortError (タイムアウト) → 仮登録完了として done 画面へ遷移');
+        // タイムアウト → 仮登録完了として mypage へ遷移（ステータスは applied に更新済み）
+        console.log('[StripeBankSetup] AbortError (タイムアウト) → /mypage へ遷移');
         setSubmitStatus('処理中（バックグラウンドで継続）...');
         try { await refetch(); } catch (_) {}
-        setDone(true);
+        navigate('/mypage');
         return;
       }
+      // エラー → 画面はそのまま、エラーメッセージ表示
       console.error('[StripeBankSetup] エラー:', err);
       setError(err?.message ?? '予期しないエラーが発生しました。');
     } finally {
@@ -368,22 +369,26 @@ export default function StripeBankSetup() {
     );
   }
 
-  // ────────── 口座登録済み or 承認済み（フォーム再表示を防ぐ） ──────────
-  if (store.status === 'applied' || store.status === 'approved') {
+  // ────────── 口座登録済み（Stripeアカウント連携済み、または申請中）──────────
+  // ※ store.status === 'approved' のみでは判定しない（登録直後も 'approved' になるため）
+  if (store.status === 'applied' || !!store.stripeAccountId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-10 h-10 text-green-500" />
           </div>
-          <h2 className="text-xl font-black text-gray-900 mb-2">登録情報を送信済みです</h2>
+          <h2 className="text-xl font-black text-gray-900 mb-2">
+            {store.stripeAccountId ? '口座登録が完了しています' : '申請を受け付けました'}
+          </h2>
           <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-            口座・本人確認情報の送信が完了しています。<br />
-            Stripeの審査はバックグラウンドで進行中です。
+            {store.stripeAccountId
+              ? '口座・本人確認情報の登録が完了しています。'
+              : '口座・本人確認情報の申請を受け付けました。\nStripeの審査はバックグラウンドで進行中です。'}
           </p>
           <button onClick={() => navigate('/mypage')}
             className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl w-full">
-            マイページへ戻る
+            マイページへ
           </button>
         </div>
       </div>

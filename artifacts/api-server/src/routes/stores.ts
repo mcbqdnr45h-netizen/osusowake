@@ -1199,6 +1199,14 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       return;
     }
 
+    // ── 即座に "applied" ステータスをDBに書く（ループ防止・べき等性確保）──
+    // これでフロント側が「申請済み」と認識でき、bank-setup ↔ mypage のリダイレクトループが発生しない
+    await db.update(storesTable)
+      .set({ status: "applied" })
+      .where(eq(storesTable.id, storeId));
+    console.log(`[bank-setup] ✅ Store ${storeId} status → 'applied' (処理開始)`);
+
+
     // オーナーのメールアドレスを Supabase Auth から取得
     let ownerEmail: string | undefined;
     if (store.ownerId) {
