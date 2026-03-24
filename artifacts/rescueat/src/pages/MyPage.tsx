@@ -4,11 +4,12 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, ClipboardCheck, Mail, Scale, Flame, TrendingUp, Star, Clock, XCircle, FileCheck, Camera, MessageSquare } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, ClipboardCheck, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
-import { getUserEcoRank, getUserProgress } from '@/lib/eco-rank';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
+import { MyTown } from '@/components/MyTown';
+import { getTownStage, TOWN_STAGES } from '@/lib/town-stage';
 
 export default function MyPage() {
   const userId = useUserId();
@@ -22,21 +23,12 @@ export default function MyPage() {
 
   const pickedUpReservations = reservations?.filter(r => r.status === 'picked_up') || [];
   const pickedUpCount  = pickedUpReservations.length;
-  const foodSavedKg    = +(pickedUpCount * 0.5).toFixed(1);   // 1回あたり500g換算
+  const foodSavedKg    = +(pickedUpCount * 0.5).toFixed(1);
   const co2Saved       = +(pickedUpCount * 2.5).toFixed(1);
-  const ecoRank        = getUserEcoRank(co2Saved);
-  const progress       = getUserProgress(co2Saved, ecoRank);
 
-  // おすそ分けスコア（レベル）
-  const scoreLevel = pickedUpCount === 0 ? 'はじめての一歩' :
-    pickedUpCount < 5  ? 'おすそ分けビギナー' :
-    pickedUpCount < 15 ? 'おすそ分けサポーター' :
-    pickedUpCount < 30 ? 'おすそ分けマスター' : '伝説のおすそ分け人';
-  const scoreEmoji = pickedUpCount === 0 ? '🌱' :
-    pickedUpCount < 5  ? '🌾' :
-    pickedUpCount < 15 ? '🌿' :
-    pickedUpCount < 30 ? '🌳' : '🏆';
-
+  // マイタウン ステージ
+  const townStageNum  = getTownStage(pickedUpCount);
+  const townStageInfo = TOWN_STAGES[townStageNum];
 
   async function handleLogout() {
     await signOut();
@@ -144,11 +136,11 @@ export default function MyPage() {
             <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/5 rounded-full" />
 
             <div className="relative px-5 pt-5 pb-4">
-              {/* ランクバッジ */}
+              {/* タウンステージバッジ */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                  <span className="text-lg leading-none">{scoreEmoji}</span>
-                  <span className="text-white text-xs font-black">{scoreLevel}</span>
+                  <span className="text-lg leading-none">{townStageInfo.icon}</span>
+                  <span className="text-white text-xs font-black">{townStageInfo.name}</span>
                 </div>
                 <div className="flex items-center gap-1 bg-white/20 px-2.5 py-1 rounded-full">
                   <Star className="w-3.5 h-3.5 text-yellow-200 fill-yellow-200" />
@@ -172,12 +164,12 @@ export default function MyPage() {
               <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 mt-3">
                 <p className="text-white font-black text-sm text-center">
                   {pickedUpCount === 0
-                    ? '🌟 最初のおすそ分けを受け取ってみよう！'
+                    ? '🌟 最初のおすそ分けで街が変わりはじめる！'
                     : pickedUpCount < 5
                     ? '🌾 素敵なスタートです！続けてみましょう'
                     : pickedUpCount < 15
-                    ? `🌿 ナイスおすそ分け！地球が喜んでいます`
-                    : `🏆 すごい！あなたは食のヒーローです`
+                    ? '🌿 ナイスおすそ分け！街が育っています'
+                    : '🏆 すごい！あなたは街の守護者です'
                   }
                 </p>
               </div>
@@ -208,34 +200,8 @@ export default function MyPage() {
             </div>
           </motion.div>
 
-          {/* 次のレベルへの進捗バー */}
-          {ecoRank.rank < 3 && (
-            <div className={`border rounded-2xl p-4 shadow-sm ${ecoRank.sectionBg} ${ecoRank.sectionBorder}`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className={`flex items-center gap-1.5 text-xs font-black ${ecoRank.badgeText}`}>
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  次のランクまで
-                </div>
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${ecoRank.badgeBg} ${ecoRank.badgeText}`}>
-                  <Flame className="w-3 h-3" />{ecoRank.label}
-                </div>
-              </div>
-              <div className={`w-full h-2.5 rounded-full overflow-hidden ${ecoRank.rank === 1 ? 'bg-green-200' : 'bg-emerald-300'}`}>
-                <motion.div
-                  className={`h-full rounded-full ${ecoRank.progressColor}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.max(5, progress)}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
-                />
-              </div>
-              <p className={`text-[11px] font-bold mt-1.5 ${ecoRank.labelText}`}>{ecoRank.sublabel}</p>
-            </div>
-          )}
-          {ecoRank.rank === 3 && (
-            <div className={`border-2 rounded-2xl p-4 text-center ${ecoRank.sectionBg} ${ecoRank.sectionBorder}`}>
-              <p className={`text-sm font-black ${ecoRank.labelText}`}>🌳 {ecoRank.sublabel}</p>
-            </div>
-          )}
+          {/* マイタウン育成 */}
+          <MyTown purchaseCount={pickedUpCount} />
         </div>}
 
         {/* ── 店舗オーナー：未申請バナー（store が存在しない場合のみ） ── */}

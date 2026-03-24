@@ -864,11 +864,22 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     };
 
     if (businessType === "individual") {
+      // address_kanji.line1 と address_kana.line1 は Stripe が必須要求する。
+      // ユーザーが建物名を入力していない場合は town（番地）を line1 にも設定する。
+      if (!addressKanji["line1"]) addressKanji["line1"] = representative.townKanji;
+      if (!addressKana["line1"])  addressKana["line1"]  = representative.townKana;
+      if (!addressStandard["line1"]) addressStandard["line1"] = representative.townKanji;
+
       const indiv: Record<string, any> = {
-        first_name:      representative.firstNameKanji,
-        last_name:       representative.lastNameKanji,
+        // ASCII/Kana 名（Stripe グローバル標準フィールド）
+        first_name:      representative.firstNameKana,
+        last_name:       representative.lastNameKana,
+        // Kana 名
         first_name_kana: representative.firstNameKana,
         last_name_kana:  representative.lastNameKana,
+        // Kanji 名（日本専用フィールド — Stripe Japan が required）
+        first_name_kanji: representative.firstNameKanji,
+        last_name_kanji:  representative.lastNameKanji,
         dob: {
           day:   Number(representative.dobDay),
           month: Number(representative.dobMonth),

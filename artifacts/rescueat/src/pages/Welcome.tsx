@@ -85,7 +85,7 @@ export default function Welcome() {
           {[
             '🗺️ エリア・ジャンルで絞り込み',
             '🎁 サプライズバッグをお得に',
-            '✨ 買うたびにポイントが貯まる',
+            '🏘️ 買うたびにマイタウンが育つ',
           ].map(text => (
             <span key={text} className="bg-white/18 backdrop-blur-sm text-white text-xs font-bold px-3.5 py-2 rounded-full border border-white/25">
               {text}
