@@ -1140,143 +1140,119 @@ router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
 
 // ─── Stripe Custom Account 銀行口座セットアップ ───────────────────────────────
 // POST /api/stores/:storeId/connect/bank-setup
-// 口座登録・KYC情報送信・本人確認書類アップロードを一括処理し、DBステータスを approved に更新する
+// STEP1-2（アカウント作成＋口座登録）を同期で実行してクライアントにレスポンスを返し、
+// STEP3-5（書類アップロード＋KYC更新＋DB更新）をバックグラウンドで継続する。
+// ※ 全ての変数を try 外に宣言してバックグラウンドクロージャのスコープ問題を回避する。
 router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
-  try {
-    const storeId = parseInt(req.params.storeId);
-    const {
-      bankToken,
-      tosTimestamp,
-      kycData,
-      docFrontBase64,
-      docFrontMime,
-      docBackBase64,
-      docBackMime,
-    } = req.body as {
-      bankToken: string;
-      tosTimestamp: number;
-      kycData: {
-        firstNameKanji: string;
-        lastNameKanji: string;
-        firstNameKana: string;
-        lastNameKana: string;
-        phone: string;
-        email?: string;
-        dobYear: number;
-        dobMonth: number;
-        dobDay: number;
-        postalCode: string;
-        stateKanji: string;
-        cityKanji: string;
-        townKanji: string;
-        line1Kanji?: string;
-        stateKana: string;
-        cityKana: string;
-        townKana: string;
-        line1Kana?: string;
-        productDescription?: string;
-        businessUrl?: string;
-      };
-      docFrontBase64: string;
-      docFrontMime: string;
-      docBackBase64?: string;
-      docBackMime?: string;
+  // ── 変数を try の外側に宣言（BGクロージャがスコープを共有できるようにする）──
+  const storeId = parseInt(req.params.storeId);
+  if (isNaN(storeId)) {
+    res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+    return;
+  }
+
+  const body = req.body as {
+    bankToken: string;
+    tosTimestamp: number;
+    kycData: {
+      firstNameKanji: string; lastNameKanji: string;
+      firstNameKana: string;  lastNameKana: string;
+      phone: string; email?: string;
+      dobYear: number; dobMonth: number; dobDay: number;
+      postalCode: string;
+      stateKanji: string; cityKanji: string; townKanji: string; line1Kanji?: string;
+      stateKana: string;  cityKana: string;  townKana: string;  line1Kana?: string;
+      productDescription?: string; businessUrl?: string;
     };
+    docFrontBase64: string; docFrontMime: string;
+    docBackBase64?: string; docBackMime?: string;
+  };
 
-    if (!bankToken || !tosTimestamp || !kycData || !docFrontBase64 || !docFrontMime) {
-      res.status(400).json({ error: "bad_request", message: "bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime は必須です" });
-      return;
-    }
+  const { bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime, docBackBase64, docBackMime } = body;
 
-    const stripeKey = process.env["STRIPE_SECRET_KEY"];
-    if (!stripeKey) {
-      res.status(503).json({ error: "stripe_not_configured", message: "Stripe が設定されていません" });
-      return;
-    }
+  if (!bankToken || !tosTimestamp || !kycData || !docFrontBase64 || !docFrontMime) {
+    res.status(400).json({ error: "bad_request", message: "bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime は必須です" });
+    return;
+  }
 
-    const [store] = await db
-      .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
-      .from(storesTable)
-      .where(eq(storesTable.id, storeId));
+  const stripeKey = process.env["STRIPE_SECRET_KEY"];
+  if (!stripeKey) {
+    res.status(503).json({ error: "stripe_not_configured", message: "Stripe が設定されていません" });
+    return;
+  }
 
-    if (!store) {
-      res.status(404).json({ error: "not_found", message: "店舗が見つかりません" });
-      return;
-    }
+  const [store] = await db
+    .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
+    .from(storesTable)
+    .where(eq(storesTable.id, storeId));
 
-    // ── 即座に "applied" ステータスをDBに書く（ループ防止・べき等性確保）──
-    // これでフロント側が「申請済み」と認識でき、bank-setup ↔ mypage のリダイレクトループが発生しない
-    await db.update(storesTable)
-      .set({ status: "applied" })
-      .where(eq(storesTable.id, storeId));
-    console.log(`[bank-setup] ✅ Store ${storeId} status → 'applied' (処理開始)`);
+  if (!store) {
+    res.status(404).json({ error: "not_found", message: "店舗が見つかりません" });
+    return;
+  }
 
+  // オーナーメール取得
+  let ownerEmail: string | undefined;
+  if (store.ownerId) {
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(store.ownerId);
+    ownerEmail = userData?.user?.email ?? kycData.email;
+  }
 
-    // オーナーのメールアドレスを Supabase Auth から取得
-    let ownerEmail: string | undefined;
-    if (store.ownerId) {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(store.ownerId);
-      ownerEmail = userData?.user?.email ?? kycData.email;
-    }
+  const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+  const ip =
+    (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
+    req.ip ?? "127.0.0.1";
 
-    // クライアント IP 取得
-    const ip =
-      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
-      req.ip ??
-      "127.0.0.1";
+  const replitDomain =
+    (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
+    process.env["REPLIT_DEV_DOMAIN"] || "tabeross.replit.app";
+  const businessUrl = kycData.businessUrl?.trim() || `https://${replitDomain}`;
 
-    // プロジェクトのビジネス URL
-    const replitDomain =
-      (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
-      process.env["REPLIT_DEV_DOMAIN"] ||
-      "tabeross.replit.app";
-    const businessUrl = kycData.businessUrl?.trim() || `https://${replitDomain}`;
+  // タイムアウト付き Stripe ヘルパー（外側で定義して BG からも使える）
+  function stripeCall<T>(promise: Promise<T>, label: string, ms = 25000): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`stripe_timeout:${label}`)), ms)
+      ),
+    ]);
+  }
 
-    // ── タイムアウト付き Stripe 呼び出しヘルパー ──
-    function stripeCall<T>(promise: Promise<T>, label: string, ms = 25000): Promise<T> {
-      return Promise.race([
-        promise,
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error(`stripe_timeout:${label}`)), ms)
-        ),
-      ]);
-    }
+  // accountId を外側で宣言（STEP1 で値を代入、BG で参照）
+  let accountId: string | null = store.stripeAccountId;
 
-    // ── STEP 1: Stripe Custom アカウント作成 or 更新 ──
-    let accountId = store.stripeAccountId;
+  // ── STEP 1-2: Stripe アカウント作成＋口座登録（同期） ──
+  try {
+    // ── 即座に "applied" を書いてループを防止 ──
+    await db.update(storesTable).set({ status: "applied" }).where(eq(storesTable.id, storeId));
+    console.log(`[bank-setup] ✅ Store ${storeId} status → 'applied'`);
 
+    // STEP 1: アカウント作成 or 更新
     if (!accountId) {
       console.log(`[bank-setup] STEP1 Creating Stripe Custom Account for store ${storeId}…`);
       try {
         const account = await stripeCall(
           stripe.accounts.create(
             {
-              type: "custom",
-              country: "JP",
+              type: "custom", country: "JP",
               ...(ownerEmail ? { email: ownerEmail } : {}),
               capabilities: { transfers: { requested: true } },
               business_profile: { mcc: "5812", url: businessUrl },
               tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip },
             },
-            // 冪等性キー: 同じ storeId で同じ申請を複数回送っても1回分だけ作成される
             { idempotencyKey: `store-${storeId}-account-create` }
           ),
           "accounts.create"
         );
         accountId = account.id;
         await db.update(storesTable).set({ stripeAccountId: accountId }).where(eq(storesTable.id, storeId));
-        console.log(`✅ [bank-setup] Stripe Custom Account created: ${accountId} for store ${storeId}`);
+        console.log(`✅ [bank-setup] Stripe Account created: ${accountId}`);
       } catch (createErr: any) {
-        // タイムアウトまたは重複エラーのとき、DB を再確認して既存 accountId を使う
-        const [latest] = await db
-          .select({ stripeAccountId: storesTable.stripeAccountId })
-          .from(storesTable)
-          .where(eq(storesTable.id, storeId));
+        const [latest] = await db.select({ stripeAccountId: storesTable.stripeAccountId }).from(storesTable).where(eq(storesTable.id, storeId));
         if (latest?.stripeAccountId) {
           accountId = latest.stripeAccountId;
-          console.warn(`⚠️  [bank-setup] accounts.create failed (${createErr.message}), using existing accountId=${accountId}`);
+          console.warn(`⚠️  [bank-setup] accounts.create failed, using existing accountId=${accountId}`);
         } else {
           throw createErr;
         }
@@ -1287,21 +1263,20 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         await stripeCall(
           stripe.accounts.update(accountId, {
             business_profile: { mcc: "5812", url: businessUrl },
-            tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip },
+            tos_acceptance:   { date: Math.floor(tosTimestamp / 1000), ip },
           }),
           "accounts.update(tos)"
         );
-        console.log(`ℹ️  [bank-setup] Stripe Custom Account updated: ${accountId}`);
       } catch (updErr: any) {
         console.warn(`⚠️  [bank-setup] accounts.update(tos) failed: ${updErr.message} — continuing`);
       }
     }
 
-    // ── STEP 2: 銀行口座を外部アカウントとして紐付け ──
+    // STEP 2: 銀行口座を紐付け
     console.log(`[bank-setup] STEP2 Attaching bank account to ${accountId}…`);
     try {
       await stripeCall(
-        stripe.accounts.createExternalAccount(accountId, {
+        stripe.accounts.createExternalAccount(accountId!, {
           external_account: bankToken,
           default_for_currency: true,
         }),
@@ -1312,37 +1287,36 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       if (bankErr.code === "external_account_already_exists" || bankErr.message?.includes("already")) {
         console.warn(`⚠️  [bank-setup] External account already attached — skipping`);
       } else if (bankErr.message?.startsWith("stripe_timeout:")) {
-        console.warn(`⚠️  [bank-setup] Bank account attach timed out — continuing`);
+        console.warn(`⚠️  [bank-setup] Bank attach timed out — continuing`);
       } else {
         throw bankErr;
       }
     }
 
-    // ── STEP 1-2 完了 → クライアントに即座にレスポンスを返す ──
-    // 書類アップロード・KYC更新はバックグラウンドで継続
-    console.log(`✅ [bank-setup] STEP1-2 complete — responding to client immediately`);
+    // STEP1-2 完了 → クライアントにレスポンスを返す（BG は次に開始）
+    console.log(`✅ [bank-setup] STEP1-2 complete — responding to client`);
     res.json({ success: true, accountId, partial: true });
 
   } catch (err: any) {
     console.error("❌ [bank-setup] Fatal error (STEP1-2):", err?.raw?.message ?? err?.message ?? err);
-    try {
-      await db.update(storesTable).set({ status: "applied" }).where(eq(storesTable.id, storeId));
-    } catch (_) {}
-    res.status(500).json({
-      error:   "stripe_error",
-      message: err?.raw?.message ?? err?.message ?? "登録処理に失敗しました",
-      param:   err?.raw?.param ?? null,
-    });
-    return;
+    if (!res.headersSent) {
+      res.status(500).json({
+        error:   "stripe_error",
+        message: err?.raw?.message ?? err?.message ?? "登録処理に失敗しました",
+        param:   err?.raw?.param ?? null,
+      });
+    }
+    return;  // BG は起動しない
   }
 
-  // ── STEP 3-5: バックグラウンド処理（レスポンス送信後に継続）──
+  // ── STEP 3-5: バックグラウンド処理 ──
+  // ここは try の外なので accountId / kycData / stripe / businessUrl / ownerEmail / storeId すべてアクセス可能
   void (async () => {
     const toBuffer = (b64: string) => Buffer.from(b64.replace(/^data:[^;]+;base64,/, ""), "base64");
 
     try {
-      // STEP 3: 書類アップロード（表面・裏面を並列実行）
-      console.log(`[bank-setup] BG STEP3 Uploading identity documents in parallel…`);
+      // STEP 3: 書類アップロード（並列）
+      console.log(`[bank-setup] BG STEP3 Uploading identity documents…`);
       const frontExt = docFrontMime === "image/png" ? "png" : "jpg";
 
       const [frontResult, backResult] = await Promise.allSettled([
@@ -1351,8 +1325,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
             purpose: "identity_document",
             file: { data: toBuffer(docFrontBase64), name: `id_front.${frontExt}`, type: docFrontMime as "image/jpeg" | "image/png" },
           }),
-          "files.create(front)",
-          30000
+          "files.create(front)", 30000
         ),
         ...(docBackBase64 && docBackMime ? [
           stripeCall(
@@ -1360,35 +1333,32 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
               purpose: "identity_document",
               file: { data: toBuffer(docBackBase64), name: `id_back.${docBackMime === "image/png" ? "png" : "jpg"}`, type: docBackMime as "image/jpeg" | "image/png" },
             }),
-            "files.create(back)",
-            30000
+            "files.create(back)", 30000
           ),
         ] : [Promise.resolve(null)]),
       ]);
 
-      const frontFile = frontResult.status === "fulfilled" ? frontResult.value : null;
-      const backFileId = backResult.status === "fulfilled" && backResult.value ? (backResult.value as any).id : undefined;
-      if (frontFile) console.log(`✅ [bank-setup] BG Front doc uploaded: ${(frontFile as any).id}`);
-      else console.warn(`⚠️  [bank-setup] BG Front doc upload failed`);
-      if (backFileId) console.log(`✅ [bank-setup] BG Back doc uploaded: ${backFileId}`);
+      const frontFile   = frontResult.status === "fulfilled" ? frontResult.value : null;
+      const backFileRaw = backResult.status  === "fulfilled" ? backResult.value  : null;
+      const backFileId  = backFileRaw ? (backFileRaw as any).id : undefined;
 
-      // STEP 4: KYC 一括更新（部分更新 — 空フィールドは除外して先祖返りを防ぐ）
+      if (frontFile) console.log(`✅ [bank-setup] BG Front doc: ${(frontFile as any).id}`);
+      else           console.warn(`⚠️  [bank-setup] BG Front doc upload failed`);
+      if (backFileId) console.log(`✅ [bank-setup] BG Back doc: ${backFileId}`);
+
+      // STEP 4: KYC 更新（部分更新 — 空フィールドは除外）
       const k = kycData;
       const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
       const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana ].filter(Boolean).join(" ");
 
-      // ── 部分更新: 値があるフィールドだけ追加 ──
       const indiv: Record<string, any> = {};
-      // 氏名（カナ/漢字）— それぞれ独立して設定
-      if (k.firstNameKana?.trim())  { indiv.first_name = k.firstNameKana; indiv.first_name_kana = k.firstNameKana; }
-      if (k.lastNameKana?.trim())   { indiv.last_name  = k.lastNameKana;  indiv.last_name_kana  = k.lastNameKana;  }
+      if (k.firstNameKana?.trim())  { indiv.first_name = k.firstNameKana;  indiv.first_name_kana = k.firstNameKana; }
+      if (k.lastNameKana?.trim())   { indiv.last_name  = k.lastNameKana;   indiv.last_name_kana  = k.lastNameKana;  }
       if (k.firstNameKanji?.trim()) indiv.first_name_kanji = k.firstNameKanji;
       if (k.lastNameKanji?.trim())  indiv.last_name_kanji  = k.lastNameKanji;
-      // 生年月日（全フィールド揃っている場合のみ）
       if (k.dobDay && k.dobMonth && k.dobYear) {
         indiv.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
       }
-      // 住所（郵便番号が入力されている場合のみ）
       if (k.postalCode?.trim()) {
         indiv.address       = { postal_code: k.postalCode, country: "JP", state: k.stateKanji, city: k.cityKanji, line1: kanjiLine1 };
         indiv.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
@@ -1396,7 +1366,6 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
       if (k.phone?.trim()) indiv.phone = toE164Japan(k.phone);
       if (ownerEmail)      indiv.email = ownerEmail;
-      // 本人確認書類（アップロード成功時のみ）
       if (frontFile) {
         indiv.verification = {
           document: {
@@ -1406,41 +1375,37 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         };
       }
 
-      // 事業内容（必須フィールドのみ、空は除外）
-      const businessProfileUpdate: Record<string, string> = { mcc: "5812", url: businessUrl };
-      if (k.productDescription?.trim()) businessProfileUpdate["product_description"] = k.productDescription;
+      const bizProfile: Record<string, string> = { mcc: "5812", url: businessUrl };
+      if (k.productDescription?.trim()) bizProfile.product_description = k.productDescription;
 
-      // ── Stripe 送信直前のペイロードをログ（デバッグ用 — null/空がないか確認）──
       const step4Payload: Record<string, any> = {
         business_type:    "individual",
-        business_profile: businessProfileUpdate,
+        business_profile: bizProfile,
       };
       if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
 
-      console.log(`📤 [bank-setup] BG STEP4 accounts.update payload for ${accountId}:`);
+      console.log(`📤 [bank-setup] BG STEP4 accounts.update for ${accountId}:`);
       console.log(JSON.stringify(step4Payload, null, 2));
 
       try {
         await stripeCall(
-          stripe.accounts.update(accountId, step4Payload as any),
-          "accounts.update(kyc)",
-          30000
+          stripe.accounts.update(accountId!, step4Payload as any),
+          "accounts.update(kyc)", 30000
         );
-        console.log(`✅ [bank-setup] BG accounts.update succeeded`);
+        console.log(`✅ [bank-setup] BG STEP4 accounts.update succeeded`);
       } catch (kycErr: any) {
-        console.warn(`⚠️  [bank-setup] BG accounts.update(kyc) failed: ${kycErr?.raw?.message ?? kycErr?.message}`);
+        console.warn(`⚠️  [bank-setup] BG STEP4 accounts.update failed: ${kycErr?.raw?.message ?? kycErr?.message}`);
         console.warn(`   param: ${kycErr?.raw?.param ?? kycErr?.param}`);
       }
 
-      // STEP 5: DB ステータスを approved に更新
+      // STEP 5: DB 更新
       await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
       console.log(`✅ [bank-setup] BG Store ${storeId} status → 'approved'`);
 
     } catch (bgErr: any) {
-      console.error(`❌ [bank-setup] BG processing error:`, bgErr?.message ?? bgErr);
+      console.error(`❌ [bank-setup] BG error:`, bgErr?.message ?? bgErr);
       try {
         await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
-        console.log(`⚠️  [bank-setup] BG Store ${storeId} status → 'approved' (fallback)`);
       } catch (_) {}
     }
   })();
