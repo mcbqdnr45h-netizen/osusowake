@@ -79,7 +79,6 @@ export default function StoreBagsPage() {
     pickupStart: '18:00',
     pickupEnd: '20:00',
   });
-  const [editingStock, setEditingStock] = useState(false);
   const stockInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -287,51 +286,69 @@ export default function StoreBagsPage() {
                     <Minus className="w-5 h-5" strokeWidth={2.5} />
                   </button>
 
-                  {/* 数値エリア：position:relative で input を絶対配置 → 絶対に枠外に出ない */}
+                  {/* 数値エリア：overflow:hidden + input を absolute で封じ込め */}
                   <div
-                    role="button"
-                    onClick={() => { setEditingStock(true); setTimeout(() => stockInputRef.current?.focus(), 0); }}
                     style={{ position: 'relative', height: '56px', borderRadius: '12px', overflow: 'hidden' }}
-                    className="bg-secondary/40 border-2 border-border cursor-text"
+                    className="bg-secondary/40 border-2 border-border"
                   >
-                    {/* 数字ラベル（編集中は非表示） */}
-                    {!editingStock && (
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                        <span style={{ fontSize: '24px', fontWeight: 900, lineHeight: 1 }}>{form.stockCount}</span>
-                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>個</span>
-                      </div>
-                    )}
-                    {/* input：絶対配置でコンテナを満たす → はみ出し不可 */}
-                    {editingStock && (
-                      <input
-                        ref={stockInputRef}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        autoFocus
-                        value={form.stockCount}
-                        onChange={e => {
-                          const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                          setForm(f => ({ ...f, stockCount: isNaN(v) ? 1 : Math.max(1, v) }));
-                        }}
-                        onBlur={() => setEditingStock(false)}
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          width: '100%',
-                          height: '100%',
-                          boxSizing: 'border-box',
-                          textAlign: 'center',
-                          fontSize: '24px',
-                          fontWeight: 900,
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          padding: 0,
-                          margin: 0,
-                        }}
-                      />
-                    )}
+                    {/* input：常時 DOM に存在、絶対配置でコンテナを完全に満たす */}
+                    <input
+                      ref={stockInputRef}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={String(form.stockCount)}
+                      onChange={e => {
+                        const v = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                        setForm(f => ({ ...f, stockCount: isNaN(v) ? 1 : Math.max(1, v) }));
+                      }}
+                      onFocus={e => {
+                        // 全選択（スマホでも即書き換え可能に）
+                        const t = e.target;
+                        setTimeout(() => t.setSelectionRange(0, t.value.length), 0);
+                        // キーボードが開いた後に入力欄が隠れないよう中央にスクロール
+                        setTimeout(() => stockInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        inset: '0',
+                        width: '100%',
+                        height: '100%',
+                        boxSizing: 'border-box',
+                        padding: '0',
+                        paddingLeft: '0',
+                        paddingRight: '0',
+                        paddingTop: '0',
+                        paddingBottom: '0',
+                        margin: '0',
+                        textAlign: 'center',
+                        WebkitTextAlign: 'center' as React.CSSProperties['textAlign'],
+                        fontSize: '24px',
+                        fontWeight: 900,
+                        lineHeight: '1',
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: 'var(--foreground)',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                      }}
+                    />
+                    {/* 「個」ラベル：input の上に重ねる（ポインターイベントを貫通させる） */}
+                    <span style={{
+                      position: 'absolute',
+                      bottom: '5px',
+                      left: 0,
+                      right: 0,
+                      textAlign: 'center',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      color: 'var(--muted-foreground)',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                    }}>
+                      個
+                    </span>
                   </div>
 
                   {/* ＋ ボタン */}
