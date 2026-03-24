@@ -176,13 +176,24 @@ export function BagManageCard({
         </div>
 
         {/* ── 下段：在庫インライン調整バー ── */}
-        <div className="mt-3 flex items-center gap-2 bg-secondary/40 rounded-xl px-3 py-2">
-          <Package2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          <span className="text-xs font-bold text-muted-foreground">残り在庫</span>
-          <span className="text-xs font-black text-foreground ml-0.5">
+        {/* 「残りわずか」判定: remaining ≤ 2 かつ 公開中 → 全画面共通ロジック */}
+        {(() => {
+          const isLowStock = status === 'active' && remaining > 0 && remaining <= 2;
+          return (
+        <div className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 ${
+          isLowStock ? 'bg-red-50 border border-red-100' : 'bg-secondary/40'
+        }`}>
+          <Package2 className={`w-3.5 h-3.5 shrink-0 ${isLowStock ? 'text-red-500' : 'text-muted-foreground'}`} />
+          <span className={`text-xs font-bold ${isLowStock ? 'text-red-600' : 'text-muted-foreground'}`}>残り在庫</span>
+          <span className={`text-xs font-black ml-0.5 ${isLowStock ? 'text-red-700' : 'text-foreground'}`}>
             {remaining}
-            <span className="font-medium text-muted-foreground">個</span>
+            <span className={`font-medium ${isLowStock ? 'text-red-500' : 'text-muted-foreground'}`}>個</span>
           </span>
+          {isLowStock && (
+            <span className="text-[10px] font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">
+              残りわずか！
+            </span>
+          )}
 
           <div className="ml-auto flex items-center gap-1.5">
             {/* − */}
@@ -215,6 +226,8 @@ export function BagManageCard({
             </button>
           </div>
         </div>
+          );
+        })()}
       </div>
     </div>
   );

@@ -22,7 +22,13 @@ export default function StoreBagsPage() {
   const { store, loading: storeLoading } = useMyStore();
   const storeId = store?.id ?? null;
 
-  const { data: bags = [], isLoading } = useListStoreBags(storeId ?? 0, { query: { enabled: !!storeId } });
+  const { data: bags = [], isLoading } = useListStoreBags(storeId ?? 0, {
+    query: {
+      enabled: !!storeId,
+      staleTime: 0,             // 常に古いと見なし必ず再取得チェック
+      refetchOnMount: 'always', // 画面に戻るたびサーバーから最新取得
+    },
+  });
   const createBag = useCreateBag();
 
   const [showForm, setShowForm]       = useState(false);
@@ -67,7 +73,7 @@ export default function StoreBagsPage() {
         },
       });
       toast({ title: '出品しました！' });
-      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
       setShowForm(false);
       setImageUrl(null);
       setForm({ title: '', originalPrice: 1000, discountedPrice: 350, stockCount: 3, pickupStart: '18:00', pickupEnd: '20:00' });
@@ -88,7 +94,7 @@ export default function StoreBagsPage() {
         body: JSON.stringify({ isActive: !bag.isActive }),
       });
       if (!res.ok) throw new Error();
-      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
       toast({ title: bag.isActive ? '非公開にしました' : '公開しました' });
     } catch {
       toast({ title: '更新に失敗しました', variant: 'destructive' });
@@ -109,7 +115,7 @@ export default function StoreBagsPage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message ?? '削除に失敗しました');
       }
-      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
       toast({ title: '商品を削除しました' });
     } catch (err: any) {
       toast({ title: err.message ?? '削除に失敗しました', variant: 'destructive' });
@@ -129,7 +135,7 @@ export default function StoreBagsPage() {
         body: JSON.stringify({ stockCount: next }),
       });
       if (!res.ok) throw new Error();
-      queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/bags`] });
+      queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
     } catch {
       toast({ title: '在庫の更新に失敗しました', variant: 'destructive' });
     } finally {
