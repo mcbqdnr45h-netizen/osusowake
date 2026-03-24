@@ -140,7 +140,7 @@ export default function StoreSignUp() {
           <ul className="space-y-1.5">
             {[
               '余剰食品を手軽に出品・管理',
-              '売上は翌日自動送金（Stripe Connect）',
+              '売上は毎週月曜に自動振込（Stripe Connect）',
               'プラットフォーム手数料は25%のみ',
             ].map((item, i) => (
               <li key={i} className="flex items-center gap-2 text-xs text-foreground">
