@@ -123,39 +123,51 @@ router.post("/stores/apply", async (req, res) => {
     const body = req.body;
     console.log("[/stores/apply] 申請受付 ownerId=", body.ownerId, "name=", body.name);
 
-    if (!body.name || !body.address || !body.city || body.lat == null || body.lng == null) {
-      console.warn("[/stores/apply] 必須フィールド不足", { name: body.name, address: body.address, city: body.city, lat: body.lat, lng: body.lng });
-      return res.status(400).json({ error: "bad_request", message: "必須項目（店舗名・住所・市区町村・座標）が不足しています" });
+    if (!body.name || !body.address || !body.city) {
+      return res.status(400).json({ error: "bad_request", message: "必須項目（店舗名・住所・市区町村）が不足しています" });
     }
     if (!body.ownerId) {
-      console.warn("[/stores/apply] ownerId が未設定。ログインが必要です。");
-      return res.status(400).json({ error: "bad_request", message: "ログインが必要です（ownerId が未設定）" });
+      return res.status(400).json({ error: "bad_request", message: "ログインが必要です" });
     }
 
+    // 既存店舗チェック — 重複登録防止
+    const [existing] = await db
+      .select({ id: storesTable.id })
+      .from(storesTable)
+      .where(eq(storesTable.ownerId, body.ownerId))
+      .limit(1);
+
+    if (existing) {
+      console.log("[/stores/apply] 既存店舗あり id=", existing.id, "→ already_exists を返す");
+      const [store] = await db.select().from(storesTable).where(eq(storesTable.id, existing.id)).limit(1);
+      return res.status(409).json({ error: "already_exists", store: { ...store, totalBagsAvailable: 0 } });
+    }
+
+    // 基本情報のみ保存 — Stripe は呼ばない、即 approved
     const [store] = await db.insert(storesTable).values({
       name: body.name,
       description: body.description ?? null,
       address: body.address,
       city: body.city,
       category: body.category ?? "other",
-      lat: Number(body.lat),
-      lng: Number(body.lng),
+      lat: body.lat != null ? Number(body.lat) : 35.6895,
+      lng: body.lng != null ? Number(body.lng) : 139.6917,
       imageUrl: body.imageUrl ?? null,
       phone: body.phone ?? null,
       isActive: false,
-      status: "pending",
+      status: "approved",
       ownerId: body.ownerId,
-      licenseNumber: body.licenseNumber ?? null,
-      licenseImageUrl: body.licenseImageUrl ?? null,
-      idImageUrl: body.idImageUrl ?? null,
+      licenseNumber: null,
+      licenseImageUrl: null,
+      idImageUrl: null,
       pledgeSigned: body.pledgeSigned === true,
     }).returning();
 
-    console.log("[/stores/apply] ✅ 店舗作成成功 id=", store.id, "ownerId=", store.ownerId);
+    console.log("[/stores/apply] ✅ 店舗作成・即承認 id=", store.id, "ownerId=", store.ownerId);
     res.status(201).json({ ...store, totalBagsAvailable: 0 });
   } catch (err) {
     console.error("[/stores/apply] DB INSERT エラー:", err);
-    res.status(500).json({ error: "internal_error", message: "店舗情報の保存に失敗しました。もう一度お試しください。" });
+    res.status(500).json({ error: "internal_error", message: "店舗情報の保存に失敗しました" });
   }
 });
 

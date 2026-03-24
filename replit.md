@@ -53,6 +53,18 @@
 **東京エリア**: 渋谷、新宿、表参道、上野、池袋、青山 × 6店舗
 **大阪エリア（デモ用）**: 江坂、吹田、高槻、千里中央、摂津 × 8店舗
 
+## 店舗登録フロー（重要）
+
+### 登録 → bank-setup 即遷移設計
+- `/store-onboarding`（StoreOnboarding.tsx）: 基本情報のみ入力（コンプライアンスステップ廃止）
+  - フォーム: 店名・住所・市区町村・ジャンル・電話・写真・誓約チェック
+  - `POST /api/stores/apply` を**2秒タイムアウト**で呼び出し（タイムアウトでも続行）
+  - Stripe は一切呼ばない・書類アップロードなし
+  - 成功・失敗・タイムアウトいずれの場合も即 `/store/bank-setup` へ `navigate()`
+- `/api/stores/apply` は `status: "approved"` で即座に保存（管理者審査なし）
+  - 重複登録 → 409 + `{ error: "already_exists", store: {...} }` を返す
+  - lat/lng が未指定の場合は東京デフォルト座標を使用
+
 ## Stripe KYC フロー（重要）
 
 - **一括処理設計**: `/store/kyc-setup` ページは廃止。`/store/bank-setup` 1画面ですべて完結
@@ -62,8 +74,8 @@
   3. 本人確認書類（表面/裏面）を `stripe.files.create` でアップロード
   4. `stripe.accounts.update` で全KYCデータ（氏名漢字/カナ・住所・DOB・電話）+ 書類IDを一括送信
   5. DBステータスを `approved` に更新（入力完了の証として強制セット）
-- `applied` ステータス → マイページに「審査中」バナーのみ表示（KYCボタンなし）
 - `approved` ステータス → `bank-setup` ページはフォームを再表示せず「登録済み」画面へ
+- タイムアウト設計: Stripe calls=25〜30秒、bank-setup全体=90秒クライアントタイムアウト
 
 ## API Routes
 
