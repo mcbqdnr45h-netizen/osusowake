@@ -13,6 +13,32 @@ import {
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
 
+// ── 全角カタカナ → 半角カタカナ変換（Stripe JP 口座名義に必要）──────────────────
+function toHalfWidthKana(str: string): string {
+  const map: Record<string, string> = {
+    'ア':'ｱ','イ':'ｲ','ウ':'ｳ','エ':'ｴ','オ':'ｵ',
+    'カ':'ｶ','キ':'ｷ','ク':'ｸ','ケ':'ｹ','コ':'ｺ',
+    'サ':'ｻ','シ':'ｼ','ス':'ｽ','セ':'ｾ','ソ':'ｿ',
+    'タ':'ﾀ','チ':'ﾁ','ツ':'ﾂ','テ':'ﾃ','ト':'ﾄ',
+    'ナ':'ﾅ','ニ':'ﾆ','ヌ':'ﾇ','ネ':'ﾈ','ノ':'ﾉ',
+    'ハ':'ﾊ','ヒ':'ﾋ','フ':'ﾌ','ヘ':'ﾍ','ホ':'ﾎ',
+    'マ':'ﾏ','ミ':'ﾐ','ム':'ﾑ','メ':'ﾒ','モ':'ﾓ',
+    'ヤ':'ﾔ','ユ':'ﾕ','ヨ':'ﾖ',
+    'ラ':'ﾗ','リ':'ﾘ','ル':'ﾙ','レ':'ﾚ','ロ':'ﾛ',
+    'ワ':'ﾜ','ヲ':'ｦ','ン':'ﾝ',
+    'ガ':'ｶﾞ','ギ':'ｷﾞ','グ':'ｸﾞ','ゲ':'ｹﾞ','ゴ':'ｺﾞ',
+    'ザ':'ｻﾞ','ジ':'ｼﾞ','ズ':'ｽﾞ','ゼ':'ｾﾞ','ゾ':'ｿﾞ',
+    'ダ':'ﾀﾞ','ヂ':'ﾁﾞ','ヅ':'ﾂﾞ','デ':'ﾃﾞ','ド':'ﾄﾞ',
+    'バ':'ﾊﾞ','ビ':'ﾋﾞ','ブ':'ﾌﾞ','ベ':'ﾍﾞ','ボ':'ﾎﾞ',
+    'パ':'ﾊﾟ','ピ':'ﾋﾟ','プ':'ﾌﾟ','ペ':'ﾍﾟ','ポ':'ﾎﾟ',
+    'ァ':'ｧ','ィ':'ｨ','ゥ':'ｩ','ェ':'ｪ','ォ':'ｫ',
+    'ッ':'ｯ','ャ':'ｬ','ュ':'ｭ','ョ':'ｮ',
+    'ー':'ｰ','・':'･','「':'｢','」':'｣','。':'｡','、':'､',
+    '　':' ',
+  };
+  return str.split('').map(c => map[c] ?? c).join('');
+}
+
 // ── 都道府県リスト ──────────────────────────────────────────────────
 const PREFECTURES_KANJI = [
   '北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県',
@@ -258,12 +284,15 @@ export default function StripeBankSetup() {
       const stripe = await stripePromise;
       if (!stripe) throw new Error('Stripeの読み込みに失敗しました。ページを再読み込みしてください。');
 
-      const routingNumber = bankCode.padStart(4, '0') + branchCode.padStart(3, '0');
+      const routingNumber = bankCode.trim().padStart(4, '0') + branchCode.trim().padStart(3, '0');
+      // Stripe JP は半角カタカナを要求するため自動変換
+      const holderNameHalf = toHalfWidthKana(holderName.trim());
+      console.log('[StripeBankSetup] createToken params:', { routingNumber, accountNumber: accountNumber.trim(), holderNameHalf });
       const result = await (stripe as any).createToken('bank_account', {
         country: 'JP', currency: 'jpy',
         routing_number: routingNumber,
-        account_number: accountNumber,
-        account_holder_name: holderName.trim(),
+        account_number: accountNumber.trim(),
+        account_holder_name: holderNameHalf,
         account_holder_type: 'individual',
       });
 
@@ -657,13 +686,13 @@ export default function StripeBankSetup() {
           <FormSection title="口座情報" icon={<CreditCard className="w-5 h-5 text-orange-500" />}>
             <Field label="口座番号" required>
               <input type="text" value={accountNumber}
-                onChange={e => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                placeholder="1234567" maxLength={8} inputMode="numeric" required
+                onChange={e => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 7))}
+                placeholder="1234567" maxLength={7} inputMode="numeric" required
                 className={`${inputClass} font-mono tracking-widest`} />
             </Field>
-            <Field label="口座名義（カタカナ）" required hint="通帳に記載されているカタカナ表記でご入力ください">
+            <Field label="口座名義（カタカナ）" required hint="通帳に記載されているカタカナ表記で入力してください（全角・半角どちらでも可）">
               <input type="text" value={holderName} onChange={e => setHolderName(e.target.value)}
-                placeholder="タナカ タロウ" required className={inputClass} />
+                placeholder="サトウ タロウ" required className={inputClass} />
             </Field>
           </FormSection>
 
