@@ -880,72 +880,77 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       businessProfileUpdate["url"] = businessProfile.url;
     }
 
-    // ── Stripe Account Update パラメータを構築 ──
+    // ── Stripe Account Update パラメータを構築（部分更新 — 空フィールドは完全に除外）──
     const updateParams: Record<string, any> = {
-      business_type: "individual",          // 常に individual に固定
+      business_type:    "individual",
       business_profile: businessProfileUpdate,
     };
 
     if (businessType === "individual") {
-      const indiv: Record<string, any> = {
-        // ASCII/Kana 名（Stripe グローバル標準フィールド）
-        first_name:      representative.firstNameKana,
-        last_name:       representative.lastNameKana,
-        // Kana 名
-        first_name_kana: representative.firstNameKana,
-        last_name_kana:  representative.lastNameKana,
-        // Kanji 名（日本専用フィールド — Stripe Japan が required）
-        first_name_kanji: representative.firstNameKanji,
-        last_name_kanji:  representative.lastNameKanji,
-        dob: {
+      const indiv: Record<string, any> = {};
+      // 氏名（カナ/漢字）— それぞれ独立して設定
+      if (representative.firstNameKana?.trim())  { indiv.first_name = representative.firstNameKana; indiv.first_name_kana = representative.firstNameKana; }
+      if (representative.lastNameKana?.trim())   { indiv.last_name  = representative.lastNameKana;  indiv.last_name_kana  = representative.lastNameKana;  }
+      if (representative.firstNameKanji?.trim()) indiv.first_name_kanji = representative.firstNameKanji;
+      if (representative.lastNameKanji?.trim())  indiv.last_name_kanji  = representative.lastNameKanji;
+      // 生年月日（全フィールド揃っている場合のみ）
+      if (representative.dobDay && representative.dobMonth && representative.dobYear) {
+        indiv.dob = {
           day:   Number(representative.dobDay),
           month: Number(representative.dobMonth),
           year:  Number(representative.dobYear),
-        },
-        address:       addressStandard,
-        address_kanji: addressKanji,
-        address_kana:  addressKana,
-      };
-      if (representative.phone) indiv["phone"] = toE164Japan(representative.phone);
-      if (representative.email) indiv["email"] = representative.email;
-      updateParams["individual"] = indiv;
+        };
+      }
+      // 住所（郵便番号が入力されている場合のみ）
+      if (representative.postalCode?.trim()) {
+        indiv.address       = addressStandard;
+        indiv.address_kanji = addressKanji;
+        indiv.address_kana  = addressKana;
+      }
+      if (representative.phone?.trim()) indiv.phone = toE164Japan(representative.phone);
+      if (representative.email?.trim()) indiv.email = representative.email;
+
+      if (Object.keys(indiv).length > 0) updateParams["individual"] = indiv;
     } else {
       // company: 会社情報 + 代表者情報
-      const companyObj: Record<string, any> = {
-        name:          `${representative.lastNameKanji}${representative.firstNameKanji}`,
-        name_kana:     `${representative.lastNameKana}${representative.firstNameKana}`,
-        address:       addressStandard,
-        address_kanji: addressKanji,
-        address_kana:  addressKana,
-      };
-      if (representative.phone) companyObj["phone"] = toE164Japan(representative.phone);
-      updateParams["company"] = companyObj;
+      const companyObj: Record<string, any> = {};
+      const fullNameKanji = `${representative.lastNameKanji ?? ''}${representative.firstNameKanji ?? ''}`.trim();
+      const fullNameKana  = `${representative.lastNameKana  ?? ''}${representative.firstNameKana  ?? ''}`.trim();
+      if (fullNameKanji) companyObj.name      = fullNameKanji;
+      if (fullNameKana)  companyObj.name_kana = fullNameKana;
+      if (representative.postalCode?.trim()) {
+        companyObj.address       = addressStandard;
+        companyObj.address_kanji = addressKanji;
+        companyObj.address_kana  = addressKana;
+      }
+      if (representative.phone?.trim()) companyObj.phone = toE164Japan(representative.phone);
+      if (Object.keys(companyObj).length > 0) updateParams["company"] = companyObj;
 
       const rep: Record<string, any> = {
-        first_name:      representative.firstNameKanji,
-        last_name:       representative.lastNameKanji,
-        first_name_kana: representative.firstNameKana,
-        last_name_kana:  representative.lastNameKana,
-        dob: {
+        relationship: { representative: true, owner: true, percent_ownership: 100 },
+      };
+      if (representative.firstNameKanji?.trim()) rep.first_name = representative.firstNameKanji;
+      if (representative.lastNameKanji?.trim())  rep.last_name  = representative.lastNameKanji;
+      if (representative.firstNameKana?.trim())  rep.first_name_kana = representative.firstNameKana;
+      if (representative.lastNameKana?.trim())   rep.last_name_kana  = representative.lastNameKana;
+      if (representative.dobDay && representative.dobMonth && representative.dobYear) {
+        rep.dob = {
           day:   Number(representative.dobDay),
           month: Number(representative.dobMonth),
           year:  Number(representative.dobYear),
-        },
-        address:       addressStandard,
-        address_kanji: addressKanji,
-        address_kana:  addressKana,
-        relationship: {
-          representative: true,
-          owner:          true,
-          percent_ownership: 100,
-        },
-      };
-      if (representative.phone) rep["phone"] = toE164Japan(representative.phone);
-      if (representative.email) rep["email"] = representative.email;
+        };
+      }
+      if (representative.postalCode?.trim()) {
+        rep.address       = addressStandard;
+        rep.address_kanji = addressKanji;
+        rep.address_kana  = addressKana;
+      }
+      if (representative.phone?.trim()) rep.phone = toE164Japan(representative.phone);
+      if (representative.email?.trim()) rep.email = representative.email;
       updateParams["representative"] = rep;
     }
 
-    // ── Stripe 送信前ペイロードをフルログ ──
+    // ── Stripe 送信直前のペイロードをフルログ（null/空がないか確認）──
     console.log(`📤 [KYC] Stripe accounts.update payload for account ${store.stripeAccountId}:`);
     console.log(JSON.stringify(updateParams, null, 2));
 
@@ -1367,55 +1372,64 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       else console.warn(`⚠️  [bank-setup] BG Front doc upload failed`);
       if (backFileId) console.log(`✅ [bank-setup] BG Back doc uploaded: ${backFileId}`);
 
-      // STEP 4: KYC 一括更新
+      // STEP 4: KYC 一括更新（部分更新 — 空フィールドは除外して先祖返りを防ぐ）
       const k = kycData;
       const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
       const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana ].filter(Boolean).join(" ");
 
-      const addressKanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
-      const addressKana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
-      const addressStd   = { postal_code: k.postalCode, country: "JP", state: k.stateKanji, city: k.cityKanji, line1: kanjiLine1 };
-
-      const indiv: Record<string, any> = {
-        first_name:       k.firstNameKana,
-        last_name:        k.lastNameKana,
-        first_name_kana:  k.firstNameKana,
-        last_name_kana:   k.lastNameKana,
-        first_name_kanji: k.firstNameKanji,
-        last_name_kanji:  k.lastNameKanji,
-        dob:  { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) },
-        address:       addressStd,
-        address_kanji: addressKanji,
-        address_kana:  addressKana,
-        phone:  toE164Japan(k.phone),
-        ...(ownerEmail ? { email: ownerEmail } : {}),
-        ...(frontFile ? {
-          verification: {
-            document: {
-              front: (frontFile as any).id,
-              ...(backFileId ? { back: backFileId } : {}),
-            },
+      // ── 部分更新: 値があるフィールドだけ追加 ──
+      const indiv: Record<string, any> = {};
+      // 氏名（カナ/漢字）— それぞれ独立して設定
+      if (k.firstNameKana?.trim())  { indiv.first_name = k.firstNameKana; indiv.first_name_kana = k.firstNameKana; }
+      if (k.lastNameKana?.trim())   { indiv.last_name  = k.lastNameKana;  indiv.last_name_kana  = k.lastNameKana;  }
+      if (k.firstNameKanji?.trim()) indiv.first_name_kanji = k.firstNameKanji;
+      if (k.lastNameKanji?.trim())  indiv.last_name_kanji  = k.lastNameKanji;
+      // 生年月日（全フィールド揃っている場合のみ）
+      if (k.dobDay && k.dobMonth && k.dobYear) {
+        indiv.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
+      }
+      // 住所（郵便番号が入力されている場合のみ）
+      if (k.postalCode?.trim()) {
+        indiv.address       = { postal_code: k.postalCode, country: "JP", state: k.stateKanji, city: k.cityKanji, line1: kanjiLine1 };
+        indiv.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
+        indiv.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+      }
+      if (k.phone?.trim()) indiv.phone = toE164Japan(k.phone);
+      if (ownerEmail)      indiv.email = ownerEmail;
+      // 本人確認書類（アップロード成功時のみ）
+      if (frontFile) {
+        indiv.verification = {
+          document: {
+            front: (frontFile as any).id,
+            ...(backFileId ? { back: backFileId } : {}),
           },
-        } : {}),
-      };
+        };
+      }
 
+      // 事業内容（必須フィールドのみ、空は除外）
       const businessProfileUpdate: Record<string, string> = { mcc: "5812", url: businessUrl };
-      if (k.productDescription) businessProfileUpdate["product_description"] = k.productDescription;
+      if (k.productDescription?.trim()) businessProfileUpdate["product_description"] = k.productDescription;
 
-      console.log(`📤 [bank-setup] BG STEP4 accounts.update for ${accountId}…`);
+      // ── Stripe 送信直前のペイロードをログ（デバッグ用 — null/空がないか確認）──
+      const step4Payload: Record<string, any> = {
+        business_type:    "individual",
+        business_profile: businessProfileUpdate,
+      };
+      if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
+
+      console.log(`📤 [bank-setup] BG STEP4 accounts.update payload for ${accountId}:`);
+      console.log(JSON.stringify(step4Payload, null, 2));
+
       try {
         await stripeCall(
-          stripe.accounts.update(accountId, {
-            business_type:    "individual",
-            business_profile: businessProfileUpdate,
-            individual:       indiv as any,
-          }),
+          stripe.accounts.update(accountId, step4Payload as any),
           "accounts.update(kyc)",
           30000
         );
         console.log(`✅ [bank-setup] BG accounts.update succeeded`);
       } catch (kycErr: any) {
         console.warn(`⚠️  [bank-setup] BG accounts.update(kyc) failed: ${kycErr?.raw?.message ?? kycErr?.message}`);
+        console.warn(`   param: ${kycErr?.raw?.param ?? kycErr?.param}`);
       }
 
       // STEP 5: DB ステータスを approved に更新

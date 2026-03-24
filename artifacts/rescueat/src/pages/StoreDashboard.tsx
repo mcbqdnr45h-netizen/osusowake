@@ -10,7 +10,7 @@ import {
 import {
   Plus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
-  History, Sparkles,
+  History, Sparkles, CreditCard,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -732,12 +732,9 @@ export default function StoreDashboard() {
         navigate('/store-onboarding', { replace: true });
         return;
       }
-      if (store.status === 'approved' && !store.stripeAccountId) {
-        // 承認済みだが口座未登録（スキップ不可）
-        console.log('[StoreDashboard] approved but no bank account → /store/bank-setup');
-        navigate('/store/bank-setup', { replace: true });
-      }
-      // applied（口座登録済み）または approved（口座登録済み）→ ダッシュボードを表示
+      // applied または approved → ダッシュボードを表示
+      // ※ 口座未登録の場合でも自動リダイレクトはしない（ループの原因になるため）
+      //   マイページのバナーから手動で /store/bank-setup に遷移してもらう
     }
   }, [store, storeLoading, storeFetchError, navigate]);
 
@@ -956,6 +953,26 @@ export default function StoreDashboard() {
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
+
+        {/* ── 振込先口座未登録のお知らせ（自動リダイレクトなし・手動遷移のみ）── */}
+        {store.status === 'approved' && !store.stripeAccountId && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+            <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+              <CreditCard className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-blue-900 text-sm">振込先口座の登録が必要です</p>
+              <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">売上を受け取るために口座を登録してください。登録するまで出品した商品の決済は保留されます。</p>
+              <button
+                onClick={() => navigate('/store/bank-setup')}
+                className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-black text-blue-700 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                口座を登録する
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── 大きなCTAボタン ── */}
         <motion.button
