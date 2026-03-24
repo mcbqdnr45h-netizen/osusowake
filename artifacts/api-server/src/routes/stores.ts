@@ -1304,9 +1304,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       );
       console.log(`✅ [bank-setup] Bank account attached to ${accountId}`);
     } catch (bankErr: any) {
-      // 同一口座を再登録しようとした場合はスキップ
       if (bankErr.code === "external_account_already_exists" || bankErr.message?.includes("already")) {
-        console.warn(`⚠️  [bank-setup] External account already attached: ${bankErr.message} — skipping`);
+        console.warn(`⚠️  [bank-setup] External account already attached — skipping`);
       } else if (bankErr.message?.startsWith("stripe_timeout:")) {
         console.warn(`⚠️  [bank-setup] Bank account attach timed out — continuing`);
       } else {
@@ -1314,134 +1313,123 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
     }
 
-    // ── STEP 3: 本人確認書類を Stripe Files API にアップロード ──
-    const toBuffer = (b64: string) => Buffer.from(b64.replace(/^data:[^;]+;base64,/, ""), "base64");
-    const frontExt = docFrontMime === "image/png" ? "png" : "jpg";
-    console.log(`[bank-setup] STEP3 Uploading identity document (front)…`);
-    let frontFile: { id: string } | null = null;
-    try {
-      frontFile = await stripeCall(
-        stripe.files.create({
-          purpose: "identity_document",
-          file: { data: toBuffer(docFrontBase64), name: `id_front.${frontExt}`, type: docFrontMime as "image/jpeg" | "image/png" },
-        }),
-        "files.create(front)",
-        30000
-      );
-      console.log(`✅ [bank-setup] Front doc uploaded: ${frontFile.id}`);
-    } catch (docErr: any) {
-      console.warn(`⚠️  [bank-setup] Front doc upload failed: ${docErr.message} — skipping verification`);
-    }
+    // ── STEP 1-2 完了 → クライアントに即座にレスポンスを返す ──
+    // 書類アップロード・KYC更新はバックグラウンドで継続
+    console.log(`✅ [bank-setup] STEP1-2 complete — responding to client immediately`);
+    res.json({ success: true, accountId, partial: true });
 
-    let backFileId: string | undefined;
-    if (docBackBase64 && docBackMime) {
-      const backExt = docBackMime === "image/png" ? "png" : "jpg";
-      console.log(`[bank-setup] STEP3b Uploading identity document (back)…`);
-      try {
-        const backFile = await stripeCall(
-          stripe.files.create({
-            purpose: "identity_document",
-            file: { data: toBuffer(docBackBase64), name: `id_back.${backExt}`, type: docBackMime as "image/jpeg" | "image/png" },
-          }),
-          "files.create(back)",
-          30000
-        );
-        backFileId = backFile.id;
-        console.log(`✅ [bank-setup] Back doc uploaded: ${backFileId}`);
-      } catch (docErr: any) {
-        console.warn(`⚠️  [bank-setup] Back doc upload failed: ${docErr.message} — skipping`);
-      }
-    }
-
-    // ── STEP 4: stripe.accounts.update で全 KYC データ + 書類を一括送信 ──
-    const k = kycData;
-
-    // 住所: line1 = city + town + line1 (Stripe Japan の必須フィールド)
-    const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
-    const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana].filter(Boolean).join(" ");
-
-    const addressKanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
-    const addressKana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
-    const addressStd   = { postal_code: k.postalCode, country: "JP", state: k.stateKanji, city: k.cityKanji, line1: kanjiLine1 };
-
-    const indiv: Record<string, any> = {
-      first_name:       k.firstNameKana,
-      last_name:        k.lastNameKana,
-      first_name_kana:  k.firstNameKana,
-      last_name_kana:   k.lastNameKana,
-      first_name_kanji: k.firstNameKanji,
-      last_name_kanji:  k.lastNameKanji,
-      dob:  { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) },
-      address:       addressStd,
-      address_kanji: addressKanji,
-      address_kana:  addressKana,
-      phone:  toE164Japan(k.phone),
-      ...(ownerEmail ? { email: ownerEmail } : {}),
-      // 書類がアップロードできた場合のみ verification を追加
-      ...(frontFile ? {
-        verification: {
-          document: {
-            front: frontFile.id,
-            ...(backFileId ? { back: backFileId } : {}),
-          },
-        },
-      } : {}),
-    };
-
-    const businessProfileUpdate: Record<string, string> = { mcc: "5812", url: businessUrl };
-    if (k.productDescription) businessProfileUpdate["product_description"] = k.productDescription;
-
-    console.log(`📤 [bank-setup] STEP4 accounts.update for ${accountId}…`);
-    let chargesEnabled = false;
-    let payoutsEnabled = false;
-    let currentlyDue: string[] = [];
-    try {
-      const account = await stripeCall(
-        stripe.accounts.update(accountId, {
-          business_type:    "individual",
-          business_profile: businessProfileUpdate,
-          individual:       indiv as any,
-        }),
-        "accounts.update(kyc)",
-        30000
-      );
-      chargesEnabled = account.charges_enabled;
-      payoutsEnabled = account.payouts_enabled;
-      currentlyDue   = account.requirements?.currently_due ?? [];
-      console.log(`✅ [bank-setup] accounts.update succeeded`);
-      console.log(`   charges_enabled: ${chargesEnabled}, payouts_enabled: ${payoutsEnabled}`);
-      console.log(`   currently_due: ${JSON.stringify(currentlyDue)}`);
-    } catch (kycErr: any) {
-      // KYC update が失敗/タイムアウトしても、口座は登録済みなので DB は更新する
-      console.warn(`⚠️  [bank-setup] accounts.update(kyc) failed: ${kycErr?.raw?.message ?? kycErr?.message} — saving DB status anyway`);
-    }
-
-    // ── STEP 5: DBステータスを approved に更新（送信完了の証として）──
-    // currently_due の状態に関わらず approved にする
-    // （Stripeの審査はバックグラウンドで続くが、ユーザー側の入力はすべて完了した）
-    await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
-    console.log(`✅ [bank-setup] Store ${storeId} status → 'approved'`);
-
-    res.json({
-      success: true,
-      accountId,
-      chargesEnabled,
-      payoutsEnabled,
-      currentlyDue,
-    });
   } catch (err: any) {
-    // 最終 catch — ここに来ても DB だけは更新を試みる
-    console.error("❌ [bank-setup] Fatal error:", err?.raw?.message ?? err?.message ?? err);
+    console.error("❌ [bank-setup] Fatal error (STEP1-2):", err?.raw?.message ?? err?.message ?? err);
     try {
       await db.update(storesTable).set({ status: "applied" }).where(eq(storesTable.id, storeId));
-      console.log(`⚠️  [bank-setup] Store ${storeId} status → 'applied' (partial)`);
     } catch (_) {}
     res.status(500).json({
       error:   "stripe_error",
       message: err?.raw?.message ?? err?.message ?? "登録処理に失敗しました",
       param:   err?.raw?.param ?? null,
     });
+    return;
   }
+
+  // ── STEP 3-5: バックグラウンド処理（レスポンス送信後に継続）──
+  void (async () => {
+    const toBuffer = (b64: string) => Buffer.from(b64.replace(/^data:[^;]+;base64,/, ""), "base64");
+
+    try {
+      // STEP 3: 書類アップロード（表面・裏面を並列実行）
+      console.log(`[bank-setup] BG STEP3 Uploading identity documents in parallel…`);
+      const frontExt = docFrontMime === "image/png" ? "png" : "jpg";
+
+      const [frontResult, backResult] = await Promise.allSettled([
+        stripeCall(
+          stripe.files.create({
+            purpose: "identity_document",
+            file: { data: toBuffer(docFrontBase64), name: `id_front.${frontExt}`, type: docFrontMime as "image/jpeg" | "image/png" },
+          }),
+          "files.create(front)",
+          30000
+        ),
+        ...(docBackBase64 && docBackMime ? [
+          stripeCall(
+            stripe.files.create({
+              purpose: "identity_document",
+              file: { data: toBuffer(docBackBase64), name: `id_back.${docBackMime === "image/png" ? "png" : "jpg"}`, type: docBackMime as "image/jpeg" | "image/png" },
+            }),
+            "files.create(back)",
+            30000
+          ),
+        ] : [Promise.resolve(null)]),
+      ]);
+
+      const frontFile = frontResult.status === "fulfilled" ? frontResult.value : null;
+      const backFileId = backResult.status === "fulfilled" && backResult.value ? (backResult.value as any).id : undefined;
+      if (frontFile) console.log(`✅ [bank-setup] BG Front doc uploaded: ${(frontFile as any).id}`);
+      else console.warn(`⚠️  [bank-setup] BG Front doc upload failed`);
+      if (backFileId) console.log(`✅ [bank-setup] BG Back doc uploaded: ${backFileId}`);
+
+      // STEP 4: KYC 一括更新
+      const k = kycData;
+      const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
+      const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana ].filter(Boolean).join(" ");
+
+      const addressKanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
+      const addressKana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+      const addressStd   = { postal_code: k.postalCode, country: "JP", state: k.stateKanji, city: k.cityKanji, line1: kanjiLine1 };
+
+      const indiv: Record<string, any> = {
+        first_name:       k.firstNameKana,
+        last_name:        k.lastNameKana,
+        first_name_kana:  k.firstNameKana,
+        last_name_kana:   k.lastNameKana,
+        first_name_kanji: k.firstNameKanji,
+        last_name_kanji:  k.lastNameKanji,
+        dob:  { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) },
+        address:       addressStd,
+        address_kanji: addressKanji,
+        address_kana:  addressKana,
+        phone:  toE164Japan(k.phone),
+        ...(ownerEmail ? { email: ownerEmail } : {}),
+        ...(frontFile ? {
+          verification: {
+            document: {
+              front: (frontFile as any).id,
+              ...(backFileId ? { back: backFileId } : {}),
+            },
+          },
+        } : {}),
+      };
+
+      const businessProfileUpdate: Record<string, string> = { mcc: "5812", url: businessUrl };
+      if (k.productDescription) businessProfileUpdate["product_description"] = k.productDescription;
+
+      console.log(`📤 [bank-setup] BG STEP4 accounts.update for ${accountId}…`);
+      try {
+        await stripeCall(
+          stripe.accounts.update(accountId, {
+            business_type:    "individual",
+            business_profile: businessProfileUpdate,
+            individual:       indiv as any,
+          }),
+          "accounts.update(kyc)",
+          30000
+        );
+        console.log(`✅ [bank-setup] BG accounts.update succeeded`);
+      } catch (kycErr: any) {
+        console.warn(`⚠️  [bank-setup] BG accounts.update(kyc) failed: ${kycErr?.raw?.message ?? kycErr?.message}`);
+      }
+
+      // STEP 5: DB ステータスを approved に更新
+      await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
+      console.log(`✅ [bank-setup] BG Store ${storeId} status → 'approved'`);
+
+    } catch (bgErr: any) {
+      console.error(`❌ [bank-setup] BG processing error:`, bgErr?.message ?? bgErr);
+      try {
+        await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
+        console.log(`⚠️  [bank-setup] BG Store ${storeId} status → 'approved' (fallback)`);
+      } catch (_) {}
+    }
+  })();
 });
 
 // ── 審査承認通知（メール + アプリ内通知） ───────────────────────────────────

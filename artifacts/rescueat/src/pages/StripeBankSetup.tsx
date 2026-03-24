@@ -13,6 +13,50 @@ import {
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
 
+// ── 画像圧縮（本人確認書類用 — Stripe送信前に軽量化）────────────────────────────
+async function compressIdImage(dataUrl: string, maxPx = 1280, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxPx || height > maxPx) {
+        if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+        else { width = Math.round(width * maxPx / height); height = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+// ── localStorage 下書き保存（アプリ終了後も復元）────────────────────────────────
+const DRAFT_KEY = 'bank-setup-draft-v1';
+type DraftState = {
+  lastNameKanji: string; firstNameKanji: string;
+  lastNameKana: string;  firstNameKana: string;
+  phone: string; email: string;
+  dobYear: string; dobMonth: string; dobDay: string;
+  postalCode: string;
+  stateKanji: string; cityKanji: string; townKanji: string; line1Kanji: string;
+  stateKana: string;  cityKana: string;  townKana: string;  line1Kana: string;
+  productDescription: string; businessUrl: string;
+  bankName: string; bankCode: string; branchCode: string;
+  accountNumber: string; holderName: string;
+};
+function saveDraft(d: DraftState) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
+}
+function loadDraft(): Partial<DraftState> {
+  try { const r = localStorage.getItem(DRAFT_KEY); return r ? JSON.parse(r) : {}; } catch (_) { return {}; }
+}
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+}
+
 // ── 全角カタカナ → 半角カタカナ変換（Stripe JP 口座名義に必要）──────────────────
 function toHalfWidthKana(str: string): string {
   const map: Record<string, string> = {
@@ -127,12 +171,15 @@ export default function StripeBankSetup() {
   const { session } = useAuth();
   const notifiedRef = useRef(false);
 
+  // ── localStorage から下書きを復元（useState より先に宣言）──
+  const draft = loadDraft();
+
   // ── 銀行口座情報 ──
-  const [bankName, setBankName]           = useState('');
-  const [bankCode, setBankCode]           = useState('');
-  const [branchCode, setBranchCode]       = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [holderName, setHolderName]       = useState('');
+  const [bankName, setBankName]           = useState(draft.bankName      ?? '');
+  const [bankCode, setBankCode]           = useState(draft.bankCode      ?? '');
+  const [branchCode, setBranchCode]       = useState(draft.branchCode    ?? '');
+  const [accountNumber, setAccountNumber] = useState(draft.accountNumber ?? '');
+  const [holderName, setHolderName]       = useState(draft.holderName    ?? '');
   const [tosAgreed, setTosAgreed]         = useState(false);
   const [tosTime, setTosTime]             = useState<number | null>(null);
 
@@ -140,32 +187,32 @@ export default function StripeBankSetup() {
   const [businessType, setBusinessType] = useState<'individual' | 'company'>('individual');
 
   // ── KYC: 代表者氏名 ──
-  const [lastNameKanji, setLastNameKanji]   = useState('');
-  const [firstNameKanji, setFirstNameKanji] = useState('');
-  const [lastNameKana, setLastNameKana]     = useState('');
-  const [firstNameKana, setFirstNameKana]   = useState('');
-  const [phone, setPhone]                   = useState('');
-  const [email, setEmail]                   = useState('');
+  const [lastNameKanji, setLastNameKanji]   = useState(draft.lastNameKanji   ?? '');
+  const [firstNameKanji, setFirstNameKanji] = useState(draft.firstNameKanji  ?? '');
+  const [lastNameKana, setLastNameKana]     = useState(draft.lastNameKana    ?? '');
+  const [firstNameKana, setFirstNameKana]   = useState(draft.firstNameKana   ?? '');
+  const [phone, setPhone]                   = useState(draft.phone           ?? '');
+  const [email, setEmail]                   = useState(draft.email           ?? '');
 
   // ── KYC: 生年月日 ──
-  const [dobYear, setDobYear]   = useState('');
-  const [dobMonth, setDobMonth] = useState('');
-  const [dobDay, setDobDay]     = useState('');
+  const [dobYear, setDobYear]   = useState(draft.dobYear  ?? '');
+  const [dobMonth, setDobMonth] = useState(draft.dobMonth ?? '');
+  const [dobDay, setDobDay]     = useState(draft.dobDay   ?? '');
 
   // ── KYC: 住所 ──
-  const [postalCode, setPostalCode] = useState('');
-  const [stateKanji, setStateKanji] = useState('');
-  const [cityKanji, setCityKanji]   = useState('');
-  const [townKanji, setTownKanji]   = useState('');
-  const [line1Kanji, setLine1Kanji] = useState('');
-  const [stateKana, setStateKana]   = useState('');
-  const [cityKana, setCityKana]     = useState('');
-  const [townKana, setTownKana]     = useState('');
-  const [line1Kana, setLine1Kana]   = useState('');
+  const [postalCode, setPostalCode] = useState(draft.postalCode ?? '');
+  const [stateKanji, setStateKanji] = useState(draft.stateKanji ?? '');
+  const [cityKanji, setCityKanji]   = useState(draft.cityKanji  ?? '');
+  const [townKanji, setTownKanji]   = useState(draft.townKanji  ?? '');
+  const [line1Kanji, setLine1Kanji] = useState(draft.line1Kanji ?? '');
+  const [stateKana, setStateKana]   = useState(draft.stateKana  ?? '');
+  const [cityKana, setCityKana]     = useState(draft.cityKana   ?? '');
+  const [townKana, setTownKana]     = useState(draft.townKana   ?? '');
+  const [line1Kana, setLine1Kana]   = useState(draft.line1Kana  ?? '');
 
   // ── KYC: 事業内容 ──
-  const [productDescription, setProductDescription] = useState('');
-  const [businessUrl, setBusinessUrl]               = useState('');
+  const [productDescription, setProductDescription] = useState(draft.productDescription ?? '');
+  const [businessUrl, setBusinessUrl]               = useState(draft.businessUrl        ?? '');
 
   // ── 本人確認書類 ──
   const [docFrontFile, setDocFrontFile]       = useState<File | null>(null);
@@ -183,6 +230,39 @@ export default function StripeBankSetup() {
   const [done, setDone]                 = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string>('');
   const abortRef = useRef<AbortController | null>(null);
+
+  // ── 下書き自動保存（30秒ごと + state変化から2秒後）──
+  const draftStateRef = useRef<DraftState>({
+    lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
+    phone, email, dobYear, dobMonth, dobDay,
+    postalCode, stateKanji, cityKanji, townKanji, line1Kanji,
+    stateKana, cityKana, townKana, line1Kana,
+    productDescription, businessUrl,
+    bankName, bankCode, branchCode, accountNumber, holderName,
+  });
+  useEffect(() => {
+    draftStateRef.current = {
+      lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
+      phone, email, dobYear, dobMonth, dobDay,
+      postalCode, stateKanji, cityKanji, townKanji, line1Kanji,
+      stateKana, cityKana, townKana, line1Kana,
+      productDescription, businessUrl,
+      bankName, bankCode, branchCode, accountNumber, holderName,
+    };
+    const t = setTimeout(() => saveDraft(draftStateRef.current), 2000);
+    return () => clearTimeout(t);
+  }, [lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
+      phone, email, dobYear, dobMonth, dobDay,
+      postalCode, stateKanji, cityKanji, townKanji, line1Kanji,
+      stateKana, cityKana, townKana, line1Kana,
+      productDescription, businessUrl,
+      bankName, bankCode, branchCode, accountNumber, holderName]);
+
+  // 30秒おきにも保存
+  useEffect(() => {
+    const interval = setInterval(() => saveDraft(draftStateRef.current), 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   // ── 郵便番号自動補完 ──
   const lookupZip = useCallback(async (zip: string) => {
@@ -221,17 +301,19 @@ export default function StripeBankSetup() {
     setStateKana(PREFECTURES_KANA[i] ?? '');
   };
 
-  const handleDocFileChange = (side: 'front' | 'back') => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDocFileChange = (side: 'front' | 'back') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setDocError(null);
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const url = ev.target?.result as string;
-      if (side === 'front') { setDocFrontFile(file); setDocFrontPreview(url); }
-      else                  { setDocBackFile(file);  setDocBackPreview(url);  }
+    reader.onload = async (ev) => {
+      const raw = ev.target?.result as string;
+      // クライアント側で圧縮（Stripe 送信前に軽量化）
+      const compressed = await compressIdImage(raw);
+      if (side === 'front') { setDocFrontFile(file); setDocFrontPreview(compressed); }
+      else                  { setDocBackFile(file);  setDocBackPreview(compressed);  }
     };
     reader.readAsDataURL(file);
-    setDocError(null);
   };
 
   const handleTosChange = (checked: boolean) => {
@@ -273,10 +355,11 @@ export default function StripeBankSetup() {
     // 90秒タイムアウト用 AbortController
     const controller = new AbortController();
     abortRef.current = controller;
+    // APIが早期にレスポンスを返すので30秒で十分
     const timeoutId = setTimeout(() => {
-      console.log('[StripeBankSetup] ⏱ 90秒タイムアウト — 仮登録完了として遷移します');
+      console.log('[StripeBankSetup] ⏱ 30秒タイムアウト — 処理中としてマイページへ遷移');
       controller.abort();
-    }, 90_000);
+    }, 30_000);
 
     try {
       // ① Stripe.js で銀行口座トークン生成
@@ -347,22 +430,24 @@ export default function StripeBankSetup() {
         return;
       }
 
-      // ③ 完了 → キャッシュ更新してマイページへ直接遷移
+      // ③ 完了 → 下書き削除・キャッシュ更新・マイページへ
       setSubmitStatus('登録完了！');
       console.log('[StripeBankSetup] ✅ 登録成功 → /mypage へ遷移');
+      clearDraft();
       try { await refetch(); } catch (_) {}
       navigate('/mypage');
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        // タイムアウト → 仮登録完了として mypage へ遷移（ステータスは applied に更新済み）
+        // タイムアウト → ステータスは applied 更新済みなのでマイページへ
         console.log('[StripeBankSetup] AbortError (タイムアウト) → /mypage へ遷移');
-        setSubmitStatus('処理中（バックグラウンドで継続）...');
+        setSubmitStatus('処理完了！');
+        clearDraft();
         try { await refetch(); } catch (_) {}
         navigate('/mypage');
         return;
       }
-      // エラー → 画面はそのまま、エラーメッセージ表示
+      // エラー → 画面はそのまま、エラーメッセージ表示（入力内容は保持）
       console.error('[StripeBankSetup] エラー:', err);
       setError(err?.message ?? '予期しないエラーが発生しました。');
     } finally {
@@ -808,9 +893,9 @@ export default function StripeBankSetup() {
               <Loader2 className="w-5 h-5 text-orange-500 animate-spin shrink-0" />
               <div>
                 <p className="text-sm font-bold text-orange-700">
-                  {submitStatus || '登録処理中...'}
+                  {submitStatus || '店舗情報の最終設定中です...'}
                 </p>
-                <p className="text-xs text-orange-600">しばらくお待ちください（最大90秒）</p>
+                <p className="text-xs text-orange-600">通常10秒ほどで完了します</p>
               </div>
             </div>
           )}

@@ -48,6 +48,18 @@ async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<
   });
 }
 
+const ONBOARDING_DRAFT_KEY = 'store-onboarding-draft-v1';
+type OnboardingDraft = { name: string; address: string; city: string; category: string; phone: string };
+function saveOnboardingDraft(d: OnboardingDraft) {
+  try { localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
+}
+function loadOnboardingDraft(): Partial<OnboardingDraft> {
+  try { const r = localStorage.getItem(ONBOARDING_DRAFT_KEY); return r ? JSON.parse(r) : {}; } catch (_) { return {}; }
+}
+function clearOnboardingDraft() {
+  try { localStorage.removeItem(ONBOARDING_DRAFT_KEY); } catch (_) {}
+}
+
 export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -59,12 +71,13 @@ export default function StoreOnboarding() {
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
   const [imagePreview, setImagePreview] = useState('');
 
+  const obDraft = loadOnboardingDraft();
   const [form, setForm] = useState({
-    name: '',
-    address: '',
-    city: '',
-    category: '',
-    phone: '',
+    name:     obDraft.name     ?? '',
+    address:  obDraft.address  ?? '',
+    city:     obDraft.city     ?? '',
+    category: obDraft.category ?? '',
+    phone:    obDraft.phone    ?? '',
     imageUrl: '',
   });
 
@@ -78,6 +91,14 @@ export default function StoreOnboarding() {
       navigate('/store/bank-setup');
     }
   }, [existingStore, storeLoading, navigate]);
+
+  // 入力内容を自動保存（フォーム変化から1秒後）
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveOnboardingDraft({ name: form.name, address: form.address, city: form.city, category: form.category, phone: form.phone });
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [form.name, form.address, form.city, form.category, form.phone]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -149,8 +170,9 @@ export default function StoreOnboarding() {
         throw new Error(err?.message || '登録に失敗しました');
       }
 
-      // 登録成功
+      // 登録成功 → 下書きクリアして bank-setup へ
       console.log('[StoreOnboarding] ✅ 登録成功 → /store/bank-setup');
+      clearOnboardingDraft();
       navigate('/store/bank-setup');
     } catch (err: unknown) {
       clearTimeout(timeout);

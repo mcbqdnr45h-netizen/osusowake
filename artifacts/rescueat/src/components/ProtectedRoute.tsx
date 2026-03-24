@@ -106,7 +106,7 @@ export function GuestRoute({
 
     if (profile) {
       if (profile.role === 'store_owner') {
-        navigate('/store/dashboard', { replace: true });
+        navigate('/mypage', { replace: true });
       } else {
         navigate('/', { replace: true });
       }
