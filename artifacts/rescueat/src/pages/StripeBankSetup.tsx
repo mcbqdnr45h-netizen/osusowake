@@ -8,6 +8,7 @@ import {
   Building2, ChevronLeft, Loader2, CheckCircle2,
   AlertCircle, ShieldCheck, Info, CreditCard, PartyPopper,
   User, MapPin, FileText, TriangleAlert, ClipboardCheck,
+  Camera, Upload, ImageIcon, X, BadgeCheck,
 } from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
@@ -140,6 +141,17 @@ export default function StripeBankSetup() {
   const [productDescription, setProductDescription] = useState('');
   const [businessUrl, setBusinessUrl]               = useState('');
 
+  // ── 本人確認書類 ──
+  const [docFrontFile, setDocFrontFile]       = useState<File | null>(null);
+  const [docFrontPreview, setDocFrontPreview] = useState<string | null>(null);
+  const [docBackFile, setDocBackFile]         = useState<File | null>(null);
+  const [docBackPreview, setDocBackPreview]   = useState<string | null>(null);
+  const [docFrontDone, setDocFrontDone]       = useState(false);
+  const [docBackDone, setDocBackDone]         = useState(false);
+  const [docError, setDocError]               = useState<string | null>(null);
+  const frontInputRef = useRef<HTMLInputElement>(null);
+  const backInputRef  = useRef<HTMLInputElement>(null);
+
   // ── UI 状態 ──
   const [loading, setLoading]       = useState(false);
   const [zipLoading, setZipLoading] = useState(false);
@@ -208,6 +220,19 @@ export default function StripeBankSetup() {
     setStateKana(PREFECTURES_KANA[i] ?? '');
   };
 
+  const handleDocFileChange = (side: 'front' | 'back') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      if (side === 'front') { setDocFrontFile(file); setDocFrontPreview(url); setDocFrontDone(false); }
+      else                  { setDocBackFile(file);  setDocBackPreview(url);  setDocBackDone(false);  }
+    };
+    reader.readAsDataURL(file);
+    setDocError(null);
+  };
+
   const handleTosChange = (checked: boolean) => {
     setTosAgreed(checked);
     setTosTime(checked ? Date.now() : null);
@@ -230,6 +255,7 @@ export default function StripeBankSetup() {
   if (branchCode.length !== 3)                          missingFields.push(`支店コード（${branchCode.length}桁 → 3桁で入力）`);
   if (!accountNumber.trim())                            missingFields.push('口座番号');
   if (!holderName.trim())                               missingFields.push('口座名義（カタカナ）');
+  if (!docFrontPreview)                                 missingFields.push('本人確認書類（表面）の写真');
   if (!tosAgreed)                                       missingFields.push('利用規約への同意');
 
   const canSubmit = !loading && missingFields.length === 0;
@@ -275,8 +301,15 @@ export default function StripeBankSetup() {
 
       setStep('bank_done');
 
-      // ③ KYC 情報送信 API
-      const kycRes = await fetch(`/api/stores/${store.id}/connect/kyc`, {
+      // ③ KYC情報 + 本人確認書類を並行送信
+      const buildDocBody = (file: File, side: 'front' | 'back') => {
+        const fd = new FormData();
+        fd.append('document', file, `${side}.jpg`);
+        fd.append('side', side);
+        return fd;
+      };
+
+      const kycFetch = fetch(`/api/stores/${store.id}/connect/kyc`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -306,19 +339,42 @@ export default function StripeBankSetup() {
           },
         }),
       });
+
+      const docFrontFetch = docFrontFile
+        ? fetch(`/api/stores/${store.id}/connect/kyc-document`, {
+            method: 'POST',
+            body: buildDocBody(docFrontFile, 'front'),
+          })
+        : Promise.resolve(null);
+
+      const docBackFetch = docBackFile
+        ? fetch(`/api/stores/${store.id}/connect/kyc-document`, {
+            method: 'POST',
+            body: buildDocBody(docBackFile, 'back'),
+          })
+        : Promise.resolve(null);
+
+      const [kycRes, frontRes, backRes] = await Promise.all([kycFetch, docFrontFetch, docBackFetch]);
+
       const kycData = await kycRes.json();
       if (!kycRes.ok) {
-        // KYC失敗でも銀行口座は登録済みなのでエラーを表示しつつ続行
         const fieldHint = kycData.param ? `（項目: ${kycData.param}）` : '';
-        setError(`KYC情報の送信に失敗しました: ${kycData.message ?? '不明なエラー'}${fieldHint}。マイページの「本人確認情報」から再送信できます。`);
+        setError(`KYC情報の送信に失敗しました: ${kycData.message ?? '不明なエラー'}${fieldHint}`);
         setStep('done');
+        await refetch();
         return;
       }
 
-      // KYC完了 → ストアキャッシュをリフレッシュして「審査中」バナーを即時消す
-      if (kycData.kycComplete) {
-        await refetch();
+      if (frontRes) {
+        if (frontRes.ok) setDocFrontDone(true);
+        else setDocError('本人確認書類（表面）のアップロードに失敗しました。マイページから再送信してください。');
       }
+      if (backRes) {
+        if (backRes.ok) setDocBackDone(true);
+      }
+
+      // 全て完了 → ストアキャッシュをリフレッシュして警告を即時消す
+      await refetch();
       setKycResult(kycData);
       setStep('done');
     } catch (err: any) {
@@ -720,6 +776,78 @@ export default function StripeBankSetup() {
               <input type="text" value={holderName} onChange={e => setHolderName(e.target.value)}
                 placeholder="タナカ タロウ" required className={inputClass} />
             </Field>
+          </FormSection>
+
+          {/* ── ⑧ 本人確認書類 ── */}
+          <FormSection title="本人確認書類" icon={<BadgeCheck className="w-5 h-5 text-orange-500" />}>
+            <p className="text-sm text-gray-500 -mt-1 mb-3">
+              運転免許証・マイナンバーカード・パスポートなど。<span className="text-red-500 font-medium">表面は必須</span>、裏面は任意です。
+            </p>
+            {/* hidden inputs */}
+            <input ref={frontInputRef} type="file" accept="image/*,image/heic,image/heif" className="hidden"
+              onChange={handleDocFileChange('front')} />
+            <input ref={backInputRef}  type="file" accept="image/*,image/heic,image/heif" className="hidden"
+              onChange={handleDocFileChange('back')}  />
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* 表面 */}
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-bold text-gray-600">表面 <span className="text-red-500">*</span></p>
+                <button type="button" onClick={() => frontInputRef.current?.click()}
+                  className={`relative w-full aspect-[3/2] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 overflow-hidden transition-colors ${
+                    docFrontPreview ? 'border-orange-400 bg-orange-50' : 'border-gray-300 bg-gray-50 hover:border-orange-300'
+                  }`}>
+                  {docFrontPreview ? (
+                    <>
+                      <img src={docFrontPreview} alt="表面プレビュー" className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
+                        {docFrontDone
+                          ? <CheckCircle2 className="w-7 h-7 text-green-400" />
+                          : <Camera className="w-6 h-6 text-white opacity-80" />}
+                        <span className="text-xs text-white font-medium">タップして変更</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-6 h-6 text-gray-400" />
+                      <span className="text-xs text-gray-500">タップして選択</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* 裏面 */}
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-bold text-gray-600">裏面 <span className="text-gray-400 font-normal">（任意）</span></p>
+                <button type="button" onClick={() => backInputRef.current?.click()}
+                  className={`relative w-full aspect-[3/2] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 overflow-hidden transition-colors ${
+                    docBackPreview ? 'border-orange-400 bg-orange-50' : 'border-gray-300 bg-gray-50 hover:border-orange-300'
+                  }`}>
+                  {docBackPreview ? (
+                    <>
+                      <img src={docBackPreview} alt="裏面プレビュー" className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
+                        {docBackDone
+                          ? <CheckCircle2 className="w-7 h-7 text-green-400" />
+                          : <Camera className="w-6 h-6 text-white opacity-80" />}
+                        <span className="text-xs text-white font-medium">タップして変更</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-6 h-6 text-gray-400" />
+                      <span className="text-xs text-gray-500">タップして選択</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {docError && (
+              <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {docError}
+              </p>
+            )}
           </FormSection>
 
           {/* ── ToS ── */}

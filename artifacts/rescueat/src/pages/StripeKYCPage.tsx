@@ -847,7 +847,7 @@ export default function StripeKYCPage() {
               <textarea value={productDescription} onChange={e => setProductDescription(e.target.value)}
                 placeholder="例：飲食店での余剰食品を詰め合わせた「おすそ分け袋」の販売。フードロス削減を目的とした割引価格での提供。"
                 rows={4} required minLength={10}
-                className={`${fieldErrors.productDescription ? errInput : isRequired('productDescription') ? `${baseInput} border-amber-400 focus:border-orange-400` : okInput} resize-none`} />
+                className={`${fieldErrors.productDescription ? errInput : okInput} resize-none`} />
               <p className="text-xs text-gray-400 mt-1">{productDescription.length} 文字</p>
             </FieldWrap>
 
