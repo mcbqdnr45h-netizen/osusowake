@@ -111,8 +111,8 @@ function StoreBottomSheet({
     if ((a.stockCount > 0) === (b.stockCount > 0)) return 0;
     return a.stockCount > 0 ? -1 : 1;
   });
-  const hasBags   = storeBags.length > 0;
   const bagCount  = store.totalBagsAvailable ?? storeBags.filter(b => b.stockCount > 0).length;
+  const hasBags   = bagCount > 0;
 
   const distanceLabel = useMemo(() => {
     if (!userPos || !store.latitude || !store.longitude) return null;
