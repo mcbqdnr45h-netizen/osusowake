@@ -29,7 +29,8 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
     >
       {/* ── ストアヘッダー ───────────────────────────────────── */}
       {showHeader && (
-        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-orange-100 shadow-[0_1px_8px_rgba(255,140,0,0.07)] shrink-0">
+        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-orange-100 shadow-[0_1px_8px_rgba(255,140,0,0.07)] shrink-0"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="px-4 h-14 flex items-center gap-3">
             {/* アイコン */}
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">

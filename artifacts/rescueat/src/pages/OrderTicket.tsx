@@ -306,7 +306,8 @@ export default function OrderTicket() {
       <div className="max-w-md mx-auto pb-10">
 
         {/* ヘッダー */}
-        <div className="flex items-center gap-3 px-4 pt-10 pb-4 sticky top-0 bg-background/90 backdrop-blur-sm z-10 border-b border-border/40">
+        <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/40"
+          style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
           <button
             onClick={() => navigate('/my-reservations')}
             className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"

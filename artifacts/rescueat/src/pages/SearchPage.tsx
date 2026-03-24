@@ -499,7 +499,8 @@ export default function SearchPage() {
       <div className={`flex flex-col ${view === 'map' ? 'flex-1 min-h-0 h-full' : ''}`}>
 
         {/* ── Sticky フィルターバー（リスト/地図 共通）── */}
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 pt-3 pb-2.5 space-y-2.5 shrink-0">
+        <div className="sticky z-20 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 pt-3 pb-2.5 space-y-2.5 shrink-0"
+          style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
 
           {/* Row 1: セグメントコントロール */}
           <SegmentControl view={view} onChange={handleViewChange} />

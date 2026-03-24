@@ -57,7 +57,8 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
     <div className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen pb-[80px] md:pb-0'} bg-background text-foreground flex flex-col font-sans`}>
 
       {/* ── Top Header ── */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border shadow-sm shrink-0">
+      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border shadow-sm shrink-0"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="font-display font-black text-2xl tracking-tight text-primary">食べロス</span>
