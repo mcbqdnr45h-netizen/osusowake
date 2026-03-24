@@ -225,6 +225,7 @@ export default function StripeBankSetup() {
   if (!cityKanji.trim() || !townKanji.trim())           missingFields.push('住所（市区町村・町名）漢字');
   if (!cityKana.trim()  || !townKana.trim())            missingFields.push('住所（市区町村・町名）カナ');
   if (productDescription.trim().length < 10)            missingFields.push(`事業内容の説明（現在${productDescription.trim().length}文字 / 10文字以上必要）`);
+  if (!bankName.trim())                                 missingFields.push('銀行名');
   if (bankCode.length !== 4)                            missingFields.push(`銀行コード（${bankCode.length}桁 → 4桁で入力）`);
   if (branchCode.length !== 3)                          missingFields.push(`支店コード（${branchCode.length}桁 → 3桁で入力）`);
   if (!accountNumber.trim())                            missingFields.push('口座番号');
@@ -617,7 +618,7 @@ export default function StripeBankSetup() {
           </FormSection>
 
           {/* ── ④ 住所 ── */}
-          <FormSection title="住所" icon={<MapPin className="w-5 h-5 text-orange-500" />}>
+          <FormSection title="代表者（本人）の住所" icon={<MapPin className="w-5 h-5 text-orange-500" />}>
             <Field label="郵便番号（ハイフンなし7桁）" required>
               <div className="relative">
                 <input type="text" value={postalCode} onChange={e => handlePostalCodeChange(e.target.value)}
@@ -687,9 +688,9 @@ export default function StripeBankSetup() {
 
           {/* ── ⑥ 銀行情報 ── */}
           <FormSection title="銀行情報" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
-            <Field label="銀行名">
+            <Field label="銀行名" required>
               <input type="text" value={bankName} onChange={e => setBankName(e.target.value)}
-                placeholder="例：三菱UFJ銀行" className={inputClass} />
+                placeholder="例：三菱UFJ銀行" required className={inputClass} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="銀行コード（4桁）" required>

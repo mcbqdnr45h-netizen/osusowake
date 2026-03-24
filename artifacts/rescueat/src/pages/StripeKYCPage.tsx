@@ -784,7 +784,7 @@ export default function StripeKYCPage() {
           </Section>
 
           {/* ④ 住所 */}
-          <Section title="住所" icon={<MapPin className="w-5 h-5 text-orange-500" />}>
+          <Section title="代表者（本人）の住所" icon={<MapPin className="w-5 h-5 text-orange-500" />}>
             <FieldWrap label="郵便番号（ハイフンなし7桁）" required error={fieldErrors.postalCode}>
               <div className="relative">
                 <input type="text" value={postalCode} onChange={e => handlePostalCodeChange(e.target.value)}
