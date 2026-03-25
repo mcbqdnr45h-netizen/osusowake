@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
-import { MapView, MapBounds } from '@/components/Map';
+import { MapView, MapBounds, MapViewHandle } from '@/components/Map';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, useListStores, Store, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
@@ -407,7 +407,8 @@ export default function SearchPage() {
   const [showReSearchButton,  setShowReSearchButton]  = useState(false);
   const [areaSearchActive,    setAreaSearchActive]    = useState(false);
 
-  const searchRef = useRef<HTMLInputElement>(null);
+  const searchRef  = useRef<HTMLInputElement>(null);
+  const mapViewRef = useRef<MapViewHandle>(null);
   const { coords: locCoords } = useUserLocation();
 
   const handleUserPositionChange = useCallback((pos: { lat: number; lng: number } | null) => {
@@ -548,6 +549,53 @@ export default function SearchPage() {
 
   const handleStoreSelect = useCallback((store: Store) => setSelectedStore(store), []);
 
+  // ── 検索後マップパン ────────────────────────────────────────────────────────
+  // query が確定したら、一致した店舗にフィット。見つからなければジオコーディング
+  useEffect(() => {
+    if (!query) return;
+
+    // ① 一致した店舗の座標を収集（重複除去）
+    const uniqueLocations = filteredBags
+      .filter(b => b.store.lat && b.store.lng)
+      .reduce<{ lat: number; lng: number }[]>((acc, b) => {
+        const ll = { lat: b.store.lat!, lng: b.store.lng! };
+        if (!acc.some(l => l.lat === ll.lat && l.lng === ll.lng)) acc.push(ll);
+        return acc;
+      }, []);
+
+    if (uniqueLocations.length > 0) {
+      // 少し遅延させてマップが準備完了してから呼ぶ
+      const timer = setTimeout(() => {
+        mapViewRef.current?.fitStores(uniqueLocations);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+
+    // ② 店舗が見つからない → Google Geocoding で地名検索
+    const timer = setTimeout(() => {
+      const gMaps = (window as any).google?.maps;
+      if (!gMaps) return;
+      const geocoder = new gMaps.Geocoder();
+      geocoder.geocode(
+        { address: query, region: 'JP' },
+        (results: any[], status: string) => {
+          if (status === 'OK' && results && results[0]) {
+            const loc = results[0].geometry.location;
+            // viewport がある場合はそこにフィット
+            if (results[0].geometry.viewport) {
+              mapViewRef.current?.fitStores([
+                { lat: results[0].geometry.viewport.getNorthEast().lat(), lng: results[0].geometry.viewport.getNorthEast().lng() },
+                { lat: results[0].geometry.viewport.getSouthWest().lat(), lng: results[0].geometry.viewport.getSouthWest().lng() },
+              ]);
+            } else {
+              mapViewRef.current?.panTo(loc.lat(), loc.lng(), 14);
+            }
+          }
+        }
+      );
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query, filteredBags]);
 
   return (
     <Layout hideFooter={view === 'map'}>
@@ -761,6 +809,7 @@ export default function SearchPage() {
             {/* 地図本体 */}
             <div className="absolute inset-0">
               <MapView
+                ref={mapViewRef}
                 stores={displayStores}
                 onStoreSelect={handleStoreSelect}
                 onUserPositionChange={handleUserPositionChange}

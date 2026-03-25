@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
@@ -68,6 +68,11 @@ export interface MapBounds {
   centerLat: number; centerLng: number;
 }
 
+export interface MapViewHandle {
+  panTo: (lat: number, lng: number, zoom?: number) => void;
+  fitStores: (locations: { lat: number; lng: number }[]) => void;
+}
+
 interface MapViewProps {
   stores: Store[];
   center?: [number, number];
@@ -78,7 +83,10 @@ interface MapViewProps {
   onMapIdle?: (bounds: MapBounds) => void;
 }
 
-export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onUserPositionChange, onMapIdle }: MapViewProps) {
+export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
+  { stores, center, zoom, userPosition, onStoreSelect, onUserPositionChange, onMapIdle },
+  ref
+) {
   const containerRef    = useRef<HTMLDivElement>(null);
   const mapRef          = useRef<google.maps.Map | null>(null);
   const clustererRef    = useRef<MarkerClusterer | null>(null);
@@ -101,6 +109,29 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
   useEffect(() => { onStoreSelectRef.current        = onStoreSelect;        }, [onStoreSelect]);
   useEffect(() => { onUserPositionChangeRef.current = onUserPositionChange; }, [onUserPositionChange]);
   useEffect(() => { onMapIdleRef.current            = onMapIdle;            }, [onMapIdle]);
+
+  // 外部から mapRef を操作できるインターフェース
+  useImperativeHandle(ref, () => ({
+    panTo: (lat: number, lng: number, z?: number) => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.panTo({ lat, lng });
+      if (z !== undefined) map.setZoom(z);
+    },
+    fitStores: (locations: { lat: number; lng: number }[]) => {
+      const map   = mapRef.current;
+      const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
+      if (!map || !gMaps || locations.length === 0) return;
+      if (locations.length === 1) {
+        map.panTo(locations[0]);
+        map.setZoom(16);
+        return;
+      }
+      const bounds = new gMaps.LatLngBounds();
+      locations.forEach(loc => bounds.extend(loc));
+      map.fitBounds(bounds, { top: 80, right: 24, bottom: 200, left: 24 });
+    },
+  }), []);
 
   // userPos が変化したら親に通知
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
@@ -332,4 +363,4 @@ export function MapView({ stores, center, zoom, userPosition, onStoreSelect, onU
       )}
     </div>
   );
-}
+});
