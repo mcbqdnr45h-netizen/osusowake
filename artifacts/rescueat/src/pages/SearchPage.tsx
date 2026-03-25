@@ -4,13 +4,13 @@ import { MapView, MapBounds } from '@/components/Map';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, useListStores, Store, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
-  Search, Map as MapIcon, List, X, ChevronDown,
+  Search, X, ChevronDown,
   ArrowUpDown, MapPin, Clock, Package, ChevronRight, ShoppingBag, Navigation2,
   Croissant, Utensils, Coffee, ShoppingCart, Store as StoreIcon,
   Candy, Wheat, Sparkles, History, RefreshCw, Loader2, PackageOpen, Navigation,
-  RotateCcw, Apple, Fish, UtensilsCrossed, GlassWater, Gift,
+  RotateCcw, Apple, Fish, UtensilsCrossed, GlassWater, Gift, ExternalLink,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useUserLocation, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
@@ -101,14 +101,15 @@ function StoreBottomSheet({
   store: Store; bags: SurpriseBagWithStore[];
   userPos: { lat: number; lng: number } | null; onClose: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   const allStoreBags = bags.filter(b => b.store.id === store.id);
-  // 出品中（在庫あり）を先頭、完売を末尾にソート
   const storeBags = [...allStoreBags].sort((a, b) => {
     if ((a.stockCount > 0) === (b.stockCount > 0)) return 0;
     return a.stockCount > 0 ? -1 : 1;
   });
-  const bagCount  = store.totalBagsAvailable ?? storeBags.filter(b => b.stockCount > 0).length;
-  const hasBags   = bagCount > 0;
+  const bagCount = store.totalBagsAvailable ?? storeBags.filter(b => b.stockCount > 0).length;
+  const hasBags  = bagCount > 0;
 
   const distanceLabel = useMemo(() => {
     if (!userPos || !store.latitude || !store.longitude) return null;
@@ -122,21 +123,65 @@ function StoreBottomSheet({
     return formatDistanceLabel(m);
   }, [userPos, store.lat, store.lng]);
 
+  // Google Maps URL
+  const mapsUrl = useMemo(() => {
+    const lat = store.lat ?? Number(store.latitude);
+    const lng = store.lng ?? Number(store.longitude);
+    if (lat && lng) return `https://maps.google.com/?q=${lat},${lng}`;
+    if (store.address) return `https://maps.google.com/?q=${encodeURIComponent(store.address)}`;
+    return null;
+  }, [store]);
+
+  // ドラッグでパネル展開 / 閉じる
+  const handleDragEnd = useCallback((_: unknown, info: PanInfo) => {
+    if (info.velocity.y > 400 || info.offset.y > 100) {
+      onClose();
+    } else if (info.offset.y < -60 || info.velocity.y < -300) {
+      setExpanded(true);
+    } else if (info.offset.y > 40) {
+      setExpanded(false);
+    }
+  }, [onClose]);
+
+  const sheetH = expanded ? '92dvh' : '60dvh';
+
   return (
     <>
       <motion.div key="overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }} className="absolute inset-0 z-30 bg-black/30 backdrop-blur-[1px]" onClick={onClose} />
+        transition={{ duration: 0.2 }}
+        className="absolute inset-0 z-30 bg-black/30 backdrop-blur-[1px]"
+        onClick={onClose} />
 
-      <motion.div key="sheet" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="absolute bottom-0 left-0 right-0 z-40 bg-background rounded-t-3xl shadow-2xl overflow-hidden"
-        style={{ maxHeight: 'calc(75vh)' }}>
+      <motion.div
+        key="sheet"
+        initial={{ y: '100%' }}
+        animate={{ y: 0, height: sheetH }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+        className="absolute bottom-0 left-0 right-0 z-40 bg-background rounded-t-3xl shadow-2xl flex flex-col"
+        style={{ height: sheetH }}
+      >
+        {/* ドラッグハンドル — 上下スワイプで伸縮 */}
+        <motion.div
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={0.2}
+          onDragEnd={handleDragEnd}
+          className="flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing shrink-0 touch-none select-none"
+          onClick={() => setExpanded(v => !v)}
+        >
+          <div className="w-10 h-1.5 bg-border rounded-full mb-1" />
+          <span className="text-[10px] text-muted-foreground/50 font-medium">
+            {expanded ? '▾ 閉じる' : '▴ 引き上げて全表示'}
+          </span>
+        </motion.div>
 
-        <div className="flex justify-center pt-3 pb-1" onClick={onClose}>
-          <div className="w-10 h-1.5 bg-border rounded-full" />
-        </div>
-
-        <div className="overflow-y-auto scroll-smooth-native" style={{ maxHeight: 'calc(75vh - 28px)' }}>
+        {/* スクロールコンテンツ */}
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain"
+          style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+        >
+          {/* 店舗画像バナー */}
           <div className="relative h-32 mx-4 mt-1 mb-3 rounded-2xl overflow-hidden bg-muted shrink-0">
             <img src={store.imageUrl || getCategoryImage(store.category)} alt={store.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
@@ -150,13 +195,25 @@ function StoreBottomSheet({
             </div>
           </div>
 
+          {/* 住所 + 距離 */}
           <div className="px-4 space-y-2 mb-3">
             <div className="flex items-start gap-2 flex-wrap">
               <div className="flex items-start gap-1.5 flex-1 min-w-0">
                 <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                <span className="text-xs text-muted-foreground leading-relaxed">{store.address || '住所未設定'}</span>
+                {mapsUrl ? (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-primary underline underline-offset-2 decoration-primary/40 leading-relaxed tap-opacity"
+                  >
+                    <span className="leading-relaxed">{store.address || '地図で見る'}</span>
+                    <ExternalLink className="w-3 h-3 shrink-0 text-primary/60" />
+                  </a>
+                ) : (
+                  <span className="text-xs text-muted-foreground leading-relaxed">{store.address || '住所未設定'}</span>
+                )}
               </div>
-              {/* 距離 + 徒歩時間 */}
               <div className="flex items-center gap-1.5 shrink-0">
                 {distanceLabel && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full whitespace-nowrap">
@@ -170,6 +227,20 @@ function StoreBottomSheet({
                 )}
               </div>
             </div>
+
+            {/* Google Maps ボタン（住所がある場合）*/}
+            {mapsUrl && (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 w-full bg-sky-50 border border-sky-200 text-sky-700 font-black text-xs px-3.5 py-2.5 rounded-xl tap-scale"
+              >
+                <Navigation className="w-3.5 h-3.5 shrink-0" />
+                Google マップで経路を確認
+                <ExternalLink className="w-3 h-3 ml-auto text-sky-400" />
+              </a>
+            )}
 
             <div className="flex items-center gap-2">
               {hasBags ? (
@@ -185,7 +256,8 @@ function StoreBottomSheet({
             </div>
           </div>
 
-          <div className="px-4 pb-8">
+          {/* バッグ一覧 */}
+          <div className="px-4 pb-10">
             {hasBags ? (
               <>
                 <h3 className="text-sm font-black text-foreground mb-3 flex items-center gap-1.5">
@@ -207,12 +279,17 @@ function StoreBottomSheet({
                               {discountPct}% OFF
                             </span>
                           )}
-                          {isSoldOut && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><span className="text-white text-[10px] font-black">完売</span></div>}
+                          {isSoldOut && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <span className="text-white text-[10px] font-black">完売</span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 py-2.5 pr-2 min-w-0">
                           <p className="font-black text-sm text-foreground leading-tight line-clamp-1 mb-1">{bag.title}</p>
                           <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-1.5">
-                            <Clock className="w-3 h-3 shrink-0" /><span>受取 {bag.pickupStart}–{bag.pickupEnd}</span>
+                            <Clock className="w-3 h-3 shrink-0" />
+                            <span>受取 {bag.pickupStart}–{bag.pickupEnd}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div>
@@ -471,13 +548,6 @@ export default function SearchPage() {
 
   const handleStoreSelect = useCallback((store: Store) => setSelectedStore(store), []);
 
-  // ビュー切り替え時にシートを閉じる
-  const handleViewChange = useCallback((v: ViewMode) => {
-    setView(v);
-    setSelectedStore(null);
-    setShowSort(false);
-    searchRef.current?.blur();
-  }, []);
 
   return (
     <Layout hideFooter={view === 'map'}>
@@ -643,17 +713,6 @@ export default function SearchPage() {
               )}
             </AnimatePresence>
 
-            {/* 区切り線 */}
-            <div className="w-px h-4 bg-border shrink-0 mx-0.5" />
-
-            {/* リスト/地図 切替アイコンボタン */}
-            <button onClick={() => handleViewChange(view === 'map' ? 'list' : 'map')}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border bg-card border-border text-foreground shrink-0 tap-scale whitespace-nowrap">
-              {view === 'map'
-                ? <><List className="w-3 h-3" /><span>リスト</span></>
-                : <><MapIcon className="w-3 h-3" /><span>地図</span></>
-              }
-            </button>
           </div>
         </div>
 
