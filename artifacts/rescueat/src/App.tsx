@@ -123,6 +123,7 @@ function AnimatedRoutes() {
           <Route path="/" component={Home} />
           <Route path="/welcome" component={Welcome} />
           <Route path="/search" component={SearchPage} />
+          <Route path="/map"    component={SearchPage} />
           <Route path="/bags/:id" component={BagDetail} />
           <Route path="/terms" component={Terms} />
           <Route path="/privacy" component={Privacy} />

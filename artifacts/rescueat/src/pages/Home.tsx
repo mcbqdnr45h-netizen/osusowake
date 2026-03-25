@@ -236,7 +236,7 @@ function NationwideBanner({ onAllow }: { onAllow: () => void }) {
 // ─── フローティング地図ボタン ─────────────────────────────────────────────
 function FloatingMapButton() {
   return (
-    <Link href="/search?view=map">
+    <Link href="/map">
       <motion.button
         initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.4 }}

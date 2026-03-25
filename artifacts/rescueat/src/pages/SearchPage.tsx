@@ -334,7 +334,7 @@ function SegmentControl({ view, onChange }: { view: ViewMode; onChange: (v: View
 export default function SearchPage() {
   const [inputValue,    setInputValue]    = useState('');
   const [query,         setQuery]         = useState('');
-  const [view,          setView]          = useState<ViewMode>('list');
+  const [view,          setView]          = useState<ViewMode>('map');
   const [category,      setCategory]      = useState('');
   const [sort,          setSort]          = useState<SortKey>('default');
   const [inStockOnly,   setInStockOnly]   = useState(false);
