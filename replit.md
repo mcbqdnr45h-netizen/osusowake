@@ -10,7 +10,7 @@
 - **Node.js version**: 24
 - **Frontend**: React + Vite (artifacts/rescueat) - メインカラー #2D5A51
 - **API framework**: Express 5 (artifacts/api-server)
-- **Database**: PostgreSQL + Drizzle ORM
+- **Database**: Supabase PostgreSQL + Drizzle ORM（全テーブル Supabase に統一）
 - **Map**: Google Maps JS API（`VITE_MAPS_API_KEY`）+ Google Places Autocomplete（店舗登録）
 - **Payments**: Stripe（STRIPE_SECRET_KEY設定時）、未設定時はモック決済
 - **Validation**: Zod, drizzle-zod
@@ -42,11 +42,17 @@
 - `/favorites` - お気に入り
 - `/mypage` - マイページ
 
-## Database Tables
+## Database Tables（全テーブル Supabase PostgreSQL）
+
+> **DB 接続**: `lib/db/src/index.ts` が `SUPABASE_DATABASE_URL`（SSL付き）を使用。  
+> `DATABASE_URL`（Replit ローカル DB）は使用しない。
 
 - `stores` - 店舗情報（lat/lng含む）
 - `surprise_bags` - バッグ出品情報
 - `reservations` - 予約情報（ステータス・ピックアップコード含む）
+- `notifications` - 通知
+- `reports` / `reviews` - 報告・レビュー
+- `users` - Supabase Auth と連携したプロフィール（public.users）
 
 ## Seed Data
 

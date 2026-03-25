@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-const CACHE_KEY_PREFIX = 'taberosu_myStore_v2_';
+// v3: Supabase 統一移行に伴い ID 変更のため v2 キャッシュをクリア
+const CACHE_KEY_PREFIX = 'taberosu_myStore_v3_';
 
 export type MyStore = {
   id: number;
@@ -37,7 +38,16 @@ function writeCache(userId: string, store: MyStore | null) {
 
 function clearLegacyCache() {
   try {
+    // v1, v2 キャッシュを全ユーザー分クリア（プレフィックスで一括削除）
     localStorage.removeItem('taberosu_myStore_v1');
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('taberosu_myStore_v1') || k.startsWith('taberosu_myStore_v2_'))) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
   } catch {}
 }
 
