@@ -430,10 +430,8 @@ export default function MyPage() {
             </Link>
           )}
 
-          <a
-            href="https://forms.gle/uhMoXjjF9YzkR52a6"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/help"
             className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
           >
             <div className="w-10 h-10 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
@@ -441,7 +439,7 @@ export default function MyPage() {
             </div>
             <div className="flex-1 font-bold text-foreground">ヘルプ・お問い合わせ</div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </a>
+          </Link>
 
           <button
             onClick={handleLogout}
@@ -453,6 +451,22 @@ export default function MyPage() {
             <div className="flex-1 font-bold">ログアウト</div>
           </button>
         </div>
+
+        {/* 法的情報リンク */}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+          <Link href="/tokusho" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+            特定商取引法に基づく表記
+          </Link>
+          <span className="text-muted-foreground/30 text-xs">|</span>
+          <Link href="/terms" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+            利用規約
+          </Link>
+          <span className="text-muted-foreground/30 text-xs">|</span>
+          <Link href="/privacy" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+            プライバシーポリシー
+          </Link>
+        </div>
+        <p className="text-center text-[10px] text-muted-foreground/40 mt-2 mb-2">© 2025 食べロス All rights reserved.</p>
       </div>
   );
 

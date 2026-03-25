@@ -44,6 +44,8 @@ import StoreProfileEdit from "./pages/StoreProfileEdit";
 import StoreReviews from "./pages/StoreReviews";
 import StoreLegal from "./pages/StoreLegal";
 import StoreLegalPublic from "./pages/StoreLegalPublic";
+import HelpPage from "./pages/HelpPage";
+import TokushoPage from "./pages/TokushoPage";
 
 // ── ルートガードファクトリ ─────────────────────────────────────────────────────
 // 認証が必要なルート
@@ -127,6 +129,8 @@ function AnimatedRoutes() {
           <Route path="/bags/:id" component={BagDetail} />
           <Route path="/terms" component={Terms} />
           <Route path="/privacy" component={Privacy} />
+          <Route path="/help" component={HelpPage} />
+          <Route path="/tokusho" component={TokushoPage} />
           <Route path="/verify-email" component={VerifyEmail} />
           <Route path="/success" component={CheckoutSuccess} />
           <Route path="/cancel" component={CheckoutCancel} />
