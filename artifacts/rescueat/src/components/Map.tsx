@@ -146,8 +146,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   // userPos が変化したら親に通知
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
-  // 承認済み店舗のみ
-  const approvedStores = stores.filter(s => (s as any).status === 'approved' || !(s as any).status);
+  // 承認済み店舗のみ + ID 重複排除（同一 ID のマーカーが複数追加されるのを防ぐ）
+  const approvedStores = useMemo(() => {
+    const seen = new Set<number | string>();
+    return stores.filter(s => {
+      const ok = (s as any).status === 'approved' || !(s as any).status;
+      if (!ok || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+  }, [stores]);
 
   // ── マップ初期化 ──────────────────────────────────────────────────────────
   useEffect(() => {

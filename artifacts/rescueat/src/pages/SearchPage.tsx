@@ -574,10 +574,34 @@ export default function SearchPage() {
 
   const recommendBags  = useMemo(() => (bags || []).filter(b => b.stockCount > 0).slice(0, 3), [bags]);
 
-  const filteredStoreIds = new Set(filteredBags.map(b => b.store.id));
-  const displayStores    = (stores || [])
-    .filter(s => (s as any).status === 'approved' || !(s as any).status)
-    .filter(s => !liveQuery || filteredStoreIds.has(s.id));
+  const filteredStoreIds = useMemo(
+    () => new Set(filteredBags.map(b => b.store.id)),
+    [filteredBags],
+  );
+
+  const displayStores = useMemo(() => {
+    // approved を優先して並べ替え（同じ場所に複数申請がある場合、approved を優先）
+    const sorted = [...(stores || [])].sort((a, b) => {
+      if ((a as any).status === 'approved' && (b as any).status !== 'approved') return -1;
+      if ((b as any).status === 'approved' && (a as any).status !== 'approved') return 1;
+      return (b.id as number) - (a.id as number); // 新しい順
+    });
+
+    const seenId  = new Set<number | string>();
+    const seenLoc = new Set<string>(); // ownerId+丸め座標 で重複排除
+
+    return sorted.filter(s => {
+      const ok = (s as any).status === 'approved' || !(s as any).status;
+      if (!ok) return false;
+      if (seenId.has(s.id)) return false;
+      seenId.add(s.id);
+      // 同一オーナーが同じ場所（約100m以内）に複数登録している場合は1件だけ表示
+      const locKey = `${(s as any).ownerId ?? 'x'}-${Math.round(s.lat * 1000)}-${Math.round(s.lng * 1000)}`;
+      if (seenLoc.has(locKey)) return false;
+      seenLoc.add(locKey);
+      return true;
+    }).filter(s => !liveQuery || filteredStoreIds.has(s.id));
+  }, [stores, liveQuery, filteredStoreIds]);
 
   const isFiltering       = !!liveQuery || category !== '' || inStockOnly || sort !== 'default' || areaSearchActive;
   const activeFilterCount = [category !== '', inStockOnly, sort !== 'default'].filter(Boolean).length;
