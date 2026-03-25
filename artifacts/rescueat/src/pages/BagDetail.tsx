@@ -529,10 +529,10 @@ export default function BagDetail() {
               <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
                 <Info className="w-5 h-5 text-primary" /> バッグの内容
               </h3>
-              <p className="text-muted-foreground leading-relaxed">
-                {bag.description || `${bag.store.name}のお料理がランダムに入ったお得なサプライズバッグです。お店の味を、ぜひ受け取ってください！`}
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {bag.description || bag.store.description || `${bag.store.name}のお料理がランダムに入ったお得なサプライズバッグです。お店の味を、ぜひ受け取ってください！`}
               </p>
-              {bag.store.description && (
+              {bag.description && bag.store.description && (
                 <div className="mt-3 bg-secondary/50 rounded-xl px-3.5 py-3">
                   <p className="text-xs font-bold text-primary mb-1">お店のPR</p>
                   <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{bag.store.description}</p>
