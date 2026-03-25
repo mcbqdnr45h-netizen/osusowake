@@ -131,7 +131,7 @@ export default function Checkout() {
 
   const handleCancel = async () => {
     try {
-      await cancelMutation.mutateAsync(reservationId);
+      await cancelMutation.mutateAsync({ reservationId });
       toast({
         title: 'キャンセルしました',
         description: '仮押さえを解除しました。在庫は他のユーザーが購入できるようになりました。',
@@ -156,7 +156,7 @@ export default function Checkout() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button
-            onClick={() => navigate(fromPath || `/bags/${reservation.bagId}`)}
+            onClick={() => navigate(fromPath || `${BASE}/bags/${reservation.bagId}?from=checkout`)}
             className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />

@@ -207,6 +207,8 @@ export default function BagDetail() {
   const createReservation = useCreateReservation();
 
   const [, navigate] = useLocation();
+  const searchParams = new URLSearchParams(window.location.search);
+  const cameFromCheckout = searchParams.get('from') === 'checkout';
   const [quantity, setQuantity] = useState(1);
   const [showReport,    setShowReport]    = useState(false);
   const [heroImgLoaded, setHeroImgLoaded] = useState(false);
@@ -373,7 +375,7 @@ export default function BagDetail() {
         {/* Mobile Header Back Button */}
         <div className="absolute top-4 left-4 z-50 md:hidden">
           <button
-            onClick={() => window.history.back()}
+            onClick={() => cameFromCheckout ? navigate('/') : window.history.back()}
             className="w-10 h-10 bg-background/80 backdrop-blur rounded-full flex items-center justify-center shadow-md border border-border"
           >
             <ChevronLeft className="w-6 h-6" />
