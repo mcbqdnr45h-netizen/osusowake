@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState, useImperativeHandle, forwardRef } from 'react';
-import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
 import { LocateFixed, AlertTriangle } from 'lucide-react';
@@ -92,7 +91,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 ) {
   const containerRef    = useRef<HTMLDivElement>(null);
   const mapRef          = useRef<google.maps.Map | null>(null);
-  const clustererRef    = useRef<MarkerClusterer | null>(null);
   const userMarkerRef   = useRef<google.maps.Marker | null>(null);
   const storeMarkersRef = useRef<google.maps.Marker[]>([]);
   const onStoreSelectRef        = useRef(onStoreSelect);
@@ -193,7 +191,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         });
 
         mapRef.current = map;
-        clustererRef.current = new MarkerClusterer({ map });
 
         // idle イベント：地図が止まるたびにバウンドを親へ通知（初回除く）
         map.addListener('idle', () => {
@@ -230,24 +227,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     // 既存マーカーをすべてマップから除去
     storeMarkersRef.current.forEach(m => {
-      m.setMap(null);
       gMaps.event.clearInstanceListeners(m);
+      m.setMap(null);
     });
     storeMarkersRef.current = [];
 
-    // クラスタラーをリセット（再生成して確実にゼロから）
-    if (clustererRef.current) {
-      clustererRef.current.clearMarkers();
-      clustererRef.current.setMap(null);
-    }
-    clustererRef.current = new MarkerClusterer({ map });
-
+    // 各店舗を個別マーカーとして直接マップに追加（クラスタリングなし）
     const markers: google.maps.Marker[] = approvedStores.map(store => {
       const bagCount  = store.totalBagsAvailable ?? 0;
       const isListing = bagCount > 0;
 
       const marker = new gMaps.Marker({
         position: { lat: store.lat, lng: store.lng },
+        map,
         icon: {
           url: makeStoreIconUrl(store.category, isListing, bagCount),
           scaledSize: new gMaps.Size(isListing ? 44 : 36, isListing ? 52 : 44),
@@ -258,7 +250,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       });
 
       marker.addListener('click', () => {
-        // マップを少し上にパンしてボトムシートに隠れないよう調整
         const pos = marker.getPosition();
         if (pos) {
           const projection = map.getProjection();
@@ -278,9 +269,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     });
 
     storeMarkersRef.current = markers;
-    if (markers.length > 0) {
-      clustererRef.current.addMarkers(markers);
-    }
   }, [approvedStores.map(s => `${s.id}-${s.totalBagsAvailable}`).join(','), status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 現在地マーカー ────────────────────────────────────────────────────
