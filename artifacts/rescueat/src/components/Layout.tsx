@@ -67,7 +67,10 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
   const isLoggedIn = !!user;
 
   return (
-    <div className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen pb-[80px] md:pb-0'} bg-background text-foreground flex flex-col font-sans`}>
+    <div
+      className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen md:!pb-0'} bg-background text-foreground flex flex-col font-sans`}
+      style={!hideFooter ? { paddingBottom: 'calc(62px + env(safe-area-inset-bottom))' } : undefined}
+    >
 
       {/* ── Top Header ── */}
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border shadow-sm shrink-0"
