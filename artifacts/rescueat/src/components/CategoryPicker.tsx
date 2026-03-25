@@ -1,17 +1,9 @@
 import { Loader2, Sparkles } from 'lucide-react';
 
 export const BAG_LABELS = [
-  { value: 'bakery',      label: 'パン',       emoji: '🥐' },
-  { value: 'restaurant',  label: 'お弁当',     emoji: '🍱' },
-  { value: 'sweets',      label: 'スイーツ',   emoji: '🍰' },
-  { value: 'other',       label: '惣菜',       emoji: '🥗' },
-  { value: 'cafe',        label: 'カフェ',     emoji: '☕' },
-  { value: 'convenience', label: 'コンビニ',   emoji: '🏪' },
-  { value: 'supermarket', label: 'スーパー',   emoji: '🛒' },
-  { value: 'produce',     label: '野菜・果物', emoji: '🍎' },
-  { value: 'meat',        label: '肉・魚',     emoji: '🥩' },
-  { value: 'noodles',     label: '麺類',       emoji: '🍜' },
-  { value: 'drinks',      label: 'ドリンク',   emoji: '🥤' },
+  { value: 'meals',          label: '料理・お惣菜', emoji: '🍱' },
+  { value: 'bakery_sweets',  label: 'パン・スイーツ', emoji: '🥐' },
+  { value: 'ingredients',    label: '食材・その他',  emoji: '🍎' },
 ];
 
 export function CategoryPicker({
@@ -53,7 +45,7 @@ export function CategoryPicker({
           </span>
         )}
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-3">
         {BAG_LABELS.map((cat) => {
           const isActive = value === cat.value;
           const isAI     = cat.value === aiSuggested && !classifying;
@@ -62,7 +54,7 @@ export function CategoryPicker({
               key={cat.value}
               type="button"
               onClick={() => onChange(isActive ? '' : cat.value)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${
+              className={`flex-1 flex flex-col items-center gap-1.5 px-3 py-3 rounded-2xl text-xs font-bold border-2 transition-all ${
                 isActive
                   ? 'bg-primary border-primary text-white shadow-sm shadow-primary/25'
                   : isAI && value === ''
@@ -70,8 +62,8 @@ export function CategoryPicker({
                     : 'bg-white border-border text-foreground hover:border-primary/40'
               }`}
             >
-              <span>{cat.emoji}</span>
-              <span>{cat.label}</span>
+              <span className="text-2xl leading-none">{cat.emoji}</span>
+              <span className="text-center leading-tight">{cat.label}</span>
               {isAI && !isActive && <Sparkles className="w-2.5 h-2.5 text-violet-400" />}
             </button>
           );

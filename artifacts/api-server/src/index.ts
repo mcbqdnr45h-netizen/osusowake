@@ -18,6 +18,19 @@ async function runMigrations() {
       END $$;
     `);
     console.log('[migration] surprise_bags.category ✅');
+
+    // 旧カテゴリ値 → 新3カテゴリへ一括変換（冪等）
+    await client.query(`
+      UPDATE surprise_bags SET category =
+        CASE
+          WHEN category IN ('bakery', 'sweets', 'cafe', 'drinks') THEN 'bakery_sweets'
+          WHEN category IN ('produce', 'supermarket')              THEN 'ingredients'
+          WHEN category IN ('restaurant', 'other', 'convenience', 'meat', 'noodles', 'assorted') THEN 'meals'
+        END
+      WHERE category IS NOT NULL
+        AND category NOT IN ('meals', 'bakery_sweets', 'ingredients');
+    `);
+    console.log('[migration] category remapping ✅');
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

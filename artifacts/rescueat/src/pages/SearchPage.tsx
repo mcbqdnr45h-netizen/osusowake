@@ -38,19 +38,10 @@ type SortKey  = 'default' | 'distance' | 'price_asc' | 'price_desc' | 'stock_des
 
 // ─── カテゴリー ───────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { label: 'すべて',       value: '',            icon: <Sparkles        className="w-4 h-4" /> },
-  { label: 'パン',         value: 'bakery',       icon: <Croissant       className="w-4 h-4" /> },
-  { label: 'お弁当・惣菜', value: 'restaurant',   icon: <Utensils        className="w-4 h-4" /> },
-  { label: 'カフェ',       value: 'cafe',         icon: <Coffee          className="w-4 h-4" /> },
-  { label: 'スーパー',     value: 'supermarket',  icon: <ShoppingCart    className="w-4 h-4" /> },
-  { label: 'コンビニ',     value: 'convenience',  icon: <StoreIcon       className="w-4 h-4" /> },
-  { label: 'スイーツ',     value: 'sweets',       icon: <Candy           className="w-4 h-4" /> },
-  { label: 'その他・惣菜', value: 'other',        icon: <Wheat           className="w-4 h-4" /> },
-  { label: '野菜・果物',   value: 'produce',      icon: <Apple           className="w-4 h-4" /> },
-  { label: '肉・魚',       value: 'meat',         icon: <Fish            className="w-4 h-4" /> },
-  { label: '麺類',         value: 'noodles',      icon: <UtensilsCrossed className="w-4 h-4" /> },
-  { label: 'ドリンク',     value: 'drinks',       icon: <GlassWater      className="w-4 h-4" /> },
-  { label: '詰め合わせ',   value: 'assorted',     icon: <Gift            className="w-4 h-4" /> },
+  { label: 'すべて',        value: '',               icon: <Sparkles  className="w-4 h-4" />, emoji: '' },
+  { label: '料理・お惣菜',  value: 'meals',          icon: <Utensils  className="w-4 h-4" />, emoji: '🍱' },
+  { label: 'パン・スイーツ', value: 'bakery_sweets', icon: <Croissant className="w-4 h-4" />, emoji: '🥐' },
+  { label: '食材・その他',  value: 'ingredients',    icon: <Apple     className="w-4 h-4" />, emoji: '🍎' },
 ];
 
 const SORT_OPTIONS: { label: string; value: SortKey; needsLocation?: boolean }[] = [
@@ -446,7 +437,7 @@ export default function SearchPage() {
     }
 
     // カテゴリー
-    if (category) result = result.filter(b => b.store.category === category);
+    if (category) result = result.filter(b => b.category === category);
 
     // 在庫あり
     if (inStockOnly) result = result.filter(b => b.stockCount > 0);
@@ -589,12 +580,13 @@ export default function SearchPage() {
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-0.5">
               {CATEGORIES.map(cat => (
                 <button key={cat.value} onClick={() => { setCategory(cat.value); searchRef.current?.blur(); }}
-                  className={`whitespace-nowrap flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border tap-scale
+                  className={`whitespace-nowrap flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 border tap-scale
                     ${category === cat.value
                       ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                       : 'bg-card text-foreground border-border hover:border-primary/50'
                     }`}>
-                  {cat.icon}<span>{cat.label}</span>
+                  {cat.emoji ? <span className="text-base leading-none">{cat.emoji}</span> : cat.icon}
+                  <span>{cat.label}</span>
                 </button>
               ))}
             </div>

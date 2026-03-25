@@ -9,17 +9,9 @@ const openai = new OpenAI({
 });
 
 const VALID_CATEGORIES = [
-  { value: "bakery",      label: "パン"       },
-  { value: "restaurant",  label: "お弁当・惣菜" },
-  { value: "sweets",      label: "スイーツ"    },
-  { value: "other",       label: "その他惣菜"  },
-  { value: "cafe",        label: "カフェ"     },
-  { value: "convenience", label: "コンビニ"   },
-  { value: "supermarket", label: "スーパー"   },
-  { value: "produce",     label: "野菜・果物" },
-  { value: "meat",        label: "肉・魚"     },
-  { value: "noodles",     label: "麺類"       },
-  { value: "drinks",      label: "ドリンク"   },
+  { value: "meals",         label: "料理・お惣菜（飲食店・居酒屋・弁当・惣菜・麺類・肉・魚など）" },
+  { value: "bakery_sweets", label: "パン・スイーツ（ベーカリー・カフェ・菓子・ドリンクなど）" },
+  { value: "ingredients",   label: "食材・その他（生鮮食品・野菜・果物・加工品・飲料など）" },
 ];
 
 /**
@@ -40,7 +32,7 @@ router.post("/suggest-category", async (req, res) => {
     const mimeMatch = imageBase64.match(/^data:([^;]+);/);
     const mimeType  = (mimeMatch?.[1] ?? "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
-    const validList = VALID_CATEGORIES.map(c => `"${c.value}" (${c.label})`).join(", ");
+    const validList = VALID_CATEGORIES.map(c => `"${c.value}" = ${c.label}`).join("\n");
 
     const response = await openai.chat.completions.create({
       model: "gpt-5-mini",
@@ -55,7 +47,7 @@ router.post("/suggest-category", async (req, res) => {
             },
             {
               type: "text",
-              text: `この食べ物の画像を見て、以下のカテゴリーから最も適切なものを1つだけ英語のキーで答えてください。余計な説明は不要です。\n有効なカテゴリー: ${validList}\n答え:`,
+              text: `この食べ物の画像を見て、以下の3つのカテゴリから最も適切なものを1つだけ英語のキーで答えてください。余計な説明は不要です。\n\n${validList}\n\n答え（キーのみ）:`,
             },
           ],
         },
