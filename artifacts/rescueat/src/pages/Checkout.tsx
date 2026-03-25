@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
-import { useGetReservation } from '@workspace/api-client-react';
-import { CheckCircle2, ShieldCheck, CreditCard, ChevronLeft, ExternalLink, Clock, AlertTriangle } from 'lucide-react';
+import { useGetReservation, useCancelReservation } from '@workspace/api-client-react';
+import { CheckCircle2, ShieldCheck, CreditCard, ChevronLeft, ExternalLink, Clock, AlertTriangle, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,8 +52,10 @@ export default function Checkout() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const { user } = useAuth();
   const expiredAlerted = useRef(false);
+  const cancelMutation = useCancelReservation();
 
   const { data: reservation, isLoading } = useGetReservation(reservationId);
   const fromPath: string = (window.history.state as any)?.from || '';
@@ -124,6 +126,23 @@ export default function Checkout() {
         variant: 'destructive',
       });
       setIsRedirecting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      await cancelMutation.mutateAsync(reservationId);
+      toast({
+        title: 'キャンセルしました',
+        description: '仮押さえを解除しました。在庫は他のユーザーが購入できるようになりました。',
+      });
+      navigate(`${BASE}/`);
+    } catch {
+      toast({
+        title: 'キャンセルに失敗しました',
+        description: 'もう一度お試しください。',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -249,7 +268,7 @@ export default function Checkout() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <button
               onClick={handleStripeCheckout}
-              disabled={isRedirecting || expired}
+              disabled={isRedirecting || expired || cancelMutation.isPending}
               className={`w-full h-14 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2.5 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
                 expired
                   ? 'bg-gray-400'
@@ -280,6 +299,75 @@ export default function Checkout() {
               </p>
             )}
           </motion.div>
+
+          {/* Cancel Button */}
+          {!isConfirmed && !expired && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+              className="pb-6"
+            >
+              <AnimatePresence mode="wait">
+                {!showCancelConfirm ? (
+                  <motion.button
+                    key="cancel-btn"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowCancelConfirm(true)}
+                    disabled={isRedirecting || cancelMutation.isPending}
+                    className="w-full h-11 rounded-2xl font-medium text-sm text-muted-foreground border border-border bg-secondary/50 hover:bg-secondary hover:text-foreground transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X className="w-4 h-4" />
+                    仮押さえをキャンセルする
+                  </motion.button>
+                ) : (
+                  <motion.div
+                    key="cancel-confirm"
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    className="rounded-2xl border border-red-200 bg-red-50 p-4 space-y-3"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-red-700">キャンセルしますか？</p>
+                        <p className="text-xs text-red-600/80 mt-0.5">
+                          仮押さえが解除され、他のユーザーが購入できるようになります。
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowCancelConfirm(false)}
+                        disabled={cancelMutation.isPending}
+                        className="flex-1 h-10 rounded-xl text-sm font-medium border border-border bg-white text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+                      >
+                        戻る
+                      </button>
+                      <button
+                        onClick={handleCancel}
+                        disabled={cancelMutation.isPending}
+                        className="flex-1 h-10 rounded-xl text-sm font-bold bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        {cancelMutation.isPending ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            処理中...
+                          </>
+                        ) : (
+                          <>
+                            <X className="w-4 h-4" />
+                            キャンセルする
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
         </div>
       </div>
     </Layout>

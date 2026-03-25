@@ -387,6 +387,22 @@ router.post("/reservations/:reservationId/cancel", async (req, res) => {
       console.error("[cancel] stock restore failed (non-critical):", msg);
     }
 
+    // ③ 紐付く cart_reservation を cancelled に更新（期限切れ時の二重復元を防ぐ）
+    try {
+      await db
+        .update(cartReservationsTable)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            eq(cartReservationsTable.reservationId, reservationId),
+            eq(cartReservationsTable.status, "active")
+          )
+        );
+    } catch (crErr: unknown) {
+      const msg = crErr instanceof Error ? crErr.message : String(crErr);
+      console.error("[cancel] cart_reservation update failed (non-critical):", msg);
+    }
+
     const updated = await getReservationWithDetails(reservationId);
     res.json(updated);
   } catch (err: unknown) {
