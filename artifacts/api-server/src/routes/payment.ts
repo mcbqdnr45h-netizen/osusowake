@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { reservationsTable, surpriseBagsTable, storesTable } from "@workspace/db/schema";
+import { reservationsTable, surpriseBagsTable, storesTable, cartReservationsTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import {
   CreatePaymentIntentBody,
@@ -100,6 +100,13 @@ router.post("/payment/confirm", async (req, res) => {
         paymentIntentId: body.paymentIntentId,
       })
       .where(eq(reservationsTable.id, body.reservationId));
+
+    // 仮押さえを確定（在庫は戻さない）
+    await db
+      .update(cartReservationsTable)
+      .set({ status: "confirmed" })
+      .where(eq(cartReservationsTable.reservationId, body.reservationId))
+      .catch(() => {});
 
     const [updated] = await db
       .select({
@@ -349,6 +356,13 @@ router.get("/checkout/verify", async (req, res) => {
           ...(stripePaymentId ? { paymentIntentId: stripePaymentId } : {}),
         })
         .where(eq(reservationsTable.id, reservationId));
+
+      // 仮押さえを確定（在庫は戻さない）
+      await db
+        .update(cartReservationsTable)
+        .set({ status: "confirmed" })
+        .where(eq(cartReservationsTable.reservationId, reservationId))
+        .catch(() => {});
 
       // ── 4. Supabase orders に書き込み ─────────────────────────
       // 在庫デクリメントは POST /reservations で実施済みのためここでは行わない

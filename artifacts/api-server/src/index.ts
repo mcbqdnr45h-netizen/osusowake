@@ -166,6 +166,27 @@ async function runMigrations() {
     `);
     console.log('[migration] favorites table ✅');
 
+    // ── cart_reservations テーブル ────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS cart_reservations (
+        id             SERIAL PRIMARY KEY,
+        user_id        TEXT NOT NULL,
+        bag_id         INTEGER NOT NULL REFERENCES surprise_bags(id) ON DELETE CASCADE,
+        reservation_id INTEGER,
+        quantity       INTEGER NOT NULL DEFAULT 1,
+        reserved_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+        expires_at     TIMESTAMP NOT NULL,
+        status         TEXT NOT NULL DEFAULT 'active'
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS cart_reservations_bag_id_status_idx ON cart_reservations (bag_id, status);
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS cart_reservations_reservation_id_idx ON cart_reservations (reservation_id);
+    `);
+    console.log('[migration] cart_reservations table ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

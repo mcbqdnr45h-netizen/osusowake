@@ -1,11 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetReservation } from '@workspace/api-client-react';
-import { CheckCircle2, ShieldCheck, CreditCard, ChevronLeft, ExternalLink } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, CreditCard, ChevronLeft, ExternalLink, Clock, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+
+const HOLD_MINUTES = 5;
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+function useCountdown(createdAt: string | Date | undefined, status: string | undefined) {
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    if (!createdAt || status === 'confirmed' || status === 'cancelled') {
+      setSecondsLeft(null);
+      return;
+    }
+
+    const expiresAt = new Date(createdAt).getTime() + HOLD_MINUTES * 60 * 1000;
+
+    const tick = () => {
+      const remaining = Math.floor((expiresAt - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setSecondsLeft(0);
+        setExpired(true);
+      } else {
+        setSecondsLeft(remaining);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [createdAt, status]);
+
+  return { secondsLeft, expired };
+}
+
+function formatCountdown(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 export default function Checkout() {
   const [, params] = useRoute('/checkout/:id');
@@ -14,9 +53,32 @@ export default function Checkout() {
   const [, navigate] = useLocation();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const { user } = useAuth();
+  const expiredAlerted = useRef(false);
 
   const { data: reservation, isLoading } = useGetReservation(reservationId);
   const fromPath: string = (window.history.state as any)?.from || '';
+
+  const { secondsLeft, expired } = useCountdown(
+    reservation?.createdAt,
+    reservation?.status
+  );
+
+  const handleExpiry = useCallback(() => {
+    if (expiredAlerted.current) return;
+    expiredAlerted.current = true;
+
+    toast({
+      title: '⏰ 期限が切れました',
+      description: '5分以内に決済が完了しなかったため、仮押さえが解除されました。',
+      variant: 'destructive',
+    });
+
+    setTimeout(() => navigate(`${BASE}/`), 2000);
+  }, [toast, navigate]);
+
+  useEffect(() => {
+    if (expired) handleExpiry();
+  }, [expired, handleExpiry]);
 
   if (isLoading || !reservation) {
     return (
@@ -29,6 +91,10 @@ export default function Checkout() {
   }
 
   const handleStripeCheckout = async () => {
+    if (expired) {
+      toast({ title: '期限切れ', description: '仮押さえの期限が切れています。', variant: 'destructive' });
+      return;
+    }
     setIsRedirecting(true);
     try {
       const base = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
@@ -61,6 +127,9 @@ export default function Checkout() {
     }
   };
 
+  const isUrgent = secondsLeft !== null && secondsLeft <= 60;
+  const isConfirmed = reservation.status === 'confirmed';
+
   return (
     <Layout showBottomNav={false}>
       <div className="max-w-xl mx-auto py-8 px-4">
@@ -77,6 +146,49 @@ export default function Checkout() {
         </div>
 
         <div className="space-y-4">
+
+          {/* Countdown Timer Banner */}
+          <AnimatePresence>
+            {!isConfirmed && secondsLeft !== null && !expired && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                className={`rounded-2xl px-4 py-3 flex items-center gap-3 border ${
+                  isUrgent
+                    ? 'bg-red-50 border-red-200 text-red-700'
+                    : 'bg-orange-50 border-orange-200 text-orange-700'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                  isUrgent ? 'bg-red-100' : 'bg-orange-100'
+                }`}>
+                  <Clock className={`w-4 h-4 ${isUrgent ? 'text-red-500' : 'text-orange-500'}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold leading-tight">仮押さえ中 — 期限内に決済してください</p>
+                  <p className="text-[11px] opacity-80 mt-0.5">期限を過ぎると在庫が解放されます</p>
+                </div>
+                <div className={`text-2xl font-black tabular-nums shrink-0 ${isUrgent ? 'text-red-600 animate-pulse' : 'text-orange-600'}`}>
+                  {formatCountdown(secondsLeft)}
+                </div>
+              </motion.div>
+            )}
+
+            {!isConfirmed && expired && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="rounded-2xl px-4 py-3 flex items-center gap-3 bg-red-50 border border-red-200"
+              >
+                <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+                <div>
+                  <p className="text-sm font-black text-red-700">期限が切れました</p>
+                  <p className="text-xs text-red-600/80">仮押さえが解除されました。トップへ戻ります…</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Order Summary */}
           <motion.div
@@ -137,13 +249,22 @@ export default function Checkout() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <button
               onClick={handleStripeCheckout}
-              disabled={isRedirecting}
-              className="w-full h-14 bg-[#635BFF] hover:bg-[#5851e8] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2.5 transition-colors shadow-lg shadow-[#635BFF]/30 disabled:opacity-70 disabled:cursor-not-allowed"
+              disabled={isRedirecting || expired}
+              className={`w-full h-14 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2.5 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                expired
+                  ? 'bg-gray-400'
+                  : 'bg-[#635BFF] hover:bg-[#5851e8] shadow-[#635BFF]/30 active:scale-[0.98]'
+              }`}
             >
               {isRedirecting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Stripeへ移動中...
+                </>
+              ) : expired ? (
+                <>
+                  <AlertTriangle className="w-5 h-5" />
+                  期限切れ
                 </>
               ) : (
                 <>
@@ -153,9 +274,11 @@ export default function Checkout() {
               )}
             </button>
 
-            <p className="text-center text-[11px] text-muted-foreground mt-2.5">
-              Stripeのテスト環境です。カード番号: 4242 4242 4242 4242
-            </p>
+            {!expired && (
+              <p className="text-center text-[11px] text-muted-foreground mt-2.5">
+                Stripeのテスト環境です。カード番号: 4242 4242 4242 4242
+              </p>
+            )}
           </motion.div>
         </div>
       </div>

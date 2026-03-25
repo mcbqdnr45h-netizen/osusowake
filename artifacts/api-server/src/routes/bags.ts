@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { surpriseBagsTable, storesTable, reservationsTable, favoritesTable, notificationsTable } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
+import { releaseExpiredCartReservations } from "./reservations";
 import {
   ListStoreBagsParams,
   CreateBagParams,
@@ -85,6 +86,8 @@ const notExpiredCondition = sql`(
 )`;
 
 router.get("/bags", async (_req, res) => {
+  // 期限切れ仮押さえを非同期で清算（レスポンスはブロックしない）
+  releaseExpiredCartReservations().catch(() => {});
   try {
     const bags = await db
       .select({
@@ -123,6 +126,7 @@ router.get("/bags", async (_req, res) => {
 });
 
 router.get("/bags/:bagId", async (req, res) => {
+  releaseExpiredCartReservations().catch(() => {});
   try {
     const { bagId } = GetBagParams.parse(req.params);
     const [bag] = await db

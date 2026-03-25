@@ -4,9 +4,74 @@ import {
   reservationsTable,
   surpriseBagsTable,
   storesTable,
+  cartReservationsTable,
   insertReservationSchema,
 } from "@workspace/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, lt } from "drizzle-orm";
+
+const HOLD_MINUTES = 5;
+
+/** 期限切れの cart_reservations を清算し、在庫を復元する */
+export async function releaseExpiredCartReservations(): Promise<void> {
+  try {
+    const now = new Date();
+
+    // 期限切れ & active なレコードを取得
+    const expired = await db
+      .select()
+      .from(cartReservationsTable)
+      .where(
+        and(
+          eq(cartReservationsTable.status, "active"),
+          lt(cartReservationsTable.expiresAt, now)
+        )
+      );
+
+    if (expired.length === 0) return;
+
+    for (const cr of expired) {
+      await db.transaction(async (tx) => {
+        // 在庫を復元
+        const [bag] = await tx
+          .select()
+          .from(surpriseBagsTable)
+          .where(eq(surpriseBagsTable.id, cr.bagId))
+          .for("update");
+
+        if (bag) {
+          const restoredStock = bag.stockCount + cr.quantity;
+          await tx
+            .update(surpriseBagsTable)
+            .set({ stockCount: restoredStock, isActive: true })
+            .where(eq(surpriseBagsTable.id, cr.bagId));
+        }
+
+        // 予約をキャンセル
+        if (cr.reservationId) {
+          await tx
+            .update(reservationsTable)
+            .set({ status: "cancelled" })
+            .where(
+              and(
+                eq(reservationsTable.id, cr.reservationId),
+                eq(reservationsTable.status, "pending")
+              )
+            );
+        }
+
+        // cart_reservation を期限切れに
+        await tx
+          .update(cartReservationsTable)
+          .set({ status: "expired" })
+          .where(eq(cartReservationsTable.id, cr.id));
+      });
+    }
+
+    console.log(`[cart-reservations] released ${expired.length} expired holds`);
+  } catch (err) {
+    console.error("[cart-reservations] cleanup error:", err);
+  }
+}
 import {
   ListReservationsQueryParams,
   CreateReservationBody,
@@ -175,6 +240,19 @@ router.post("/reservations", async (req, res) => {
         .where(eq(surpriseBagsTable.id, body.bagId));
 
       reservationId = reservation.id;
+
+      // ── 5分仮押さえ cart_reservation を作成 ──
+      const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
+      await tx
+        .insert(cartReservationsTable)
+        .values({
+          userId: body.userId,
+          bagId: body.bagId,
+          reservationId: reservation.id,
+          quantity: body.quantity,
+          expiresAt,
+          status: "active",
+        });
     });
 
     const full = await getReservationWithDetails(reservationId!);
