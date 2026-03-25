@@ -8,7 +8,7 @@ interface AuthContextValue {
   session: Session | null;
   isLoading: boolean;
   signUp: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
-  signUpAsStore: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signUpAsStore: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -146,7 +146,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null, needsConfirmation };
   }
 
-  async function signUpAsStore(email: string, password: string) {
+  async function signUpAsStore(email: string, password: string, name: string, phone: string) {
+    const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
+
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('phone_number', normalizedPhone)
+      .maybeSingle();
+    if (existing) {
+      return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+    }
+
     const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
@@ -154,12 +165,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (data.user) {
-      await supabase.from('users').upsert({
+      const { error: upsertErr } = await supabase.from('users').upsert({
         id: data.user.id,
         email: data.user.email!,
         role: 'store_owner',
         points_balance: 0,
+        full_name: name.trim(),
+        phone_number: normalizedPhone,
       }, { onConflict: 'id' });
+
+      if (upsertErr?.code === '23505' || upsertErr?.message?.includes('unique')) {
+        return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+      }
     }
 
     const needsConfirmation = !data.session;

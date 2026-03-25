@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, ChevronLeft, Mail, Lock, Store, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, Mail, Lock, Store, CheckCircle2, ShieldCheck, User, Phone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function StoreSignUp() {
   const [, navigate] = useLocation();
   const { signUpAsStore } = useAuth();
 
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,12 +22,23 @@ export default function StoreSignUp() {
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
   const passwordsMatch = confirmPassword === '' || password === confirmPassword;
+  const normalizedPhone = phone.replace(/[-\s]/g, '');
+  const phoneValid = /^0[0-9]{9,10}$/.test(normalizedPhone);
+
   const isValid =
+    name.trim().length >= 1 &&
+    phoneValid &&
     email.trim() &&
     password.length >= 6 &&
     password === confirmPassword &&
     agreed &&
     !isLoading;
+
+  function handlePhoneChange(val: string) {
+    const cleaned = val.replace(/[^\d\-\s]/g, '');
+    setPhone(cleaned);
+    setError('');
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,7 +46,7 @@ export default function StoreSignUp() {
     setError('');
     setIsLoading(true);
 
-    const { error: err, needsConfirmation: confirm } = await signUpAsStore(email, password);
+    const { error: err, needsConfirmation: confirm } = await signUpAsStore(email, password, name.trim(), normalizedPhone);
 
     setIsLoading(false);
 
@@ -46,7 +59,6 @@ export default function StoreSignUp() {
     setDone(true);
 
     if (!confirm) {
-      // 成功画面を一瞬見せてから店舗情報入力へ（/store/dashboardは店舗なしで/store-onboardingへリダイレクトするため直接遷移）
       setTimeout(() => navigate('/store-onboarding'), 2000);
     }
   }
@@ -156,9 +168,70 @@ export default function StoreSignUp() {
           onSubmit={handleSubmit}
           className="flex flex-col gap-5 flex-1"
         >
+
+          {/* 氏名 */}
+          <div>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              氏名 <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <User className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type="text"
+                value={name}
+                onChange={e => { setName(e.target.value); setError(''); }}
+                placeholder="山田 太郎"
+                className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                autoComplete="name"
+                disabled={isLoading}
+                required
+              />
+            </div>
+          </div>
+
+          {/* 電話番号 */}
+          <div>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              電話番号 <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <Phone className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => handlePhoneChange(e.target.value)}
+                placeholder="090-0000-0000"
+                className={`w-full bg-card border-2 rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:ring-4 outline-none transition-all
+                  ${phone.length > 0 && !phoneValid
+                    ? 'border-destructive focus:border-destructive focus:ring-destructive/10'
+                    : phone.length > 0 && phoneValid
+                    ? 'border-green-500 focus:border-green-500 focus:ring-green-500/10'
+                    : 'border-border focus:border-primary focus:ring-primary/10'
+                  }`}
+                autoComplete="tel"
+                disabled={isLoading}
+                required
+              />
+            </div>
+            {phone.length > 0 && !phoneValid && (
+              <p className="text-destructive text-xs font-medium mt-1.5">
+                正しい電話番号を入力してください（例：090-0000-0000）
+              </p>
+            )}
+            {phone.length > 0 && phoneValid && (
+              <p className="text-green-600 text-xs font-medium mt-1.5">電話番号を確認しました ✓</p>
+            )}
+          </div>
+
           {/* Email */}
           <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">メールアドレス</label>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              メールアドレス <span className="text-destructive">*</span>
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                 <Mail className="w-4 h-4 text-muted-foreground" />
@@ -171,13 +244,16 @@ export default function StoreSignUp() {
                 className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                 autoComplete="email"
                 disabled={isLoading}
+                required
               />
             </div>
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">パスワード</label>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              パスワード <span className="text-destructive">*</span>
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                 <Lock className="w-4 h-4 text-muted-foreground" />
@@ -190,6 +266,7 @@ export default function StoreSignUp() {
                 className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                 autoComplete="new-password"
                 disabled={isLoading}
+                required
               />
               <button
                 type="button"
@@ -206,7 +283,9 @@ export default function StoreSignUp() {
 
           {/* Confirm Password */}
           <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">パスワード（確認）</label>
+            <label className="block text-sm font-bold text-foreground mb-1.5">
+              パスワード（確認） <span className="text-destructive">*</span>
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                 <Lock className="w-4 h-4 text-muted-foreground" />
@@ -219,10 +298,13 @@ export default function StoreSignUp() {
                 className={`w-full bg-card border-2 rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:ring-4 outline-none transition-all
                   ${!passwordsMatch
                     ? 'border-destructive focus:border-destructive focus:ring-destructive/10'
+                    : confirmPassword.length > 0 && password === confirmPassword
+                    ? 'border-green-500 focus:border-green-500 focus:ring-green-500/10'
                     : 'border-border focus:border-primary focus:ring-primary/10'
                   }`}
                 autoComplete="new-password"
                 disabled={isLoading}
+                required
               />
               <button
                 type="button"
@@ -234,6 +316,9 @@ export default function StoreSignUp() {
             </div>
             {!passwordsMatch && confirmPassword.length > 0 && (
               <p className="text-destructive text-xs font-medium mt-1.5">パスワードが一致しません</p>
+            )}
+            {confirmPassword.length > 0 && password === confirmPassword && (
+              <p className="text-green-600 text-xs font-medium mt-1.5">パスワードが一致しています ✓</p>
             )}
           </div>
 

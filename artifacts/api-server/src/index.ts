@@ -85,8 +85,36 @@ async function runMigrations() {
         END $$;
       `);
       console.log('[supabase-migration] users.display_name ✅');
+
+      // ── phone_number UNIQUE制約 ──────────────────────────────────────────────
+      // 1) 重複している phone_number を NULL にする（初回のみ有効・冪等）
+      await sbClient.query(`
+        UPDATE public.users u
+        SET phone_number = NULL
+        WHERE phone_number IS NOT NULL
+          AND id NOT IN (
+            SELECT DISTINCT ON (phone_number) id
+            FROM public.users
+            WHERE phone_number IS NOT NULL
+            ORDER BY phone_number, created_at ASC
+          );
+      `);
+
+      // 2) UNIQUE制約を追加（既にあればスキップ）
+      await sbClient.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'users_phone_number_key'
+              AND conrelid = 'public.users'::regclass
+          ) THEN
+            ALTER TABLE public.users ADD CONSTRAINT users_phone_number_key UNIQUE (phone_number);
+          END IF;
+        END $$;
+      `);
+      console.log('[supabase-migration] users.phone_number UNIQUE ✅');
     } catch (err) {
-      console.warn('[supabase-migration] display_name skipped:', (err as Error).message);
+      console.warn('[supabase-migration] skipped:', (err as Error).message);
     } finally {
       sbClient?.release();
       await sbPool.end();
