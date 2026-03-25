@@ -192,8 +192,20 @@ export default function StoreOnboarding() {
         throw new Error(msg);
       }
 
+      // サイレントエラー防止: レスポンス JSON を検証
+      const responseBody = await res.json().catch(() => null);
+      if (!responseBody?.id) {
+        console.error('[StoreOnboarding] ❌ 登録成功レスポンスに id がない:', responseBody);
+        toast({
+          title: '登録が完了しませんでした',
+          description: 'データの保存を確認できませんでした。再度お試しください。',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // 登録成功 → 下書きクリアして bank-setup へ
-      console.log('[StoreOnboarding] ✅ 登録成功 → /store/bank-setup');
+      console.log('[StoreOnboarding] ✅ 登録成功 id=', responseBody.id, '→ /store/bank-setup');
       clearOnboardingDraft();
       navigate('/store/bank-setup');
     } catch (err: unknown) {

@@ -144,7 +144,7 @@ router.post("/stores/apply", async (req, res) => {
     }
 
     // 基本情報のみ保存 — Stripe は呼ばない、即 approved
-    const [store] = await db.insert(storesTable).values({
+    const inserted = await db.insert(storesTable).values({
       name: body.name,
       description: body.description ?? null,
       address: body.address,
@@ -163,7 +163,15 @@ router.post("/stores/apply", async (req, res) => {
       pledgeSigned: body.pledgeSigned === true,
     }).returning();
 
-    console.log("[/stores/apply] ✅ 店舗作成・即承認 id=", store.id, "ownerId=", store.ownerId);
+    const store = inserted[0];
+
+    // サイレントエラー防止: .returning() が行を返さなかった場合は明示的にエラー
+    if (!store?.id) {
+      console.error("[/stores/apply] ❌ INSERT は実行されたが返却行なし — ownerId=", body.ownerId);
+      return res.status(500).json({ error: "insert_no_result", message: "店舗情報の保存が確認できませんでした。再度お試しください。" });
+    }
+
+    console.log("[/stores/apply] ✅ 店舗作成・即承認 id=", store.id, "ownerId=", store.ownerId, "DB=ローカル Replit PostgreSQL");
 
     // ── オーナーの role を store_owner に更新（customer から登録した場合も対応）──
     try {

@@ -54,6 +54,23 @@ async function runMigrations() {
     await client.query(`ALTER TYPE store_category ADD VALUE IF NOT EXISTS 'bakery_sweets'`);
     await client.query(`ALTER TYPE store_category ADD VALUE IF NOT EXISTS 'ingredients'`);
     console.log('[migration] store_category enum values ✅');
+
+    // notifications テーブルが存在しない場合のみ作成
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id          SERIAL PRIMARY KEY,
+        user_id     TEXT NOT NULL,
+        type        TEXT NOT NULL,
+        title       TEXT NOT NULL,
+        body        TEXT,
+        read        BOOLEAN NOT NULL DEFAULT false,
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS notifications_user_id_idx ON notifications (user_id);
+    `);
+    console.log('[migration] notifications table ✅');
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {
