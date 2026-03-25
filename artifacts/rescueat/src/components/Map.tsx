@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
