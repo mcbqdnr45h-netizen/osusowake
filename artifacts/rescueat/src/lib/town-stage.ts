@@ -22,7 +22,7 @@ export const TOWN_STAGES: TownStageConfig[] = [
     name: '新芽',
     description: '最初の小さな芽が地面から顔を出しました',
     icon: '🌱',
-    benefit: 'お気に入り店舗の通知が届くようになる！',
+    benefit: 'マイタウンにオリジナルの看板が登場！',
   },
   {
     stage: 2,
@@ -46,7 +46,7 @@ export const TOWN_STAGES: TownStageConfig[] = [
     name: '若木',
     description: '細い幹が根を張り、空へと伸び始めています',
     icon: '🌲',
-    benefit: 'お気に入り店舗の通知優先度UP！',
+    benefit: 'お気に入り店舗の新着を最優先で表示！',
   },
   {
     stage: 5,

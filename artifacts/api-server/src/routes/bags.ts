@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { surpriseBagsTable, storesTable, reservationsTable } from "@workspace/db/schema";
+import { surpriseBagsTable, storesTable, reservationsTable, favoritesTable, notificationsTable } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import {
   ListStoreBagsParams,
@@ -198,7 +198,37 @@ router.post("/stores/:storeId/bags", async (req, res) => {
       category: body.category ?? null,
       isActive: true,
     }).returning();
+
     res.status(201).json(bag);
+
+    // お気に入りユーザーへの通知（非同期・レスポンス後）
+    try {
+      const [store] = await db
+        .select({ name: storesTable.name })
+        .from(storesTable)
+        .where(eq(storesTable.id, storeId))
+        .limit(1);
+
+      const fanRows = await db
+        .select({ userId: favoritesTable.userId })
+        .from(favoritesTable)
+        .where(eq(favoritesTable.storeId, storeId));
+
+      if (fanRows.length > 0 && store) {
+        const priceLabel = `¥${Number(body.discountedPrice).toLocaleString()}`;
+        await db.insert(notificationsTable).values(
+          fanRows.map(f => ({
+            userId: f.userId,
+            type: "new_bag",
+            title: `🛍️ ${store.name} が新しいおすそ分けを出品`,
+            body: `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個`,
+          }))
+        );
+        console.log(`[bags] notified ${fanRows.length} favorite users for store ${storeId}`);
+      }
+    } catch (notifErr) {
+      console.error("[bags] notification error (non-fatal):", notifErr);
+    }
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: "bad_request", message: "Invalid bag data" });

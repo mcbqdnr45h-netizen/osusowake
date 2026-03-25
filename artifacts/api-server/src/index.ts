@@ -148,6 +148,24 @@ async function runMigrations() {
     `);
     console.log('[migration] reservations.pickup_code ✅');
 
+    // ── favorites テーブル ────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS favorites (
+        id         SERIAL PRIMARY KEY,
+        user_id    TEXT NOT NULL,
+        store_id   INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        CONSTRAINT favorites_user_store_uniq UNIQUE (user_id, store_id)
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS favorites_user_id_idx ON favorites (user_id);
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS favorites_store_id_idx ON favorites (store_id);
+    `);
+    console.log('[migration] favorites table ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

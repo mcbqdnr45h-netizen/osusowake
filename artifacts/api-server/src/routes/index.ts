@@ -8,6 +8,7 @@ import supabaseTestRouter from "./supabase-test";
 import uploadRouter from "./upload";
 import notificationsRouter from "./notifications";
 import classifyRouter from "./classify";
+import favoritesRouter from "./favorites";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 const router: IRouter = Router();
@@ -21,6 +22,7 @@ router.use(supabaseTestRouter);
 router.use(uploadRouter);
 router.use(notificationsRouter);
 router.use(classifyRouter);
+router.use(favoritesRouter);
 
 router.put("/user/display-name", async (req, res) => {
   const authHeader = req.headers.authorization;
