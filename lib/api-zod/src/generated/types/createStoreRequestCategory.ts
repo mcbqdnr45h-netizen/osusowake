@@ -16,4 +16,7 @@ export const CreateStoreRequestCategory = {
   supermarket: "supermarket",
   convenience: "convenience",
   other: "other",
+  meals: "meals",
+  bakery_sweets: "bakery_sweets",
+  ingredients: "ingredients",
 } as const;

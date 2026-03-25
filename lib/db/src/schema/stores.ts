@@ -9,6 +9,9 @@ export const storeCategoryEnum = pgEnum("store_category", [
   "supermarket",
   "convenience",
   "other",
+  "meals",
+  "bakery_sweets",
+  "ingredients",
 ]);
 
 export const storeStatusEnum = pgEnum("store_status", [

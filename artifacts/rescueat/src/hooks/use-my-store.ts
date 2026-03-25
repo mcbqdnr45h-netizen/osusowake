@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-const CACHE_KEY = 'taberosu_myStore_v1';
+const CACHE_KEY_PREFIX = 'taberosu_myStore_v2_';
 
 export type MyStore = {
   id: number;
@@ -12,35 +12,47 @@ export type MyStore = {
   stripeAccountId: string | null;
 };
 
-function readCache(): MyStore | null {
+function cacheKey(userId: string) {
+  return `${CACHE_KEY_PREFIX}${userId}`;
+}
+
+function readCache(userId: string): MyStore | null {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(cacheKey(userId));
     return raw ? (JSON.parse(raw) as MyStore) : null;
   } catch {
     return null;
   }
 }
 
-function writeCache(store: MyStore | null) {
+function writeCache(userId: string, store: MyStore | null) {
   try {
     if (store) {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(store));
+      localStorage.setItem(cacheKey(userId), JSON.stringify(store));
     } else {
-      localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(cacheKey(userId));
     }
+  } catch {}
+}
+
+function clearLegacyCache() {
+  try {
+    localStorage.removeItem('taberosu_myStore_v1');
   } catch {}
 }
 
 export function useMyStore() {
   const { user, isLoading: authLoading } = useAuth();
 
-  // localStorage から初期値を読み込み → ページリロード時のフラッシュ防止
-  const [store, setStore] = useState<MyStore | null>(readCache);
+  const [store, setStore] = useState<MyStore | null>(() => {
+    clearLegacyCache();
+    if (!user) return null;
+    return readCache(user.id);
+  });
   const [loading, setLoading]       = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const retryTimerRef               = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Promise チェーン内から最新の store 値を参照するための ref
   const storeRef = useRef<MyStore | null>(store);
   useEffect(() => { storeRef.current = store; }, [store]);
 
@@ -50,14 +62,14 @@ export function useMyStore() {
       setStore(null);
       setFetchError(false);
       setLoading(false);
-      writeCache(null);
       return;
     }
+    const uid = user.id;
     setLoading(true);
     setFetchError(false);
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 
-    fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, {
+    fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(uid)}`, {
       cache: 'no-store',
     })
       .then(r => {
@@ -67,18 +79,18 @@ export function useMyStore() {
       })
       .then(data => {
         if (data === '__404__') {
-          if (storeRef.current !== null) {
-            // 既存ストアデータがある場合：404 は一時的エラーとみなしリトライ
-            // store を null にしない
+          const cached = storeRef.current;
+          if (cached !== null && cached.ownerId === uid) {
+            // キャッシュが現在のユーザーのもの → 一時的エラーとみなしリトライ
             console.warn('[useMyStore] 404 but have cached store – retry in 8s');
             setFetchError(true);
             retryTimerRef.current = setTimeout(fetchStore, 8000);
           } else {
-            // 初回取得で 404 → 本当に店舗なし
-            setStore(null);
+            // キャッシュが別ユーザーのもの、または空 → キャッシュクリアして "店舗なし"
             storeRef.current = null;
+            setStore(null);
             setFetchError(false);
-            writeCache(null);
+            writeCache(uid, null);
           }
           return;
         }
@@ -86,12 +98,11 @@ export function useMyStore() {
         storeRef.current = newStore;
         setStore(newStore);
         setFetchError(false);
-        writeCache(newStore);
+        writeCache(uid, newStore);
       })
       .catch(err => {
         console.warn('[useMyStore] fetch error (will retry in 4s):', err);
         setFetchError(true);
-        // エラー時は store を null にしない（古いデータを維持）
         retryTimerRef.current = setTimeout(fetchStore, 4000);
       })
       .finally(() => setLoading(false));
@@ -99,6 +110,15 @@ export function useMyStore() {
 
   useEffect(() => {
     if (authLoading) return;
+    // ユーザー切り替え時にキャッシュをユーザーIDで再読み込み
+    if (user) {
+      const cached = readCache(user.id);
+      storeRef.current = cached;
+      setStore(cached);
+    } else {
+      storeRef.current = null;
+      setStore(null);
+    }
     fetchStore();
     return () => {
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);

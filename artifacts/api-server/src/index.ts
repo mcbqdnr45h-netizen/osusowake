@@ -47,6 +47,13 @@ async function runMigrations() {
       END $$;
     `);
     console.log('[migration] stores.approval_email_sent ✅');
+
+    // store_category enum に新カテゴリを追加（ALTER TYPE は DO ブロック外で実行）
+    // IF NOT EXISTS は PG 9.3+ でサポート
+    await client.query(`ALTER TYPE store_category ADD VALUE IF NOT EXISTS 'meals'`);
+    await client.query(`ALTER TYPE store_category ADD VALUE IF NOT EXISTS 'bakery_sweets'`);
+    await client.query(`ALTER TYPE store_category ADD VALUE IF NOT EXISTS 'ingredients'`);
+    console.log('[migration] store_category enum values ✅');
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {
