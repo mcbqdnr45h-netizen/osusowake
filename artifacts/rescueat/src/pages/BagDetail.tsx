@@ -485,7 +485,7 @@ export default function BagDetail() {
                     <span className="text-xs font-semibold">受取時間</span>
                   </div>
                   <div className="font-bold text-foreground text-sm">
-                    {bag.pickupStart} - {bag.pickupEnd}
+                    {bag.pickupStart}{bag.pickupEnd ? ` 〜 ${bag.pickupEnd}` : '〜'}
                   </div>
                 </div>
                 <div className="bg-secondary/50 rounded-2xl p-4 min-w-[90px]">

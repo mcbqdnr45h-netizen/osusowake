@@ -232,7 +232,7 @@ export function BagCard({ bag }: BagCardProps) {
             <div className="flex items-center justify-between mb-3 gap-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/60 px-2 py-1 rounded-md">
                 <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="font-bold">受取 {bag.pickupStart}-{bag.pickupEnd}</span>
+                <span className="font-bold">受取 {bag.pickupStart}{bag.pickupEnd ? ` 〜 ${bag.pickupEnd}` : '〜'}</span>
               </div>
               <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md
                 ${isLowStock
