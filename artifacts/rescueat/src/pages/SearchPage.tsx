@@ -308,27 +308,6 @@ function ZeroResultsState({ query, category, onClear, recommendBags }: {
   );
 }
 
-// ─── セグメントコントロール ────────────────────────────────────────────────────
-function SegmentControl({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) {
-  return (
-    <div className="flex items-center bg-secondary rounded-2xl p-1 gap-1">
-      {([
-        { value: 'list' as const, icon: <List className="w-3.5 h-3.5" />,    label: 'リスト' },
-        { value: 'map'  as const, icon: <MapIcon className="w-3.5 h-3.5" />, label: '地図'   },
-      ]).map(tab => (
-        <button key={tab.value} onClick={() => onChange(tab.value)}
-          className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black transition-all tap-scale
-            ${view === tab.value
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-            }`}>
-          {tab.icon}
-          {tab.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 // ─── メインページ ─────────────────────────────────────────────────────────────
 export default function SearchPage() {
@@ -504,21 +483,28 @@ export default function SearchPage() {
     <Layout hideFooter={view === 'map'}>
       <div className={`flex flex-col ${view === 'map' ? 'flex-1 min-h-0 h-full' : ''}`}>
 
-        {/* ── Sticky フィルターバー（リスト/地図 共通）── */}
-        <div className="sticky z-20 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 pt-3 pb-2.5 space-y-2.5 shrink-0"
+        {/* ── Sticky スリムフィルターバー ── */}
+        <div className="sticky z-20 bg-background/97 backdrop-blur-md border-b border-border/40 px-3 pt-2 pb-1.5 shrink-0"
           style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
 
-          {/* Row 1: セグメントコントロール */}
-          <SegmentControl view={view} onChange={handleViewChange} />
-
-          {/* Row 2: 検索ボックス */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          {/* Row 1: 検索バー */}
+          <div className="relative mb-1.5">
+            {/* GPS インジケーター or 検索アイコン */}
+            {hasLocation ? (
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+              </span>
+            ) : (
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            )}
             <input
               ref={searchRef}
               type="search"
               inputMode="search"
-              className="w-full bg-card border border-border text-foreground rounded-2xl pl-11 pr-24 py-3 text-sm font-medium outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="w-full bg-card border border-border text-foreground rounded-xl pl-9 pr-20 py-2.5 text-sm font-medium outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
               placeholder="エリア・お店・カテゴリで探す..."
               value={inputValue}
               style={{ fontSize: '16px' }}
@@ -526,20 +512,19 @@ export default function SearchPage() {
               onFocus={() => history.length > 0 && setShowHistory(true)}
               onBlur={() => setTimeout(() => setShowHistory(false), 150)}
               onKeyDown={handleKeyDown}
-              onFocusCapture={e => { e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255,140,0,0.13)'; }}
+              onFocusCapture={e => { e.currentTarget.style.boxShadow = '0 0 0 3px rgba(255,140,0,0.15)'; }}
               onBlurCapture={e => { e.currentTarget.style.boxShadow = ''; }}
             />
             {inputValue && (
               <button
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => { setInputValue(''); setQuery(''); }}
-                className="absolute right-[72px] top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-muted-foreground/20 flex items-center justify-center tap-scale-sm">
+                className="absolute right-[66px] top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-muted-foreground/20 flex items-center justify-center tap-scale-sm">
                 <X className="w-3 h-3 text-muted-foreground" />
               </button>
             )}
-            {/* 検索ボタン */}
             <button onClick={() => executeSearch(inputValue)} disabled={isSearching}
-              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-primary text-primary-foreground text-xs font-black px-3 py-1.5 rounded-xl tap-scale shadow-sm shadow-primary/20">
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-primary text-primary-foreground text-xs font-black px-2.5 py-1.5 rounded-lg tap-scale shadow-sm shadow-primary/20">
               {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Search className="w-3.5 h-3.5" /><span>検索</span></>}
             </button>
 
@@ -575,98 +560,101 @@ export default function SearchPage() {
             </AnimatePresence>
           </div>
 
-          {/* Row 3: カテゴリーチップ（リストのみ）*/}
-          {view === 'list' && (
-            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-0.5">
-              {CATEGORIES.map(cat => (
-                <button key={cat.value} onClick={() => { setCategory(cat.value); searchRef.current?.blur(); }}
-                  className={`whitespace-nowrap flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shrink-0 border tap-scale
-                    ${category === cat.value
-                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                      : 'bg-card text-foreground border-border hover:border-primary/50'
-                    }`}>
-                  {cat.emoji ? <span className="text-base leading-none">{cat.emoji}</span> : cat.icon}
-                  <span>{cat.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Row 4: ソート＋フィルター（リストのみ）*/}
-          {view === 'list' && (
-            <div className="flex items-center gap-2">
-              {/* 並び替え */}
-              <div className="relative">
-                <button onClick={() => setShowSort(v => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all tap-scale
-                    ${sort !== 'default' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-foreground border-border'}`}>
-                  <ArrowUpDown className="w-3.5 h-3.5" />{currentSortLabel}
-                  <ChevronDown className={`w-3 h-3 transition-transform ${showSort ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {showSort && (
-                    <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.13 }}
-                      className="absolute top-full mt-1.5 left-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
-                      {SORT_OPTIONS.map(opt => {
-                        const disabled = opt.needsLocation && !hasLocation;
-                        return (
-                          <button key={opt.value}
-                            onClick={() => { if (!disabled) { setSort(opt.value); setShowSort(false); } }}
-                            disabled={disabled}
-                            className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-border/30 last:border-0
-                              ${sort === opt.value ? 'text-primary bg-primary/5' : disabled ? 'text-muted-foreground/40 cursor-not-allowed' : 'text-foreground hover:bg-secondary tap-opacity'}`}>
-                            <span className="flex items-center gap-2">
-                              {sort === opt.value && <span>✓</span>}
-                              {opt.value === 'distance' && <Navigation className="w-3 h-3 text-primary" />}
-                              {opt.label}
-                              {disabled && <span className="text-[9px] text-muted-foreground/50 ml-auto">位置情報が必要</span>}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* 在庫あり */}
-              <button onClick={() => setInStockOnly(v => !v)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all tap-scale
-                  ${inStockOnly ? 'bg-green-100 text-green-700 border-green-300' : 'bg-card text-foreground border-border'}`}>
-                <span className={`w-2 h-2 rounded-full ${inStockOnly ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
-                在庫あり
+          {/* Row 2: カテゴリー + ソート + フィルター + ビュー切替 — 1行横スクロール */}
+          <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pb-0.5 items-center">
+            {CATEGORIES.map(cat => (
+              <button key={cat.value} onClick={() => { setCategory(cat.value === '' ? '' : cat.value); searchRef.current?.blur(); }}
+                className={`whitespace-nowrap flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 border tap-scale
+                  ${category === cat.value
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-card text-foreground border-border'
+                  }`}>
+                {cat.emoji ? <span className="text-sm leading-none">{cat.emoji}</span> : cat.icon}
+                <span>{cat.label}</span>
               </button>
+            ))}
 
-              {/* エリア絞り込みバッジ */}
+            {/* 区切り線 */}
+            <div className="w-px h-4 bg-border shrink-0 mx-0.5" />
+
+            {/* 並び替え */}
+            <div className="relative shrink-0">
+              <button onClick={() => setShowSort(v => !v)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all tap-scale whitespace-nowrap
+                  ${sort !== 'default' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-foreground border-border'}`}>
+                <ArrowUpDown className="w-3 h-3" />
+                {currentSortLabel}
+                <ChevronDown className={`w-2.5 h-2.5 transition-transform ${showSort ? 'rotate-180' : ''}`} />
+              </button>
               <AnimatePresence>
-                {areaSearchActive && (
-                  <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                    onClick={clearAreaSearch}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 tap-scale">
-                    <MapPin className="w-3 h-3" />エリア解除
-                  </motion.button>
+                {showSort && (
+                  <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.13 }}
+                    className="absolute top-full mt-1.5 left-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
+                    {SORT_OPTIONS.map(opt => {
+                      const disabled = opt.needsLocation && !hasLocation;
+                      return (
+                        <button key={opt.value}
+                          onClick={() => { if (!disabled) { setSort(opt.value); setShowSort(false); } }}
+                          disabled={disabled}
+                          className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-border/30 last:border-0
+                            ${sort === opt.value ? 'text-primary bg-primary/5' : disabled ? 'text-muted-foreground/40 cursor-not-allowed' : 'text-foreground hover:bg-secondary tap-opacity'}`}>
+                          <span className="flex items-center gap-2">
+                            {sort === opt.value && <span>✓</span>}
+                            {opt.value === 'distance' && <Navigation className="w-3 h-3 text-primary" />}
+                            {opt.label}
+                            {disabled && <span className="text-[9px] text-muted-foreground/50 ml-auto">位置情報が必要</span>}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
                 )}
               </AnimatePresence>
-
-              <div className="flex-1" />
-
-              {/* 件数 + リセット */}
-              <div className="flex items-center gap-2">
-                {!bagsLoading && (
-                  <span className="text-xs text-muted-foreground font-medium">
-                    {isFiltering ? `${filteredBags.length}件` : `全${(bags || []).length}件`}
-                  </span>
-                )}
-                {activeFilterCount > 0 && (
-                  <button onClick={clearAllFilters}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-destructive/10 text-destructive border border-destructive/20 tap-scale">
-                    <X className="w-3 h-3" />リセット
-                  </button>
-                )}
-              </div>
             </div>
-          )}
+
+            {/* 在庫あり */}
+            <button onClick={() => setInStockOnly(v => !v)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all tap-scale whitespace-nowrap shrink-0
+                ${inStockOnly ? 'bg-green-100 text-green-700 border-green-300' : 'bg-card text-foreground border-border'}`}>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${inStockOnly ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+              在庫あり
+            </button>
+
+            {/* エリア解除バッジ */}
+            <AnimatePresence>
+              {areaSearchActive && (
+                <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                  onClick={clearAreaSearch}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 tap-scale whitespace-nowrap shrink-0">
+                  <MapPin className="w-3 h-3" />エリア解除
+                </motion.button>
+              )}
+            </AnimatePresence>
+
+            {/* リセット */}
+            <AnimatePresence>
+              {(activeFilterCount > 0 || !!liveQuery) && (
+                <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                  onClick={clearAllFilters}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-destructive/10 text-destructive border border-destructive/20 tap-scale whitespace-nowrap shrink-0">
+                  <X className="w-3 h-3" />リセット
+                </motion.button>
+              )}
+            </AnimatePresence>
+
+            {/* 区切り線 */}
+            <div className="w-px h-4 bg-border shrink-0 mx-0.5" />
+
+            {/* リスト/地図 切替アイコンボタン */}
+            <button onClick={() => handleViewChange(view === 'map' ? 'list' : 'map')}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border bg-card border-border text-foreground shrink-0 tap-scale whitespace-nowrap">
+              {view === 'map'
+                ? <><List className="w-3 h-3" /><span>リスト</span></>
+                : <><MapIcon className="w-3 h-3" /><span>地図</span></>
+              }
+            </button>
+          </div>
         </div>
 
         {/* ── マップビュー ── */}
@@ -739,27 +727,6 @@ export default function SearchPage() {
         {view === 'list' && (
           <div className="max-w-4xl mx-auto w-full pb-6">
 
-            {/* 近い順ヒント（位置情報あり + sortがdistanceでない時）*/}
-            <AnimatePresence>
-              {hasLocation && sort !== 'distance' && !liveQuery && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="mx-4 mt-3 flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-xl px-3.5 py-2.5">
-                    <Navigation className="w-4 h-4 text-sky-500 shrink-0" />
-                    <p className="text-xs text-sky-700 font-medium flex-1">現在地が取得できました</p>
-                    <button onClick={() => setSort('distance')}
-                      className="text-xs font-black text-sky-700 bg-sky-200 px-2.5 py-1 rounded-lg tap-scale whitespace-nowrap">
-                      近い順に並べる
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             {/* ローディング演出 */}
             <AnimatePresence>
               {isSearching && (
@@ -780,7 +747,7 @@ export default function SearchPage() {
 
             {/* バッグ一覧 */}
             {!isSearching && (
-              <div className="px-4 pt-4">
+              <div className="px-4 pt-3">
                 <AnimatePresence mode="wait">
                   {bagsLoading ? (
                     <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
