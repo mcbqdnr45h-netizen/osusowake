@@ -325,8 +325,8 @@ export default function Home() {
     else { setSearchQuery(''); }
   }, [showSearch]);
 
-  // 絞り込みモード: 検索・カテゴリ・ソートが変更されたとき（在庫フィルターは除く）
-  const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || sortKey !== 'default';
+  // 絞り込みモード: 検索・カテゴリが変わった時のみ（ソートはセクション構造を崩さない）
+  const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all';
 
   const allBags = bags || [];
 
@@ -336,7 +336,18 @@ export default function Home() {
     [allBags, inStockOnly]
   );
 
-  // 絞り込み結果
+  // ソート関数（各セクション・縦リスト共通）
+  const applySortKey = useCallback((arr: SurpriseBagWithStore[]) => {
+    if (sortKey === 'time_asc')   return [...arr].sort((a, b) => (a.pickupStart || '').localeCompare(b.pickupStart || ''));
+    if (sortKey === 'price_asc')  return [...arr].sort((a, b) => a.discountedPrice - b.discountedPrice);
+    if (sortKey === 'price_desc') return [...arr].sort((a, b) => b.discountedPrice - a.discountedPrice);
+    return arr;
+  }, [sortKey]);
+
+  // ソート済みベース（セクション・全体グリッド共通で使う）
+  const sortedVisibleBags = useMemo(() => applySortKey(visibleBags), [visibleBags, applySortKey]);
+
+  // 絞り込み結果（縦リストモード専用 — 検索/カテゴリフィルター + ソート）
   const filteredBags = useMemo(() => {
     let result = visibleBags;
     if (searchQuery.trim()) {
@@ -348,25 +359,22 @@ export default function Home() {
       );
     }
     if (activeCategory !== 'all') result = result.filter(b => b.category === activeCategory);
-    if (sortKey === 'time_asc')   result = [...result].sort((a, b) => (a.pickupStart || '').localeCompare(b.pickupStart || ''));
-    if (sortKey === 'price_asc')  result = [...result].sort((a, b) => a.discountedPrice - b.discountedPrice);
-    if (sortKey === 'price_desc') result = [...result].sort((a, b) => b.discountedPrice - a.discountedPrice);
-    return result;
-  }, [visibleBags, searchQuery, activeCategory, sortKey]);
+    return applySortKey(result);
+  }, [visibleBags, searchQuery, activeCategory, applySortKey]);
 
   // ── ① もうすぐ終わるおすそ分け ──
   const urgentBags = useMemo(
-    () => visibleBags.filter(b => b.stockCount > 0 && b.stockCount < 5).slice(0, 8),
-    [visibleBags]
+    () => applySortKey(sortedVisibleBags.filter(b => b.stockCount > 0 && b.stockCount < 5)).slice(0, 8),
+    [sortedVisibleBags, applySortKey]
   );
 
   // ── ② 今日のおすすめ ──
   const recommendedBags = useMemo(
-    () => visibleBags.filter(b => b.stockCount > 0).slice(0, 8),
-    [visibleBags]
+    () => applySortKey(sortedVisibleBags.filter(b => b.stockCount > 0)).slice(0, 8),
+    [sortedVisibleBags, applySortKey]
   );
 
-  // ── ③ 現在地から近いお店 ──
+  // ── ③ 現在地から近いお店 ── （距離順固定、ソート適用なし）
   const { nearbyBags, distMap } = useMemo(() => {
     if (!userCoords) return { nearbyBags: [], distMap: new Map<string, number>() };
     const map = new Map<string, number>();
@@ -385,22 +393,21 @@ export default function Home() {
 
   // ── ④ 今夜の受け取り（17:00〜22:00） ──
   const eveningBags = useMemo(
-    () => visibleBags.filter(b => {
+    () => applySortKey(sortedVisibleBags.filter(b => {
       const start = b.pickupStart || '';
       const end   = b.pickupEnd   || '';
       if (!start) return false;
-      // ピックアップ窓が 17:00〜22:00 に重なる
       return start <= '22:00' && (!end || end >= '17:00');
-    }).slice(0, 8),
-    [visibleBags]
+    })).slice(0, 8),
+    [sortedVisibleBags, applySortKey]
   );
 
   // ── ⑤⑥⑦ カテゴリー別 ──
-  const mealsBags      = useMemo(() => visibleBags.filter(b => b.category === 'meals').slice(0, 10),       [visibleBags]);
-  const bakeryBags     = useMemo(() => visibleBags.filter(b => b.category === 'bakery_sweets').slice(0, 10), [visibleBags]);
-  const ingredientBags = useMemo(() => visibleBags.filter(b => b.category === 'ingredients').slice(0, 10),  [visibleBags]);
+  const mealsBags      = useMemo(() => sortedVisibleBags.filter(b => b.category === 'meals').slice(0, 10),        [sortedVisibleBags]);
+  const bakeryBags     = useMemo(() => sortedVisibleBags.filter(b => b.category === 'bakery_sweets').slice(0, 10), [sortedVisibleBags]);
+  const ingredientBags = useMemo(() => sortedVisibleBags.filter(b => b.category === 'ingredients').slice(0, 10),  [sortedVisibleBags]);
 
-  const activeFilterCnt = [activeCategory !== 'all', inStockOnly !== true, sortKey !== 'default'].filter(Boolean).length;
+  const activeFilterCnt = [activeCategory !== 'all', inStockOnly !== true].filter(Boolean).length;
 
   function clearAll() {
     setSearchQuery(''); setActiveCategory('all'); setInStockOnly(true); setSortKey('default'); setShowSearch(false);
@@ -541,7 +548,7 @@ export default function Home() {
 
             <div className="flex-1" />
             {isFiltering && <span className="text-xs text-muted-foreground font-medium">{filteredBags.length}件</span>}
-            {(isFiltering || !inStockOnly) && (
+            {(isFiltering || !inStockOnly || sortKey !== 'default') && (
               <motion.button onClick={clearAll} whileTap={{ scale: 0.92 }}
                 className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-destructive/8 text-destructive border border-destructive/20">
                 <X className="w-3 h-3" />リセット
@@ -719,7 +726,12 @@ export default function Home() {
                     <div className="mx-4 mt-2 mb-0 border-t border-border/40" />
                     <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
                       <span className="text-[13px] font-black text-foreground">すべてのおすそ分け</span>
-                      <span className="text-[10px] text-muted-foreground">{visibleBags.length}件</span>
+                      <span className="text-[10px] text-muted-foreground">{sortedVisibleBags.length}件</span>
+                      {sortKey !== 'default' && (
+                        <span className="text-[10px] text-primary font-bold bg-primary/10 px-1.5 py-0.5 rounded-full">
+                          {SORT_OPTIONS.find(o => o.value === sortKey)?.label}
+                        </span>
+                      )}
                     </div>
                   </>
                 )}
@@ -730,7 +742,7 @@ export default function Home() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
                     </div>
-                  ) : visibleBags.length === 0 ? (
+                  ) : sortedVisibleBags.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
                       <motion.div
                         initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -761,7 +773,7 @@ export default function Home() {
                       initial="hidden" animate="show"
                       variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
                     >
-                      {visibleBags.map(bag => (
+                      {sortedVisibleBags.map(bag => (
                         <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
                           <BagCard bag={bag} />
                         </motion.div>

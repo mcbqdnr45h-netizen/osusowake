@@ -254,7 +254,7 @@ export function BagCard({ bag }: BagCardProps) {
               </div>
               <div className="flex flex-col items-end">
                 <span className="text-[10px] text-primary/70 font-bold tracking-wide uppercase">おすそ分け価格</span>
-                <span className="text-3xl font-black text-primary leading-none">
+                <span className="text-2xl font-black text-primary leading-none whitespace-nowrap">
                   ¥{bag.discountedPrice.toLocaleString()}
                 </span>
               </div>
