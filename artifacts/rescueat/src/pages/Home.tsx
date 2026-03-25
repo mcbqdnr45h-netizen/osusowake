@@ -308,7 +308,9 @@ export default function Home() {
   const { user, profile, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const { isApprovedOwner } = useMyStore();
-  const { data: bags, isLoading: isLoadingBags } = useListAllBags();
+  const { data: bags, isLoading: isLoadingBags } = useListAllBags({
+    query: { refetchInterval: 60_000, staleTime: 30_000 },
+  });
   const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
   const { coords: userCoords } = useUserLocation();
 

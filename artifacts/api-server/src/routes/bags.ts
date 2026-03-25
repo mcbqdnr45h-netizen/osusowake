@@ -182,6 +182,9 @@ router.post("/stores/:storeId/bags", async (req, res) => {
   try {
     const { storeId } = CreateBagParams.parse(req.params);
     const body = CreateBagBody.parse(req.body);
+    if (!body.pickupEnd || body.pickupEnd.trim() === '') {
+      return res.status(400).json({ error: "bad_request", message: "受取終了時間（pickupEnd）は必須です" });
+    }
     const [bag] = await db.insert(surpriseBagsTable).values({
       storeId,
       title: body.title,

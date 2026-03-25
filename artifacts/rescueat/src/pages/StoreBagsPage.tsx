@@ -445,10 +445,15 @@ export default function StoreBagsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取終了</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                    受取終了 <span className="text-destructive">*</span>
+                  </label>
                   <input type="time" required value={form.pickupEnd ?? ''}
                     onChange={e => setForm({ ...form, pickupEnd: e.target.value })}
                     className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
+                  <p className="text-[10px] text-muted-foreground mt-1 leading-tight">
+                    この時間を過ぎると自動で非表示になります
+                  </p>
                 </div>
               </div>
 
