@@ -220,9 +220,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
     if (!map || !gMaps) return;
 
-    storeMarkersRef.current.forEach(m => m.setMap(null));
-    clustererRef.current?.clearMarkers();
+    // 既存マーカーをすべてマップから除去
+    storeMarkersRef.current.forEach(m => {
+      m.setMap(null);
+      gMaps.event.clearInstanceListeners(m);
+    });
     storeMarkersRef.current = [];
+
+    // クラスタラーをリセット（再生成して確実にゼロから）
+    if (clustererRef.current) {
+      clustererRef.current.clearMarkers();
+      clustererRef.current.setMap(null);
+    }
+    clustererRef.current = new MarkerClusterer({ map });
 
     const markers: google.maps.Marker[] = approvedStores.map(store => {
       const bagCount  = store.totalBagsAvailable ?? 0;
@@ -260,8 +270,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     });
 
     storeMarkersRef.current = markers;
-    clustererRef.current?.addMarkers(markers);
-  }, [approvedStores.map(s => `${s.id}-${s.totalBagsAvailable}`).join(','), status]);
+    if (markers.length > 0) {
+      clustererRef.current.addMarkers(markers);
+    }
+  }, [approvedStores.map(s => `${s.id}-${s.totalBagsAvailable}`).join(','), status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 現在地マーカー ────────────────────────────────────────────────────
   useEffect(() => {
