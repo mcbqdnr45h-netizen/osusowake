@@ -15,21 +15,12 @@ import { useFavorites } from '@/contexts/FavoritesContext';
 import { Heart } from 'lucide-react';
 import { useMyStore } from '@/hooks/use-my-store';
 
-// ─── カテゴリー（横スクロール丸ボタン用・全ジャンル）────────────────────────
+// ─── カテゴリー（横スクロール丸ボタン用）────────────────────────────────────
 const SCROLL_CATS = [
-  { label: 'すべて',     value: 'all',          emoji: '✨', bg: 'bg-amber-50',    ring: 'ring-amber-300',   active: 'bg-primary'   },
-  { label: 'パン',       value: 'bakery',        emoji: '🥐', bg: 'bg-amber-50',    ring: 'ring-amber-300',   active: 'bg-amber-500' },
-  { label: 'お弁当',     value: 'restaurant',    emoji: '🍱', bg: 'bg-green-50',    ring: 'ring-green-300',   active: 'bg-green-500' },
-  { label: 'スイーツ',   value: 'sweets',        emoji: '🍰', bg: 'bg-pink-50',     ring: 'ring-pink-300',    active: 'bg-pink-500'  },
-  { label: '惣菜',       value: 'other',         emoji: '🥗', bg: 'bg-orange-50',   ring: 'ring-orange-300',  active: 'bg-orange-500'},
-  { label: 'カフェ',     value: 'cafe',          emoji: '☕', bg: 'bg-stone-50',    ring: 'ring-stone-300',   active: 'bg-stone-500' },
-  { label: 'コンビニ',   value: 'convenience',   emoji: '🏪', bg: 'bg-blue-50',     ring: 'ring-blue-300',    active: 'bg-blue-500'  },
-  { label: 'スーパー',   value: 'supermarket',   emoji: '🛒', bg: 'bg-indigo-50',   ring: 'ring-indigo-300',  active: 'bg-indigo-500'},
-  { label: '野菜・果物', value: 'produce',       emoji: '🍎', bg: 'bg-lime-50',     ring: 'ring-lime-300',    active: 'bg-lime-500'  },
-  { label: '肉・魚',     value: 'meat',          emoji: '🥩', bg: 'bg-red-50',      ring: 'ring-red-300',     active: 'bg-red-500'   },
-  { label: '麺類',       value: 'noodles',       emoji: '🍜', bg: 'bg-yellow-50',   ring: 'ring-yellow-300',  active: 'bg-yellow-500'},
-  { label: 'ドリンク',   value: 'drinks',        emoji: '🥤', bg: 'bg-cyan-50',     ring: 'ring-cyan-300',    active: 'bg-cyan-500'  },
-  { label: '詰め合わせ', value: 'assorted',      emoji: '🎁', bg: 'bg-purple-50',   ring: 'ring-purple-300',  active: 'bg-purple-500'},
+  { label: 'すべて',        value: 'all',           emoji: '✨', bg: 'bg-amber-50',  ring: 'ring-amber-300',  active: 'bg-primary'   },
+  { label: '料理・お惣菜',  value: 'meals',         emoji: '🍱', bg: 'bg-green-50',  ring: 'ring-green-300',  active: 'bg-green-500' },
+  { label: 'パン・スイーツ', value: 'bakery_sweets', emoji: '🥐', bg: 'bg-amber-50',  ring: 'ring-amber-300',  active: 'bg-amber-500' },
+  { label: '食材・その他',  value: 'ingredients',   emoji: '🍎', bg: 'bg-lime-50',   ring: 'ring-lime-300',   active: 'bg-lime-500'  },
 ];
 
 type SortKey = 'default' | 'time_asc' | 'price_asc' | 'price_desc';
@@ -419,7 +410,7 @@ export default function Home() {
         b.store.category?.toLowerCase().includes(q)
       );
     }
-    if (activeCategory !== 'all') result = result.filter(b => (b as any).category ? (b as any).category === activeCategory : b.store.category === activeCategory);
+    if (activeCategory !== 'all') result = result.filter(b => b.category === activeCategory);
     if (inStockOnly)               result = result.filter(b => b.stockCount > 0);
     if (sortKey === 'time_asc')   result = [...result].sort((a, b) => (a.pickupStart || '').localeCompare(b.pickupStart || ''));
     if (sortKey === 'price_asc')  result = [...result].sort((a, b) => a.discountedPrice - b.discountedPrice);

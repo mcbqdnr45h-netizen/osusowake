@@ -7,18 +7,9 @@ import { Store, ChevronLeft, CheckCircle, Camera, RefreshCw, Info } from 'lucide
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
 const CATEGORY_OPTIONS = [
-  { value: 'bakery',       label: 'ベーカリー',   emoji: '🥐' },
-  { value: 'restaurant',   label: 'お弁当・惣菜', emoji: '🍱' },
-  { value: 'cafe',         label: 'カフェ',       emoji: '☕' },
-  { value: 'supermarket',  label: 'スーパー',     emoji: '🛒' },
-  { value: 'convenience',  label: 'コンビニ',     emoji: '🏪' },
-  { value: 'sweets',       label: 'スイーツ',     emoji: '🍰' },
-  { value: 'produce',      label: '野菜・果物',   emoji: '🍎' },
-  { value: 'meat',         label: '肉・魚',       emoji: '🥩' },
-  { value: 'noodles',      label: '麺類',         emoji: '🍜' },
-  { value: 'drinks',       label: 'ドリンク',     emoji: '🥤' },
-  { value: 'assorted',     label: '詰め合わせ',   emoji: '🎁' },
-  { value: 'other',        label: 'その他',       emoji: '🍴' },
+  { value: 'meals',         label: '料理・お惣菜',  emoji: '🍱' },
+  { value: 'bakery_sweets', label: 'パン・スイーツ', emoji: '🥐' },
+  { value: 'ingredients',   label: '食材・その他',  emoji: '🍎' },
 ];
 
 interface StoreForm {
@@ -78,7 +69,7 @@ export default function RegisterStore() {
   const createBag = useCreateBag();
 
   const [storeForm, setStoreForm] = useState<StoreForm>({
-    name: '', address: '', city: '', category: 'restaurant',
+    name: '', address: '', city: '', category: 'meals',
     phone: '', imageUrl: '', imagePreview: '',
   });
 

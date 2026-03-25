@@ -29,8 +29,10 @@ interface PendingStore {
 }
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  bakery: '🥐', restaurant: '🍱', cafe: '☕',
-  supermarket: '🛒', convenience: '🏪', other: '🍴',
+  meals: '🍱', bakery_sweets: '🥐', ingredients: '🍎',
+  // 旧値後方互換
+  bakery: '🥐', restaurant: '🍱', cafe: '🥐',
+  supermarket: '🍎', convenience: '🍱', other: '🍱',
 };
 
 async function fetchPending(): Promise<PendingStore[]> {

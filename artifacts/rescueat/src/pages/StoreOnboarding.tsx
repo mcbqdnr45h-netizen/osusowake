@@ -13,17 +13,9 @@ import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const CATEGORY_OPTIONS = [
-  { value: 'bakery',       label: 'ベーカリー',   emoji: '🥐' },
-  { value: 'restaurant',   label: 'お弁当・惣菜', emoji: '🍱' },
-  { value: 'cafe',         label: 'カフェ',       emoji: '☕' },
-  { value: 'supermarket',  label: 'スーパー',     emoji: '🛒' },
-  { value: 'convenience',  label: 'コンビニ',     emoji: '🏪' },
-  { value: 'sweets',       label: 'スイーツ',     emoji: '🍰' },
-  { value: 'produce',      label: '野菜・果物',   emoji: '🍎' },
-  { value: 'meat',         label: '肉・魚',       emoji: '🥩' },
-  { value: 'noodles',      label: '麺類',         emoji: '🍜' },
-  { value: 'drinks',       label: 'ドリンク',     emoji: '🥤' },
-  { value: 'other',        label: 'その他',       emoji: '🍴' },
+  { value: 'meals',         label: '料理・お惣菜',  emoji: '🍱' },
+  { value: 'bakery_sweets', label: 'パン・スイーツ', emoji: '🥐' },
+  { value: 'ingredients',   label: '食材・その他',  emoji: '🍎' },
 ];
 
 async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<string> {

@@ -63,12 +63,16 @@ async function dismissReports(storeId: number) {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  restaurant: '🍱 レストラン',
-  bakery: '🥐 ベーカリー',
-  cafe: '☕ カフェ',
-  supermarket: '🛒 スーパー',
-  convenience: '🏪 コンビニ',
-  other: '🍴 その他',
+  meals: '🍱 料理・お惣菜',
+  bakery_sweets: '🥐 パン・スイーツ',
+  ingredients: '🍎 食材・その他',
+  // 旧値後方互換
+  restaurant: '🍱 料理・お惣菜',
+  bakery: '🥐 パン・スイーツ',
+  cafe: '🥐 パン・スイーツ',
+  supermarket: '🍎 食材・その他',
+  convenience: '🍱 料理・お惣菜',
+  other: '🍱 料理・お惣菜',
 };
 
 const REPORT_TYPE_LABELS: Record<string, string> = {

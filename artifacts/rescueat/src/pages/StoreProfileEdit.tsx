@@ -8,14 +8,11 @@ import { motion } from 'framer-motion';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
-const CATEGORY_LABELS: Record<string, string> = {
-  restaurant: '飲食店',
-  bakery: 'パン屋',
-  cafe: 'カフェ',
-  supermarket: 'スーパー',
-  convenience: 'コンビニ',
-  other: 'その他',
-};
+const CATEGORY_OPTIONS = [
+  { value: 'meals',         label: '料理・お惣菜',  emoji: '🍱' },
+  { value: 'bakery_sweets', label: 'パン・スイーツ', emoji: '🥐' },
+  { value: 'ingredients',   label: '食材・その他',  emoji: '🍎' },
+];
 
 type StoreProfile = {
   name: string;
@@ -65,7 +62,7 @@ export default function StoreProfileEdit() {
           closeTime:    data.closeTime    ?? '',
           holiday:      data.holiday      ?? '',
           pickupHours:  data.pickupHours  ?? '',
-          category:     data.category     ?? 'other',
+          category:     data.category     ?? 'meals',
         });
         setPreviewUrl(data.imageUrl ?? '');
       });
@@ -271,16 +268,23 @@ export default function StoreProfileEdit() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">カテゴリ</label>
-                <select
-                  value={form.category}
-                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  {Object.entries(CATEGORY_LABELS).map(([v, l]) => (
-                    <option key={v} value={v}>{l}</option>
+                <label className="block text-xs font-bold text-muted-foreground mb-2">カテゴリ</label>
+                <div className="flex gap-2">
+                  {CATEGORY_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value} type="button"
+                      onClick={() => setForm(f => ({ ...f, category: opt.value }))}
+                      className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-bold text-xs transition-all active:scale-95 ${
+                        form.category === opt.value
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-secondary/50 text-foreground hover:border-primary/40'
+                      }`}
+                    >
+                      <span className="text-xl">{opt.emoji}</span>
+                      <span className="leading-tight text-center">{opt.label}</span>
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
           </motion.div>
