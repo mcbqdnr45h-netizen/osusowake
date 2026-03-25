@@ -4,7 +4,7 @@ import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
   Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
-  SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map,
+  SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
   Globe, Clock, ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -245,7 +245,7 @@ function FloatingMapButton() {
           flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors"
         aria-label="地図で探す"
       >
-        <Map className="w-6 h-6" />
+        <MapIcon className="w-6 h-6" />
       </motion.button>
     </Link>
   );
