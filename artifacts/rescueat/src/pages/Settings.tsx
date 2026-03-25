@@ -160,14 +160,21 @@ function SettingsWrapper({ children }: { children: React.ReactNode }) {
 
 export default function Settings() {
   const userId = useUserId() || '';
-  const { user, profile, signOut: authSignOut } = useAuth();
+  const { user, profile, signOut: authSignOut, refreshProfile } = useAuth();
   const isStoreOwner = profile?.role === 'store_owner';
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { saved, save } = useLocalSettings(userId);
 
-  const [displayName, setDisplayName] = useState(saved.displayName);
-  const [email, setEmail] = useState(saved.email);
+  // display_name は Supabase から。fallback: メールの@前
+  const initialDisplayName =
+    profile?.display_name ||
+    user?.email?.split('@')[0] ||
+    saved.displayName ||
+    'ゲストユーザー';
+
+  const [displayName, setDisplayName] = useState(initialDisplayName);
+  const [email, setEmail] = useState(user?.email ?? saved.email);
   const [favoriteGenres, setFavoriteGenres] = useState<string[]>(saved.favoriteGenres);
   const [notifNewListing, setNotifNewListing] = useState(saved.notifNewListing);
   const [notifFavoriteUpdate, setNotifFavoriteUpdate] = useState(saved.notifFavoriteUpdate);
@@ -175,24 +182,18 @@ export default function Settings() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [copied, setCopied] = useState(false);
   const [saved_, setSaved_] = useState(false);
+  const [savingName, setSavingName] = useState(false);
   const [showTokusho, setShowTokusho] = useState(false);
 
-  // Supabase認証ユーザーが読み込まれたら実際のメール・名前で初期値を上書き
+  // profile が読み込まれたら display_name を同期
   useEffect(() => {
-    if (!user) return;
-    const realEmail = user.email ?? '';
-    const meta = (user.user_metadata ?? {}) as Record<string, string>;
-    const realName =
-      meta.full_name ||
-      meta.name ||
-      (realEmail ? realEmail.split('@')[0] : '');
-    // メールは常にSupabaseから同期
-    setEmail(realEmail);
-    // 表示名がデフォルトのまま（一度も編集されていない）なら実名で置き換え
-    if (saved.displayName === 'ゲストユーザー' && realName) {
-      setDisplayName(realName);
+    if (profile?.display_name) {
+      setDisplayName(profile.display_name);
+    } else if (user?.email) {
+      setDisplayName(user.email.split('@')[0]);
     }
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (user?.email) setEmail(user.email);
+  }, [profile?.display_name, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Referral code: first 6 chars of userId, uppercase
   const referralCode = `RESCUE${userId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
@@ -206,12 +207,37 @@ export default function Settings() {
     );
   }
 
-  function handleSaveProfile() {
-    save({ displayName, email, favoriteGenres });
-    setEditingProfile(false);
-    setSaved_(true);
-    setTimeout(() => setSaved_(false), 2000);
-    toast({ title: 'プロフィールを保存しました' });
+  async function handleSaveProfile() {
+    setSavingName(true);
+    try {
+      // ① display_name を Supabase に保存
+      const session = await import('@/lib/supabase').then(m => m.supabase.auth.getSession());
+      const token = session.data.session?.access_token;
+      if (token && displayName.trim()) {
+        const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
+        const res = await fetch(`${base}/api/user/display-name`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ displayName: displayName.trim() }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({})) as { error?: string };
+          throw new Error(err.error || 'save failed');
+        }
+        await refreshProfile();
+      }
+      // ② その他の設定は localStorage に保存
+      save({ displayName, email, favoriteGenres });
+      setEditingProfile(false);
+      setSaved_(true);
+      setTimeout(() => setSaved_(false), 2000);
+      toast({ title: '表示名を保存しました ✅' });
+    } catch (err) {
+      console.error('[Settings] saveDisplayName error:', err);
+      toast({ title: '保存に失敗しました', description: String(err), variant: 'destructive' });
+    } finally {
+      setSavingName(false);
+    }
   }
 
   function handleToggle(key: 'notifNewListing' | 'notifFavoriteUpdate' | 'notifPoints', val: boolean) {
@@ -361,10 +387,15 @@ export default function Settings() {
                     {/* Save */}
                     <button
                       onClick={handleSaveProfile}
-                      className="w-full py-2.5 bg-primary text-primary-foreground font-black text-sm rounded-xl hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      disabled={savingName}
+                      className="w-full py-2.5 bg-primary text-primary-foreground font-black text-sm rounded-xl hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
                     >
-                      {saved_ ? <Check className="w-4 h-4" /> : <Check className="w-4 h-4 opacity-0 absolute" />}
-                      変更を保存する
+                      {savingName
+                        ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />保存中...</>
+                        : saved_
+                        ? <><Check className="w-4 h-4" />保存しました！</>
+                        : <>変更を保存する</>
+                      }
                     </button>
                   </div>
                 </motion.div>

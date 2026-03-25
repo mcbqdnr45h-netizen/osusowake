@@ -22,6 +22,35 @@ router.use(uploadRouter);
 router.use(notificationsRouter);
 router.use(classifyRouter);
 
+router.put("/user/display-name", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
+
+  const { displayName } = req.body as { displayName?: string };
+  if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0) {
+    res.status(400).json({ error: "display_name is required" }); return;
+  }
+  const trimmed = displayName.trim().slice(0, 40);
+
+  try {
+    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !user) { res.status(401).json({ error: "unauthorized" }); return; }
+
+    const { error } = await supabaseAdmin
+      .from("users")
+      .update({ display_name: trimmed })
+      .eq("id", user.id);
+
+    if (error) throw error;
+    res.json({ ok: true, display_name: trimmed });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[/user/display-name] error:", msg);
+    res.status(500).json({ error: msg });
+  }
+});
+
 router.get("/me", async (req, res) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;

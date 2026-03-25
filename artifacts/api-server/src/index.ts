@@ -1,5 +1,7 @@
 import app from "./app";
 import { pool } from "@workspace/db";
+import pkg from "pg";
+const { Pool: PgPool } = pkg;
 
 // ── 起動時マイグレーション（冪等） ──────────────────────────────────────────
 async function runMigrations() {
@@ -35,6 +37,39 @@ async function runMigrations() {
     console.error('[migration] failed:', err);
   } finally {
     client.release();
+  }
+
+  // ── Supabase users.display_name migration ────────────────────────────────
+  const supabaseDbUrl = process.env['SUPABASE_DATABASE_URL'];
+  if (supabaseDbUrl) {
+    const sbPool = new PgPool({
+      connectionString: supabaseDbUrl,
+      ssl: { rejectUnauthorized: false },
+      max: 1,
+    });
+    let sbClient;
+    try {
+      sbClient = await sbPool.connect();
+      await sbClient.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema='public' AND table_name='users' AND column_name='display_name'
+          ) THEN
+            ALTER TABLE public.users ADD COLUMN display_name TEXT;
+            UPDATE public.users
+              SET display_name = SPLIT_PART(email, '@', 1)
+              WHERE display_name IS NULL AND email IS NOT NULL AND email <> '';
+          END IF;
+        END $$;
+      `);
+      console.log('[supabase-migration] users.display_name ✅');
+    } catch (err) {
+      console.warn('[supabase-migration] display_name skipped:', (err as Error).message);
+    } finally {
+      sbClient?.release();
+      await sbPool.end();
+    }
   }
 }
 

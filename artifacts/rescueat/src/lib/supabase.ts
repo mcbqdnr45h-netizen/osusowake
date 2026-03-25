@@ -23,4 +23,5 @@ export interface PublicUser {
   created_at: string;
   full_name: string | null;
   phone_number: string | null;
+  display_name: string | null;
 }

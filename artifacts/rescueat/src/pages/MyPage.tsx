@@ -98,7 +98,9 @@ export default function MyPage() {
                 <>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-lg font-black text-foreground truncate">
-                      {profile?.role === 'store_owner' && store?.name ? store.name : user.email}
+                      {profile?.role === 'store_owner' && store?.name
+                        ? store.name
+                        : profile?.display_name || user.email?.split('@')[0] || user.email}
                     </h2>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0
                       ${profile?.role === 'store_owner'
