@@ -530,6 +530,12 @@ export default function BagDetail() {
               <p className="text-muted-foreground leading-relaxed">
                 {bag.description || `${bag.store.name}のお料理がランダムに入ったお得なサプライズバッグです。お店の味を、ぜひ受け取ってください！`}
               </p>
+              {bag.store.description && (
+                <div className="mt-3 bg-secondary/50 rounded-xl px-3.5 py-3">
+                  <p className="text-xs font-bold text-primary mb-1">お店のPR</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{bag.store.description}</p>
+                </div>
+              )}
             </div>
 
             <hr className="border-border" />
@@ -556,12 +562,6 @@ export default function BagDetail() {
                     </button>
                   </div>
                   <div className="text-sm mt-0.5">{bag.store.address}</div>
-                  {bag.store.description && (
-                    <div className="mt-3 bg-secondary/50 rounded-xl px-3.5 py-3">
-                      <p className="text-xs font-bold text-primary mb-1">お店のPR</p>
-                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{bag.store.description}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
