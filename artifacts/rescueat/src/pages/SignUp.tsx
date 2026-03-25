@@ -76,9 +76,7 @@ export default function SignUp() {
     setDone(true);
 
     if (!confirm) {
-      const params = new URLSearchParams(window.location.search);
-      const redirect = params.get('redirect');
-      setTimeout(() => navigate(redirect ? decodeURIComponent(redirect) : '/'), 1200);
+      setTimeout(() => navigate('/'), 1200);
     }
   }
 

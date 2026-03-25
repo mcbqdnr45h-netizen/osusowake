@@ -38,15 +38,7 @@ export default function Login() {
       return;
     }
 
-    // ?redirect= パラメータが指定されていれば最優先
-    const params = new URLSearchParams(window.location.search);
-    const redirect = params.get('redirect');
-    if (redirect) {
-      navigate(decodeURIComponent(redirect));
-      return;
-    }
-
-    navigate('/');   // 一般ユーザーは商品一覧トップへ
+    navigate('/');   // 一般ユーザーは常に発見トップへ
   }
 
   return (
