@@ -70,7 +70,10 @@ export interface MapBounds {
 
 export interface MapViewHandle {
   panTo: (lat: number, lng: number, zoom?: number) => void;
-  fitStores: (locations: { lat: number; lng: number }[]) => void;
+  fitStores: (
+    locations: { lat: number; lng: number }[],
+    opts?: { minZoom?: number; maxZoom?: number },
+  ) => void;
 }
 
 interface MapViewProps {
@@ -118,18 +121,25 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       map.panTo({ lat, lng });
       if (z !== undefined) map.setZoom(z);
     },
-    fitStores: (locations: { lat: number; lng: number }[]) => {
+    fitStores: (locations: { lat: number; lng: number }[], opts?: { minZoom?: number; maxZoom?: number }) => {
       const map   = mapRef.current;
       const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
       if (!map || !gMaps || locations.length === 0) return;
+      const { minZoom = 12, maxZoom = 16 } = opts ?? {};
       if (locations.length === 1) {
         map.panTo(locations[0]);
-        map.setZoom(16);
+        map.setZoom(Math.min(16, maxZoom));
         return;
       }
       const bounds = new gMaps.LatLngBounds();
       locations.forEach(loc => bounds.extend(loc));
       map.fitBounds(bounds, { top: 80, right: 24, bottom: 200, left: 24 });
+      gMaps.event.addListenerOnce(map, 'idle', () => {
+        const z = map.getZoom();
+        if (z === undefined) return;
+        if (z < minZoom) map.setZoom(minZoom);
+        else if (z > maxZoom) map.setZoom(maxZoom);
+      });
     },
   }), []);
 

@@ -386,6 +386,45 @@ function ZeroResultsState({ query, category, onClear, recommendBags }: {
 }
 
 
+// ─── Google Places Autocomplete フック ────────────────────────────────────────
+interface PlacesPrediction {
+  placeId: string;
+  mainText: string;
+  secondaryText: string;
+}
+
+function usePlacesAutocomplete(input: string): PlacesPrediction[] {
+  const [predictions, setPredictions] = useState<PlacesPrediction[]>([]);
+  const svcRef = useRef<any>(null);
+
+  useEffect(() => {
+    const q = input.trim();
+    if (q.length < 2) { setPredictions([]); return; }
+    const timer = setTimeout(() => {
+      const gMaps = (window as any).google?.maps;
+      if (!gMaps?.places) return;
+      if (!svcRef.current) svcRef.current = new gMaps.places.AutocompleteService();
+      svcRef.current.getPlacePredictions(
+        { input: q, componentRestrictions: { country: 'jp' }, types: ['geocode', 'establishment'] },
+        (results: any[], status: string) => {
+          if (status === gMaps.places.PlacesServiceStatus.OK && results) {
+            setPredictions(results.slice(0, 6).map((r: any) => ({
+              placeId: r.place_id,
+              mainText: r.structured_formatting?.main_text ?? r.description,
+              secondaryText: r.structured_formatting?.secondary_text ?? '',
+            })));
+          } else {
+            setPredictions([]);
+          }
+        }
+      );
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [input]);
+
+  return predictions;
+}
+
 // ─── メインページ ─────────────────────────────────────────────────────────────
 export default function SearchPage() {
   const [inputValue,    setInputValue]    = useState('');
@@ -410,6 +449,9 @@ export default function SearchPage() {
   const searchRef  = useRef<HTMLInputElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
   const { coords: locCoords } = useUserLocation();
+
+  const predictions = usePlacesAutocomplete(inputValue);
+  const showPredictions = predictions.length > 0 && inputValue.trim().length >= 2;
 
   const handleUserPositionChange = useCallback((pos: { lat: number; lng: number } | null) => {
     setUserPos(pos);
@@ -549,6 +591,37 @@ export default function SearchPage() {
 
   const handleStoreSelect = useCallback((store: Store) => setSelectedStore(store), []);
 
+  // ── Places prediction 選択 ──────────────────────────────────────────────────
+  const handlePredictionSelect = useCallback((pred: PlacesPrediction) => {
+    setInputValue(pred.mainText);
+    setShowHistory(false);
+    searchRef.current?.blur();
+    const gMaps = (window as any).google?.maps;
+    if (gMaps) {
+      const geocoder = new gMaps.Geocoder();
+      geocoder.geocode(
+        { placeId: pred.placeId },
+        (results: any[], status: string) => {
+          if (status === 'OK' && results?.[0]) {
+            const geom = results[0].geometry;
+            if (geom.viewport) {
+              const ne = geom.viewport.getNorthEast();
+              const sw = geom.viewport.getSouthWest();
+              mapViewRef.current?.fitStores(
+                [{ lat: ne.lat(), lng: ne.lng() }, { lat: sw.lat(), lng: sw.lng() }],
+                { minZoom: 13, maxZoom: 15 },
+              );
+            } else {
+              const loc = geom.location;
+              mapViewRef.current?.panTo(loc.lat(), loc.lng(), 14);
+            }
+          }
+        },
+      );
+    }
+    executeSearch(pred.mainText);
+  }, [executeSearch]);
+
   // ── 検索後マップパン ────────────────────────────────────────────────────────
   // query が確定したら、一致した店舗にフィット。見つからなければジオコーディング
   useEffect(() => {
@@ -564,9 +637,8 @@ export default function SearchPage() {
       }, []);
 
     if (uniqueLocations.length > 0) {
-      // 少し遅延させてマップが準備完了してから呼ぶ
       const timer = setTimeout(() => {
-        mapViewRef.current?.fitStores(uniqueLocations);
+        mapViewRef.current?.fitStores(uniqueLocations, { minZoom: 13, maxZoom: 16 });
       }, 350);
       return () => clearTimeout(timer);
     }
@@ -580,18 +652,19 @@ export default function SearchPage() {
         { address: query, region: 'JP' },
         (results: any[], status: string) => {
           if (status === 'OK' && results && results[0]) {
-            const loc = results[0].geometry.location;
-            // viewport がある場合はそこにフィット
-            if (results[0].geometry.viewport) {
-              mapViewRef.current?.fitStores([
-                { lat: results[0].geometry.viewport.getNorthEast().lat(), lng: results[0].geometry.viewport.getNorthEast().lng() },
-                { lat: results[0].geometry.viewport.getSouthWest().lat(), lng: results[0].geometry.viewport.getSouthWest().lng() },
-              ]);
+            const geom = results[0].geometry;
+            if (geom.viewport) {
+              const ne = geom.viewport.getNorthEast();
+              const sw = geom.viewport.getSouthWest();
+              mapViewRef.current?.fitStores(
+                [{ lat: ne.lat(), lng: ne.lng() }, { lat: sw.lat(), lng: sw.lng() }],
+                { minZoom: 13, maxZoom: 15 },
+              );
             } else {
-              mapViewRef.current?.panTo(loc.lat(), loc.lng(), 14);
+              mapViewRef.current?.panTo(geom.location.lat(), geom.location.lng(), 14);
             }
           }
-        }
+        },
       );
     }, 350);
     return () => clearTimeout(timer);
@@ -646,10 +719,35 @@ export default function SearchPage() {
               {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Search className="w-3.5 h-3.5" /><span>検索</span></>}
             </button>
 
-            {/* 検索履歴ドロップダウン */}
+            {/* 予測変換 or 検索履歴ドロップダウン */}
             <AnimatePresence>
-              {showHistory && history.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+              {showPredictions ? (
+                <motion.div key="predictions"
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }} transition={{ duration: 0.13 }}
+                  className="absolute top-full mt-1.5 left-0 right-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+                  <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border/50">
+                    <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-xs font-black text-muted-foreground">候補</span>
+                  </div>
+                  {predictions.map(pred => (
+                    <div key={pred.placeId}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => handlePredictionSelect(pred)}
+                      className="flex items-start gap-3 px-4 py-2.5 hover:bg-secondary cursor-pointer tap-opacity border-b border-border/30 last:border-0 transition-colors">
+                      <MapPin className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{pred.mainText}</p>
+                        {pred.secondaryText && (
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">{pred.secondaryText}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
+              ) : showHistory && history.length > 0 ? (
+                <motion.div key="history"
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.97 }} transition={{ duration: 0.13 }}
                   className="absolute top-full mt-1.5 left-0 right-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50">
@@ -674,7 +772,7 @@ export default function SearchPage() {
                     </div>
                   ))}
                 </motion.div>
-              )}
+              ) : null}
             </AnimatePresence>
           </div>
 
