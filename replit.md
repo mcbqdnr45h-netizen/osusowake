@@ -90,8 +90,24 @@
 - `POST /api/payment/create-intent` - Stripe PaymentIntent作成
 - `POST /api/payment/confirm` - 決済確認
 
+## データベース設計（重要）
+
+- **ローカル Replit PostgreSQL** (`DATABASE_URL`): stores, surprise_bags, reservations, reviews, reports
+  - `@workspace/db`（`lib/db/`）は必ず `DATABASE_URL` のみを使用する（SUPABASE_DATABASE_URL を使わない）
+- **Supabase** (`SUPABASE_DATABASE_URL`): users テーブル（Supabase Auth 連携）
+  - `supabaseAdmin` クライアント経由でのみアクセス（API サーバー起動時の users.display_name マイグレーションを含む）
+
+## 起動時マイグレーション（`artifacts/api-server/src/index.ts`）
+
+- `surprise_bags.category` カラム追加（冪等）
+- カテゴリ値リマッピング（旧カテゴリ → meals/bakery_sweets/ingredients）
+- `stores.approval_email_sent` カラム追加（冪等）
+- [supabase] `users.display_name` カラム追加（SUPABASE_DATABASE_URL が設定されている場合）
+
 ## Environment Variables
 
-- `DATABASE_URL` - PostgreSQL接続文字列（自動プロビジョニング）
+- `DATABASE_URL` - PostgreSQL接続文字列（自動プロビジョニング）・ローカルDB（stores等）
+- `SUPABASE_DATABASE_URL` - Supabase DB URL（users.display_name マイグレーション専用）
+- `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` - Supabase Auth
 - `STRIPE_SECRET_KEY` - Stripeシークレットキー（任意・未設定でモック）
 - `VITE_STRIPE_PUBLIC_KEY` - Stripeパブリックキー（任意）

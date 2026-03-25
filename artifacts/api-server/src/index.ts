@@ -33,6 +33,20 @@ async function runMigrations() {
         AND category NOT IN ('meals', 'bakery_sweets', 'ingredients');
     `);
     console.log('[migration] category remapping ✅');
+
+    // stores.approval_email_sent 列が存在しない場合のみ追加
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='stores' AND column_name='approval_email_sent'
+        ) THEN
+          ALTER TABLE stores ADD COLUMN approval_email_sent BOOLEAN NOT NULL DEFAULT false;
+          RAISE NOTICE 'stores.approval_email_sent column added';
+        END IF;
+      END $$;
+    `);
+    console.log('[migration] stores.approval_email_sent ✅');
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {
