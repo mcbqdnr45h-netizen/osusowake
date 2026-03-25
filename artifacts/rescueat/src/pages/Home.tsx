@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
-import { useListAllBags, SurpriseBagWithStore } from '@workspace/api-client-react';
+import { useListAllBags, useListReservations, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
   Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
-  Globe, Clock, ArrowLeft,
+  Globe, Clock, ArrowLeft, ShoppingBag,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
@@ -15,6 +15,7 @@ import { useFavorites } from '@/contexts/FavoritesContext';
 import { Heart } from 'lucide-react';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters } from '@/hooks/use-user-location';
+import { useUserId } from '@/hooks/use-user';
 
 // ─── カテゴリーピル ────────────────────────────────────────────────────────
 const SCROLL_CATS = [
@@ -308,9 +309,25 @@ export default function Home() {
   const { user, profile, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const { isApprovedOwner } = useMyStore();
+  const userId = useUserId();
   const { data: bags, isLoading: isLoadingBags } = useListAllBags({
     query: { refetchInterval: 60_000, staleTime: 30_000 },
   });
+
+  // 仮押さえ中の予約を取得
+  const { data: reservations } = useListReservations(
+    { userId: userId || '' },
+    { query: { enabled: !!userId, refetchInterval: 30_000, staleTime: 0 } },
+  );
+  const HOLD_MS = 5 * 60 * 1000;
+  const activeReservation = useMemo(() => {
+    if (!reservations) return null;
+    return reservations.find(r => {
+      if (r.status !== 'pending') return false;
+      const expires = new Date(r.createdAt).getTime() + HOLD_MS;
+      return Date.now() < expires;
+    }) ?? null;
+  }, [reservations]);
   const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
   const { coords: userCoords } = useUserLocation();
 
@@ -564,6 +581,31 @@ export default function Home() {
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >
+          {/* ── 仮押さえ中バナー ── */}
+          <AnimatePresence>
+            {activeReservation && (
+              <motion.button
+                key="hold-banner"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                onClick={() => navigate(`/checkout/${activeReservation.id}`)}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-primary text-primary-foreground text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold opacity-90">仮押さえ中</p>
+                  <p className="text-sm font-black truncate">
+                    {activeReservation.bag?.title ?? 'サプライズバッグ'}
+                  </p>
+                </div>
+                <div className="text-xs font-bold opacity-80 shrink-0">決済へ →</div>
+              </motion.button>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="wait">
 
             {/* ─── 絞り込みモード ─── */}
