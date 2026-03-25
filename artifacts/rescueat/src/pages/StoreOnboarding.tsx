@@ -131,7 +131,7 @@ export default function StoreOnboarding() {
       toast({ title: '店舗写真を追加してください', variant: 'destructive' });
       return;
     }
-    if (!form.name.trim() || !form.address.trim() || !form.city.trim() || !form.category) {
+    if (!form.name.trim() || !form.address.trim() || !form.city.trim() || !form.category || !form.phone.trim()) {
       toast({ title: '必須項目を入力してください', variant: 'destructive' });
       return;
     }
@@ -376,13 +376,16 @@ export default function StoreOnboarding() {
 
           {/* 電話番号 */}
           <div>
-            <label className="block text-sm font-bold text-muted-foreground mb-1.5">電話番号（任意）</label>
+            <label className="block text-sm font-bold text-muted-foreground mb-1.5">
+              電話番号 <span className="text-destructive">*</span>
+            </label>
             <input
               type="tel"
               value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
               placeholder="06-xxxx-xxxx"
+              required
             />
           </div>
 
