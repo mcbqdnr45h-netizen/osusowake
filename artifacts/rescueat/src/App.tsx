@@ -46,6 +46,7 @@ import StoreLegal from "./pages/StoreLegal";
 import StoreLegalPublic from "./pages/StoreLegalPublic";
 import HelpPage from "./pages/HelpPage";
 import TokushoPage from "./pages/TokushoPage";
+import MyTownPage from "./pages/MyTownPage";
 
 // ── ルートガードファクトリ ─────────────────────────────────────────────────────
 // 認証が必要なルート
@@ -145,6 +146,7 @@ function AnimatedRoutes() {
           {/* ── 要ログイン（一般ユーザー）── */}
           <Route path="/mypage" component={GuardedMyPage} />
           <Route path="/my-reservations" component={GuardedMyReservations} />
+          <Route path="/my-town" component={MyTownPage} />
           <Route path="/checkout/:id" component={GuardedCheckout} />
           <Route path="/orders/:id" component={GuardedOrderTicket} />
           <Route path="/orders" component={GuardedOrders} />

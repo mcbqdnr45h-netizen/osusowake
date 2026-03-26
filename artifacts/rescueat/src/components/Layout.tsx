@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   Map, MapPin, Package, Heart, User, Menu, X,
-  FileText, Shield, Store, Settings, ChevronRight, Coins, BarChart2,
+  FileText, Shield, Store, Settings, ChevronRight, Coins, BarChart2, TreePine,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
@@ -42,19 +42,21 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
 
   // 一般ユーザー用ナビ
   const customerNavItems = [
-    { href: '/',                                   icon: Map,     label: '発見',       isUser: false },
-    { href: '/map',                                icon: MapPin,  label: 'マップ',     isUser: false },
-    { href: '/my-reservations',                    icon: Package, label: 'お届け',     isUser: false },
-    { href: '/favorites',                          icon: Heart,   label: 'お気に入り', isUser: false },
-    { href: user ? '/mypage' : '/welcome',         icon: User,    label: user ? 'マイページ' : 'ログイン', isUser: true },
+    { href: '/',                                   icon: Map,      label: '発見',       isUser: false },
+    { href: '/map',                                icon: MapPin,   label: 'マップ',     isUser: false },
+    { href: '/my-reservations',                    icon: Package,  label: 'お届け',     isUser: false },
+    { href: '/my-town',                            icon: TreePine, label: 'マイタウン', isUser: false },
+    { href: '/favorites',                          icon: Heart,    label: 'お気に入り', isUser: false },
+    { href: user ? '/mypage' : '/welcome',         icon: User,     label: user ? 'マイページ' : 'ログイン', isUser: true },
   ];
 
   const navItems = isStoreOwner ? storeNavItems : customerNavItems;
 
   const desktopNavItems = [
-    { href: '/',                label: '発見'   },
-    { href: '/map',             label: 'マップ' },
-    { href: '/my-reservations', label: 'お届け' },
+    { href: '/',                label: '発見'       },
+    { href: '/map',             label: 'マップ'     },
+    { href: '/my-reservations', label: 'お届け'     },
+    { href: '/my-town',         label: 'マイタウン' },
   ];
 
   const legalLinks = [

@@ -8,8 +8,6 @@ import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, St
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
-import { MyTown } from '@/components/MyTown';
-import { getTownStage, TOWN_STAGES } from '@/lib/town-stage';
 
 export default function MyPage() {
   const userId = useUserId();
@@ -41,10 +39,6 @@ export default function MyPage() {
   const pickedUpCount  = pickedUpReservations.length;
   const foodSavedKg    = +(pickedUpCount * 0.5).toFixed(1);
   const co2Saved       = +(pickedUpCount * 2.5).toFixed(1);
-
-  // マイタウン ステージ
-  const townStageNum  = getTownStage(pickedUpCount);
-  const townStageInfo = TOWN_STAGES[townStageNum];
 
   async function handleLogout() {
     await signOut();
@@ -155,12 +149,8 @@ export default function MyPage() {
             <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/5 rounded-full" />
 
             <div className="relative px-5 pt-5 pb-4">
-              {/* タウンステージバッジ */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                  <span className="text-lg leading-none">{townStageInfo.icon}</span>
-                  <span className="text-white text-xs font-black">{townStageInfo.name}</span>
-                </div>
+              {/* 達成回数バッジ */}
+              <div className="flex items-center justify-end mb-3">
                 <div className="flex items-center gap-1 bg-white/20 px-2.5 py-1 rounded-full">
                   <Star className="w-3.5 h-3.5 text-yellow-200 fill-yellow-200" />
                   <span className="text-white text-xs font-black">{pickedUpCount}回</span>
@@ -219,8 +209,6 @@ export default function MyPage() {
             </div>
           </motion.div>
 
-          {/* マイタウン育成 */}
-          <MyTown purchaseCount={pickedUpCount} />
         </div>}
 
         {/* ── 店舗オーナー：接続エラー中（リトライ待機）── */}
