@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, ChevronLeft, Mail, Lock, Store } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Store } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
 
 export default function StoreLogin() {
   const [, navigate] = useLocation();
   const { signIn } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [email,     setEmail]     = useState('');
+  const [password,  setPassword]  = useState('');
+  const [showPw,    setShowPw]    = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error,     setError]     = useState('');
 
   const isValid = email.trim() && password.length >= 1 && !isLoading;
 
@@ -22,17 +23,11 @@ export default function StoreLogin() {
     setError('');
     setIsLoading(true);
 
-    // 店舗ログイン画面では role を強制的に store_owner に設定する
     const { error: err } = await signIn(email, password, 'store_owner');
-
     setIsLoading(false);
 
-    if (err) {
-      setError(err);
-      return;
-    }
+    if (err) { setError(err); return; }
 
-    // ?redirect= パラメータが指定されていれば最優先（店舗ページのみ許可）
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get('redirect');
     if (redirect) {
@@ -47,136 +42,122 @@ export default function StoreLogin() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-background">
+    <AuthShell activeTab="store" mode="login">
 
-      <div className="flex items-center px-4 pt-12 pb-4">
-        <Link href="/welcome">
-          <button className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
-            <ChevronLeft className="w-5 h-5 text-foreground" />
-          </button>
-        </Link>
-      </div>
-
-      <div className="flex-1 flex flex-col px-6 pt-2 pb-10 max-w-md mx-auto w-full">
-
-        {/* ロール切替タブ */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex bg-secondary rounded-2xl p-1 mb-8 gap-1"
+      {/* ── ヒーロー ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.38 }}
+        className="mb-10"
+      >
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 shadow-sm"
+          style={{ background: 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)' }}
         >
-          <Link href="/login" className="flex-1">
-            <button className="w-full py-2.5 rounded-xl text-sm font-bold text-muted-foreground transition-all">
-              ユーザー
-            </button>
+          <Store className="w-6 h-6 text-primary" />
+        </div>
+        <h1 className="text-[28px] font-black text-foreground leading-tight tracking-tight">
+          店舗管理画面へ
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1.5 font-medium">
+          余剰商品の登録・管理ができます
+        </p>
+      </motion.div>
+
+      {/* ── フォーム ── */}
+      <motion.form
+        initial={{ opacity: 0, y: 22 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08, duration: 0.38 }}
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-5 flex-1"
+      >
+        {/* メール */}
+        <div>
+          <label className="block text-xs font-black text-foreground/70 uppercase tracking-wider mb-2">
+            メールアドレス
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <Mail className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <motion.input
+              whileFocus={{ scale: 1.005 }}
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(''); }}
+              placeholder="store@example.com"
+              className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+              autoComplete="email"
+              disabled={isLoading}
+            />
+          </div>
+        </div>
+
+        {/* パスワード */}
+        <div>
+          <label className="block text-xs font-black text-foreground/70 uppercase tracking-wider mb-2">
+            パスワード
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <Lock className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <motion.input
+              whileFocus={{ scale: 1.005 }}
+              type={showPw ? 'text' : 'password'}
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError(''); }}
+              placeholder="パスワードを入力"
+              className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+              autoComplete="current-password"
+              disabled={isLoading}
+            />
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+              onClick={() => setShowPw(v => !v)}
+              className="absolute inset-y-0 right-4 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </motion.button>
+          </div>
+        </div>
+
+        {/* エラー */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="bg-destructive/10 border border-destructive/25 text-destructive text-sm font-semibold px-4 py-3 rounded-xl"
+            >
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex-1" />
+
+        {/* 送信 */}
+        <AuthPrimaryButton disabled={!isValid} isLoading={isLoading}>
+          <Store className="w-5 h-5" />
+          ダッシュボードへ
+        </AuthPrimaryButton>
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground font-semibold">または</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        <p className="text-center text-sm text-muted-foreground pb-2">
+          店舗アカウントをお持ちでない方は{' '}
+          <Link href="/store/signup" className="text-primary font-black underline underline-offset-2">
+            新規登録
           </Link>
-          <button className="flex-1 py-2.5 rounded-xl text-sm font-black bg-card text-foreground shadow-sm transition-all">
-            店舗オーナー
-          </button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-          className="mb-10"
-        >
-          <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
-            <Store className="w-6 h-6 text-primary" />
-          </div>
-          <h1 className="text-2xl font-black text-foreground">店舗オーナーログイン</h1>
-          <p className="text-muted-foreground text-sm mt-1">店舗管理ダッシュボードにアクセスします</p>
-        </motion.div>
-
-        <motion.form
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-5 flex-1"
-        >
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">メールアドレス</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <Mail className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <input
-                type="email"
-                value={email}
-                onChange={e => { setEmail(e.target.value); setError(''); }}
-                placeholder="example@email.com"
-                className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
-                autoComplete="email"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-sm font-bold text-foreground mb-1.5">パスワード</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <Lock className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={e => { setPassword(e.target.value); setError(''); }}
-                placeholder="パスワードを入力"
-                className="w-full bg-card border-2 border-border rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/60 placeholder:font-normal focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
-                autoComplete="current-password"
-                disabled={isLoading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(v => !v)}
-                className="absolute inset-y-0 right-4 flex items-center text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Error */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="bg-destructive/10 border border-destructive/30 text-destructive text-sm font-medium px-4 py-3 rounded-xl"
-              >
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex-1" />
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={!isValid}
-            className={`w-full font-black text-lg py-4 rounded-2xl transition-all min-h-[56px] flex items-center justify-center gap-2
-              ${isValid
-                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98]'
-                : 'bg-muted text-muted-foreground cursor-not-allowed'
-              }`}
-          >
-            {isLoading
-              ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              : <><Store className="w-5 h-5" />ダッシュボードへ</>
-            }
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground font-medium">または</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          <p className="text-center text-sm text-muted-foreground pb-2">
-            店舗アカウントをお持ちでない方は{' '}
-            <Link href="/store/signup" className="text-primary font-bold underline underline-offset-2">新規登録</Link>
-          </p>
-        </motion.form>
-      </div>
-    </div>
+        </p>
+      </motion.form>
+    </AuthShell>
   );
 }
