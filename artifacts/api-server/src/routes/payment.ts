@@ -319,27 +319,48 @@ router.post("/checkout/session", async (req, res) => {
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
     const total = Math.round(reservation.totalPrice);
-    // ── 送金額の明示的計算（3ステップ式）────────────────────────
-    // Step 1: PlatformRevenue    = floor(total × 0.25)
-    // Step 2: StripeFee          = round(total × 0.036)
-    // Step 3: ShopTransferAmount = (total - PlatformRevenue) - StripeFee
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Separate Charges and Transfers（分離チャージ&送金方式）
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Step 1. チャージ全額をプラットフォームアカウントで受け取る（transfer_data なし）
+    // Step 2. Stripe手数料がプラットフォームから引かれる: total - stripeFee = 残高
+    // Step 3. 残高から shopTransferAmount を店舗に手動Transfer（/checkout/verify で実行）
+    // Step 4. プラットフォームNet = total - stripeFee - shopTransferAmount = platformRevenue
+    //
+    // 例（350円）:
+    //   チャージ        350円 → プラットフォームへ着金
+    //   Stripe手数料  -  13円
+    //   店舗Transfer  - 250円（/checkout/verify で stripe.transfers.create()）
+    //   ─────────────────────────
+    //   プラットフォームNet  87円 ✓（= 25%、自動計算なし）
     const { platformRevenue, stripeFee, shopTransferAmount } = calcFees(total);
 
-    // 送金先: 店舗の stripeAccountId。未設定の場合はデフォルトテスト用アカウントを使用
-    const destinationAccountId =
-      store?.stripeAccountId ?? "acct_1TDLA9GjCxAcHQcd";
+    const destinationAccountId = store?.stripeAccountId ?? null;
 
     console.log(
-      `決済開始: ` +
+      `[Checkout] Separate C&T: ` +
       `total=${total}JPY | ` +
-      `PlatformRevenue=${platformRevenue}JPY (25%) | ` +
+      `PlatformRevenue=${platformRevenue}JPY | ` +
       `StripeFee≈${stripeFee}JPY | ` +
-      `ShopTransferAmount=${shopTransferAmount}JPY`
+      `ShopTransfer=${shopTransferAmount}JPY (支払い確認後に送金)`
     );
 
-    // 共通の line_items / URL 設定
-    const commonParams = {
-      mode: "payment" as const,
+    // Stripeダッシュボードのメタデータに計算内訳を記録
+    // ※ storeStripeAccountId は Transfer 時に参照する
+    const feeMetadata: Record<string, string> = {
+      reservationId:        String(reservation.id),
+      chargeMode:           "separate_charges_and_transfers",
+      platformRevenue:      String(platformRevenue),
+      stripeFeeEstimate:    String(stripeFee),
+      shopTransferAmount:   String(shopTransferAmount),
+    };
+    if (destinationAccountId) {
+      feeMetadata["storeStripeAccountId"] = destinationAccountId;
+    }
+
+    // チャージはプレーンに受け取る（transfer_data / on_behalf_of を一切使わない）
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
       line_items: [
         {
           price_data: {
@@ -359,74 +380,12 @@ router.post("/checkout/session", async (req, res) => {
         : `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
       metadata: { reservationId: String(reservation.id), userId: userId || '' },
-      locale: "ja" as const,
-    };
-
-    // Stripeダッシュボードのメタデータで計算内訳を確認可能
-    const feeMetadata = {
-      reservationId:      String(reservation.id),
-      platformFeeRate:    "25%",
-      platformRevenue:    String(platformRevenue),     // = floor(total × 0.25)
-      stripeFee:          String(stripeFee),           // = round(total × 0.036)
-      shopTransferAmount: String(shopTransferAmount),  // = (total - platformRevenue) - stripeFee
-      destinationAccount: destinationAccountId,
-    };
-
-    let session;
-    let chargeMode = "unknown";
-
-    // ── Tier 1: ShopTransferAmount を transfer_data.amount に直接指定 ──────────
-    // = (total - PlatformRevenue) - StripeFee
-    // Net = total - StripeFee - ShopTransferAmount = PlatformRevenue（= 25% 固定）
-    try {
-      session = await stripe.checkout.sessions.create({
-        ...commonParams,
-        payment_intent_data: {
-          transfer_data: {
-            destination: destinationAccountId,
-            amount:      shopTransferAmount, // ← ShopTransferAmount を直接指定
-          },
-          metadata: { ...feeMetadata, chargeMode: "explicit_transfer_amount" },
-        },
-      });
-      chargeMode = "explicit_transfer_amount";
-      console.log(
-        `✅ Tier1 成功: ` +
-        `total=${total}JPY | ` +
-        `ShopTransfer=${shopTransferAmount}JPY (明示) | ` +
-        `Net=${platformRevenue}JPY (25%, 純利益確定)`
-      );
-    } catch (tier1Err: any) {
-      if (!isStripeConnectError(tier1Err)) throw tier1Err;
-      console.warn(`⚠️  Tier1 失敗 [${tier1Err.code ?? tier1Err.type}] — Tier2 へ`);
-
-      // ── Tier 2: application_fee_amount フォールバック ────────────────────────
-      try {
-        session = await stripe.checkout.sessions.create({
-          ...commonParams,
-          payment_intent_data: {
-            application_fee_amount: platformRevenue,
-            transfer_data:          { destination: destinationAccountId },
-            metadata: { ...feeMetadata, chargeMode: "application_fee_amount" },
-          },
-        });
-        chargeMode = "application_fee_amount";
-        console.warn(`⚠️  Tier2: total=${total}JPY, dest=${destinationAccountId}`);
-      } catch (tier2Err: any) {
-        if (!isStripeConnectError(tier2Err)) throw tier2Err;
-        console.warn(`⚠️  Tier2 失敗 — Tier3 (直接決済) へ`);
-
-        // ── Tier 3: 直接決済（Connect なし）──────────────────────────────────
-        session = await stripe.checkout.sessions.create({
-          ...commonParams,
-          payment_intent_data: {
-            metadata: { ...feeMetadata, chargeMode: "direct_no_connect" },
-          },
-        });
-        chargeMode = "direct_no_connect";
-        console.warn(`⚠️  Tier3 (direct, Connect なし): total=${total}JPY`);
-      }
-    }
+      locale: "ja",
+      payment_intent_data: {
+        metadata: feeMetadata, // Transfer用パラメータを PaymentIntent に保存
+      },
+    });
+    const chargeMode = "separate_charges_and_transfers";
 
     console.log(`Checkout session created: ${session.id} (chargeMode=${chargeMode})`);
 
@@ -459,6 +418,9 @@ router.get("/checkout/verify", async (req, res) => {
     let paymentStatus = "paid";
     let stripePaymentId: string | null = null;
     let supabaseUserId = "";
+    // Transfer用（Separate C&T方式）
+    let piMetadata: Record<string, string> = {};
+    let chargeIdForTransfer: string | null = null;
 
     if (stripeKey) {
       const stripe = await import("stripe").then((m) => new m.default(stripeKey));
@@ -470,6 +432,20 @@ router.get("/checkout/verify", async (req, res) => {
       if (session.payment_status !== "paid") {
         res.json({ status: session.payment_status, reservationId });
         return;
+      }
+
+      // PaymentIntent を取得してメタデータとcharge IDを確保
+      if (stripePaymentId && stripePaymentId.startsWith("pi_")) {
+        try {
+          const pi = await stripe.paymentIntents.retrieve(stripePaymentId, {
+            expand: ["latest_charge"],
+          });
+          piMetadata = (pi.metadata as Record<string, string>) || {};
+          const lc = pi.latest_charge;
+          chargeIdForTransfer = typeof lc === "string" ? lc : (lc as any)?.id ?? null;
+        } catch (piErr) {
+          console.warn("PaymentIntent retrieve error (non-fatal):", piErr);
+        }
       }
     }
 
@@ -520,7 +496,44 @@ router.get("/checkout/verify", async (req, res) => {
         .where(eq(cartReservationsTable.reservationId, reservationId))
         .catch(() => {});
 
-      // ── 4. Supabase orders に書き込み ─────────────────────────
+      // ── 4. 店舗への Transfer（Separate Charges and Transfers）─────
+      // チャージ完了後に手動でTransferを作成。これがプラットフォームNet = 87円を保証する
+      // piMetadata.storeStripeAccountId と chargeIdForTransfer は Step 1 で取得済み
+      if (stripeKey && chargeIdForTransfer && piMetadata["storeStripeAccountId"]) {
+        try {
+          const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+          const transferAmount = parseInt(piMetadata["shopTransferAmount"] ?? "0", 10);
+          const storeAccountId = piMetadata["storeStripeAccountId"];
+
+          if (transferAmount > 0 && storeAccountId) {
+            const transfer = await stripe.transfers.create({
+              amount:             transferAmount,            // ShopTransferAmount（例: 250円）
+              currency:           "jpy",
+              destination:        storeAccountId,            // 店舗のStripeアカウント
+              source_transaction: chargeIdForTransfer,       // このチャージと紐付け
+              metadata: {
+                reservationId:   String(reservationId),
+                platformRevenue: piMetadata["platformRevenue"] ?? "",
+                stripeFee:       piMetadata["stripeFeeEstimate"] ?? "",
+                shopTransfer:    String(transferAmount),
+              },
+            });
+            console.log(
+              `✅ Transfer成功: ${transferAmount}JPY → ${storeAccountId} ` +
+              `(transfer_id=${transfer.id}, charge=${chargeIdForTransfer}) | ` +
+              `platformNet≈${piMetadata["platformRevenue"]}JPY`
+            );
+          }
+        } catch (transferErr: any) {
+          // Transfer失敗は非致命的（手動対応可能）—— 決済確認フローは継続
+          console.error("⚠️ Transfer error (non-fatal, manual action may be required):", transferErr?.message ?? transferErr);
+        }
+      } else if (stripeKey && stripePaymentId) {
+        // 送金先アカウント未設定の場合はスキップ（プラットフォームに全額留保）
+        console.log(`ℹ️ Transfer スキップ: 送金先アカウント未設定 (reservation=${reservationId})`);
+      }
+
+      // ── 5. Supabase orders に書き込み ─────────────────────────
       // 在庫デクリメントは POST /reservations で実施済みのためここでは行わない
       const targetUserId = supabaseUserId || reservationFull.userId;
       if (targetUserId) {
