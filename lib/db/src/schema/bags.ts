@@ -15,6 +15,8 @@ export const surpriseBagsTable = pgTable("surprise_bags", {
   pickupEnd: text("pickup_end"),
   imageUrl: text("image_url"),
   category: text("category"),
+  allergyInfo: text("allergy_info"),
+  pickupNote: text("pickup_note"),
   isActive: boolean("is_active").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

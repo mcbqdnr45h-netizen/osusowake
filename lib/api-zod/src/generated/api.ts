@@ -219,6 +219,8 @@ export const CreateBagBody = zod.object({
   pickupEnd: zod.string().optional(),
   imageUrl: zod.string().optional(),
   category: zod.string().optional(),
+  allergyInfo: zod.string().optional(),
+  pickupNote: zod.string().optional(),
 });
 
 /**

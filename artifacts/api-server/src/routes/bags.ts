@@ -95,6 +95,8 @@ router.get("/bags", async (_req, res) => {
         storeId: surpriseBagsTable.storeId,
         title: surpriseBagsTable.title,
         description: surpriseBagsTable.description,
+        allergyInfo: surpriseBagsTable.allergyInfo,
+        pickupNote: surpriseBagsTable.pickupNote,
         originalPrice: surpriseBagsTable.originalPrice,
         discountedPrice: surpriseBagsTable.discountedPrice,
         stockCount: surpriseBagsTable.stockCount,
@@ -135,6 +137,8 @@ router.get("/bags/:bagId", async (req, res) => {
         storeId: surpriseBagsTable.storeId,
         title: surpriseBagsTable.title,
         description: surpriseBagsTable.description,
+        allergyInfo: surpriseBagsTable.allergyInfo,
+        pickupNote: surpriseBagsTable.pickupNote,
         originalPrice: surpriseBagsTable.originalPrice,
         discountedPrice: surpriseBagsTable.discountedPrice,
         stockCount: surpriseBagsTable.stockCount,
@@ -200,6 +204,8 @@ router.post("/stores/:storeId/bags", async (req, res) => {
       pickupEnd: body.pickupEnd ?? null,
       imageUrl: body.imageUrl ?? null,
       category: body.category ?? null,
+      allergyInfo: body.allergyInfo ?? null,
+      pickupNote: body.pickupNote ?? null,
       isActive: true,
     }).returning();
 

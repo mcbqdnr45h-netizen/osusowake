@@ -225,18 +225,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     async function init() {
       try {
-        const startCenter: { lat: number; lng: number } = await new Promise((resolve) => {
-          if (!navigator.geolocation) { resolve(mapCenter); return; }
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-              if (!cancelled) setUserPos(ll);
-              resolve(ll);
-            },
-            () => resolve(mapCenter),
-            { enableHighAccuracy: true, timeout: 6000 }
-          );
-        });
+        // ⚠️ Safari iOS: geolocationはユーザー操作（ボタンタップ）の中でのみ呼び出す。
+        // 初期化時に呼ぶとSafariのプライバシー制限でパーミッションダイアログが出ない場合がある。
+        // 現在地取得はhandleLocate()に委ねる。
+        const startCenter = mapCenter;
 
         await loadGoogleMapsScript();
         if (cancelled || !containerRef.current) return;
@@ -319,15 +311,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       marker.addListener('click', () => {
         const pos = marker.getPosition();
         if (pos) {
-          const projection = map.getProjection();
-          if (projection) {
-            const point = projection.fromLatLngToPoint(pos);
-            if (point) {
-              const offsetPoint = new (window as any).google.maps.Point(point.x, point.y + 0.006);
-              const newLatLng = projection.fromPointToLatLng(offsetPoint);
-              if (newLatLng) map.panTo(newLatLng);
-            }
-          }
+          // zoom 15 に設定してから中心をピンに合わせ、下へオフセットしてピンを画面上部に表示
+          map.setZoom(15);
+          map.panTo(pos);
+          // 下方向に200pxパンすることで、60%ボトムシート表示時もピンが上半分に映る
+          setTimeout(() => { map.panBy(0, 200); }, 80);
         }
         onStoreSelectRef.current?.(store);
       });

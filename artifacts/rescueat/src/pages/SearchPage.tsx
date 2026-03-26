@@ -256,6 +256,16 @@ function StoreBottomSheet({
             </div>
           </div>
 
+          {/* お店のPR文 */}
+          {store.description && (
+            <div className="px-4 mb-3">
+              <div className="bg-secondary/50 rounded-2xl px-4 py-3">
+                <p className="text-xs font-black text-primary mb-1.5">お店からのメッセージ</p>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{store.description}</p>
+              </div>
+            </div>
+          )}
+
           {/* バッグ一覧 */}
           <div className="px-4 pb-10">
             {hasBags ? (

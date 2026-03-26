@@ -97,9 +97,16 @@ function PostBagModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
+  // クイックモード追加情報
+  const [quickAllergyInfo, setQuickAllergyInfo] = useState('');
+  const [quickPickupNote, setQuickPickupNote] = useState('');
+
   // 手動フォーム
   const [form, setForm] = useState({
     title: '',
+    description: '',
+    allergyInfo: '',
+    pickupNote: '',
     originalPrice: 1000,
     discountedPrice: 350,
     stockCount: 3,
@@ -167,6 +174,8 @@ function PostBagModal({
           pickupEnd: quickPickupEnd,
           imageUrl,
           category: bagCategory || undefined,
+          allergyInfo: quickAllergyInfo.trim() || undefined,
+          pickupNote: quickPickupNote.trim() || undefined,
         },
       });
       toast({ title: '出品しました！', description: `${pastBag.title} × ${qty}個` });
@@ -193,7 +202,7 @@ function PostBagModal({
         storeId,
         data: {
           title: form.title,
-          description: '',
+          description: form.description.trim() || undefined,
           originalPrice: Number(form.originalPrice),
           discountedPrice: Number(form.discountedPrice),
           stockCount: Number(form.stockCount),
@@ -201,6 +210,8 @@ function PostBagModal({
           pickupEnd: form.pickupEnd,
           imageUrl,
           category: bagCategory || undefined,
+          allergyInfo: form.allergyInfo.trim() || undefined,
+          pickupNote: form.pickupNote.trim() || undefined,
         },
       });
       toast({ title: '出品しました！' });
@@ -405,6 +416,34 @@ function PostBagModal({
                       aiSuggested={aiSuggested}
                     />
 
+                    {/* アレルギー情報 */}
+                    <div>
+                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                        アレルギー情報 <span className="font-normal text-muted-foreground/60">（任意）</span>
+                      </label>
+                      <textarea
+                        value={quickAllergyInfo}
+                        onChange={e => setQuickAllergyInfo(e.target.value)}
+                        placeholder="例：小麦、卵、乳を含む可能性があります"
+                        rows={2}
+                        className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-2.5 text-sm focus:border-primary outline-none transition-all resize-none"
+                      />
+                    </div>
+
+                    {/* 受取メモ */}
+                    <div>
+                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                        受取メモ <span className="font-normal text-muted-foreground/60">（任意）</span>
+                      </label>
+                      <textarea
+                        value={quickPickupNote}
+                        onChange={e => setQuickPickupNote(e.target.value)}
+                        placeholder="例：店頭でスタッフにアプリ画面をご提示ください"
+                        rows={2}
+                        className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-2.5 text-sm focus:border-primary outline-none transition-all resize-none"
+                      />
+                    </div>
+
                     {/* 出品ボタン */}
                     <button
                       onClick={handleQuickSubmit}
@@ -440,6 +479,20 @@ function PostBagModal({
                   onChange={e => setForm({ ...form, title: e.target.value })}
                   placeholder="例：本日のパン詰め合わせ"
                   className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 font-bold placeholder:text-muted-foreground/50 placeholder:font-normal focus:border-primary outline-none transition-all"
+                />
+              </div>
+
+              {/* バッグの内容（説明） */}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                  バッグの内容 <span className="font-normal text-muted-foreground/60">（任意）</span>
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={e => setForm({ ...form, description: e.target.value })}
+                  placeholder="例：本日焼き上がったパンや焼き菓子がランダムに入ったサプライズバッグです"
+                  rows={3}
+                  className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:border-primary outline-none transition-all resize-none"
                 />
               </div>
 
@@ -612,6 +665,34 @@ function PostBagModal({
                 classifying={classifying}
                 aiSuggested={aiSuggested}
               />
+
+              {/* アレルギー情報 */}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                  アレルギー情報 <span className="font-normal text-muted-foreground/60">（任意）</span>
+                </label>
+                <textarea
+                  value={form.allergyInfo}
+                  onChange={e => setForm({ ...form, allergyInfo: e.target.value })}
+                  placeholder="例：小麦、卵、乳を含む可能性があります"
+                  rows={2}
+                  className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:border-primary outline-none transition-all resize-none"
+                />
+              </div>
+
+              {/* 受取メモ */}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                  受取メモ <span className="font-normal text-muted-foreground/60">（任意）</span>
+                </label>
+                <textarea
+                  value={form.pickupNote}
+                  onChange={e => setForm({ ...form, pickupNote: e.target.value })}
+                  placeholder="例：店頭でスタッフにアプリ画面をご提示ください"
+                  rows={2}
+                  className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:border-primary outline-none transition-all resize-none"
+                />
+              </div>
 
               <button
                 type="submit"

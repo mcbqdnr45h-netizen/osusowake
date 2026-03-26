@@ -92,7 +92,7 @@ export default function StoreLegal() {
 
   if (loading) {
     return (
-      <StoreLayout showHeader={false}>
+      <StoreLayout showHeader={false} showBottomNav={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -101,7 +101,7 @@ export default function StoreLegal() {
   }
 
   return (
-    <StoreLayout showHeader={false}>
+    <StoreLayout showHeader={false} showBottomNav={false}>
       {/* ── ページ全体ラッパー（ヘッダー分の padding-top を確保）── */}
       <div className="max-w-xl mx-auto w-full flex flex-col"
         style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>

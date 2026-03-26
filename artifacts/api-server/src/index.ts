@@ -167,6 +167,21 @@ async function runMigrations() {
     `);
     console.log('[migration] favorites table ✅');
 
+    // ── surprise_bags: allergy_info / pickup_note 列 ─────────────────────────
+    for (const col of ['allergy_info', 'pickup_note']) {
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema='public' AND table_name='surprise_bags' AND column_name='${col}'
+          ) THEN
+            ALTER TABLE public.surprise_bags ADD COLUMN ${col} TEXT;
+          END IF;
+        END $$;
+      `);
+    }
+    console.log('[migration] surprise_bags.allergy_info / pickup_note ✅');
+
     // ── cart_reservations テーブル ────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS cart_reservations (

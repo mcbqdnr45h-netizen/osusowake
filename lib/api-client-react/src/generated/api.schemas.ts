@@ -117,12 +117,15 @@ export interface SurpriseBag {
   storeId: number;
   title: string;
   description?: string;
+  allergyInfo?: string | null;
+  pickupNote?: string | null;
   originalPrice: number;
   discountedPrice: number;
   stockCount: number;
   pickupStart?: string;
   pickupEnd?: string;
   imageUrl?: string | null;
+  category?: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -134,6 +137,8 @@ export type SurpriseBagWithStore = SurpriseBag & {
 export interface CreateBagRequest {
   title: string;
   description?: string;
+  allergyInfo?: string;
+  pickupNote?: string;
   originalPrice: number;
   discountedPrice: number;
   stockCount: number;
