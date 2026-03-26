@@ -223,6 +223,11 @@ export default function OrderTicket() {
   const [ticket, setTicket] = useState<TicketRecord | null>(() => readTicket(reservationId));
   const [showReview, setShowReview] = useState(false);
 
+  // 初回ロード時のステータスを記録（セッション中の変化と区別するため）
+  const initialStatusRef = useRef<string | null>(null);
+  // このセッションでボタン操作により受取完了した場合は true（レビューモーダル優先）
+  const justCompletedRef = useRef(false);
+
   // DBのステータスと同期
   useEffect(() => {
     if (reservation?.status === 'picked_up' && !ticket) {
@@ -231,6 +236,27 @@ export default function OrderTicket() {
       setTicket(record);
     }
   }, [reservation?.status, reservationId, ticket]);
+
+  // 最初から受取済みの場合は履歴（マイ予約）へ自動遷移
+  // ※ このセッションでボタン操作した場合（justCompletedRef）はレビューモーダル優先のためスキップ
+  useEffect(() => {
+    if (justCompletedRef.current) return;
+
+    // localStorage に受取済み記録がある場合は即遷移（API待ち不要）
+    if (ticket?.status === 'picked_up') {
+      navigate('/my-reservations');
+      return;
+    }
+    if (!reservation) return;
+    // 初回ロード時のステータスを記録
+    if (initialStatusRef.current === null) {
+      initialStatusRef.current = reservation.status;
+    }
+    // ページを開いた時点ですでに picked_up なら履歴へ
+    if (initialStatusRef.current === 'picked_up') {
+      navigate('/my-reservations');
+    }
+  }, [reservation, ticket, navigate]);
 
   const handleConfirmPickup = useCallback(async () => {
     const res = await fetch(`/api/reservations/${reservationId}/pickup`, { method: 'POST' });
@@ -249,6 +275,8 @@ export default function OrderTicket() {
       throw new Error('failed');
     }
 
+    // ボタン操作による完了 → レビューモーダルを優先するため自動遷移をスキップ
+    justCompletedRef.current = true;
     const record: TicketRecord = { status: 'picked_up', pickedUpAt: new Date().toISOString() };
     writeTicket(reservationId, record);
     setTicket(record);
