@@ -18,17 +18,20 @@ const STRIPE_FEE_RATE = 0.036;
 /**
  * application_fee_amount を計算する。
  *
- * 設計方針:
+ * 設計方針（on_behalf_of モデル）:
  *   application_fee_amount = floor(total × 25%)  ← Stripeダッシュボードに表示される値
  *
- * Destination Charge (transfer_data) モデルでの資金フロー（例: 600円）:
- *   ユーザー支払い          : 600円
- *   application_fee_amount  : 150円（25%）← プラットフォームが受け取る
- *   店舗への送金            : 450円（75%）← transfer_data で自動送金
- *   Stripe 決済手数料(~3.6%): 約22円 ← プラットフォーム口座から別途徴収
- *   プラットフォーム純益    : 150 - 22 = 約128円
+ * on_behalf_of + transfer_data (Destination Charge) モデルでの資金フロー（例: 600円）:
+ *   ユーザー支払い               : 600円
+ *   application_fee_amount       : 150円（25%）← プラットフォームが受け取る【純利益】
+ *   店舗への送金（gross）         : 450円（75%）← transfer_data で自動送金
+ *   Stripe 決済手数料(~3.6%=22円): 店舗（コネクトアカウント）から徴収
+ *   店舗受取（net）              : 450 - 22 = 約428円
  *
- * Math.floor で端数は店舗有利（ユーザー要件通り）
+ * on_behalf_of を指定することで Stripe 手数料は「コネクトアカウント（店舗）」から
+ * 徴収されるため、プラットフォームの application_fee は手数料ゼロの純利益になる。
+ *
+ * Math.floor で端数は店舗有利
  */
 function calcFees(totalAmountJpy: number): {
   platformFee: number;
@@ -38,10 +41,21 @@ function calcFees(totalAmountJpy: number): {
 } {
   const platformFee          = Math.floor(totalAmountJpy * PLATFORM_FEE_RATE);
   const estimatedStripeFee   = Math.round(totalAmountJpy * STRIPE_FEE_RATE);
-  // application_fee = プラットフォーム25%のみ（Stripe手数料は含めない）
   const applicationFeeAmount = platformFee;
+  // store gross（Stripe手数料差引前）
   const storeReceives        = totalAmountJpy - applicationFeeAmount;
   return { platformFee, estimatedStripeFee, applicationFeeAmount, storeReceives };
+}
+
+/** Stripe Connect エラーかどうか判定 */
+function isStripeConnectError(err: any): boolean {
+  return (
+    err?.code === "transfers_not_allowed" ||
+    err?.code === "account_invalid" ||
+    err?.code === "on_behalf_of_not_allowed" ||
+    err?.code === "account_country_invalid_address" ||
+    err?.type === "StripeInvalidRequestError"
+  );
 }
 
 router.post("/payment/create-intent", async (req, res) => {
@@ -94,18 +108,47 @@ router.post("/payment/create-intent", async (req, res) => {
           },
         };
 
-        // Destination Charge: application_fee_amount = プラットフォーム25%のみ
-        // Stripe手数料はプラットフォーム口座から別途徴収される
-        if (destinationAccountId) {
-          intentParams.application_fee_amount = applicationFeeAmount;
-          intentParams.transfer_data = { destination: destinationAccountId };
-          console.log(
-            `PaymentIntent Connect: total=${amountInYen}JPY, platformFee=${platformFee}JPY (25%), ` +
-            `storeReceives=${storeReceives}JPY (75%), stripeFee≈${estimatedStripeFee}JPY, dest=${destinationAccountId}`
-          );
-        }
+        let intent;
+        let intentMode = "direct";
 
-        const intent = await stripe.paymentIntents.create(intentParams);
+        if (destinationAccountId) {
+          // Tier 1: on_behalf_of → 店舗が Stripe 手数料負担、プラットフォームは純益25%
+          try {
+            intent = await stripe.paymentIntents.create({
+              ...intentParams,
+              application_fee_amount: applicationFeeAmount,
+              on_behalf_of:           destinationAccountId,
+              transfer_data:          { destination: destinationAccountId },
+            });
+            intentMode = "on_behalf_of";
+            console.log(
+              `✅ PaymentIntent Tier1 (on_behalf_of): total=${amountInYen}JPY, ` +
+              `platformNet=${platformFee}JPY (25%, 純利益), ` +
+              `storeGross=${storeReceives}JPY, stripeFee≈${estimatedStripeFee}JPY (店舗負担), ` +
+              `dest=${destinationAccountId}`
+            );
+          } catch (t1Err: any) {
+            if (!isStripeConnectError(t1Err)) throw t1Err;
+            console.warn(`⚠️  PaymentIntent Tier1 失敗 [${t1Err.code ?? t1Err.type}] — Tier2 へ`);
+            // Tier 2: transfer_data のみ（プラットフォームが Stripe 手数料負担）
+            try {
+              intent = await stripe.paymentIntents.create({
+                ...intentParams,
+                application_fee_amount: applicationFeeAmount,
+                transfer_data:          { destination: destinationAccountId },
+              });
+              intentMode = "destination_only";
+              console.warn(`⚠️  PaymentIntent Tier2 (destination_only): total=${amountInYen}JPY, dest=${destinationAccountId}`);
+            } catch (t2Err: any) {
+              if (!isStripeConnectError(t2Err)) throw t2Err;
+              console.warn(`⚠️  PaymentIntent Tier2 失敗 — 直接決済へ`);
+              intent = await stripe.paymentIntents.create(intentParams);
+              intentMode = "direct";
+            }
+          }
+        } else {
+          intent = await stripe.paymentIntents.create(intentParams);
+        }
 
         await db
           .update(reservationsTable)
@@ -121,6 +164,7 @@ router.post("/payment/create-intent", async (req, res) => {
           estimatedStripeFee,
           applicationFeeAmount,
           storeReceives,
+          chargeMode:          intentMode,
         });
         return;
       } catch (stripeErr) {
@@ -268,10 +312,10 @@ router.post("/checkout/session", async (req, res) => {
       store?.stripeAccountId ?? "acct_1TDLA9GjCxAcHQcd";
 
     console.log(
-      `Stripe Connect: total=${amountInYen}JPY, ` +
-      `platformFee(appFee)=${applicationFeeAmount}JPY (25%), ` +
-      `storeReceives=${storeReceives}JPY (75%), ` +
-      `stripeFee≈${estimatedStripeFee}JPY (プラットフォーム負担), ` +
+      `Stripe Connect 試行: total=${amountInYen}JPY, ` +
+      `platformNet=${applicationFeeAmount}JPY (25%, 純利益), ` +
+      `storeGross=${storeReceives}JPY (75%), ` +
+      `stripeFee≈${estimatedStripeFee}JPY (店舗負担予定), ` +
       `dest=${destinationAccountId}`
     );
 
@@ -300,70 +344,83 @@ router.post("/checkout/session", async (req, res) => {
       locale: "ja" as const,
     };
 
-    // Stripe Connect: Destination Charge モード
-    // - on_behalf_of は card_payments capability が必要なため使用しない
-    // - transfer_data.destination のみ指定 → transfers capability だけで動作
-    // - application_fee_amount で 25% をプラットフォームが受け取り、残額を店舗へ自動送金
+    // メタデータ（全フォールバック共通）
+    const feeMetadata = {
+      reservationId:      String(reservation.id),
+      platformFee:        String(applicationFeeAmount),
+      estimatedStripeFee: String(estimatedStripeFee),
+      platformFeeRate:    "25",
+      storeGross:         String(storeReceives),
+      destinationAccount: destinationAccountId,
+    };
+
     let session;
-    let connectUsed = false;
+    let chargeMode = "unknown";
+
+    // ── Tier 1: on_behalf_of + transfer_data ─────────────────────────────────
+    // 店舗（コネクトアカウント）が Stripe 手数料を負担 → プラットフォームは 25% を純利益で受け取る
+    // 要件: 店舗アカウントに card_payments capability が必要
     try {
       session = await stripe.checkout.sessions.create({
         ...commonParams,
+        on_behalf_of: destinationAccountId,
         payment_intent_data: {
-          // application_fee_amount = プラットフォーム25%のみ（Stripe手数料は含めない）
-          // 店舗には total - applicationFee = 75% が自動送金される
           application_fee_amount: applicationFeeAmount,
-          transfer_data: { destination: destinationAccountId },
-          metadata: {
-            reservationId:      String(reservation.id),
-            platformFee:        String(platformFee),
-            estimatedStripeFee: String(estimatedStripeFee),
-            applicationFee:     String(applicationFeeAmount),
-            platformFeeRate:    "25",
-            storeReceives:      String(storeReceives),
-            destinationAccount: destinationAccountId,
-          },
+          on_behalf_of:           destinationAccountId,
+          transfer_data:          { destination: destinationAccountId },
+          metadata: { ...feeMetadata, chargeMode: "on_behalf_of" },
         },
       });
-      connectUsed = true;
+      chargeMode = "on_behalf_of";
       console.log(
-        `✅ Stripe Destination Charge 成功: total=${amountInYen}JPY, ` +
-        `platformFee(appFee)=${applicationFeeAmount}JPY (25%), ` +
-        `storeReceives=${storeReceives}JPY (75%), ` +
-        `stripeFee≈${estimatedStripeFee}JPY (プラットフォーム負担), ` +
+        `✅ Tier1 (on_behalf_of) 成功: total=${amountInYen}JPY, ` +
+        `platformNet=${applicationFeeAmount}JPY (25%, 手数料ゼロ), ` +
+        `storeGross=${storeReceives}JPY, stripeFee≈${estimatedStripeFee}JPY (店舗負担), ` +
         `dest=${destinationAccountId}`
       );
-    } catch (connectErr: any) {
-      // Connect が使えない場合はプラットフォーム直接決済にフォールバック
-      const isConnectError =
-        connectErr?.code === "transfers_not_allowed" ||
-        connectErr?.code === "account_invalid" ||
-        connectErr?.type === "StripeInvalidRequestError";
-      if (isConnectError) {
-        console.warn(
-          `⚠️  Stripe Connect フォールバック (${connectErr.code ?? connectErr.type}): ${connectErr.message}`
-        );
+    } catch (tier1Err: any) {
+      if (!isStripeConnectError(tier1Err)) throw tier1Err;
+      console.warn(
+        `⚠️  Tier1 (on_behalf_of) 失敗 [${tier1Err.code ?? tier1Err.type}]: ${tier1Err.message} — Tier2 へフォールバック`
+      );
+
+      // ── Tier 2: transfer_data のみ（on_behalf_of なし）─────────────────────
+      // プラットフォームが Stripe 手数料を負担 → プラットフォーム純益 = 25% - stripeFee
+      // 要件: transfers capability のみ
+      try {
         session = await stripe.checkout.sessions.create({
           ...commonParams,
           payment_intent_data: {
-            metadata: {
-              reservationId:      String(reservation.id),
-              platformFee:        String(platformFee),
-              estimatedStripeFee: String(estimatedStripeFee),
-              applicationFee:     String(applicationFeeAmount),
-              platformFeeRate:    "25",
-              stripeFeeRate:      "3.6",
-              destinationAccount: destinationAccountId,
-              connectStatus:      "fallback",
-            },
+            application_fee_amount: applicationFeeAmount,
+            transfer_data:          { destination: destinationAccountId },
+            metadata: { ...feeMetadata, chargeMode: "destination_only" },
           },
         });
-      } else {
-        throw connectErr;
+        chargeMode = "destination_only";
+        console.warn(
+          `⚠️  Tier2 (destination_only) 使用: total=${amountInYen}JPY, ` +
+          `platformNet≈${applicationFeeAmount - estimatedStripeFee}JPY (Stripe手数料プラットフォーム負担), ` +
+          `storeReceives=${storeReceives}JPY, dest=${destinationAccountId}`
+        );
+      } catch (tier2Err: any) {
+        if (!isStripeConnectError(tier2Err)) throw tier2Err;
+        console.warn(
+          `⚠️  Tier2 (destination_only) 失敗 [${tier2Err.code ?? tier2Err.type}]: ${tier2Err.message} — Tier3 へフォールバック`
+        );
+
+        // ── Tier 3: 直接決済（Connect なし）─────────────────────────────────
+        session = await stripe.checkout.sessions.create({
+          ...commonParams,
+          payment_intent_data: {
+            metadata: { ...feeMetadata, chargeMode: "direct_no_connect" },
+          },
+        });
+        chargeMode = "direct_no_connect";
+        console.warn(`⚠️  Tier3 (direct, Connect なし) 使用: total=${amountInYen}JPY`);
       }
     }
 
-    console.log(`Checkout session created: ${session.id} (Connect=${connectUsed})`);
+    console.log(`Checkout session created: ${session.id} (chargeMode=${chargeMode})`);
 
     await db
       .update(reservationsTable)
