@@ -48,6 +48,12 @@ function isTodaysReservation(r: Reservation) {
   try { return isToday(parseISO(r.createdAt)); } catch { return false; }
 }
 
+function formatPurchasedAt(iso: string) {
+  try {
+    return format(parseISO(iso), 'M/d HH:mm', { locale: ja });
+  } catch { return '—'; }
+}
+
 function statusLabel(s: ReservationStatus) {
   if (s === 'pending')    return { text: '決済待ち', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
   if (s === 'confirmed')  return { text: '確認済み', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
@@ -648,6 +654,7 @@ function ReservationCard({
         <div className="flex-1 min-w-0">
           <p className="text-xs text-muted-foreground font-medium">受取コード</p>
           <p className="text-xl font-black tracking-widest text-foreground font-mono">{code}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">購入: {formatPurchasedAt(res.createdAt)}</p>
         </div>
         {/* ステータスバッジ */}
         <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${badge.cls}`}>

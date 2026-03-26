@@ -55,12 +55,6 @@ function formatDatetime(iso?: string | null) {
   }).replace(/\//g, '/');
 }
 
-function formatReserved(iso?: string | null) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
-}
 
 // ─── 6桁コード表示 ────────────────────────────────────────────────────────
 
@@ -432,7 +426,7 @@ export default function OrderTicket() {
                     <SixDigitCode code={displayCode} />
 
                     <p className="text-[11px] text-muted-foreground mt-5">
-                      予約日: {formatReserved(reservation.createdAt)}
+                      購入日時: {formatDatetime(reservation.createdAt)}
                     </p>
                   </motion.div>
                 )}
