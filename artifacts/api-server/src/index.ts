@@ -248,6 +248,26 @@ async function runMigrations() {
     await client.query(`ALTER TYPE store_status ADD VALUE IF NOT EXISTS 'suspended'`);
     console.log('[migration] store_status suspended ✅');
 
+    // ── app_settings テーブル ─────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    // デフォルト値を INSERT OR IGNORE で挿入
+    await client.query(`
+      INSERT INTO app_settings (key, value) VALUES
+        ('catchphrase',          'あなたの街のおすそわけ'),
+        ('sub_catchphrase',      'おいしいものを、もっとみんなへ。'),
+        ('maintenance_mode',     'false'),
+        ('maintenance_title',    'ただいまメンテナンス中です'),
+        ('maintenance_message',  'より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏')
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    console.log('[migration] app_settings table ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

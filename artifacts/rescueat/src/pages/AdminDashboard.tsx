@@ -6,8 +6,9 @@ import { motion } from 'framer-motion';
 import {
   ShieldCheck, TrendingUp, Users, Store, Clock, CheckCircle, XCircle,
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
-  BadgeDollarSign, BarChart2, Bell,
+  BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench,
 } from 'lucide-react';
+import { fetchAppSettings } from '@/hooks/use-app-settings';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
@@ -78,6 +79,14 @@ export default function AdminDashboard() {
   const [annBody, setAnnBody]   = useState('');
   const [annSending, setAnnSending] = useState(false);
 
+  // ── アプリ設定 ──
+  const [catchphrase,        setCatchphrase]        = useState('あなたの街のおすそわけ');
+  const [subCatchphrase,     setSubCatchphrase]     = useState('おいしいものを、もっとみんなへ。');
+  const [maintenanceMode,    setMaintenanceMode]    = useState(false);
+  const [maintenanceTitle,   setMaintenanceTitle]   = useState('ただいまメンテナンス中です');
+  const [maintenanceMessage, setMaintenanceMessage] = useState('より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏');
+  const [settingsSaving,     setSettingsSaving]     = useState(false);
+
   const [storeFilter, setStoreFilter] = useState<'all' | 'pending' | 'approved' | 'suspended'>('pending');
   const [showAllStores, setShowAllStores] = useState(false);
 
@@ -100,12 +109,44 @@ export default function AdminDashboard() {
       if (mRes.ok) setMetrics(await mRes.json());
       if (sRes.ok) setStores(await sRes.json());
       if (aRes.ok) setAnnouncements(await aRes.json());
+      // 設定の読み込み（グローバルキャッシュ経由）
+      const appSettings = await fetchAppSettings();
+      setCatchphrase(appSettings.catchphrase);
+      setSubCatchphrase(appSettings.sub_catchphrase);
+      setMaintenanceMode(appSettings.maintenance_mode === 'true');
+      setMaintenanceTitle(appSettings.maintenance_title);
+      setMaintenanceMessage(appSettings.maintenance_message);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
   }, [token]);
+
+  async function saveSettings() {
+    setSettingsSaving(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          catchphrase:         catchphrase.trim(),
+          sub_catchphrase:     subCatchphrase.trim(),
+          maintenance_mode:    maintenanceMode ? 'true' : 'false',
+          maintenance_title:   maintenanceTitle.trim(),
+          maintenance_message: maintenanceMessage.trim(),
+        }),
+      });
+      if (res.ok) {
+        await fetchAppSettings();  // グローバルキャッシュを更新
+        toast({ title: maintenanceMode ? '🔧 メンテナンスモードON・設定を保存しました' : '✅ 設定を保存しました' });
+      } else {
+        toast({ title: 'エラー', variant: 'destructive' });
+      }
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -419,6 +460,109 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
+          </div>
+        </motion.div>
+
+        {/* ── アプリ設定パネル ── */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          className="bg-card border border-border/60 rounded-2xl overflow-hidden">
+          <div className="px-5 pt-5 pb-5 space-y-5">
+
+            {/* ─ 文言管理 ─ */}
+            <div>
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
+                <Type className="w-3.5 h-3.5" />文言管理
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                    キャッチコピー <span className="font-normal opacity-60">（ホームの地域名表示のデフォルト）</span>
+                  </label>
+                  <input
+                    type="text" value={catchphrase} onChange={e => setCatchphrase(e.target.value)}
+                    placeholder="あなたの街のおすそわけ"
+                    className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                    サブキャッチコピー <span className="font-normal opacity-60">（将来の使用向け）</span>
+                  </label>
+                  <input
+                    type="text" value={subCatchphrase} onChange={e => setSubCatchphrase(e.target.value)}
+                    placeholder="おいしいものを、もっとみんなへ。"
+                    className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ─ メンテナンスモード ─ */}
+            <div className="pt-4 border-t border-border/40">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
+                <Wrench className="w-3.5 h-3.5" />メンテナンスモード
+              </h2>
+
+              {/* トグルスイッチ */}
+              <div
+                onClick={() => setMaintenanceMode(v => !v)}
+                className={`flex items-center justify-between px-4 py-4 rounded-2xl border-2 cursor-pointer transition-all select-none ${
+                  maintenanceMode
+                    ? 'border-red-400 bg-red-50'
+                    : 'border-border/60 bg-secondary/30 hover:bg-secondary/50'
+                }`}
+              >
+                <div>
+                  <p className={`text-sm font-black ${maintenanceMode ? 'text-red-700' : 'text-foreground'}`}>
+                    {maintenanceMode ? '🔧 メンテナンス中（ユーザーをブロック）' : 'メンテナンスモード OFF'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {maintenanceMode
+                      ? '管理者とadminページは引き続きアクセス可能'
+                      : 'ONにするとすべてのユーザーにメンテナンス画面を表示'}
+                  </p>
+                </div>
+                {maintenanceMode
+                  ? <ToggleRight className="w-8 h-8 text-red-500 shrink-0" />
+                  : <ToggleLeft  className="w-8 h-8 text-muted-foreground/40 shrink-0" />}
+              </div>
+
+              {/* メンテナンス画面の文言 */}
+              <div className="space-y-3 mt-3">
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">メンテナンス画面タイトル</label>
+                  <input
+                    type="text" value={maintenanceTitle} onChange={e => setMaintenanceTitle(e.target.value)}
+                    placeholder="ただいまメンテナンス中です"
+                    className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                    メンテナンス画面メッセージ <span className="font-normal opacity-60">（改行可）</span>
+                  </label>
+                  <textarea
+                    value={maintenanceMessage} onChange={e => setMaintenanceMessage(e.target.value)} rows={3}
+                    placeholder="しばらくお待ちください🙏"
+                    className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 保存ボタン */}
+            <button onClick={saveSettings} disabled={settingsSaving}
+              className={`w-full h-12 font-black rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98] shadow-sm ${
+                maintenanceMode
+                  ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-200'
+                  : 'bg-foreground text-background hover:bg-foreground/90'
+              }`}>
+              {settingsSaving
+                ? <RefreshCw className="w-4 h-4 animate-spin" />
+                : <Settings className="w-4 h-4" />}
+              {maintenanceMode ? '🔧 設定を保存してメンテナンス開始' : '設定を保存する'}
+            </button>
+
           </div>
         </motion.div>
 

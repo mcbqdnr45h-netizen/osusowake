@@ -17,6 +17,7 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
+import { useAppSettings } from '@/hooks/use-app-settings';
 
 // ─── カテゴリーピル ────────────────────────────────────────────────────────
 const SCROLL_CATS = [
@@ -310,6 +311,8 @@ export default function Home() {
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const { settings: appSettings } = useAppSettings();
+
   // ── お知らせバナー ──
   const [announcement, setAnnouncement]         = useState<{ id: number; title: string; body: string } | null>(null);
   const [annDismissed, setAnnDismissed]         = useState(false);
@@ -462,7 +465,7 @@ export default function Home() {
     ? '現在地を確認中...'
     : userCity
       ? `${userCity}のおすそわけ`
-      : geoDenied ? '全国の注目おすそわけ' : 'あなたの街のおすそわけ';
+      : geoDenied ? '全国の注目おすそわけ' : (appSettings.catchphrase || 'あなたの街のおすそわけ');
 
   return (
     <Layout>

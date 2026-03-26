@@ -54,6 +54,7 @@
 - `notifications` - ユーザー通知（お知らせ含む）
 - `announcements` - 管理者が全ユーザーに配信するお知らせ
 - `web_push_subscriptions` - Webプッシュ通知購読情報
+- `app_settings` - アプリ設定KVストア（キャッチコピー・メンテナンスモード等）
 - `reports` / `reviews` - 報告・レビュー
 - `users` - Supabase Auth と連携したプロフィール（public.users）
 

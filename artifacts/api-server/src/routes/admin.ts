@@ -357,4 +357,50 @@ router.get("/admin/vapid-public-key", requireAdmin, async (_req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY ?? null });
 });
 
+// ── GET /settings (public) ─────────────────────────────────────────────────────
+router.get("/settings", async (_req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT key, value FROM app_settings ORDER BY key`);
+    const settings: Record<string, string> = {};
+    for (const row of result.rows as { key: string; value: string }[]) {
+      settings[row.key] = row.value;
+    }
+    res.json(settings);
+  } catch (err: any) {
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── GET /admin/settings ────────────────────────────────────────────────────────
+router.get("/admin/settings", requireAdmin, async (_req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT key, value, updated_at FROM app_settings ORDER BY key`);
+    res.json(result.rows);
+  } catch (err: any) {
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── PATCH /admin/settings ──────────────────────────────────────────────────────
+router.patch("/admin/settings", requireAdmin, async (req: any, res) => {
+  const updates: Record<string, string> = req.body;
+  if (!updates || typeof updates !== "object" || Array.isArray(updates)) {
+    res.status(400).json({ error: "body must be a key-value object" }); return;
+  }
+  try {
+    for (const [key, value] of Object.entries(updates)) {
+      await db.execute(sql`
+        INSERT INTO app_settings (key, value, updated_at)
+        VALUES (${key}, ${String(value)}, NOW())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      `);
+    }
+    // 最新値を返す
+    const result = await db.execute(sql`SELECT key, value, updated_at FROM app_settings ORDER BY key`);
+    res.json({ ok: true, settings: result.rows });
+  } catch (err: any) {
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 export default router;

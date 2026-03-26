@@ -1,12 +1,15 @@
+import React from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute, GuestRoute, GuestWallRoute } from "@/components/ProtectedRoute";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
+import { useAppSettings } from "@/hooks/use-app-settings";
+import MaintenancePage from "./pages/MaintenancePage";
 
 import Home from "./pages/Home";
 import BagDetail from "./pages/BagDetail";
@@ -187,6 +190,23 @@ function AnimatedRoutes() {
   );
 }
 
+const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
+
+function MaintenanceGate({ children }: { children: React.ReactNode }) {
+  const { settings, isMaintenanceMode } = useAppSettings();
+  const { user } = useAuth();
+  const [location] = useLocation();
+
+  // 管理者は常に通過 + /admin ルートは常に通過
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdminRoute = location === '/admin' || location.startsWith('/admin/');
+
+  if (isMaintenanceMode && !isAdmin && !isAdminRoute) {
+    return <MaintenancePage settings={settings} />;
+  }
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -194,7 +214,9 @@ function App() {
         <FavoritesProvider>
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <AnimatedRoutes />
+              <MaintenanceGate>
+                <AnimatedRoutes />
+              </MaintenanceGate>
             </WouterRouter>
             <Toaster />
           </TooltipProvider>
