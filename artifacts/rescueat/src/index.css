@@ -381,3 +381,65 @@
   mask-composite: exclude;
   pointer-events: none;
 }
+
+/* ═══════════════════════════════════════════════════════
+   電子領収書 — 印刷専用スタイル
+   戦略: JS側でDOMクローンを <body> 直下に挿入して印刷。
+   #osusowake-print-root 以外はすべて非表示にする。
+═══════════════════════════════════════════════════════ */
+@media print {
+  /* ── ページ設定 ─────────────────────────────── */
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+
+  /* ── 全要素を非表示 → 印刷専用コンテナのみ表示 ── */
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body > * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* ── 印刷専用コンテナ（JSがbody直下に追加）──── */
+  body > #osusowake-print-root {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 180mm !important;
+    margin: 0 auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: #111 !important;
+    font-size: 11pt !important;
+  }
+
+  body > #osusowake-print-root * {
+    visibility: visible !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* ── 背景色・枠線を印刷に反映 ─────────────── */
+  body > #osusowake-print-root table,
+  body > #osusowake-print-root div,
+  body > #osusowake-print-root span,
+  body > #osusowake-print-root p {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── ページ区切りの制御 ──────────────────── */
+  body > #osusowake-print-root table {
+    page-break-inside: avoid;
+  }
+}

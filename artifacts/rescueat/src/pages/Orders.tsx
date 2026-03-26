@@ -83,7 +83,30 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
     return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
   })();
 
-  function handlePrint() { window.print(); }
+  function handlePrint() {
+    const receiptEl = document.getElementById('receipt-printable');
+    if (!receiptEl) { window.print(); return; }
+
+    // 既存の印刷コンテナがあれば削除（念のため）
+    const existing = document.getElementById('osusowake-print-root');
+    if (existing) document.body.removeChild(existing);
+
+    // 領収書のHTMLをクローンして <body> 直下に挿入
+    // → モーダルの overflow/max-height 制約から完全に切り離す
+    const printRoot = document.createElement('div');
+    printRoot.id = 'osusowake-print-root';
+    printRoot.appendChild(receiptEl.cloneNode(true));
+    document.body.appendChild(printRoot);
+
+    // 印刷ダイアログを開き、完了後にクローンを削除
+    const cleanup = () => {
+      const el = document.getElementById('osusowake-print-root');
+      if (el) document.body.removeChild(el);
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+  }
 
   async function handleShare() {
     const text = `OsusOwake 電子領収書\n${storeName}\n${bagTitle}\n金額: ¥${total.toLocaleString()}\n${orderId}`;
@@ -94,23 +117,6 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
 
   return (
     <AnimatePresence>
-      {/* ── Print CSS (グローバルに挿入) ─────────── */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden !important; }
-          #receipt-printable, #receipt-printable * { visibility: visible !important; }
-          #receipt-printable {
-            position: fixed !important;
-            inset: 0 !important;
-            padding: 24px 32px !important;
-            background: white !important;
-            font-size: 12pt !important;
-            color: #111 !important;
-          }
-          .print-hidden { display: none !important; }
-        }
-      `}</style>
-
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
