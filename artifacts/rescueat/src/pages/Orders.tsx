@@ -129,11 +129,11 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="w-full max-w-lg mx-auto bg-white rounded-t-3xl overflow-hidden shadow-2xl max-h-[95dvh] overflow-y-auto"
+          className="w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl max-h-[95dvh] flex flex-col"
           onClick={e => e.stopPropagation()}
         >
-          {/* ── ドラッグハンドル + 閉じる ─── */}
-          <div className="flex items-center justify-between px-5 pt-3 pb-2 print-hidden">
+          {/* ── ドラッグハンドル + 閉じる（固定ヘッダー）─── */}
+          <div className="flex items-center justify-between px-5 pt-3 pb-2 shrink-0 print:hidden">
             <div className="flex-1 flex justify-center">
               <div className="w-10 h-1 bg-gray-200 rounded-full" />
             </div>
@@ -150,7 +150,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
           ══════════════════════════════════════ */}
           <div
             id="receipt-printable"
-            className="px-6 pb-4"
+            className="px-6 pb-4 flex-1 overflow-y-auto"
             style={{ fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif' }}
           >
             {/* ── タイトル ─────────────── */}
@@ -296,8 +296,8 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
             </p>
           </div>
 
-          {/* ── アクションボタン（印刷時非表示） ── */}
-          <div className="px-6 pb-6 flex gap-3 print-hidden border-t border-gray-100 pt-4">
+          {/* ── アクションボタン（常に表示・印刷時は非表示）── */}
+          <div className="px-6 pb-6 flex gap-3 shrink-0 print:hidden border-t border-gray-100 pt-4 bg-white">
             <button
               onClick={handleShare}
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
