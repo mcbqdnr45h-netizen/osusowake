@@ -17,6 +17,11 @@ import type { ReviewTarget } from '@/components/ReviewModal';
  * ① 予約の作成日が今日以外 → 必ず期限切れ（日またぎ含め）
  * ② 今日作成の場合 → pickupEnd (HH:MM) を現在時刻と比較
  */
+const HOLD_MS = 5 * 60 * 1000;
+function isHoldExpired(createdAt: string): boolean {
+  return Date.now() > new Date(createdAt).getTime() + HOLD_MS;
+}
+
 function isPickupExpired(pickupEnd?: string | null, createdAt?: string): boolean {
   const now = new Date();
 
@@ -194,8 +199,25 @@ export default function MyReservations() {
           </div>
         ) : (() => {
           const sorted = [...reservations]
-            .filter(r => !dismissedIds.has(r.id) && r.status !== 'cancelled')
+            .filter(r => {
+              if (dismissedIds.has(r.id)) return false;
+              if (r.status === 'cancelled') return false;
+              // 仮押さえ期限切れ（5分）の pending は非表示
+              if (r.status === 'pending' && isHoldExpired(r.createdAt)) return false;
+              return true;
+            })
             .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
+
+          if (sorted.length === 0) {
+            return (
+              <div className="mx-4 text-center py-20 bg-card border border-border border-dashed rounded-3xl">
+                <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h2 className="text-lg font-bold text-foreground mb-2">まだ予約がありません</h2>
+                <p className="text-muted-foreground mb-6 text-sm">気になるサプライズバッグを見つけて、<br />フードロス削減に貢献しましょう！</p>
+                <Link href="/"><span className="bg-primary text-primary-foreground font-bold px-6 py-3 rounded-full shadow-md shadow-primary/20 hover:shadow-lg transition-all inline-block cursor-pointer">バッグを探す</span></Link>
+              </div>
+            );
+          }
 
           const active  = sorted.filter(r => r.status === 'confirmed' || r.status === 'pending');
           const history = sorted.filter(r => r.status === 'picked_up');

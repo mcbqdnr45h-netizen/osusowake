@@ -147,6 +147,9 @@ async function getReservationWithDetails(id: number) {
 }
 
 router.get("/reservations", async (req, res) => {
+  // 期限切れ仮押さえを非同期でクリーンアップ（レスポンスはブロックしない）
+  releaseExpiredCartReservations().catch(() => {});
+
   try {
     const query = ListReservationsQueryParams.parse(req.query);
 
