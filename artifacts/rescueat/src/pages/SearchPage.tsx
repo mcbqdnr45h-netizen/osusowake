@@ -182,16 +182,39 @@ function StoreBottomSheet({
           style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
         >
           {/* 店舗画像バナー */}
-          <div className="relative h-32 mx-4 mt-1 mb-3 rounded-2xl overflow-hidden bg-muted shrink-0">
-            <img src={store.imageUrl || getCategoryImage(store.category)} alt={store.name} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            <button onClick={onClose}
-              className="absolute top-2.5 right-2.5 w-8 h-8 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center tap-scale">
+          <div className="relative mx-4 mt-1 mb-3 rounded-2xl overflow-hidden bg-muted shrink-0" style={{ height: store.description ? 192 : 148 }}>
+            <img
+              src={store.imageUrl || getCategoryImage(store.category)}
+              alt={store.name}
+              className="w-full h-full object-cover"
+            />
+            {/* 下半分グラデーション — 強め */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+
+            {/* 閉じるボタン */}
+            <button
+              onClick={onClose}
+              className="absolute top-2.5 right-2.5 w-8 h-8 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center tap-scale"
+            >
               <X className="w-4 h-4 text-white" />
             </button>
-            <div className="absolute bottom-3 left-3 right-10">
-              <p className="text-white/70 text-xs mb-0.5">{getCategoryIcon(store.category)} {store.category ?? 'その他'}</p>
-              <h2 className="text-white font-black text-lg leading-tight line-clamp-1">{store.name}</h2>
+
+            {/* テキストオーバーレイ */}
+            <div className="absolute bottom-0 left-0 right-0 px-4 pb-3.5 pt-8">
+              {/* カテゴリバッジ */}
+              <p className="text-white/60 text-[11px] font-semibold tracking-wide mb-1">
+                {getCategoryIcon(store.category)}&nbsp;{store.category ?? 'その他'}
+              </p>
+              {/* 店名 — 大きく太く */}
+              <h2 className="text-white font-black text-2xl leading-tight tracking-tight line-clamp-1 drop-shadow-sm">
+                {store.name}
+              </h2>
+              {/* PR文 — 店名より小さく、白/70 */}
+              {store.description && (
+                <p className="text-white/80 text-[13px] font-medium leading-snug mt-1 line-clamp-2 drop-shadow-sm">
+                  {store.description}
+                </p>
+              )}
             </div>
           </div>
 
@@ -256,15 +279,6 @@ function StoreBottomSheet({
             </div>
           </div>
 
-          {/* お店のPR文 */}
-          {store.description && (
-            <div className="px-4 mb-3">
-              <div className="bg-secondary/50 rounded-2xl px-4 py-3">
-                <p className="text-xs font-black text-primary mb-1.5">お店からのメッセージ</p>
-                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{store.description}</p>
-              </div>
-            </div>
-          )}
 
           {/* バッグ一覧 */}
           <div className="px-4 pb-10">
