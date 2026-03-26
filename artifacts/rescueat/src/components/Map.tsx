@@ -23,10 +23,6 @@ function makeStoreIconUrl(category: string, isListing: boolean, bagCount: number
   const emoji = getCategoryIcon(category);
 
   if (isListing) {
-    const badge = bagCount > 0
-      ? `<rect x="22" y="2" width="20" height="15" rx="7.5" fill="#F59E0B"/>
-         <text x="32" y="13.5" text-anchor="middle" font-size="9" font-family="sans-serif" fill="white" font-weight="bold">${bagCount}</text>`
-      : '';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
       <defs>
         <radialGradient id="g1" cx="40%" cy="35%" r="65%">
@@ -37,7 +33,6 @@ function makeStoreIconUrl(category: string, isListing: boolean, bagCount: number
       <ellipse cx="22" cy="49" rx="8" ry="3" fill="rgba(0,0,0,0.2)"/>
       <circle cx="22" cy="21" r="19" fill="url(#g1)" stroke="#1E3F38" stroke-width="2.5"/>
       <text x="22" y="27.5" text-anchor="middle" font-size="19" font-family="serif">${emoji}</text>
-      ${badge}
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   } else {
