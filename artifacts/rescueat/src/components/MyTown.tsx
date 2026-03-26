@@ -4,6 +4,7 @@ import { getTownStage, TOWN_STAGES, MAX_STAGE } from '@/lib/town-stage';
 
 interface MyTownProps {
   purchaseCount: number;
+  fullPage?: boolean;
 }
 
 const LS_KEY = 'rescueat_mytownStage';
@@ -89,8 +90,11 @@ function EvolutionPopup({ stage, onClose }: { stage: number; onClose: () => void
 }
 
 // ── SVG Town Scene helper ──────────────────────────────────────────────────
-function TownScene({ stage, purchaseCount }: { stage: number; purchaseCount: number }) {
+function TownScene({ stage, purchaseCount, tall = false, fillHeight = false }: { stage: number; purchaseCount: number; tall?: boolean; fillHeight?: boolean }) {
   const ge = (n: number) => stage >= n;
+  const shift = tall ? 60 : 0;   // 地面を 60単位 下げる
+  const groundY = 130 + shift;   // tall=190, normal=130
+  const viewH = tall ? 240 : 180;
 
   const skyColors: [string, string][] = [
     ['#9e9892', '#d4cec4'], // 0 荒地
@@ -112,9 +116,12 @@ function TownScene({ stage, purchaseCount }: { stage: number; purchaseCount: num
 
   return (
     <svg
-      viewBox="0 0 360 180"
+      viewBox={`0 0 360 ${viewH}`}
       xmlns="http://www.w3.org/2000/svg"
-      style={{ display: 'block', width: '100%' }}
+      preserveAspectRatio={fillHeight ? 'xMidYMax slice' : 'xMidYMid meet'}
+      style={fillHeight
+        ? { display: 'block', width: '100%', height: '100%' }
+        : { display: 'block', width: '100%' }}
       aria-label={`マイタウン: ${TOWN_STAGES[stage].name}`}
     >
       <defs>
@@ -128,7 +135,11 @@ function TownScene({ stage, purchaseCount }: { stage: number; purchaseCount: num
         </linearGradient>
       </defs>
 
-      <rect x="0" y="0" width="360" height="130" fill="url(#mtSky)" />
+      {/* tall モード: 追加の空をグラデーション上端色で埋める */}
+      {shift > 0 && <rect x="0" y="0" width="360" height={shift} fill={skyTop} />}
+
+      {/* 全シーン要素を shift 分だけ下げる */}
+      <g transform={shift ? `translate(0, ${shift})` : undefined}>
 
       {/* Sun (stage 4+) */}
       {ge(4) && (
@@ -344,12 +355,13 @@ function TownScene({ stage, purchaseCount }: { stage: number; purchaseCount: num
       <text x="180" y="173" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" fontFamily="'Noto Sans JP', sans-serif">
         {TOWN_STAGES[stage].icon} {TOWN_STAGES[stage].name}　｜　おすそ分け {purchaseCount}回達成
       </text>
+      </g>
     </svg>
   );
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
-export function MyTown({ purchaseCount }: MyTownProps) {
+export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
   const stage = getTownStage(purchaseCount);
   const stageInfo = TOWN_STAGES[stage];
   const nextStage = stage < TOWN_STAGES.length - 1 ? TOWN_STAGES[stage + 1] : null;
@@ -367,14 +379,12 @@ export function MyTown({ purchaseCount }: MyTownProps) {
 
   useEffect(() => {
     const stored = parseInt(localStorage.getItem(LS_KEY) ?? '-1', 10);
-    // 初回マウント: 保存済みステージを設定（ポップアップは出さない）
     if (stored === -1) {
       localStorage.setItem(LS_KEY, String(stage));
       prevStageRef.current = stage;
       return;
     }
     prevStageRef.current = stored;
-    // 現在ステージが保存より高い → 進化ポップアップを表示
     if (stage > stored) {
       setPopupStage(stage);
       setShowPopup(true);
@@ -383,6 +393,106 @@ export function MyTown({ purchaseCount }: MyTownProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
+  // ── Info Panel（共通）────────────────────────────────────────────────
+  const infoPanel = (
+    <div className={fullPage ? 'px-4 pt-4 pb-5' : 'px-4 pt-3 pb-4'}>
+      <div className="flex items-start justify-between mb-2.5">
+        <div className="flex-1 min-w-0">
+          <h3 className={`font-black text-foreground flex items-center gap-2 ${fullPage ? 'text-xl' : 'text-base'}`}>
+            🏘️ マイタウン
+            <span className="text-xs font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+              Lv.{stage}
+            </span>
+          </h3>
+          <p className={`text-muted-foreground mt-0.5 leading-snug ${fullPage ? 'text-sm' : 'text-xs'}`}>
+            {stageInfo.description}
+          </p>
+        </div>
+        <div className="text-right ml-3 shrink-0">
+          <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide">ステージ</div>
+          <div className={`font-black text-primary leading-none ${fullPage ? 'text-5xl' : 'text-3xl'}`}>{stage}</div>
+          <div className="text-[9px] text-muted-foreground">/ {MAX_STAGE}</div>
+        </div>
+      </div>
+
+      {!isMax ? (
+        <>
+          <div className="mb-1">
+            <div className="flex items-center justify-between text-[11px] mb-1">
+              <span className="text-muted-foreground font-medium">
+                次: {nextStage!.icon} {nextStage!.name}
+              </span>
+              <span className="font-black text-foreground">あと {nextStage!.minCount - purchaseCount}回</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`flex-1 relative bg-secondary rounded-full overflow-hidden ${fullPage ? 'h-3.5' : 'h-2.5'}`}>
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.max(3, progressPct)}%` }}
+                  transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+                />
+              </div>
+              <div className="flex flex-col items-center shrink-0 opacity-40">
+                <span className="text-base leading-none">{finalStage.icon.split('')[0]}</span>
+                <span className="text-[8px] font-black text-muted-foreground whitespace-nowrap">Lv.{MAX_STAGE}</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1">
+            <p className={`text-muted-foreground leading-snug ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
+              あと <span className="font-black text-foreground">{nextStage!.minCount - purchaseCount}回</span> おすそ分けすると「{nextStage!.name}」に進化！🌿
+            </p>
+            <p className={`text-primary font-bold flex items-center gap-1 ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
+              <span>✨ 進化すると：</span>
+              <span className="text-foreground font-semibold">{nextStage!.benefit}</span>
+            </p>
+          </div>
+        </>
+      ) : (
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3 text-center">
+          <p className={`font-black text-emerald-700 dark:text-emerald-400 ${fullPage ? 'text-base' : 'text-sm'}`}>
+            🌟 最高ステージ達成！あなたは千年の森の守護者です
+          </p>
+          <p className={`text-emerald-600 dark:text-emerald-500 mt-1 ${fullPage ? 'text-sm' : 'text-xs'}`}>
+            {stageInfo.benefit}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── フルページモード ───────────────────────────────────────────────
+  if (fullPage) {
+    return (
+      <>
+        <AnimatePresence>
+          {showPopup && (
+            <EvolutionPopup stage={popupStage} onClose={() => setShowPopup(false)} />
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col flex-1 w-full"
+        >
+          {/* SVG: 残り高さをすべて使用 */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <TownScene stage={stage} purchaseCount={purchaseCount} tall fillHeight />
+          </div>
+
+          {/* Info Panel */}
+          <div className="bg-card border-t border-border shadow-sm shrink-0">
+            {infoPanel}
+          </div>
+        </motion.div>
+      </>
+    );
+  }
+
+  // ── カードモード（既存の見た目を維持）──────────────────────────────
   return (
     <>
       <AnimatePresence>
@@ -397,77 +507,8 @@ export function MyTown({ purchaseCount }: MyTownProps) {
         transition={{ duration: 0.5 }}
         className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-4"
       >
-        {/* ── SVG Scene ── */}
         <TownScene stage={stage} purchaseCount={purchaseCount} />
-
-        {/* ── Info Panel ── */}
-        <div className="px-4 pt-3 pb-4">
-          <div className="flex items-start justify-between mb-2.5">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-black text-foreground text-base flex items-center gap-2">
-                🏘️ マイタウン
-                <span className="text-xs font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                  Lv.{stage}
-                </span>
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{stageInfo.description}</p>
-            </div>
-            <div className="text-right ml-3 shrink-0">
-              <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide">ステージ</div>
-              <div className="text-3xl font-black text-primary leading-none">{stage}</div>
-              <div className="text-[9px] text-muted-foreground">/ {MAX_STAGE}</div>
-            </div>
-          </div>
-
-          {!isMax ? (
-            <>
-              {/* Progress bar with end-goal hint */}
-              <div className="mb-1">
-                <div className="flex items-center justify-between text-[11px] mb-1">
-                  <span className="text-muted-foreground font-medium">
-                    次: {nextStage!.icon} {nextStage!.name}
-                  </span>
-                  <span className="font-black text-foreground">あと {nextStage!.minCount - purchaseCount}回</span>
-                </div>
-
-                {/* Bar + end goal */}
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 relative bg-secondary rounded-full h-2.5 overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.max(3, progressPct)}%` }}
-                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
-                    />
-                  </div>
-                  {/* End-goal hint */}
-                  <div className="flex flex-col items-center shrink-0 opacity-40">
-                    <span className="text-base leading-none">{finalStage.icon.split('')[0]}</span>
-                    <span className="text-[8px] font-black text-muted-foreground whitespace-nowrap">Lv.{MAX_STAGE}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress text + benefit */}
-              <div className="mt-1.5 space-y-1">
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  あと <span className="font-black text-foreground">{nextStage!.minCount - purchaseCount}回</span> おすそ分けすると「{nextStage!.name}」に進化！🌿
-                </p>
-                <p className="text-[11px] text-primary font-bold flex items-center gap-1">
-                  <span>✨ 進化すると：</span>
-                  <span className="text-foreground font-semibold">{nextStage!.benefit}</span>
-                </p>
-              </div>
-            </>
-          ) : (
-            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3 text-center">
-              <p className="text-sm font-black text-emerald-700 dark:text-emerald-400">
-                🌟 最高ステージ達成！あなたは千年の森の守護者です
-              </p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">{stageInfo.benefit}</p>
-            </div>
-          )}
-        </div>
+        {infoPanel}
       </motion.div>
     </>
   );

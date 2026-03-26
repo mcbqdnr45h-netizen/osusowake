@@ -15,11 +15,14 @@ export default function MyTownPage() {
 
   return (
     <Layout showBottomNav>
-      <div className="max-w-md mx-auto px-4 pt-6 pb-8">
-        <h1 className="text-2xl font-black text-foreground mb-5 tracking-tight">
-          🏘️ マイタウン
-        </h1>
-        <MyTown purchaseCount={pickedUpCount} />
+      {/* ヘッダー(64px) + ボトムナビ(62px) + safe-area を引いた残り高さをフル使用 */}
+      <div
+        className="flex flex-col"
+        style={{
+          height: 'calc(100dvh - 64px - 62px - env(safe-area-inset-top) - env(safe-area-inset-bottom))',
+        }}
+      >
+        <MyTown purchaseCount={pickedUpCount} fullPage />
       </div>
     </Layout>
   );
