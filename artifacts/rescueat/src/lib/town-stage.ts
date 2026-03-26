@@ -12,7 +12,7 @@ export const TOWN_STAGES: TownStageConfig[] = [
     stage: 0,
     minCount: 0,
     name: '荒地',
-    description: 'まだ荒れた土地…最初のおすそ分けで変えよう',
+    description: 'まだ荒れた土地…最初のおすそわけで変えよう',
     icon: '🏚️',
     benefit: '最初の1回で「新芽」に進化！',
   },

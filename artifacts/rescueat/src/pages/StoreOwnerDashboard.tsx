@@ -271,7 +271,7 @@ export default function StoreOwnerDashboard() {
           </div>
           <h1 className="text-2xl font-black text-foreground mb-2">店舗申請を始めましょう</h1>
           <p className="text-muted-foreground text-sm leading-relaxed mb-5">
-            おすそ分けバッグを出品するには、まず店舗の審査申請が必要です。
+            おすそわけバッグを出品するには、まず店舗の審査申請が必要です。
           </p>
           <button
             onClick={() => navigate('/store-onboarding')}

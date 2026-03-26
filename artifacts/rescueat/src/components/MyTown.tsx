@@ -16,7 +16,7 @@ const TITLES: Record<number, string> = {
   2:  '若葉の守り手',
   3:  '芽吹きの使者',
   4:  '緑の開拓者',
-  5:  'おすそ分け隊長',
+  5:  'おすそわけ隊長',
   6:  '森の守護者',
   7:  '収穫の達人',
   8:  '環境の英雄',
@@ -1007,7 +1007,7 @@ function TownScene({
         <rect x="0" y="157" width="360" height="23" fill="rgba(0,0,0,0.22)" />
         <text x="180" y="173" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold"
           fontFamily="'Noto Sans JP', sans-serif">
-          {TOWN_STAGES[stage].icon} {TOWN_STAGES[stage].name}　｜　おすそ分け {purchaseCount}回達成
+          {TOWN_STAGES[stage].icon} {TOWN_STAGES[stage].name}　｜　おすそわけ {purchaseCount}回達成
         </text>
       </g>
     </svg>
@@ -1129,7 +1129,7 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
           </div>
           <motion.div className="bg-secondary/60 rounded-2xl px-3 py-2.5" whileTap={{ scale: 0.97 }}>
             <p className={`text-muted-foreground leading-snug ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
-              あと <span className="font-black text-foreground" style={gameFont}>{nextStage!.minCount - purchaseCount}回</span> おすそ分けすると「{nextStage!.name}」に進化！🌿
+              あと <span className="font-black text-foreground" style={gameFont}>{nextStage!.minCount - purchaseCount}回</span> おすそわけすると「{nextStage!.name}」に進化！🌿
             </p>
             <p className={`text-primary font-bold mt-1 flex items-center gap-1 ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
               <span>✨</span>

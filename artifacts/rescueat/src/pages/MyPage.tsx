@@ -135,7 +135,7 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* ── おすそ分けスコア（カスタマーのみ） ── */}
+        {/* ── おすそわけスコア（カスタマーのみ） ── */}
         {!isStoreOwner && <div className="mb-4">
 
           {/* ヒーローカード：スコア全体 */}
@@ -175,11 +175,11 @@ export default function MyPage() {
               <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 mt-3">
                 <p className="text-white font-black text-sm text-center">
                   {pickedUpCount === 0
-                    ? '🌟 最初のおすそ分けで街が変わりはじめる！'
+                    ? '🌟 最初のおすそわけで街が変わりはじめる！'
                     : pickedUpCount < 5
                     ? '🌾 素敵なスタートです！続けてみましょう'
                     : pickedUpCount < 15
-                    ? '🌿 ナイスおすそ分け！街が育っています'
+                    ? '🌿 ナイスおすそわけ！街が育っています'
                     : '🏆 すごい！あなたは街の守護者です'
                   }
                 </p>
@@ -191,7 +191,7 @@ export default function MyPage() {
               <div className="text-center">
                 <div className="text-white font-black text-xl leading-none">{pickedUpCount}</div>
                 <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
-                  <ShoppingBag className="w-3 h-3" />おすそ分け回数
+                  <ShoppingBag className="w-3 h-3" />おすそわけ回数
                 </div>
               </div>
               <div className="w-px h-8 bg-white/20" />

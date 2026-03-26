@@ -234,7 +234,7 @@ function PostBagModal({
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-lg font-black text-foreground">本日のOsusOwakeを出品する</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">今日おすそ分けできる商品を選んでください</p>
+            <p className="text-xs text-muted-foreground mt-0.5">今日おすそわけできる商品を選んでください</p>
           </div>
           <button
             onClick={onClose}

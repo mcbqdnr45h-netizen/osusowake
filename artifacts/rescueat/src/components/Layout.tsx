@@ -277,7 +277,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
                   </span>
                 </div>
                 <p className="text-[13px] text-muted-foreground leading-relaxed">
-                  お店の味を、誰かにおすそ分けしよう。<br />
+                  お店の味を、誰かにおすそわけしよう。<br />
                   余剰食品を、価値ある出会いに。
                 </p>
               </div>

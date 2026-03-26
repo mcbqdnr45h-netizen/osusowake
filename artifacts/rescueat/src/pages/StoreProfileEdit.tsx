@@ -324,7 +324,7 @@ export default function StoreProfileEdit() {
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 rows={4}
-                placeholder="お店の魅力、こだわり、おすそ分けバッグの特徴などをPRしましょう！"
+                placeholder="お店の魅力、こだわり、おすそわけバッグの特徴などをPRしましょう！"
                 className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
               />
               <p className="text-xs text-muted-foreground mt-1.5">{form.description.length} 文字</p>

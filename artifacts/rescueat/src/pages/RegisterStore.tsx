@@ -187,7 +187,7 @@ export default function RegisterStore() {
             </div>
             <div className="h-px flex-1 bg-border" />
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold transition-all ${step === 'bag' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
-              <span>2</span> おすそ分けバッグ
+              <span>2</span> おすそわけバッグ
             </div>
           </div>
         )}
@@ -330,7 +330,7 @@ export default function RegisterStore() {
             >
               {createStore.isPending
                 ? <><RefreshCw className="w-5 h-5 animate-spin" /> 処理中...</>
-                : '次へ：おすそ分けバッグを設定'
+                : '次へ：おすそわけバッグを設定'
               }
             </button>
           </form>
@@ -340,7 +340,7 @@ export default function RegisterStore() {
         {step === 'bag' && (
           <form onSubmit={handleBagSubmit} className="space-y-5">
             <div className="bg-secondary/50 rounded-xl p-4 text-sm text-muted-foreground font-medium">
-              💡 おすそ分けバッグは閉店前の余り食品をまとめて販売する商品です。内容は「お楽しみ」でOKです。
+              💡 おすそわけバッグは閉店前の余り食品をまとめて販売する商品です。内容は「お楽しみ」でOKです。
             </div>
 
             <div>
@@ -454,7 +454,7 @@ export default function RegisterStore() {
               <div className="font-bold mb-2 text-primary">🚀 即時公開について</div>
               <ul className="space-y-1 text-foreground/70">
                 <li>✅ 登録と同時に地図へ自動掲載されます</li>
-                <li>✅ すぐにおすそ分けバッグの出品が可能です</li>
+                <li>✅ すぐにおすそわけバッグの出品が可能です</li>
                 <li>✅ ダッシュボードから在庫・予約を管理できます</li>
               </ul>
             </div>

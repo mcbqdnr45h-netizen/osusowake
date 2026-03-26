@@ -116,7 +116,7 @@ export default function CheckoutSuccess() {
             transition={{ delay: 0.3 }}
             className="text-3xl font-black text-foreground leading-tight"
           >
-            ナイスおすそ分け！
+            ナイスおすそわけ！
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 8 }}
@@ -128,7 +128,7 @@ export default function CheckoutSuccess() {
           </motion.p>
         </motion.div>
 
-        {/* ── おすそ分け受付票 ── */}
+        {/* ── おすそわけ受付票 ── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -138,7 +138,7 @@ export default function CheckoutSuccess() {
           <div className="bg-gradient-to-r from-primary to-orange-400 px-5 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Package className="w-4 h-4 text-white" />
-              <span className="text-white font-black text-sm tracking-wide">おすそ分け受付票</span>
+              <span className="text-white font-black text-sm tracking-wide">おすそわけ受付票</span>
             </div>
             {reservationId && (
               <span className="text-white/80 text-xs font-mono bg-white/15 px-2 py-1 rounded-lg">

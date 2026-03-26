@@ -94,7 +94,7 @@ export default function StoreSalesPage() {
             { label: '本日の売上',    value: `¥${todayRevenue.toLocaleString()}`,  icon: TrendingUp,  color: 'text-primary',    bg: 'bg-orange-50',  border: 'border-orange-100' },
             { label: '今月の売上',    value: `¥${monthRevenue.toLocaleString()}`,   icon: BarChart2,   color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-100'   },
             { label: '累計売上',      value: `¥${totalRevenue.toLocaleString()}`,   icon: TrendingUp,  color: 'text-purple-600', bg: 'bg-purple-50',  border: 'border-purple-100' },
-            { label: '累計おすそ分け', value: `${totalBags}個`,                     icon: Package2,    color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-100'  },
+            { label: '累計おすそわけ', value: `${totalBags}個`,                     icon: Package2,    color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-100'  },
           ].map(item => {
             const Icon = item.icon;
             return (
@@ -148,7 +148,7 @@ export default function StoreSalesPage() {
             <div className="bg-white rounded-2xl border border-dashed border-border p-8 text-center">
               <p className="text-3xl mb-2">📊</p>
               <p className="text-sm font-bold text-foreground">まだ受取済みの注文がありません</p>
-              <p className="text-xs text-muted-foreground mt-1">商品を出品して最初のおすそ分けをしましょう</p>
+              <p className="text-xs text-muted-foreground mt-1">商品を出品して最初のおすそわけをしましょう</p>
             </div>
           ) : (
             <div className="space-y-2">

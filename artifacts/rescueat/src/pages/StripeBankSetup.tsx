@@ -589,7 +589,7 @@ export default function StripeBankSetup() {
               </div>
             </div>
             <p className="text-white/90 text-sm leading-relaxed">
-              おめでとうございます🎊 以下の情報を登録して、<strong className="text-white">おすそ分け袋の出品</strong>を始めましょう。
+              おめでとうございます🎊 以下の情報を登録して、<strong className="text-white">おすそわけ袋の出品</strong>を始めましょう。
             </p>
           </div>
         </motion.div>
@@ -735,9 +735,9 @@ export default function StripeBankSetup() {
 
           {/* ── ⑤ 事業内容 ── */}
           <FormSection title="事業内容" icon={<FileText className="w-5 h-5 text-orange-500" />}>
-            <Field label="サービス内容の説明" required hint="10文字以上（例：飲食店での余剰食品のおすそ分け販売）">
+            <Field label="サービス内容の説明" required hint="10文字以上（例：飲食店での余剰食品のおすそわけ販売）">
               <textarea value={productDescription} onChange={e => setProductDescription(e.target.value)}
-                placeholder="例：飲食店での余剰食品を詰め合わせた「おすそ分け袋」の販売。フードロス削減を目的とした割引価格での提供。"
+                placeholder="例：飲食店での余剰食品を詰め合わせた「おすそわけ袋」の販売。フードロス削減を目的とした割引価格での提供。"
                 rows={4} required minLength={10} className={`${inputClass} resize-none`} />
               <p className="text-xs text-gray-400 mt-1.5">{productDescription.length} 文字</p>
             </Field>

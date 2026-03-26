@@ -226,7 +226,7 @@ function NationwideBanner({ onAllow }: { onAllow: () => void }) {
       <div className="bg-gradient-to-r from-sky-500 to-indigo-500 px-3.5 py-2.5 flex items-center gap-3">
         <span className="text-xl select-none">🗾</span>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-black text-xs leading-tight">全国のおすそ分けを表示中</p>
+          <p className="text-white font-black text-xs leading-tight">全国のおすそわけを表示中</p>
           <p className="text-white/75 text-[10px] mt-0.5 leading-tight">現在地をONにすると近くを優先表示</p>
         </div>
         <button onClick={onAllow}
@@ -382,7 +382,7 @@ export default function Home() {
     return applySortKey(result);
   }, [visibleBags, searchQuery, activeCategory, applySortKey]);
 
-  // ── ① もうすぐ終わるおすそ分け ──
+  // ── ① もうすぐ終わるおすそわけ ──
   const urgentBags = useMemo(
     () => applySortKey(sortedVisibleBags.filter(b => b.stockCount > 0 && b.stockCount < 5)).slice(0, 8),
     [sortedVisibleBags, applySortKey]
@@ -445,8 +445,8 @@ export default function Home() {
   const areaTitle = geoLoading
     ? '現在地を確認中...'
     : userCity
-      ? `${userCity}のおすそ分け`
-      : geoDenied ? '全国の注目おすそ分け' : 'あなたの街のおすそ分け';
+      ? `${userCity}のおすそわけ`
+      : geoDenied ? '全国の注目おすそわけ' : 'あなたの街のおすそわけ';
 
   return (
     <Layout>
@@ -601,7 +601,7 @@ export default function Home() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold opacity-90">仮押さえ中</p>
                   <p className="text-sm font-black truncate">
-                    {activeReservation.bag?.title ?? 'おすそ分けバッグ'}
+                    {activeReservation.bag?.title ?? 'おすそわけバッグ'}
                   </p>
                 </div>
                 <div className="text-xs font-bold opacity-80 shrink-0">決済へ →</div>
@@ -645,8 +645,8 @@ export default function Home() {
                       </div>
                       <h3 className="text-base font-black text-foreground mb-1">
                         {activeCategory !== 'all'
-                          ? `「${SCROLL_CATS.find(c => c.value === activeCategory)?.label}」のおすそ分けはまだありません`
-                          : '条件に合うおすそ分けが見つかりませんでした'
+                          ? `「${SCROLL_CATS.find(c => c.value === activeCategory)?.label}」のおすそわけはまだありません`
+                          : '条件に合うおすそわけが見つかりませんでした'
                         }
                       </h3>
                       <p className="text-sm text-muted-foreground leading-relaxed mb-4">ジャンルや条件を変えて探してみてください</p>
@@ -681,12 +681,12 @@ export default function Home() {
                 {/* 全国モードバナー */}
                 {!geoLoading && geoDenied && <NationwideBanner onAllow={retryGeo} />}
 
-                {/* ① もうすぐ終わるおすそ分け */}
+                {/* ① もうすぐ終わるおすそわけ */}
                 {(isLoadingBags || urgentBags.length > 0) && (
                   <div className="pt-3 pb-2">
                     <SectionHeader
                       icon={<Flame className="w-3.5 h-3.5 text-orange-500 shrink-0" />}
-                      title="もうすぐ終わるおすそ分け"
+                      title="もうすぐ終わるおすそわけ"
                       count={!isLoadingBags ? urgentBags.length : undefined}
                     />
                     <HorizScrollRow bags={urgentBags} loading={isLoadingBags} />
@@ -765,12 +765,12 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* 区切り & すべてのおすそ分け */}
+                {/* 区切り & すべてのおすそわけ */}
                 {!isLoadingBags && (
                   <>
                     <div className="mx-4 mt-2 mb-0 border-t border-border/40" />
                     <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
-                      <span className="text-[13px] font-black text-foreground">すべてのおすそ分け</span>
+                      <span className="text-[13px] font-black text-foreground">すべてのおすそわけ</span>
                       <span className="text-[10px] text-muted-foreground">{sortedVisibleBags.length}件</span>
                       {sortKey !== 'default' && (
                         <span className="text-[10px] text-primary font-bold bg-primary/10 px-1.5 py-0.5 rounded-full">
@@ -797,12 +797,12 @@ export default function Home() {
                         <span className="text-4xl select-none">{geoDenied ? '🗾' : '🎁'}</span>
                       </motion.div>
                       <h3 className="text-base font-black text-foreground mb-1.5">
-                        {inStockOnly ? '現在受付中のおすそ分けはありません' : '今日のおすそ分けを準備中'}
+                        {inStockOnly ? '現在受付中のおすそわけはありません' : '今日のおすそわけを準備中'}
                       </h3>
                       <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                         {inStockOnly
                           ? '「受付中のみ」をOFFにすると全商品を確認できます'
-                          : 'お近くのお店がおすそ分けを準備中です！'
+                          : 'お近くのお店がおすそわけを準備中です！'
                         }
                       </p>
                       {inStockOnly && (

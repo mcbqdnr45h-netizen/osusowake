@@ -190,7 +190,7 @@ export default function MyReservations() {
           <div className="mx-4 text-center py-20 bg-card border border-border border-dashed rounded-3xl">
             <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h2 className="text-lg font-bold text-foreground mb-2">まだ予約がありません</h2>
-            <p className="text-muted-foreground mb-6 text-sm">気になるおすそ分けバッグを見つけて、<br />フードロス削減に貢献しましょう！</p>
+            <p className="text-muted-foreground mb-6 text-sm">気になるおすそわけバッグを見つけて、<br />フードロス削減に貢献しましょう！</p>
             <Link href="/">
               <span className="bg-primary text-primary-foreground font-bold px-6 py-3 rounded-full shadow-md shadow-primary/20 hover:shadow-lg transition-all inline-block cursor-pointer">
                 バッグを探す
@@ -213,7 +213,7 @@ export default function MyReservations() {
               <div className="mx-4 text-center py-20 bg-card border border-border border-dashed rounded-3xl">
                 <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <h2 className="text-lg font-bold text-foreground mb-2">まだ予約がありません</h2>
-                <p className="text-muted-foreground mb-6 text-sm">気になるおすそ分けバッグを見つけて、<br />フードロス削減に貢献しましょう！</p>
+                <p className="text-muted-foreground mb-6 text-sm">気になるおすそわけバッグを見つけて、<br />フードロス削減に貢献しましょう！</p>
                 <Link href="/"><span className="bg-primary text-primary-foreground font-bold px-6 py-3 rounded-full shadow-md shadow-primary/20 hover:shadow-lg transition-all inline-block cursor-pointer">バッグを探す</span></Link>
               </div>
             );

@@ -23,29 +23,37 @@ function makeStoreIconUrl(category: string, isListing: boolean, bagCount: number
   const emoji = getCategoryIcon(category);
 
   if (isListing) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
+    // テラコッタ テアドロップ型ピン（出品中）
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
       <defs>
-        <radialGradient id="g1" cx="40%" cy="35%" r="65%">
-          <stop offset="0%" stop-color="#4AAF96"/>
-          <stop offset="100%" stop-color="#1E3F38"/>
+        <radialGradient id="g1" cx="38%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#F8854A"/>
+          <stop offset="100%" stop-color="#D44A00"/>
         </radialGradient>
+        <filter id="ds1" x="-20%" y="-10%" width="140%" height="130%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="rgba(180,60,0,0.38)"/>
+        </filter>
       </defs>
-      <ellipse cx="22" cy="49" rx="8" ry="3" fill="rgba(0,0,0,0.2)"/>
-      <circle cx="22" cy="21" r="19" fill="url(#g1)" stroke="#1E3F38" stroke-width="2.5"/>
-      <text x="22" y="27.5" text-anchor="middle" font-size="19" font-family="serif">${emoji}</text>
+      <ellipse cx="24" cy="57" rx="7" ry="2.5" fill="rgba(0,0,0,0.18)"/>
+      <path d="M24 54 Q10 40, 6 24 A18 18 0 1 1 42 24 Q38 40, 24 54 Z"
+        fill="url(#g1)" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" filter="url(#ds1)"/>
+      <circle cx="24" cy="23" r="13" fill="rgba(255,255,255,0.18)"/>
+      <text x="24" y="29.5" text-anchor="middle" font-size="18" font-family="serif">${emoji}</text>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   } else {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
+    // グレー 小ピン（未出品登録店舗）
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">
       <defs>
-        <radialGradient id="g2" cx="40%" cy="35%" r="65%">
-          <stop offset="0%" stop-color="#D1D5DB"/>
+        <radialGradient id="g2" cx="38%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#E5E7EB"/>
           <stop offset="100%" stop-color="#9CA3AF"/>
         </radialGradient>
       </defs>
-      <ellipse cx="18" cy="41" rx="6" ry="2" fill="rgba(0,0,0,0.12)"/>
-      <circle cx="18" cy="18" r="16" fill="url(#g2)" stroke="#6B7280" stroke-width="2"/>
-      <text x="18" y="23.5" text-anchor="middle" font-size="15" font-family="serif">${emoji}</text>
+      <ellipse cx="18" cy="43" rx="5" ry="2" fill="rgba(0,0,0,0.10)"/>
+      <path d="M18 41 Q8 30, 5 18 A13 13 0 1 1 31 18 Q28 30, 18 41 Z"
+        fill="url(#g2)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+      <text x="18" y="22.5" text-anchor="middle" font-size="13" font-family="serif">${emoji}</text>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   }
@@ -299,8 +307,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         position: { lat: store.lat, lng: store.lng },
         icon: {
           url:        makeStoreIconUrl(store.category, isListing, bagCount),
-          scaledSize: new gMaps.Size(isListing ? 44 : 36, isListing ? 52 : 44),
-          anchor:     new gMaps.Point(isListing ? 22 : 18, isListing ? 50 : 42),
+          scaledSize: new gMaps.Size(isListing ? 48 : 36, isListing ? 60 : 46),
+          anchor:     new gMaps.Point(isListing ? 24 : 18, isListing ? 54 : 41),
         },
         title:  store.name,
         zIndex: isListing ? 10 : 3,
@@ -444,7 +452,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           {/* 凡例 */}
           <div className="absolute bottom-[76px] left-4 z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg px-3.5 py-2.5 flex flex-col gap-2 border border-gray-100">
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#4AAF96,#1E3F38)' }} />
+              <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#F8854A,#D44A00)' }} />
               <span className="text-xs font-bold text-gray-700">出品中</span>
               {listingCount > 0 && <span className="ml-auto text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">{listingCount}</span>}
             </div>

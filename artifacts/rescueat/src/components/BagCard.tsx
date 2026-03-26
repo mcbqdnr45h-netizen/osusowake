@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Package, Heart, Navigation, ChefHat } from 'lucide-react';
+import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles } from 'lucide-react';
 import { Link } from 'wouter';
 import { SurpriseBagWithStore } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -163,13 +163,19 @@ export function BagCard({ bag }: BagCardProps) {
             </div>
           ) : (
             <>
-              <div className="bg-primary text-white font-black px-2.5 py-0.5 rounded-full text-[11px]
-                shadow-[0_2px_8px_rgba(255,140,0,0.30)] rotate-1">
+              {/* 割引バッジ */}
+              <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
+                ${discountPercent >= 20
+                  ? 'bg-gradient-to-r from-[#F07826] to-[#E85A0C] shadow-[0_2px_10px_rgba(240,120,38,0.45)]'
+                  : 'bg-primary shadow-[0_2px_8px_rgba(255,140,0,0.30)]'
+                }`}>
+                {discountPercent >= 20 && <Sparkles className="w-2.5 h-2.5 shrink-0" />}
                 {discountPercent}% OFF
               </div>
+              {/* 残りわずかバッジ */}
               {isLowStock && (
-                <div className="bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] animate-pulse">
-                  残りわずか
+                <div className="flex items-center gap-0.5 bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] animate-pulse shadow-[0_2px_8px_rgba(239,68,68,0.40)]">
+                  🔥 残りわずか！
                 </div>
               )}
             </>
@@ -214,7 +220,7 @@ export function BagCard({ bag }: BagCardProps) {
         {isSoldOut ? (
           <div className="space-y-2 mt-2">
             <p className="text-xs text-muted-foreground/60 text-center font-medium">
-              次のおすそ分けをお楽しみに 🌸
+              次のおすそわけをお楽しみに 🌸
             </p>
             <button
               onClick={handleSoldOutFan}
@@ -242,7 +248,7 @@ export function BagCard({ bag }: BagCardProps) {
                   ? 'bg-rose-50 text-rose-600 font-semibold'
                   : 'text-muted-foreground bg-muted/60 font-semibold'
                 }`}>
-                <Package className={`w-3.5 h-3.5 shrink-0 ${isLowStock ? 'text-rose-500' : 'text-primary'}`} />
+                <Gift className={`w-3.5 h-3.5 shrink-0 ${isLowStock ? 'text-rose-500' : 'text-primary'}`} />
                 <span>残り {bag.stockCount} 個</span>
               </div>
             </div>
@@ -257,7 +263,7 @@ export function BagCard({ bag }: BagCardProps) {
                 </span>
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-[10px] text-primary/60 font-semibold tracking-wide mb-0.5">おすそ分け価格</span>
+                <span className="text-[10px] text-primary/60 font-semibold tracking-wide mb-0.5">おすそわけ価格</span>
                 <span className="text-2xl font-black text-primary leading-none whitespace-nowrap tracking-tight">
                   ¥{bag.discountedPrice.toLocaleString()}
                 </span>

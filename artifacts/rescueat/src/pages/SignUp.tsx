@@ -168,7 +168,7 @@ export default function SignUp() {
             </h1>
             <p className="text-[14px] text-muted-foreground mt-2 font-medium leading-snug">
               {isStore
-                ? '余剰食品をおすそ分けして、新しい常連客を増やしましょう'
+                ? '余剰食品をおすそわけして、新しい常連客を増やしましょう'
                 : '全国の美味しいおすそわけを、もっと身近に'
               }
             </p>

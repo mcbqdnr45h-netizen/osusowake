@@ -305,7 +305,7 @@ function StoreBottomSheet({
                             {!isSoldOut ? (
                               <Link href={`/bags/${bag.id}`}>
                                 <button className="flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-black px-4 py-2 rounded-xl tap-scale shadow-md shadow-primary/25 hover:bg-primary/90 active:scale-95 transition-all">
-                                  おすそ分け <ChevronRight className="w-4 h-4" />
+                                  おすそわけ <ChevronRight className="w-4 h-4" />
                                 </button>
                               </Link>
                             ) : (
@@ -339,10 +339,10 @@ function ZeroResultsState({ query, category, onClear, recommendBags }: {
   const catLabel = CATEGORIES.find(c => c.value === category)?.label;
 
   const title = catLabel && !query
-    ? `「${catLabel}」のおすそ分けはまだありません`
+    ? `「${catLabel}」のおすそわけはまだありません`
     : query
       ? `「${query}」は見つかりませんでした`
-      : '条件に合うおすそ分けがありませんでした';
+      : '条件に合うおすそわけがありませんでした';
 
   const subtitle = catLabel && !query
     ? 'お店が準備中です。代わりにこちらはいかがですか？🌸'
@@ -969,7 +969,7 @@ export default function SearchPage() {
                       <span className="text-xl select-none">🔍</span>
                     </div>
                   </div>
-                  <p className="text-base font-black text-foreground">おすそ分けを探しています...</p>
+                  <p className="text-base font-black text-foreground">おすそわけを探しています...</p>
                   <p className="text-xs text-muted-foreground">「{inputValue}」で検索中</p>
                 </motion.div>
               )}
@@ -1016,9 +1016,9 @@ export default function SearchPage() {
                       <div className="w-20 h-20 bg-card border-2 border-dashed border-border rounded-3xl flex items-center justify-center mb-5">
                         <span className="text-4xl select-none">🎁</span>
                       </div>
-                      <h3 className="text-lg font-black text-foreground mb-2">今日のおすそ分けを準備中</h3>
+                      <h3 className="text-lg font-black text-foreground mb-2">今日のおすそわけを準備中</h3>
                       <p className="text-sm text-muted-foreground leading-relaxed">
-                        まだ出品がありません。<br />お近くのお店がおすそ分けを準備中です！
+                        まだ出品がありません。<br />お近くのお店がおすそわけを準備中です！
                       </p>
                     </motion.div>
                   )}

@@ -49,7 +49,7 @@ function TokushoModal({ onClose }: { onClose: () => void }) {
                 Googleフォームよりお問い合わせください
               </a>
             )},
-            { label: 'サービス内容', value: 'フードロス削減を目的とした飲食店・食料品店のおすそ分けバッグ予約・購入プラットフォーム' },
+            { label: 'サービス内容', value: 'フードロス削減を目的とした飲食店・食料品店のおすそわけバッグ予約・購入プラットフォーム' },
             { label: '販売価格', value: '各商品ページに表示の価格（税込）' },
             { label: '支払方法', value: 'クレジットカード（Stripe決済）' },
             { label: '支払時期', value: '予約確定時に即時決済' },
@@ -457,7 +457,7 @@ export default function Settings() {
                 </span>
               </div>
               <p className="text-sm text-foreground font-medium leading-relaxed">
-                友達が初めておすそ分けを受け取るとすると、<br />
+                友達が初めておすそわけを受け取るとすると、<br />
                 あなたに <span className="text-primary font-black text-base">100pt</span> プレゼント！
               </p>
             </div>

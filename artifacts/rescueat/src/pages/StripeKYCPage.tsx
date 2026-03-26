@@ -842,10 +842,10 @@ export default function StripeKYCPage() {
           {/* ⑤ 事業内容 */}
           <Section title="事業内容" icon={<FileText className="w-5 h-5 text-orange-500" />}>
             <FieldWrap label="サービス内容の説明" required
-              hint={!fieldErrors.productDescription ? "10文字以上（例：飲食店での余剰食品のおすそ分け販売）" : undefined}
+              hint={!fieldErrors.productDescription ? "10文字以上（例：飲食店での余剰食品のおすそわけ販売）" : undefined}
               error={fieldErrors.productDescription}>
               <textarea value={productDescription} onChange={e => setProductDescription(e.target.value)}
-                placeholder="例：飲食店での余剰食品を詰め合わせた「おすそ分け袋」の販売。フードロス削減を目的とした割引価格での提供。"
+                placeholder="例：飲食店での余剰食品を詰め合わせた「おすそわけ袋」の販売。フードロス削減を目的とした割引価格での提供。"
                 rows={4} required minLength={10}
                 className={`${fieldErrors.productDescription ? errInput : okInput} resize-none`} />
               <p className="text-xs text-gray-400 mt-1">{productDescription.length} 文字</p>
