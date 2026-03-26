@@ -130,6 +130,7 @@ function AnimatedRoutes() {
           <Route path="/bags/:id" component={BagDetail} />
           <Route path="/terms" component={Terms} />
           <Route path="/privacy" component={Privacy} />
+          <Route path="/legal" component={TokushoPage} />
           <Route path="/help" component={HelpPage} />
           <Route path="/tokusho" component={TokushoPage} />
           <Route path="/verify-email" component={VerifyEmail} />
