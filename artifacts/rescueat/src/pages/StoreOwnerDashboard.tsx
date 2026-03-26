@@ -6,7 +6,7 @@ import {
   Store, Package, LogOut, RefreshCw, Loader2, AlertCircle,
   ChevronRight, TrendingUp, ShoppingBag, PlusCircle,
   Minus, Plus, Power, BarChart3, Zap, ShieldAlert,
-  CreditCard, ExternalLink, Clock, XCircle, FileCheck,
+  CreditCard, ExternalLink, Clock, XCircle, FileCheck, ShieldCheck,
 } from 'lucide-react';
 
 interface StoreData {
@@ -586,6 +586,52 @@ export default function StoreOwnerDashboard() {
               </motion.div>
             );
           })()}
+        </AnimatePresence>
+
+        {/* ── 公式パートナー認定バッジ（Stripe 完全設定済みの場合のみ）── */}
+        <AnimatePresence>
+          {connectStatus?.chargesEnabled && connectStatus?.payoutsEnabled && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+              className="relative overflow-hidden rounded-2xl p-0.5"
+              style={{ background: 'linear-gradient(135deg, #F6AE2D 0%, #F26419 40%, #b45309 80%, #92400e 100%)' }}
+            >
+              <div className="relative rounded-[14px] bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-4 flex items-center gap-4">
+                {/* 背景装飾 */}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-10">
+                  <ShieldCheck className="w-20 h-20 text-amber-600" strokeWidth={1} />
+                </div>
+
+                {/* シールドアイコン */}
+                <div
+                  className="relative w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg"
+                  style={{ background: 'linear-gradient(145deg, #F6AE2D, #F26419)' }}
+                >
+                  <ShieldCheck className="w-8 h-8 text-white" strokeWidth={2.5} />
+                </div>
+
+                {/* テキスト */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span
+                      className="text-[10px] font-black px-2 py-0.5 rounded-full text-white tracking-wider"
+                      style={{ background: 'linear-gradient(90deg, #F26419, #b45309)' }}
+                    >
+                      OFFICIAL
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-700">認証済み</span>
+                  </div>
+                  <p className="font-black text-amber-900 text-base leading-tight">公式パートナー認定</p>
+                  <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                    Stripe審査完了・売上受取が有効です。安心して出品を続けましょう。
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         {/* ── 緊急停止スイッチ ── */}

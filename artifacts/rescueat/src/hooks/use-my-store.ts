@@ -11,6 +11,14 @@ export type MyStore = {
   status: 'pending' | 'approved' | 'rejected' | 'pending_review' | 'applied';
   ownerId: string | null;
   stripeAccountId: string | null;
+  imageUrl: string | null;
+  description: string | null;
+  openTime: string | null;
+  closeTime: string | null;
+  address: string | null;
+  category: string | null;
+  holiday: string | null;
+  pickupHours: string | null;
 };
 
 function cacheKey(userId: string) {

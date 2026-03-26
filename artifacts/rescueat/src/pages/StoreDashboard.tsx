@@ -75,11 +75,13 @@ interface PastBag {
 // ─── 出品モーダル ────────────────────────────────────────────────────────
 function PostBagModal({
   storeId,
+  storeName,
   pastBags,
   onClose,
   onSuccess,
 }: {
   storeId: number;
+  storeName: string;
   pastBags: PastBag[];
   onClose: () => void;
   onSuccess: () => void;
@@ -166,7 +168,7 @@ function PostBagModal({
         storeId,
         data: {
           title: pastBag.title,
-          description: '',
+          description: `${storeName}の美味しいおすそわけです！`,
           originalPrice: Number(pastBag.originalPrice),
           discountedPrice: Number(pastBag.discountedPrice),
           stockCount: qty,
@@ -202,7 +204,7 @@ function PostBagModal({
         storeId,
         data: {
           title: form.title,
-          description: form.description.trim() || undefined,
+          description: form.description.trim() || `${storeName}の美味しいおすそわけです！`,
           originalPrice: Number(form.originalPrice),
           discountedPrice: Number(form.discountedPrice),
           stockCount: Number(form.stockCount),
@@ -485,15 +487,20 @@ function PostBagModal({
               {/* バッグの内容（説明） */}
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-                  バッグの内容 <span className="font-normal text-muted-foreground/60">（任意）</span>
+                  バッグの内容 <span className="font-normal text-muted-foreground/60">（空欄で自動入力）</span>
                 </label>
                 <textarea
                   value={form.description}
                   onChange={e => setForm({ ...form, description: e.target.value })}
-                  placeholder="例：本日焼き上がったパンや焼き菓子がランダムに入ったサプライズバッグです"
+                  placeholder={`例：${storeName}の美味しいおすそわけです！`}
                   rows={3}
                   className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:border-primary outline-none transition-all resize-none"
                 />
+                {!form.description.trim() && (
+                  <p className="text-[11px] text-muted-foreground/70 mt-1 pl-1">
+                    空欄のまま出品すると「{storeName}の美味しいおすそわけです！」が自動セットされます
+                  </p>
+                )}
               </div>
 
               {/* 価格（割引率リアルタイム表示付き） */}
@@ -1269,21 +1276,76 @@ export default function StoreDashboard() {
 
   return (
     <StoreLayout>
-      <div className="max-w-2xl mx-auto w-full px-4 py-5 space-y-5">
+      <div className="max-w-2xl mx-auto w-full space-y-5">
 
-        {/* ── 今日の日付 + グリーティング ── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-muted-foreground">{today}</p>
-            <h1 className="text-xl font-black text-foreground mt-0.5">おはようございます 👋</h1>
+        {/* ── カバー写真バナー ── */}
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: '2/1', maxHeight: 220 }}>
+          {store.imageUrl ? (
+            <img
+              src={store.imageUrl}
+              alt={store.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-orange-200 flex items-center justify-center">
+              <Package2 className="w-14 h-14 text-orange-300" />
+            </div>
+          )}
+          {/* グラデーション + 店名オーバーレイ */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 flex items-end justify-between">
+            <div>
+              <p className="text-white/70 text-xs font-bold mb-0.5">{today}</p>
+              <h1 className="text-white text-xl font-black leading-tight drop-shadow-md">{store.name}</h1>
+            </div>
+            <button
+              onClick={() => { refetch(); refetchBags(); }}
+              className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button
-            onClick={() => { refetch(); refetchBags(); }}
-            className="w-9 h-9 rounded-full bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary transition-colors shadow-sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          {/* プロフィール編集リンク */}
+          <Link href="/store/profile-edit">
+            <div className="absolute top-3 right-3 bg-white/25 backdrop-blur-sm rounded-lg px-2.5 py-1 flex items-center gap-1.5 cursor-pointer hover:bg-white/40 transition-colors">
+              <Pencil className="w-3 h-3 text-white" />
+              <span className="text-white text-[11px] font-bold">編集</span>
+            </div>
+          </Link>
         </div>
+
+        <div className="px-4 space-y-5">
+
+        {/* ── PR文（おすそわけメッセージ）── */}
+        {store.description ? (
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
+            <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+              <span className="text-base">✍️</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-amber-700 mb-1">お店からのメッセージ</p>
+              <p className="text-sm text-amber-900 leading-relaxed">{store.description}</p>
+            </div>
+            <Link href="/store/profile-edit">
+              <button className="w-7 h-7 rounded-lg bg-amber-100 hover:bg-amber-200 flex items-center justify-center transition-colors shrink-0">
+                <Pencil className="w-3.5 h-3.5 text-amber-600" />
+              </button>
+            </Link>
+          </div>
+        ) : (
+          <Link href="/store/profile-edit">
+            <div className="border-2 border-dashed border-amber-200 bg-amber-50/60 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:bg-amber-50 transition-colors group">
+              <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition-colors">
+                <span className="text-base">✍️</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-black text-amber-800">プロフィールが未設定です</p>
+                <p className="text-xs text-amber-600 mt-0.5">お客さんへのメッセージを追加してアピールしましょう！</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-amber-400 group-hover:text-amber-600 transition-colors" />
+            </div>
+          </Link>
+        )}
 
         {/* ── 振込先口座未登録のお知らせ（自動リダイレクトなし・手動遷移のみ）── */}
         {store.status === 'approved' && !store.stripeAccountId && (
@@ -1529,6 +1591,8 @@ export default function StoreDashboard() {
             </AnimatePresence>
           </div>
         )}
+
+        </div>{/* /px-4 space-y-5 */}
       </div>
 
       {/* ── 出品モーダル ── */}
@@ -1536,6 +1600,7 @@ export default function StoreDashboard() {
         {showPostModal && storeId && (
           <PostBagModal
             storeId={storeId}
+            storeName={store.name}
             pastBags={deduplicatedBags}
             onClose={() => setShowPostModal(false)}
             onSuccess={() => {
