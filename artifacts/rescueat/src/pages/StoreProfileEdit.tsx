@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, Loader2 } from 'lucide-react';
+import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, MapPin, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
@@ -19,6 +19,8 @@ type StoreProfile = {
   description: string;
   imageUrl: string;
   phone: string;
+  address: string;
+  city: string;
   openTime: string;
   closeTime: string;
   holiday: string;
@@ -36,6 +38,8 @@ export default function StoreProfileEdit() {
     description: '',
     imageUrl: '',
     phone: '',
+    address: '',
+    city: '',
     openTime: '',
     closeTime: '',
     holiday: '',
@@ -58,6 +62,8 @@ export default function StoreProfileEdit() {
           description:  data.description  ?? '',
           imageUrl:     data.imageUrl     ?? '',
           phone:        data.phone        ?? '',
+          address:      data.address      ?? '',
+          city:         data.city         ?? '',
           openTime:     data.openTime     ?? '',
           closeTime:    data.closeTime    ?? '',
           holiday:      data.holiday      ?? '',
@@ -264,6 +270,18 @@ export default function StoreProfileEdit() {
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   placeholder="例：03-1234-5678"
+                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />住所
+                </label>
+                <input
+                  type="text"
+                  value={form.address}
+                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="例：大阪府大阪市北区梅田1-2-3"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>

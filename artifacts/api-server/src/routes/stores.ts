@@ -1915,7 +1915,7 @@ router.put("/stores/:storeId/profile", async (req, res) => {
       return;
     }
 
-    const allowed = ["name", "description", "imageUrl", "phone", "openTime", "closeTime", "holiday", "pickupHours"] as const;
+    const allowed = ["name", "description", "imageUrl", "phone", "address", "city", "openTime", "closeTime", "holiday", "pickupHours"] as const;
     const body = req.body as Partial<Record<typeof allowed[number], string>>;
     const patch: Record<string, string | null> = {};
     for (const key of allowed) {
