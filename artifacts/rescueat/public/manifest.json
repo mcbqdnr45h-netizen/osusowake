@@ -1,6 +1,6 @@
 {
-  "name": "食べロス - おすそ分けアプリ",
-  "short_name": "食べロス",
+  "name": "OsusOwake - おすそ分けアプリ",
+  "short_name": "OsusOwake",
   "description": "お近くのお店からお得なおすそ分けバッグをゲットしよう",
   "start_url": "/rescueat/",
   "scope": "/rescueat/",
@@ -23,7 +23,7 @@
       "sizes": "1200x630",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "食べロス ホーム画面"
+      "label": "OsusOwake ホーム画面"
     }
   ],
   "categories": ["food", "shopping", "lifestyle"]

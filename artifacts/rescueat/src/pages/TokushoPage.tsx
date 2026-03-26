@@ -3,12 +3,12 @@ import { Layout } from '@/components/Layout';
 import { Scale } from 'lucide-react';
 
 const ROWS: { label: string; value: React.ReactNode }[] = [
-  { label: '販売事業者名', value: '食べロス運営事務局' },
+  { label: '販売事業者名', value: 'OsusOwake 事務局' },
   { label: '運営責任者', value: '管理者' },
   { label: 'メールアドレス', value: <a href="mailto:support@tabeross.jp" className="text-primary underline underline-offset-2">support@tabeross.jp</a> },
   { label: '所在地', value: '請求があった場合は遅滞なく開示いたします' },
   { label: '電話番号', value: '請求があった場合は遅滞なく開示いたします' },
-  { label: 'サービス名称', value: '食べロス（TabeRosu）' },
+  { label: 'サービス名称', value: 'OsusOwake' },
   { label: 'サービスの内容', value: '食品ロス削減を目的とした、飲食店・小売店の余剰食品をお客様が割引価格で購入できるマッチングプラットフォーム' },
   { label: '販売価格', value: '各商品ページに表示された価格（税込）' },
   { label: '支払方法', value: 'クレジットカード決済（Visa・Mastercard・American Express・JCB）' },

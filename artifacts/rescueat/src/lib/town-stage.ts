@@ -86,7 +86,7 @@ export const TOWN_STAGES: TownStageConfig[] = [
     name: '豊かな森',
     description: '命が溢れる豊かな森。多くの生き物が息づいています',
     icon: '🏆',
-    benefit: '食べロス公式「守護者」称号が授与される！',
+    benefit: 'OsusOwake公式「守護者」称号が授与される！',
   },
   {
     stage: 10,

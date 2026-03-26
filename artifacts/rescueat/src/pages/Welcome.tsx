@@ -1,29 +1,28 @@
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  show: (d: number) => ({ opacity: 1, y: 0, transition: { delay: d * 0.15, duration: 0.55, ease: [0.22, 1, 0.36, 1] } }),
+const rise = {
+  hidden: { opacity: 0, y: 20 },
+  show: (d: number) => ({
+    opacity: 1, y: 0,
+    transition: { delay: d * 0.12, duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+  }),
 };
 
 export default function Welcome() {
   const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();
 
-  // ログイン済みなら適切なページへリダイレクト
   useEffect(() => {
     if (isLoading || !user) return;
-    // store_ownerも含めてホームへ（/store/dashboardを経由するとpending時にループするため）
     navigate('/', { replace: true });
   }, [isLoading, user, navigate]);
 
-  // auth確認中 or ログイン済みはウェルカム画面を表示しない
   if (isLoading || user) return null;
 
-  // ?redirect= パラメータがあれば Login/SignUp リンクへ引き継ぐ
   const params = new URLSearchParams(
     typeof window !== 'undefined' ? window.location.search : ''
   );
@@ -32,91 +31,79 @@ export default function Welcome() {
   const signupHref = redirect ? `/signup?redirect=${encodeURIComponent(redirect)}` : '/signup';
 
   return (
-    <div className="min-h-dvh flex flex-col relative overflow-hidden bg-gradient-to-br from-[#FF8C00] via-[#FF6B00] to-[#FF4500]">
+    <div className="min-h-dvh flex flex-col bg-[#FF8C00] relative overflow-hidden">
 
-      {/* 背景デコレーション */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-white/8 rounded-full" />
-        <div className="absolute top-1/3 -left-28 w-64 h-64 bg-white/8 rounded-full" />
-        <div className="absolute -bottom-24 right-10 w-72 h-72 bg-black/8 rounded-full" />
-        {/* 食材の背景アイコン */}
-        <div className="absolute top-20 left-6 text-6xl opacity-15 select-none">🥐</div>
-        <div className="absolute top-36 right-12 text-4xl opacity-15 select-none">🍱</div>
-        <div className="absolute bottom-56 left-14 text-5xl opacity-15 select-none">🍰</div>
-        <div className="absolute bottom-40 right-8 text-5xl opacity-20 select-none">🎁</div>
-        <div className="absolute top-64 left-1/2 text-3xl opacity-10 select-none">☕</div>
+      {/* 背景テクスチャ（控えめ） */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-[60vw] h-[60vw] max-w-sm max-h-sm bg-white/6 rounded-full translate-x-1/3 -translate-y-1/3" />
+        <div className="absolute bottom-0 left-0 w-[50vw] h-[50vw] max-w-xs max-h-xs bg-black/6 rounded-full -translate-x-1/4 translate-y-1/4" />
       </div>
 
-      {/* メインコンテンツ */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 pt-16 pb-6 relative z-10">
-
-        {/* ロゴ */}
-        <motion.div
-          custom={0} variants={fadeUp} initial="hidden" animate="show"
-          className="flex flex-col items-center mb-10"
-        >
-          <div className="w-28 h-28 bg-white rounded-3xl shadow-2xl shadow-black/20 flex items-center justify-center mb-6 rotate-3">
-            <span className="text-6xl leading-none">🍀</span>
+      {/* ─── ヘッダー ─────────────────────────────────────── */}
+      <header className="relative z-10 px-7 pt-14 flex items-center">
+        <motion.div custom={0} variants={rise} initial="hidden" animate="show"
+          className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-[11px] bg-white/25 border border-white/40 flex items-center justify-center">
+            <span className="text-white font-black text-[12px] tracking-tight">Ow</span>
           </div>
-          <h1 className="text-4xl font-black text-white tracking-tight drop-shadow-sm">食べロス</h1>
-          <p className="text-white/70 text-sm font-semibold mt-1.5 tracking-widest">TabeRosu</p>
+          <span className="font-black text-[20px] tracking-[-0.03em] leading-none">
+            <span className="text-white">Osus</span><span className="text-amber-200">Owake</span>
+          </span>
+        </motion.div>
+      </header>
+
+      {/* ─── メインコピー ──────────────────────────────────── */}
+      <div className="relative z-10 flex-1 flex flex-col justify-center px-7 pt-10 pb-4">
+
+        {/* 大見出し */}
+        <motion.div custom={1} variants={rise} initial="hidden" animate="show" className="mb-8">
+          <p className="text-white/60 text-xs font-bold uppercase tracking-[0.18em] mb-4">
+            Food rescue, reimagined.
+          </p>
+          <h1 className="text-[42px] font-black text-white leading-[1.1] tracking-[-0.02em]">
+            お店の余った<br />
+            おいしさを、<br />
+            <span className="text-amber-200">あなたへ。</span>
+          </h1>
         </motion.div>
 
-        {/* キャッチコピー */}
-        <motion.div
-          custom={1} variants={fadeUp} initial="hidden" animate="show"
-          className="text-center mb-10"
-        >
-          <p className="text-white text-2xl font-black leading-relaxed tracking-tight drop-shadow-sm">
-            お店の味を、誰かに<br />
-            <span className="text-amber-200">おすそ分けしたい。</span>
-          </p>
-          <p className="text-white/70 text-sm mt-4 leading-relaxed font-medium">
-            近くのお店のサプライズバッグをお得にゲット！<br />
-            食べる人も、お店も、みんな笑顔に。
-          </p>
-        </motion.div>
-
-        {/* 特徴ピル */}
-        <motion.div
-          custom={2} variants={fadeUp} initial="hidden" animate="show"
-          className="flex flex-wrap justify-center gap-2 mb-10"
-        >
+        {/* 特徴リスト（ピルではなくラインで） */}
+        <motion.ul custom={2} variants={rise} initial="hidden" animate="show"
+          className="space-y-3 mb-10">
           {[
-            '🗺️ エリア・ジャンルで絞り込み',
-            '🎁 サプライズバッグをお得に',
-            '🏘️ 買うたびにマイタウンが育つ',
-          ].map(text => (
-            <span key={text} className="bg-white/18 backdrop-blur-sm text-white text-xs font-bold px-3.5 py-2 rounded-full border border-white/25">
-              {text}
-            </span>
+            { icon: '🗺️', text: 'エリア・ジャンルで絞り込み' },
+            { icon: '🎁', text: 'サプライズバッグをお得に購入' },
+            { icon: '🏘️', text: '買うたびにマイタウンが育つ' },
+          ].map(({ icon, text }) => (
+            <li key={text} className="flex items-center gap-3">
+              <span className="text-xl leading-none">{icon}</span>
+              <span className="text-white/85 text-sm font-semibold">{text}</span>
+            </li>
           ))}
+        </motion.ul>
+
+        {/* CTA */}
+        <motion.div custom={3} variants={rise} initial="hidden" animate="show" className="space-y-3">
+          <Link href={signupHref}>
+            <button className="w-full bg-white text-[#FF8C00] font-black text-[17px] py-[17px] rounded-2xl shadow-lg shadow-black/15 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+              はじめる（無料）
+              <ArrowRight className="w-5 h-5" strokeWidth={3} />
+            </button>
+          </Link>
+
+          <Link href={loginHref}>
+            <button className="w-full bg-transparent border border-white/40 text-white font-bold text-[15px] py-[15px] rounded-2xl active:scale-[0.98] transition-transform hover:bg-white/10">
+              ログイン
+            </button>
+          </Link>
         </motion.div>
       </div>
 
-      {/* 下部 CTA */}
-      <motion.div
-        custom={3} variants={fadeUp} initial="hidden" animate="show"
-        className="px-6 pb-10 relative z-10 space-y-3"
-      >
-        <Link href={signupHref}>
-          <button className="w-full bg-white text-orange-600 font-black text-lg py-4 rounded-2xl shadow-xl shadow-black/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            はじめる（無料登録）
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </Link>
-
-        <Link href={loginHref}>
-          <button className="w-full bg-white/15 backdrop-blur-sm border border-white/35 text-white font-bold text-base py-4 rounded-2xl active:scale-[0.98] transition-all hover:bg-white/25">
-            ログイン
-          </button>
-        </Link>
-
-        <p className="text-center text-white/45 text-xs pt-2 leading-relaxed">
-          登録することで利用規約およびプライバシーポリシーに<br />同意したものとみなします
-        </p>
-      </motion.div>
+      {/* ─── フッター注記 ────────────────────────────────── */}
+      <motion.p custom={4} variants={rise} initial="hidden" animate="show"
+        className="relative z-10 text-center text-white/40 text-[11px] px-8 pb-8 leading-relaxed">
+        登録することで利用規約およびプライバシーポリシーに同意したものとみなします
+      </motion.p>
     </div>
   );
 }

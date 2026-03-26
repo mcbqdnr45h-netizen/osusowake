@@ -45,7 +45,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   let payload;
-  try { payload = event.data.json(); } catch { payload = { title: '食べロス', body: event.data.text() }; }
+  try { payload = event.data.json(); } catch { payload = { title: 'OsusOwake', body: event.data.text() }; }
 
   const options = {
     body: payload.body || 'お知らせがあります',
@@ -61,7 +61,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || '食べロス', options)
+    self.registration.showNotification(payload.title || 'OsusOwake', options)
   );
 });
 

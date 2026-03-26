@@ -224,7 +224,7 @@ export default function HelpPage() {
             プライバシーポリシー
           </Link>
         </div>
-        <p className="text-center text-[10px] text-muted-foreground/50 mt-3">© 2025 食べロス All rights reserved.</p>
+        <p className="text-center text-[10px] text-muted-foreground/50 mt-3">© 2025 OsusOwake All rights reserved.</p>
 
       </div>
     </Layout>

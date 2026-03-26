@@ -20,7 +20,7 @@ export default function Privacy() {
           <p className="text-xs text-muted-foreground mb-8">最終更新日：2025年6月1日</p>
 
           <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-            食べロス運営事務局（以下「当社」）は、本サービス「食べロス」を通じて取得する個人情報の取扱いについて、以下のとおりプライバシーポリシー（以下「本ポリシー」）を定めます。
+            OsusOwake 事務局（以下「当社」）は、本サービス「OsusOwake」を通じて取得する個人情報の取扱いについて、以下のとおりプライバシーポリシー（以下「本ポリシー」）を定めます。
           </p>
 
           <Section title="1. 収集する情報">
@@ -115,7 +115,7 @@ export default function Privacy() {
           </Section>
 
           <div className="mt-10 pt-6 border-t border-border text-xs text-muted-foreground text-center">
-            <p>食べロス運営事務局</p>
+            <p>OsusOwake 事務局</p>
           </div>
         </article>
       </div>

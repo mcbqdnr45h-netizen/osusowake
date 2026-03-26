@@ -71,9 +71,9 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
   const co2Saved = status === 'picked_up' ? 2.5 : 0;
 
   async function handleShare() {
-    const text = `食べロス レシート\n${reservation.store?.name}\n${reservation.bag?.title}\n¥${reservation.totalPrice.toLocaleString()} | ${meta.label}`;
+    const text = `OsusOwake レシート\n${reservation.store?.name}\n${reservation.bag?.title}\n¥${reservation.totalPrice.toLocaleString()} | ${meta.label}`;
     if (navigator.share) {
-      try { await navigator.share({ title: '食べロス 電子領収書', text }); } catch {}
+      try { await navigator.share({ title: 'OsusOwake 電子領収書', text }); } catch {}
     }
   }
 

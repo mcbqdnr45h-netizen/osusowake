@@ -42,7 +42,7 @@ function TokushoModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="overflow-y-auto px-6 py-5 space-y-5">
           {[
-            { label: '販売業者', value: '食べロス運営事務局' },
+            { label: '販売業者', value: 'OsusOwake 事務局' },
             { label: '運営責任者', value: 'Yuhi' },
             { label: 'お問い合わせ', value: (
               <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
@@ -255,10 +255,10 @@ export default function Settings() {
   }
 
   async function handleShare() {
-    const text = `食べロスで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」を使うと初回特典があります 🌱\nhttps://rescueat.app`;
+    const text = `OsusOwakeで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」を使うと初回特典があります 🌱\nhttps://rescueat.app`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: '食べロスに参加しよう', text });
+        await navigator.share({ title: 'OsusOwakeに参加しよう', text });
       } catch {}
     } else {
       await navigator.clipboard.writeText(text);
@@ -507,7 +507,7 @@ export default function Settings() {
             </button>
           </div>
 
-          <p className="text-center text-xs text-muted-foreground pb-4">食べロス v1.0.0</p>
+          <p className="text-center text-xs text-muted-foreground pb-4">OsusOwake v1.0.0</p>
         </div>
       </div>
     </SettingsWrapper>

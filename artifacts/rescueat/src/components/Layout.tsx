@@ -75,8 +75,15 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border shadow-sm shrink-0"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="font-display font-black text-2xl tracking-tight text-primary">食べロス</span>
+          <Link href="/" className="flex items-center gap-2.5 group">
+            {/* Logo mark */}
+            <div className="w-8 h-8 rounded-[10px] bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/30 group-hover:scale-105 transition-transform">
+              <span className="text-white font-black text-[11px] leading-none tracking-tight">Ow</span>
+            </div>
+            {/* Wordmark */}
+            <span className="leading-none font-black text-[19px] tracking-[-0.03em]">
+              <span className="text-foreground">Osus</span><span className="text-primary">Owake</span>
+            </span>
           </Link>
 
           <div className="flex items-center gap-4">
@@ -208,12 +215,17 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
       {!hideFooter && (
         <footer className="bg-background border-t border-border mt-auto">
           <div className="md:hidden px-5 py-3">
-            <p className="text-center text-[10px] text-muted-foreground/50">© 2026 食べロス</p>
+            <p className="text-center text-[10px] text-muted-foreground/50">© 2026 OsusOwake</p>
           </div>
           <div className="hidden md:block max-w-7xl mx-auto px-6 py-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span className="font-black text-lg text-primary">食べロス</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-[8px] bg-primary flex items-center justify-center shrink-0">
+                  <span className="text-white font-black text-[10px] leading-none">Ow</span>
+                </div>
+                <span className="font-black text-base tracking-[-0.02em]">
+                  <span className="text-foreground">Osus</span><span className="text-primary">Owake</span>
+                </span>
                 <span className="text-xs text-muted-foreground">お店の味を、誰かにおすそ分けしよう</span>
               </div>
               <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
@@ -227,7 +239,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
                   ヘルプ・お問い合わせ
                 </a>
                 <span>·</span>
-                <span className="text-muted-foreground/60">© 2026 食べロス. All rights reserved.</span>
+                <span className="text-muted-foreground/60">© 2026 OsusOwake. All rights reserved.</span>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground/60 text-center">
