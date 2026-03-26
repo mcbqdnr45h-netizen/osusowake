@@ -59,12 +59,13 @@ export default function Login() {
         setShakeKey(k => k + 1);
         return;
       }
-      if (role === 'store_owner') {
+      const isAdmin = email.trim().toLowerCase() === 'yuuhi0125416@icloud.com';
+      if (role === 'store_owner' && !isAdmin) {
         setError('このアカウントは店舗オーナー用です。「飲食店・パートナー」タブからログインしてください。');
         setShakeKey(k => k + 1);
         return;
       }
-      navigate('/');
+      navigate(isAdmin ? '/admin' : '/');
     }
   }
 
