@@ -176,6 +176,22 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => { onUserPositionChangeRef.current = onUserPositionChange; }, [onUserPositionChange]);
   useEffect(() => { onMapIdleRef.current            = onMapIdle;            }, [onMapIdle]);
 
+  // 外部から userPosition が渡されたときにマップをパンする
+  const prevUserPositionRef = useRef<[number, number] | null | undefined>(userPosition);
+  useEffect(() => {
+    const prev = prevUserPositionRef.current;
+    prevUserPositionRef.current = userPosition;
+    if (!userPosition) return;
+    // 同じ位置なら何もしない
+    if (prev && prev[0] === userPosition[0] && prev[1] === userPosition[1]) return;
+    const ll = { lat: userPosition[0], lng: userPosition[1] };
+    setUserPos(ll);
+    if (mapRef.current) {
+      mapRef.current.panTo(ll);
+      mapRef.current.setZoom(15);
+    }
+  }, [userPosition]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useImperativeHandle(ref, () => ({
     panTo: (lat: number, lng: number, z?: number) => {
       const map = mapRef.current;

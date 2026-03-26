@@ -13,7 +13,7 @@ import {
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
-import { useUserLocation, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
+import { useUserLocation, updateCachedCoords, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 
 // ─── 距離計算 ─────────────────────────────────────────────────────────────────
 function calcDistanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -466,6 +466,9 @@ function usePlacesAutocomplete(input: string): PlacesPrediction[] {
 
 // ─── メインページ ─────────────────────────────────────────────────────────────
 export default function SearchPage() {
+  // キャッシュ済み現在地（GPSボタン押下済みなら即座に利用可能）
+  const { coords: cachedCoords } = useUserLocation();
+
   const [inputValue,    setInputValue]    = useState('');
   const [query,         setQuery]         = useState('');
   const [view,          setView]          = useState<ViewMode>('map');
@@ -478,6 +481,44 @@ export default function SearchPage() {
   const [isSearching,   setIsSearching]   = useState(false);
   const [showHistory,   setShowHistory]   = useState(false);
   const [history,       setHistory]       = useState<string[]>(loadHistory);
+
+  // マップ初期GPS（キャッシュがあれば即座に使用、なければ自動取得）
+  const [gpsInitLoading, setGpsInitLoading] = useState(() => !cachedCoords);
+  const [mapInitPos,     setMapInitPos]     = useState<[number, number] | null>(
+    cachedCoords ? [cachedCoords.lat, cachedCoords.lng] : null,
+  );
+
+  // マップを開いた瞬間に現在地を自動取得（キャッシュなしの場合）
+  useEffect(() => {
+    if (cachedCoords) {
+      // キャッシュあり → 即座に使用
+      const pos: [number, number] = [cachedCoords.lat, cachedCoords.lng];
+      setMapInitPos(pos);
+      setUserPos({ lat: cachedCoords.lat, lng: cachedCoords.lng });
+      setGpsInitLoading(false);
+      return;
+    }
+    if (!navigator.geolocation) {
+      setGpsInitLoading(false);
+      return;
+    }
+    // iOS Safari 対策: ナビタブのクリック直後にマウントされるため、
+    // ユーザー操作の延長として geolocation が許可される
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const ll: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        updateCachedCoords({ lat: ll[0], lng: ll[1] });
+        setMapInitPos(ll);
+        setUserPos({ lat: ll[0], lng: ll[1] });
+        setGpsInitLoading(false);
+      },
+      (err) => {
+        console.warn('[SearchPage] GPS auto-init error:', err.code, err.message);
+        setGpsInitLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // エリア再検索
   const [mapBounds,           setMapBounds]           = useState<MapBounds | null>(null);
@@ -981,11 +1022,46 @@ export default function SearchPage() {
               <MapView
                 ref={mapViewRef}
                 stores={displayStores}
+                userPosition={mapInitPos ?? undefined}
                 onStoreSelect={handleStoreSelect}
                 onUserPositionChange={handleUserPositionChange}
                 onMapIdle={handleMapIdle}
               />
             </div>
+
+            {/* 現在地取得中ローディングオーバーレイ */}
+            <AnimatePresence>
+              {gpsInitLoading && (
+                <motion.div
+                  key="gps-loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#f2f0eb]"
+                >
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="relative w-16 h-16">
+                      <div className="absolute inset-0 rounded-full border-[3px] border-primary/20" />
+                      <div className="absolute inset-0 rounded-full border-[3px] border-primary border-t-transparent animate-spin" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Navigation2 className="w-6 h-6 text-primary" />
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-black text-foreground">現在地を取得中...</p>
+                      <p className="text-xs text-muted-foreground mt-1">しばらくお待ちください</p>
+                    </div>
+                    <button
+                      onClick={() => setGpsInitLoading(false)}
+                      className="mt-2 text-xs text-muted-foreground underline underline-offset-2 tap-opacity"
+                    >
+                      スキップ
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* 店舗詳細ボトムシート */}
             <AnimatePresence>
