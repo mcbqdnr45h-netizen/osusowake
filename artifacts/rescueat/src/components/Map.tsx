@@ -148,11 +148,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const onMapIdleRef            = useRef(onMapIdle);
   const isFirstIdleRef          = useRef(true);
 
-  const [status,   setStatus]  = useState<'loading' | 'ready' | 'error'>('loading');
-  const [locating, setLocating] = useState(false);
-  const [userPos,  setUserPos] = useState<{ lat: number; lng: number } | null>(
+  const [status,      setStatus]     = useState<'loading' | 'ready' | 'error'>('loading');
+  const [locating,    setLocating]   = useState(false);
+  const [userPos,     setUserPos]    = useState<{ lat: number; lng: number } | null>(
     userPosition ? { lat: userPosition[0], lng: userPosition[1] } : null
   );
+  const [visibleBounds, setVisibleBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
 
   const mapCenter = center ? { lat: center[0], lng: center[1] } : OSAKA_CENTER;
 
@@ -239,15 +240,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         mapRef.current = map;
 
         map.addListener('idle', () => {
-          if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
           const bounds = map.getBounds();
           const c      = map.getCenter();
           if (!bounds || !c) return;
           const ne = bounds.getNorthEast();
           const sw = bounds.getSouthWest();
-          onMapIdleRef.current?.({
+          const b = {
             north: ne.lat(), south: sw.lat(),
             east:  ne.lng(), west:  sw.lng(),
+          };
+          setVisibleBounds(b);
+          if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
+          onMapIdleRef.current?.({
+            ...b,
             centerLat: c.lat(), centerLng: c.lng(),
           });
         });
@@ -375,8 +380,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
   }
 
-  const listingCount  = approvedStores.filter(s => (s.totalBagsAvailable ?? 0) > 0).length;
-  const registedCount = approvedStores.filter(s => (s.totalBagsAvailable ?? 0) === 0).length;
+  const visibleStores = useMemo(() => {
+    if (!visibleBounds) return approvedStores;
+    const { north, south, east, west } = visibleBounds;
+    return approvedStores.filter(s =>
+      s.lat >= south && s.lat <= north && s.lng >= west && s.lng <= east
+    );
+  }, [approvedStores, visibleBounds]);
+
+  const listingCount  = visibleStores.filter(s => (s.totalBagsAvailable ?? 0) > 0).length;
+  const registedCount = visibleStores.filter(s => (s.totalBagsAvailable ?? 0) === 0).length;
 
   return (
     <div className="w-full h-full relative">
