@@ -39,7 +39,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         5000  // 5秒でタイムアウト
       );
       if (result && result.data) {
-        setProfile(result.data as PublicUser);
+        const prof = result.data as PublicUser;
+        // 管理者がユーザーモードでログインしている場合はsessionRoleをcustomerにする
+        const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
+        const adminUserMode = sessionStorage.getItem('adminUserMode') === 'true';
+        if (prof.email?.toLowerCase() === ADMIN_EMAIL && adminUserMode) {
+          setProfile({ ...prof, role: 'customer' });
+        } else {
+          setProfile(prof);
+        }
       }
     } catch (err) {
       console.warn('[AuthContext] fetchProfile error:', err);
@@ -220,18 +228,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (profResult?.data) {
           const prof = profResult.data;
-          role = prof.role;
+          // 管理者がユーザータブ（forceRoleなし）でログインした場合はセッション内でcustomerとして扱う
+          const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
+          const sessionRole = (!forceRole && prof.email?.toLowerCase() === ADMIN_EMAIL)
+            ? 'customer'
+            : prof.role;
+          role = sessionRole;
           setProfile({
             id: data.user.id,
             email: prof.email,
-            role: prof.role,
+            role: sessionRole,
             points_balance: prof.points_balance,
             full_name: prof.full_name ?? null,
             phone_number: prof.phone_number ?? null,
             display_name: prof.display_name ?? null,
             created_at: data.user.created_at,
           });
-          console.log('[AuthContext] profile set:', prof.email, 'role:', prof.role);
+          console.log('[AuthContext] profile set:', prof.email, 'role:', sessionRole);
         } else {
           // タイムアウトまたはDBエラー → フォールバックプロフィール
           role = forceRole ?? 'customer';
@@ -272,6 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    sessionStorage.removeItem('adminUserMode');
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

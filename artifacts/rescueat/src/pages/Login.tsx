@@ -34,7 +34,11 @@ export default function Login() {
     setError('');
     setIsLoading(true);
 
+    const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
+
     if (activeTab === 'store') {
+      // 店舗タブでログイン → ユーザーモードフラグを解除
+      sessionStorage.removeItem('adminUserMode');
       const { error: err } = await signIn(email, password, 'store_owner');
       setIsLoading(false);
       if (err) {
@@ -59,13 +63,15 @@ export default function Login() {
         setShakeKey(k => k + 1);
         return;
       }
-      const isAdmin = email.trim().toLowerCase() === 'yuuhi0125416@icloud.com';
+      const isAdmin = email.trim().toLowerCase() === ADMIN_EMAIL;
       if (role === 'store_owner' && !isAdmin) {
         setError('このアカウントは店舗オーナー用です。「飲食店・パートナー」タブからログインしてください。');
         setShakeKey(k => k + 1);
         return;
       }
-      navigate(isAdmin ? '/admin' : '/');
+      // 管理者がユーザータブでログイン → ユーザーモードフラグをセット
+      if (isAdmin) sessionStorage.setItem('adminUserMode', 'true');
+      navigate('/');
     }
   }
 
