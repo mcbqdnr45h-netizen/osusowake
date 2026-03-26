@@ -597,6 +597,8 @@ router.get("/stores/:storeId/reviews", async (req, res) => {
         rating: reviewsTable.rating,
         comment: reviewsTable.comment,
         createdAt: reviewsTable.createdAt,
+        reply: reviewsTable.reply,
+        repliedAt: reviewsTable.repliedAt,
       })
       .from(reviewsTable)
       .where(eq(reviewsTable.storeId, storeId))

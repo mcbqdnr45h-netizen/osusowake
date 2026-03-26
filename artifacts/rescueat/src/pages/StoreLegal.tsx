@@ -150,7 +150,7 @@ export default function StoreLegal() {
                   type="text"
                   value={form.legalName}
                   onChange={set('legalName')}
-                  placeholder="例：合同会社 食べロス商事"
+                  placeholder="例：合同会社 おすそわけグループ"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </Field>

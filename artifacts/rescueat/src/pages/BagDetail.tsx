@@ -193,7 +193,7 @@ function StarsDisplay({ rating, size = 'sm' }: { rating: number; size?: 'sm' | '
 }
 
 interface ReviewData {
-  reviews: Array<{ id: number; userId: string; rating: number; comment: string | null; createdAt: string }>;
+  reviews: Array<{ id: number; userId: string; rating: number; comment: string | null; createdAt: string; reply: string | null; repliedAt: string | null }>;
   avgRating: number | null;
   count: number;
 }
@@ -682,6 +682,12 @@ export default function BagDetail() {
                       </div>
                       {review.comment && (
                         <p className="text-sm text-foreground leading-relaxed pl-9">{review.comment}</p>
+                      )}
+                      {review.reply && (
+                        <div className="mt-3 ml-9 bg-primary/5 border border-primary/15 rounded-xl px-3 py-2.5">
+                          <p className="text-[11px] font-black text-primary mb-1">オーナーより</p>
+                          <p className="text-xs text-foreground leading-relaxed">{review.reply}</p>
+                        </div>
                       )}
                     </motion.div>
                   ))}

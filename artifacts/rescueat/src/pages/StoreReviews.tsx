@@ -94,7 +94,7 @@ export default function StoreReviews() {
 
   return (
     <StoreLayout showHeader={false}>
-      <div className="max-w-xl mx-auto pb-10">
+      <div className="pb-10">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
           style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
