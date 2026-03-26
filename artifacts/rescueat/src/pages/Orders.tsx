@@ -74,7 +74,12 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
   const taxAmount = total - preTax;
   const co2Saved  = 2.5;
 
-  const recipientName = profile?.display_name || profile?.full_name || 'お客様';
+  // 宛名入力（任意）。入力があればそれを優先、なければDBのdisplay_name、それもなければ「お客様」
+  const [recipientInput, setRecipientInput] = useState('');
+  const profileName = profile?.display_name?.trim() || profile?.full_name?.trim() || '';
+  // 「様」を付けるか: 実名がある場合のみ付ける。「お客様」には付けない
+  const displayName = recipientInput.trim() || profileName || 'お客様';
+  const showSama    = !!(recipientInput.trim() || profileName);
   const storeName     = reservation.store?.name  || '店舗名';
   const bagTitle      = reservation.bag?.title   || 'サプライズバッグ';
 
@@ -145,6 +150,27 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
             </button>
           </div>
 
+          {/* ── 宛名入力（任意・印刷対象外）─── */}
+          <div className="px-6 pb-3 shrink-0 print:hidden">
+            <label className="block text-[11px] text-gray-400 font-sans mb-1 tracking-wider">
+              宛名（任意）
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={recipientInput}
+                onChange={e => setRecipientInput(e.target.value)}
+                placeholder={profileName || 'お客様'}
+                maxLength={30}
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100 transition-colors font-sans"
+              />
+              <span className="text-sm text-gray-500 font-sans shrink-0">様</span>
+            </div>
+            <p className="text-[10px] text-gray-300 mt-1 font-sans">
+              未入力の場合：{profileName ? `「${profileName}」（アカウント名）` : '「お客様」'}を使用
+            </p>
+          </div>
+
           {/* ══════════════════════════════════════
               領収書本体（印刷対象）
           ══════════════════════════════════════ */}
@@ -168,8 +194,10 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
             {/* ── 宛名 ─────────────────── */}
             <div className="mb-4 pb-2 border-b border-gray-300">
               <div className="flex items-end gap-2">
-                <span className="text-lg font-bold text-gray-900 tracking-wide">{recipientName}</span>
-                <span className="text-base text-gray-700 mb-0.5">様</span>
+                <span className="text-lg font-bold text-gray-900 tracking-wide">{displayName}</span>
+                {showSama && (
+                  <span className="text-base text-gray-700 mb-0.5">様</span>
+                )}
               </div>
               <p className="text-[11px] text-gray-400 font-sans mt-0.5">下記の通り、正に領収いたしました。</p>
             </div>
