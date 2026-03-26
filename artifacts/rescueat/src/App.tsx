@@ -47,6 +47,7 @@ import StoreProfileEdit from "./pages/StoreProfileEdit";
 import StoreReviews from "./pages/StoreReviews";
 import StoreLegal from "./pages/StoreLegal";
 import StoreLegalPublic from "./pages/StoreLegalPublic";
+import StoreDetailPublic from "./pages/StoreDetailPublic";
 import HelpPage from "./pages/HelpPage";
 import TokushoPage from "./pages/TokushoPage";
 import MyTownPage from "./pages/MyTownPage";
@@ -175,6 +176,9 @@ function AnimatedRoutes() {
           <Route path="/store/profile-edit" component={GuardedStoreProfileEdit} />
           <Route path="/store/reviews"   component={GuardedStoreReviews} />
           <Route path="/store/legal"     component={GuardedStoreLegal} />
+
+          {/* ── 公開 店舗詳細 ── */}
+          <Route path="/stores/:id" component={StoreDetailPublic} />
 
           {/* ── 公開 特商法表記 ── */}
           <Route path="/stores/:id/legal" component={StoreLegalPublic} />

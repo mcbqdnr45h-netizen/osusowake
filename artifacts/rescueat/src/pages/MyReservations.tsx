@@ -263,21 +263,27 @@ export default function MyReservations() {
 
                   {/* ── 店舗・商品情報 ── */}
                   <div className="flex items-start gap-3">
-                    {res.store?.imageUrl ? (
-                      <img
-                        src={res.store.imageUrl}
-                        alt={res.store.name}
-                        className={`w-14 h-14 rounded-xl object-cover flex-shrink-0 ${isFaded ? 'grayscale' : ''}`}
-                      />
-                    ) : (
-                      <div className={`w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl ${isFaded ? 'bg-slate-100 grayscale' : 'bg-primary/10'}`}>
-                        🛍️
-                      </div>
-                    )}
+                    {/* 店舗画像 → 店舗詳細ページへ */}
+                    <Link href={`/stores/${res.storeId ?? res.store?.id}`}>
+                      {res.store?.imageUrl ? (
+                        <img
+                          src={res.store.imageUrl}
+                          alt={res.store.name}
+                          className={`w-14 h-14 rounded-xl object-cover flex-shrink-0 active:scale-95 transition-transform ${isFaded ? 'grayscale' : ''}`}
+                        />
+                      ) : (
+                        <div className={`w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl active:scale-95 transition-transform ${isFaded ? 'bg-slate-100 grayscale' : 'bg-primary/10'}`}>
+                          🛍️
+                        </div>
+                      )}
+                    </Link>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-bold text-base leading-tight mb-0.5 ${isFaded ? 'text-muted-foreground' : 'text-foreground'}`}>
-                        {res.store?.name}
-                      </p>
+                      {/* 店名 → 店舗詳細ページへ */}
+                      <Link href={`/stores/${res.storeId ?? res.store?.id}`}>
+                        <p className={`font-bold text-base leading-tight mb-0.5 underline underline-offset-2 decoration-dotted active:opacity-70 transition-opacity ${isFaded ? 'text-muted-foreground decoration-muted-foreground/40' : 'text-foreground decoration-primary/40'}`}>
+                          {res.store?.name}
+                        </p>
+                      </Link>
                       <p className="text-sm text-muted-foreground">
                         {res.bag?.title} <span className="font-medium">× {res.quantity}</span>
                       </p>
