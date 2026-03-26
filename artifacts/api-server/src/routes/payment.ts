@@ -9,16 +9,48 @@ import {
 
 const router: IRouter = Router();
 
+// ─── 手数料定数 ─────────────────────────────────────────────────────────────
+// プラットフォーム手数料率 25%
+const PLATFORM_FEE_RATE = 0.25;
+// Stripe 決済手数料率（JPY カード平均 3.6%）
+// application_fee_amount に加算することで、Stripe手数料をお店側75%から実質負担させる
+// → プラットフォームの25%がStripe手数料に侵食されない
+const STRIPE_FEE_RATE = 0.036;
+
+/**
+ * application_fee_amount を計算する。
+ * = ceil(total × 25%) + ceil(total × 3.6%)
+ *
+ * Destination Charge モデルでの資金フロー（例: 1,000円）:
+ *   Stripe 決済手数料      :  36円  ← Stripeがプラットフォーム口座から徴収
+ *   application_fee_amount :  286円 ← プラットフォームが保持
+ *   プラットフォーム純益   :  250円 (286 − 36)  ← 総額の25%
+ *   お店への送金           :  714円 (1000 − 286) ← 総額の75% − Stripe手数料
+ *
+ * Math.ceil で端数はプラットフォーム有利（1円単位の損なし）
+ */
+function calcFees(totalAmountJpy: number): {
+  platformFee: number;
+  estimatedStripeFee: number;
+  applicationFeeAmount: number;
+} {
+  const platformFee         = Math.ceil(totalAmountJpy * PLATFORM_FEE_RATE);
+  const estimatedStripeFee  = Math.ceil(totalAmountJpy * STRIPE_FEE_RATE);
+  const applicationFeeAmount = platformFee + estimatedStripeFee;
+  return { platformFee, estimatedStripeFee, applicationFeeAmount };
+}
+
 router.post("/payment/create-intent", async (req, res) => {
   try {
     const body = CreatePaymentIntentBody.parse(req.body);
 
     const [reservation] = await db
       .select({
-        id: reservationsTable.id,
-        totalPrice: reservationsTable.totalPrice,
+        id:            reservationsTable.id,
+        totalPrice:    reservationsTable.totalPrice,
         paymentStatus: reservationsTable.paymentStatus,
-        bagId: reservationsTable.bagId,
+        bagId:         reservationsTable.bagId,
+        storeId:       reservationsTable.storeId,
       })
       .from(reservationsTable)
       .where(eq(reservationsTable.id, body.reservationId));
@@ -29,19 +61,46 @@ router.post("/payment/create-intent", async (req, res) => {
     }
 
     const amountInYen = Math.round(reservation.totalPrice);
+    const { platformFee, estimatedStripeFee, applicationFeeAmount } = calcFees(amountInYen);
 
     const stripeKey = process.env["STRIPE_SECRET_KEY"];
 
     if (stripeKey) {
+      // 店舗の Stripe アカウント ID を取得
+      const [store] = await db
+        .select({ stripeAccountId: storesTable.stripeAccountId })
+        .from(storesTable)
+        .where(eq(storesTable.id, reservation.storeId));
+
+      const destinationAccountId = store?.stripeAccountId ?? null;
+
       try {
         const stripe = await import("stripe").then((m) => new m.default(stripeKey));
-        const intent = await stripe.paymentIntents.create({
-          amount: amountInYen,
+
+        const intentParams: Parameters<typeof stripe.paymentIntents.create>[0] = {
+          amount:   amountInYen,
           currency: "jpy",
           metadata: {
-            reservationId: String(reservation.id),
+            reservationId:      String(reservation.id),
+            platformFee:        String(platformFee),
+            estimatedStripeFee: String(estimatedStripeFee),
+            applicationFee:     String(applicationFeeAmount),
+            platformFeeRate:    "25",
           },
-        });
+        };
+
+        // Destination Charge: application_fee_amount = プラットフォーム25% + Stripe手数料見積もり
+        // → プラットフォーム純益 = 25%、Stripe手数料はお店の75%分から実質負担
+        if (destinationAccountId) {
+          intentParams.application_fee_amount = applicationFeeAmount;
+          intentParams.transfer_data = { destination: destinationAccountId };
+          console.log(
+            `PaymentIntent Connect: total=${amountInYen}JPY, platformFee=${platformFee}JPY (25%), ` +
+            `stripeFee≈${estimatedStripeFee}JPY, appFee=${applicationFeeAmount}JPY, dest=${destinationAccountId}`
+          );
+        }
+
+        const intent = await stripe.paymentIntents.create(intentParams);
 
         await db
           .update(reservationsTable)
@@ -49,17 +108,21 @@ router.post("/payment/create-intent", async (req, res) => {
           .where(eq(reservationsTable.id, reservation.id));
 
         res.json({
-          clientSecret: intent.client_secret,
+          clientSecret:   intent.client_secret,
           paymentIntentId: intent.id,
-          amount: amountInYen,
-          currency: "jpy",
+          amount:         amountInYen,
+          currency:       "jpy",
+          platformFee,
+          estimatedStripeFee,
+          applicationFeeAmount,
         });
         return;
       } catch (stripeErr) {
-        console.error("Stripe error:", stripeErr);
+        console.error("Stripe PaymentIntent error:", stripeErr);
       }
     }
 
+    // Stripe 未設定時のモックフォールバック
     const mockIntentId = `pi_mock_${Date.now()}`;
     await db
       .update(reservationsTable)
@@ -67,10 +130,13 @@ router.post("/payment/create-intent", async (req, res) => {
       .where(eq(reservationsTable.id, reservation.id));
 
     res.json({
-      clientSecret: `${mockIntentId}_secret_mock`,
+      clientSecret:    `${mockIntentId}_secret_mock`,
       paymentIntentId: mockIntentId,
-      amount: amountInYen,
-      currency: "jpy",
+      amount:          amountInYen,
+      currency:        "jpy",
+      platformFee,
+      estimatedStripeFee,
+      applicationFeeAmount,
     });
   } catch (err) {
     console.error(err);
@@ -187,15 +253,19 @@ router.post("/checkout/session", async (req, res) => {
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
     const amountInYen = Math.round(reservation.totalPrice);
-    // 25% プラットフォーム手数料（JPY は小数不可のため切り捨て）
-    const applicationFeeAmount = Math.floor(amountInYen * 0.25);
+    // 手数料計算: プラットフォーム25% + Stripe手数料3.6%見積もり
+    // Math.ceil でプラットフォームが1円も損しない設計
+    const { platformFee, estimatedStripeFee, applicationFeeAmount } = calcFees(amountInYen);
 
     // 送金先: 店舗の stripeAccountId。未設定の場合はデフォルトテスト用アカウントを使用
     const destinationAccountId =
       store?.stripeAccountId ?? "acct_1TDLA9GjCxAcHQcd";
 
     console.log(
-      `Stripe Connect: amount=${amountInYen}JPY, fee=${applicationFeeAmount}JPY (25%), destination=${destinationAccountId}`
+      `Stripe Connect: total=${amountInYen}JPY, ` +
+      `platformFee=${platformFee}JPY (25%), stripeFee≈${estimatedStripeFee}JPY, ` +
+      `appFee=${applicationFeeAmount}JPY, storeReceives=${amountInYen - applicationFeeAmount}JPY, ` +
+      `dest=${destinationAccountId}`
     );
 
     // 共通の line_items / URL 設定
@@ -233,18 +303,29 @@ router.post("/checkout/session", async (req, res) => {
       session = await stripe.checkout.sessions.create({
         ...commonParams,
         payment_intent_data: {
-          application_fee_amount: applicationFeeAmount,         // 25% プラットフォーム手数料
+          // application_fee_amount = プラットフォーム25% + Stripe手数料3.6%見積もり
+          // これにより: プラットフォーム純益 = 25%、Stripe手数料はお店の75%分から実質負担
+          application_fee_amount: applicationFeeAmount,
           transfer_data: { destination: destinationAccountId }, // 残額を店舗へ送金
           metadata: {
             reservationId:      String(reservation.id),
-            platformFeeAmount:  String(applicationFeeAmount),
+            platformFee:        String(platformFee),
+            estimatedStripeFee: String(estimatedStripeFee),
+            applicationFee:     String(applicationFeeAmount),
             platformFeeRate:    "25",
+            stripeFeeRate:      "3.6",
+            storeReceives:      String(amountInYen - applicationFeeAmount),
             destinationAccount: destinationAccountId,
           },
         },
       });
       connectUsed = true;
-      console.log(`✅ Stripe Destination Charge 成功: amount=${amountInYen}JPY, fee=${applicationFeeAmount}JPY (25%), destination=${destinationAccountId}`);
+      console.log(
+        `✅ Stripe Destination Charge 成功: total=${amountInYen}JPY, ` +
+        `platformFee=${platformFee}JPY (25%), stripeFee≈${estimatedStripeFee}JPY, ` +
+        `appFee=${applicationFeeAmount}JPY, storeReceives=${amountInYen - applicationFeeAmount}JPY, ` +
+        `dest=${destinationAccountId}`
+      );
     } catch (connectErr: any) {
       // Connect が使えない場合はプラットフォーム直接決済にフォールバック
       const isConnectError =
@@ -260,8 +341,11 @@ router.post("/checkout/session", async (req, res) => {
           payment_intent_data: {
             metadata: {
               reservationId:      String(reservation.id),
-              platformFeeAmount:  String(applicationFeeAmount),
+              platformFee:        String(platformFee),
+              estimatedStripeFee: String(estimatedStripeFee),
+              applicationFee:     String(applicationFeeAmount),
               platformFeeRate:    "25",
+              stripeFeeRate:      "3.6",
               destinationAccount: destinationAccountId,
               connectStatus:      "fallback",
             },
