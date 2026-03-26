@@ -237,7 +237,7 @@ export default function StoreBagsPage() {
               onSubmit={handleSubmit}
               className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-lg space-y-4"
             >
-              <h3 className="font-black text-foreground">新しいサプライズバッグ</h3>
+              <h3 className="font-black text-foreground">新しいおすそ分けバッグ</h3>
 
               {/* 商品名 */}
               <div>

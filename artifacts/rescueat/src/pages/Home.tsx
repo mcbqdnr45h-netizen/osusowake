@@ -601,7 +601,7 @@ export default function Home() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold opacity-90">仮押さえ中</p>
                   <p className="text-sm font-black truncate">
-                    {activeReservation.bag?.title ?? 'サプライズバッグ'}
+                    {activeReservation.bag?.title ?? 'おすそ分けバッグ'}
                   </p>
                 </div>
                 <div className="text-xs font-bold opacity-80 shrink-0">決済へ →</div>

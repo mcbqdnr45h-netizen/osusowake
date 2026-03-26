@@ -38,7 +38,7 @@ function GuestPlaceholderScreen() {
         ログインして<br />すべての機能を使おう
       </h1>
       <p className="text-sm text-muted-foreground text-center leading-relaxed mb-8 max-w-xs">
-        OsusOwake アカウントを作成すると、お得なサプライズバッグを購入・管理できます。
+        OsusOwake アカウントを作成すると、お得なおすそ分けバッグを購入・管理できます。
       </p>
 
       {/* 機能リスト */}

@@ -58,7 +58,7 @@ export default function Welcome() {
         {/* 大見出し */}
         <motion.div custom={1} variants={rise} initial="hidden" animate="show" className="mb-8">
           <p className="text-white/60 text-xs font-bold uppercase tracking-[0.18em] mb-4">
-            Food rescue, reimagined.
+            おすそ分け、はじめよう。
           </p>
           <h1 className="text-[42px] font-black text-white leading-[1.1] tracking-[-0.02em]">
             お店の余った<br />
@@ -72,7 +72,7 @@ export default function Welcome() {
           className="space-y-3 mb-10">
           {[
             { icon: '🗺️', text: 'エリア・ジャンルで絞り込み' },
-            { icon: '🎁', text: 'サプライズバッグをお得に購入' },
+            { icon: '🎁', text: 'おすそ分けバッグをお得に購入' },
             { icon: '🏘️', text: '買うたびにマイタウンが育つ' },
           ].map(({ icon, text }) => (
             <li key={text} className="flex items-center gap-3">

@@ -52,34 +52,34 @@
 
 :root {
   /* ─── 背景・テキスト ─────────────────────────── */
-  --background: 35 25% 97%;        /* 極めて淡い暖色白 */
-  --foreground: 20 6% 18%;         /* ウォームダークグレー ≈ #2E2B2A */
+  --background: 40 20% 98%;        /* #FBFBFA 温かみのあるオフホワイト */
+  --foreground: 20 8% 16%;         /* ウォームダークグレー ≈ #2A2623 */
 
   /* ─── カード ─────────────────────────────────── */
   --card: 0 0% 100%;
-  --card-foreground: 20 6% 18%;
+  --card-foreground: 20 8% 16%;
   --card-border: 30 12% 90%;
 
   /* ─── ポップオーバー ─────────────────────────── */
   --popover: 0 0% 100%;
-  --popover-foreground: 20 6% 18%;
+  --popover-foreground: 20 8% 16%;
   --popover-border: 30 12% 90%;
 
-  /* ─── プライマリ（#FF8C00） ──────────────────── */
-  --primary: 33 100% 50%;
+  /* ─── プライマリ（#F26419 テラコッタ） ──────── */
+  --primary: 21 89% 52%;
   --primary-foreground: 0 0% 100%;
 
   /* ─── セカンダリ ─────────────────────────────── */
-  --secondary: 33 30% 94%;
+  --secondary: 33 25% 94%;
   --secondary-foreground: 25 30% 28%;
 
   /* ─── ミュート ───────────────────────────────── */
   --muted: 30 12% 93%;
-  --muted-foreground: 25 6% 50%;
+  --muted-foreground: 25 6% 52%;
 
-  /* ─── アクセント（薄い黄金色） ───────────────── */
-  --accent: 40 90% 58%;
-  --accent-foreground: 30 60% 15%;
+  /* ─── アクセント（#F6AE2D ハニー） ──────────── */
+  --accent: 39 92% 57%;
+  --accent-foreground: 30 60% 12%;
 
   /* ─── デストラクティブ ───────────────────────── */
   --destructive: 4 74% 52%;
@@ -88,7 +88,7 @@
   /* ─── ボーダー・入力 ─────────────────────────── */
   --border: 30 10% 88%;
   --input: 30 10% 88%;
-  --ring: 33 100% 50%;
+  --ring: 21 89% 52%;
 
   /* ─── 丸み ───────────────────────────────────── */
   --radius: 0.875rem;
@@ -97,20 +97,18 @@
   --app-font-sans: 'Noto Sans JP', sans-serif;
   --app-font-display: 'Outfit', 'Noto Sans JP', sans-serif;
 
-  /* ─── シャドウ（Apple/Stripe 風ニュートラル多層） ──
-     オレンジ色影を廃止。黒の低透明度で深さを表現。
-     ──────────────────────────────────────────────── */
-  --shadow-2xs: 0 1px 2px 0 rgba(10,8,6,0.04);
-  --shadow-xs:  0 1px 3px 0 rgba(10,8,6,0.06), 0 1px 2px -1px rgba(10,8,6,0.04);
-  --shadow-sm:  0 2px 6px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04);
-  --shadow:     0 4px 14px -2px rgba(10,8,6,0.10), 0 2px 4px -2px rgba(10,8,6,0.06);
-  --shadow-md:  0 8px 24px -4px rgba(10,8,6,0.12), 0 3px 6px -3px rgba(10,8,6,0.06);
-  --shadow-lg:  0 16px 40px -6px rgba(10,8,6,0.14), 0 6px 12px -4px rgba(10,8,6,0.07);
-  --shadow-xl:  0 24px 64px -8px rgba(10,8,6,0.16), 0 8px 20px -4px rgba(10,8,6,0.08);
+  /* ─── ソフトシャドウ（溶け込む系・Uber Eats風） */
+  --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.03);
+  --shadow-xs:  0 1px 3px 0 rgba(0,0,0,0.05), 0 1px 2px -1px rgba(0,0,0,0.03);
+  --shadow-sm:  0 2px 8px -1px rgba(0,0,0,0.06), 0 1px 3px -1px rgba(0,0,0,0.03);
+  --shadow:     0 4px 20px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.04);
+  --shadow-md:  0 8px 24px rgba(0,0,0,0.07), 0 3px 6px -3px rgba(0,0,0,0.04);
+  --shadow-lg:  0 16px 40px rgba(0,0,0,0.09), 0 6px 12px -4px rgba(0,0,0,0.05);
+  --shadow-xl:  0 24px 64px rgba(0,0,0,0.11), 0 8px 20px -4px rgba(0,0,0,0.06);
 }
 
 .dark {
-  --background: 20 20% 7%;
+  --background: 20 18% 7%;
   --foreground: 30 12% 95%;
   --card: 20 20% 10%;
   --card-foreground: 30 12% 95%;
@@ -118,27 +116,27 @@
   --popover: 20 20% 10%;
   --popover-foreground: 30 12% 95%;
   --popover-border: 20 20% 17%;
-  --primary: 33 100% 52%;
+  --primary: 21 85% 57%;
   --primary-foreground: 0 0% 100%;
   --secondary: 20 20% 17%;
   --secondary-foreground: 30 12% 95%;
   --muted: 20 20% 17%;
   --muted-foreground: 30 10% 58%;
-  --accent: 40 88% 60%;
+  --accent: 39 88% 60%;
   --accent-foreground: 20 30% 8%;
   --destructive: 4 70% 57%;
   --destructive-foreground: 0 0% 100%;
   --border: 20 20% 18%;
   --input: 20 20% 18%;
-  --ring: 33 100% 52%;
+  --ring: 21 85% 57%;
 
-  --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.16);
-  --shadow-xs:  0 1px 3px 0 rgba(0,0,0,0.20), 0 1px 2px -1px rgba(0,0,0,0.16);
-  --shadow-sm:  0 2px 6px -1px rgba(0,0,0,0.24), 0 1px 3px -1px rgba(0,0,0,0.16);
-  --shadow:     0 4px 14px -2px rgba(0,0,0,0.28), 0 2px 4px -2px rgba(0,0,0,0.18);
-  --shadow-md:  0 8px 24px -4px rgba(0,0,0,0.32), 0 3px 6px -3px rgba(0,0,0,0.18);
-  --shadow-lg:  0 16px 40px -6px rgba(0,0,0,0.36), 0 6px 12px -4px rgba(0,0,0,0.20);
-  --shadow-xl:  0 24px 64px -8px rgba(0,0,0,0.40), 0 8px 20px -4px rgba(0,0,0,0.22);
+  --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.18);
+  --shadow-xs:  0 1px 3px 0 rgba(0,0,0,0.22), 0 1px 2px -1px rgba(0,0,0,0.16);
+  --shadow-sm:  0 2px 8px -1px rgba(0,0,0,0.26), 0 1px 3px -1px rgba(0,0,0,0.16);
+  --shadow:     0 4px 20px rgba(0,0,0,0.30), 0 2px 4px -2px rgba(0,0,0,0.18);
+  --shadow-md:  0 8px 24px rgba(0,0,0,0.34), 0 3px 6px -3px rgba(0,0,0,0.18);
+  --shadow-lg:  0 16px 40px rgba(0,0,0,0.38), 0 6px 12px -4px rgba(0,0,0,0.20);
+  --shadow-xl:  0 24px 64px rgba(0,0,0,0.42), 0 8px 20px -4px rgba(0,0,0,0.22);
 }
 
 /* ─── Base ─────────────────────────────────────────────────── */
@@ -161,13 +159,13 @@
     @apply font-sans bg-background text-foreground;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--app-font-display);
-    @apply font-bold tracking-tight;
-    letter-spacing: -0.02em;
+    @apply font-bold;
+    letter-spacing: -0.03em;
   }
 
   /* ジャンプ率設定: 情報階層を明確に */
@@ -177,7 +175,8 @@
 
   p {
     @apply leading-relaxed;
-    color: hsl(var(--foreground) / 0.88);
+    color: hsl(var(--foreground) / 0.86);
+    letter-spacing: -0.01em;
   }
 
   button, a, [role="button"], label {
@@ -187,9 +186,9 @@
 
   input, select, textarea {
     font-size: 16px;
+    letter-spacing: -0.01em;
   }
 
-  /* フォーカスリングをより洗練されたスタイルに */
   :focus-visible {
     outline: 2px solid hsl(var(--ring) / 0.6);
     outline-offset: 2px;
@@ -199,55 +198,63 @@
 /* ─── Component Layer ──────────────────────────────────────── */
 @layer components {
 
-  /* ──── ページ全体のフェードイン ──── */
   .page-enter {
     animation: pageEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  /* ──── カード基本スタイル ──── */
   .card-elevated {
     @apply bg-card rounded-2xl;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
   .card-elevated:hover {
     box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
   }
 
-  /* ──── セクションディバイダー（線なし・余白で区切る） ──── */
   .section-gap {
     @apply py-6;
   }
 
-  /* ──── 入力フィールド統一 ──── */
   .input-refined {
     @apply h-11 w-full rounded-xl border border-input bg-card px-4 text-base;
     @apply placeholder:text-muted-foreground/55;
     @apply transition-all duration-200;
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:border-primary/60;
-    --tw-ring-color: hsl(var(--primary) / 0.20);
+    --tw-ring-color: hsl(var(--primary) / 0.18);
+  }
+
+  /* ── プライマリグラデーションボタン（標準） ── */
+  .btn-primary {
+    background: linear-gradient(180deg, #F07826 0%, #E85A0C 100%);
+    box-shadow: 0 4px 16px rgba(242, 100, 25, 0.28);
+    @apply text-white font-black rounded-2xl transition-all duration-150;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(180deg, #F58030 0%, #E85A0C 100%);
+    box-shadow: 0 6px 24px rgba(242, 100, 25, 0.36);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(242, 100, 25, 0.20);
   }
 }
 
 /* ─── Utilities ──────────────────────────────────────────── */
 @layer utilities {
 
-  /* ── Safe-area ────────────────────────────────── */
   .pb-safe   { padding-bottom: env(safe-area-inset-bottom); }
   .pb-safe-4 { padding-bottom: max(1rem,   env(safe-area-inset-bottom)); }
   .pb-safe-5 { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
   .pt-safe   { padding-top: env(safe-area-inset-top); }
   .mb-safe   { margin-bottom: env(safe-area-inset-bottom); }
 
-  /* ── スクロール ───────────────────────────────── */
   .scroll-smooth-native {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
 
-  /* ── タップ・ホバーフィードバック ─────────────── */
-  /* より自然で気持ちのよいスケール感（scale + opacity dual） */
   .tap-scale {
     @apply transition-all duration-150 ease-out;
     @apply active:scale-[0.97] active:opacity-85;
@@ -261,33 +268,34 @@
     @apply active:opacity-60;
   }
 
-  /* ── ホバー時の微細上昇（PC向け） ─────────────── */
   .hover-lift {
     @apply transition-all duration-200 ease-out;
-    @apply hover:-translate-y-0.5 hover:shadow-md;
+    @apply hover:-translate-y-0.5;
+    box-shadow: var(--shadow);
+  }
+  .hover-lift:hover {
+    box-shadow: var(--shadow-md);
   }
 
-  /* ── テキストシャドウ（画像上のテキスト用） ──── */
   .text-shadow-sm {
     text-shadow: 0 1px 3px rgba(0,0,0,0.35), 0 1px 1px rgba(0,0,0,0.25);
+  }
+
+  /* シェイクアニメーション（バリデーションエラー時） */
+  .shake {
+    animation: shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   }
 }
 
 /* ─── Keyframes ──────────────────────────────────────────── */
 @keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes shimmer {
-  0%   { background-position: -500px 0; }
-  100% { background-position: 500px 0; }
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
 }
 
 @keyframes fadeIn {
@@ -296,13 +304,20 @@
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: scale(0.95); }
   to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shake {
+  10%, 90%  { transform: translateX(-2px); }
+  20%, 80%  { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60%  { transform: translateX(4px); }
 }
 
 /* ─── Shimmer skeleton ───────────────────────────────────── */
@@ -313,133 +328,12 @@
     hsl(var(--secondary)) 48%,
     hsl(var(--muted)) 100%
   );
-  background-size: 1000px 100%;
+  background-size: 1200px 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
 
-.dark .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(20 20% 14%) 0%,
-    hsl(20 20% 19%) 48%,
-    hsl(20 20% 14%) 100%
-  );
-  background-size: 1000px 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-}
-
-/* ─── Fade-in for lazy images ─────────────────────────────── */
-.img-fade-in {
-  animation: fadeIn 0.4s ease-out both;
-}
-
-/* ─── Google Places Autocomplete ─────────────────────────── */
-.pac-container {
-  z-index: 99999 !important;
-  border-radius: 14px !important;
-  border: 1px solid hsl(var(--border)) !important;
-  box-shadow: var(--shadow-lg) !important;
-  margin-top: 6px;
-  font-family: var(--app-font-sans);
-  overflow: hidden;
-}
-.pac-item {
-  padding: 11px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  border-top: 1px solid hsl(var(--border) / 0.5);
-  transition: background 0.12s ease;
-}
-.pac-item:first-child { border-top: none; }
-.pac-item:hover,
-.pac-item-selected { background: hsl(var(--secondary)); }
-.pac-item-query { font-weight: 700; color: hsl(var(--foreground)); }
-.pac-matched      { color: hsl(var(--primary)); }
-.pac-icon         { display: none; }
-
-/* ─── Scrollbar 非表示 ───────────────────────────────────── */
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* ─── 装飾的なグラデーション境界線（カスタムUI用） ───────── */
-.gradient-border {
-  position: relative;
-}
-.gradient-border::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.3));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* ═══════════════════════════════════════════════════════
-   電子領収書 — 印刷専用スタイル
-   戦略: JS側でDOMクローンを <body> 直下に挿入して印刷。
-   #osusowake-print-root 以外はすべて非表示にする。
-═══════════════════════════════════════════════════════ */
-@media print {
-  /* ── ページ設定 ─────────────────────────────── */
-  @page {
-    size: A4 portrait;
-    margin: 15mm 15mm 15mm 15mm;
-  }
-
-  /* ── 全要素を非表示 → 印刷専用コンテナのみ表示 ── */
-  body {
-    background: white !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-  }
-
-  body > * {
-    display: none !important;
-    visibility: hidden !important;
-  }
-
-  /* ── 印刷専用コンテナ（JSがbody直下に追加）──── */
-  body > #osusowake-print-root {
-    display: block !important;
-    visibility: visible !important;
-    position: static !important;
-    width: 100% !important;
-    max-width: 180mm !important;
-    margin: 0 auto !important;
-    overflow: visible !important;
-    background: white !important;
-    color: #111 !important;
-    font-size: 11pt !important;
-  }
-
-  body > #osusowake-print-root * {
-    visibility: visible !important;
-    overflow: visible !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
-
-  /* ── 背景色・枠線を印刷に反映 ─────────────── */
-  body > #osusowake-print-root table,
-  body > #osusowake-print-root div,
-  body > #osusowake-print-root span,
-  body > #osusowake-print-root p {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* ── ページ区切りの制御 ──────────────────── */
-  body > #osusowake-print-root table {
-    page-break-inside: avoid;
-  }
+/* ─── Auth dot-pattern background ───────────────────────── */
+.auth-bg-dots {
+  background-image: radial-gradient(circle, rgba(242, 100, 25, 0.08) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
 }

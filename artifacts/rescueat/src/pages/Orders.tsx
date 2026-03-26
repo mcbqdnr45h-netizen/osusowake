@@ -81,7 +81,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
   const displayName = recipientInput.trim() || profileName || 'お客様';
   const showSama    = !!(recipientInput.trim() || profileName);
   const storeName     = reservation.store?.name  || '店舗名';
-  const bagTitle      = reservation.bag?.title   || 'サプライズバッグ';
+  const bagTitle = reservation.bag?.title || 'おすそ分けバッグ';
 
   const issueDateStr = (() => {
     const d = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
@@ -399,7 +399,7 @@ export default function Orders() {
           <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-4 mb-5 flex gap-4">
             <div className="flex-1 text-center">
               <p className="text-2xl font-black text-primary">{reservations?.filter(r => r.status === 'picked_up').length ?? 0}</p>
-              <p className="text-[11px] font-bold text-primary/70 mt-0.5">レスキュー完了</p>
+              <p className="text-[11px] font-bold text-primary/70 mt-0.5">受取完了</p>
             </div>
             <div className="w-px bg-primary/20" />
             <div className="flex-1 text-center">
@@ -438,7 +438,7 @@ export default function Orders() {
             <div className="bg-secondary/50 rounded-2xl p-10 text-center">
               <ShoppingBag className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
               <p className="font-bold text-muted-foreground text-sm">注文履歴がありません</p>
-              <p className="text-xs text-muted-foreground mt-1">食品をレスキューすると、ここに表示されます</p>
+              <p className="text-xs text-muted-foreground mt-1">おすそ分けバッグを受け取ると、ここに表示されます</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -469,7 +469,7 @@ export default function Orders() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="font-black text-sm text-foreground truncate">{r.store?.name || '店舗不明'}</p>
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">{r.bag?.title || 'サプライズバッグ'}</p>
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{r.bag?.title || 'おすそ分けバッグ'}</p>
                           </div>
                           <div className={`flex items-center gap-1 ${meta.bg} ${meta.color} px-2 py-1 rounded-full text-[10px] font-black shrink-0`}>
                             {meta.icon}
