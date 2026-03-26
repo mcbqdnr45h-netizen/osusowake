@@ -184,9 +184,15 @@
     cursor: pointer;
   }
 
-  input, select, textarea {
+  input, select, textarea, button {
     font-size: 16px;
     letter-spacing: -0.01em;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  /* 明朝体・セリフフォントの完全排除 */
+  *, *::before, *::after {
+    font-family: inherit;
   }
 
   :focus-visible {

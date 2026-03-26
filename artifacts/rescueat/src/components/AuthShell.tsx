@@ -90,8 +90,10 @@ export function AuthShell({
                 onClick={() => handleTab(tab.id)}
                 className="relative flex-1 py-2.5 px-3 rounded-xl text-sm z-10 flex items-center justify-center gap-1.5 transition-colors duration-200"
                 style={{
-                  color: isActive ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-                  fontWeight: isActive ? 800 : 600,
+                  color: isActive
+                    ? (tab.id === 'store' ? '#C84A0A' : '#1a3a6b')
+                    : 'hsl(var(--muted-foreground))',
+                  fontWeight: isActive ? 900 : 600,
                 }}
               >
                 {/* スライドするピル背景 */}
@@ -99,15 +101,28 @@ export function AuthShell({
                   <motion.div
                     layoutId="auth-segment-pill"
                     className="absolute inset-0 rounded-xl"
-                    style={{
-                      background: 'linear-gradient(145deg, #ffffff 0%, #fff7ed 100%)',
-                      boxShadow: '0 2px 12px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.05)',
+                    style={tab.id === 'store' ? {
+                      background: 'linear-gradient(145deg, #fff5ee 0%, #fde8d8 100%)',
+                      boxShadow: '0 2px 12px rgba(242,100,25,0.18), 0 1px 2px rgba(0,0,0,0.06)',
+                      border: '1.5px solid rgba(242,100,25,0.22)',
+                    } : {
+                      background: 'linear-gradient(145deg, #eef4ff 0%, #dbeafe 100%)',
+                      boxShadow: '0 2px 12px rgba(59,130,246,0.15), 0 1px 2px rgba(0,0,0,0.06)',
+                      border: '1.5px solid rgba(59,130,246,0.20)',
                     }}
                     transition={{ type: 'spring', stiffness: 420, damping: 32 }}
                   />
                 )}
                 <span className="text-[15px] leading-none relative z-10">{tab.emoji}</span>
                 <span className="relative z-10 leading-none">{tab.label}</span>
+                {isActive && (
+                  <motion.span
+                    layoutId="auth-tab-dot"
+                    className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                    style={{ background: tab.id === 'store' ? '#F26419' : '#3b82f6' }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                  />
+                )}
               </motion.button>
             );
 

@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck, TrendingUp, Users, Store, Clock, CheckCircle, XCircle,
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench, CreditCard,
+  LogOut, ExternalLink, Package, Receipt,
 } from 'lucide-react';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 
@@ -65,7 +66,7 @@ function statusBadge(store: AdminStore) {
 }
 
 export default function AdminDashboard() {
-  const { user, session } = useAuth();
+  const { user, session, signOut } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -90,6 +91,7 @@ export default function AdminDashboard() {
 
   const [storeFilter, setStoreFilter] = useState<'all' | 'pending' | 'approved' | 'suspended'>('pending');
   const [showAllStores, setShowAllStores] = useState(false);
+  const [expandedStore, setExpandedStore] = useState<number | null>(null);
 
   const token = session?.access_token;
 
@@ -237,56 +239,85 @@ export default function AdminDashboard() {
       {/* ヘッダー */}
       <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-border/40"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-purple-600" />
-            <span className="font-black text-foreground">管理者ダッシュボード</span>
-            <span className="text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">神モード</span>
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <ShieldCheck className="w-5 h-5 text-purple-600 shrink-0" />
+            <span className="font-black text-foreground truncate">管理者ダッシュボード</span>
+            <span className="text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full shrink-0">神モード</span>
           </div>
-          <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-secondary transition-colors">
-            <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-secondary transition-colors">
+              <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={async () => { await signOut(); navigate('/'); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-xs font-bold border border-red-200 hover:bg-red-100 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              ログアウト
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
-        {/* ── メトリクスパネル ── */}
-        {metrics && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
-              <BarChart2 className="w-3.5 h-3.5" />全体統計
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: '流通額 (GMV)',          value: `¥${fmt(metrics.gmv)}`,         icon: TrendingUp,      color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                { label: '手数料収益 (25%)',       value: `¥${fmt(metrics.platformFee)}`, icon: BadgeDollarSign,  color: 'text-primary',     bg: 'bg-primary/5' },
-                { label: 'アクティブユーザー',     value: `${fmt(metrics.activeUsers)}人`, icon: Users,           color: 'text-sky-600',     bg: 'bg-sky-50' },
-                { label: '登録店舗',               value: `${fmt(metrics.totalStores)}店`, icon: Store,           color: 'text-purple-600',  bg: 'bg-purple-50' },
-              ].map(({ label, value, icon: Icon, color, bg }) => (
-                <div key={label} className={`${bg} rounded-2xl p-4 flex items-start gap-3`}>
-                  <div className={`${color} mt-0.5 shrink-0`}><Icon className="w-4 h-4" /></div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium leading-tight mb-1">{label}</p>
-                    <p className={`text-lg font-black ${color}`}>{value}</p>
+        {/* ── ヒーロー指標バナー ── */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="rounded-3xl overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #5b21b6 35%, #2563eb 100%)' }}>
+            <div className="px-5 pt-5 pb-3">
+              <div className="flex items-center gap-2 mb-4">
+                <ShieldCheck className="w-4 h-4 text-white/70" />
+                <span className="text-xs font-bold text-white/70 tracking-widest uppercase">神モード 全体統計</span>
+              </div>
+
+              {/* 総売上 BIG */}
+              {metrics ? (
+                <>
+                  <div className="mb-4">
+                    <p className="text-[11px] text-white/60 font-medium mb-0.5">累計流通額 (GMV)</p>
+                    <p className="text-5xl font-black text-white tracking-tight">¥{fmt(metrics.gmv)}</p>
+                    <p className="text-xs text-white/60 mt-1">手数料収益 (25%): <span className="text-white/90 font-bold">¥{fmt(metrics.platformFee)}</span></p>
+                  </div>
+
+                  {/* 3つのビッグ数値 */}
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
+                      <p className="text-3xl font-black text-emerald-300">{metrics.approvedStores}</p>
+                      <p className="text-[10px] text-white/60 mt-0.5">アクティブ店舗</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
+                      <p className={`text-3xl font-black ${metrics.pendingStores > 0 ? 'text-amber-300' : 'text-white/50'}`}>
+                        {metrics.pendingStores}
+                      </p>
+                      <p className="text-[10px] text-white/60 mt-0.5">審査待ち</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
+                      <p className="text-3xl font-black text-sky-300">{metrics.activeUsers}</p>
+                      <p className="text-[10px] text-white/60 mt-0.5">ユーザー数</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3 mb-4">
+                  <div className="h-12 bg-white/10 rounded-xl animate-pulse" />
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1,2,3].map(i => <div key={i} className="h-16 bg-white/10 rounded-xl animate-pulse" />)}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              {[
-                { label: '承認済み', n: metrics.approvedStores,  color: 'text-emerald-600' },
-                { label: '審査待ち', n: metrics.pendingStores,   color: 'text-amber-600' },
-                { label: '停止中',   n: metrics.suspendedStores, color: 'text-red-600' },
-              ].map(({ label, n, color }) => (
-                <div key={label} className="bg-secondary/50 rounded-xl p-3 text-center">
-                  <p className={`text-xl font-black ${color}`}>{n}</p>
-                  <p className="text-[11px] text-muted-foreground">{label}</p>
-                </div>
-              ))}
+
+            {/* 登録店舗合計バー */}
+            <div className="bg-white/5 px-5 py-3 flex items-center justify-between">
+              <span className="text-[11px] text-white/60 font-medium flex items-center gap-1.5">
+                <Store className="w-3 h-3" />登録店舗合計
+              </span>
+              <span className="text-sm font-black text-white">{metrics ? `${fmt(metrics.totalStores)}店` : '…'}</span>
             </div>
-          </motion.div>
-        )}
+          </div>
+        </motion.div>
 
         {/* ── 店舗審査パネル ── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
@@ -344,61 +375,115 @@ export default function AdminDashboard() {
                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     className="bg-card border border-border/60 rounded-2xl overflow-hidden"
                   >
-                    <div className="p-4">
-                      <div className="flex items-start gap-3">
-                        {store.image_url ? (
-                          <img src={store.image_url} alt={store.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center shrink-0 text-2xl">🏪</div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-black text-foreground">{store.name}</h3>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                    {/* タップで展開 */}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedStore(expandedStore === store.id ? null : store.id)}
+                      className="w-full text-left"
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          {store.image_url ? (
+                            <img src={store.image_url} alt={store.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center shrink-0 text-2xl">🏪</div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-black text-foreground">{store.name}</h3>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{store.address}</p>
+                            <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                              <span className="flex items-center gap-0.5"><Package className="w-3 h-3" />{store.bag_count}個</span>
+                              <span className="flex items-center gap-0.5"><Receipt className="w-3 h-3" />{store.reservation_count}件</span>
+                              <span className="text-primary font-bold">¥{fmt(Number(store.revenue ?? 0))}</span>
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">{store.address}</p>
-                          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
-                            <span>バッグ {store.bag_count}個</span>
-                            <span>予約 {store.reservation_count}件</span>
-                            <span className="text-primary font-bold">¥{fmt(Number(store.revenue ?? 0))}</span>
-                            <span className="ml-auto text-[10px] text-muted-foreground/60">
-                              {new Date(store.created_at).toLocaleDateString('ja-JP')}
-                            </span>
+                          <div className="shrink-0 text-muted-foreground/50">
+                            {expandedStore === store.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </div>
                         </div>
                       </div>
+                    </button>
 
-                      <div className="flex gap-2 mt-3 flex-wrap">
-                        {isPending && (
-                          <>
-                            <button onClick={() => approveStore(store.id)} disabled={isProcessing}
-                              className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl transition-colors disabled:opacity-50">
-                              {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                              承認する
-                            </button>
-                            <button onClick={() => rejectStore(store.id)} disabled={isProcessing}
-                              className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs py-2.5 rounded-xl transition-colors border border-red-200 disabled:opacity-50">
-                              <XCircle className="w-3.5 h-3.5" />
-                              却下
-                            </button>
-                          </>
-                        )}
-                        {isApprovedActive && (
-                          <button onClick={() => suspendStore(store.id)} disabled={isProcessing}
-                            className="flex items-center justify-center gap-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-orange-200 disabled:opacity-50">
-                            {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5" />}
-                            一時停止
-                          </button>
-                        )}
-                        {isSuspended && !isPending && (
-                          <button onClick={() => approveStore(store.id)} disabled={isProcessing}
-                            className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-emerald-200 disabled:opacity-50">
-                            <CheckCircle className="w-3.5 h-3.5" />
-                            再承認する
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    {/* 展開詳細パネル */}
+                    <AnimatePresence>
+                      {expandedStore === store.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 pb-4 space-y-3 border-t border-border/40 pt-3">
+                            {/* 売上詳細カード */}
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                                <p className="text-lg font-black text-emerald-700">¥{fmt(Number(store.revenue ?? 0))}</p>
+                                <p className="text-[10px] text-emerald-600/70 mt-0.5">累計売上</p>
+                              </div>
+                              <div className="bg-sky-50 rounded-xl p-3 text-center">
+                                <p className="text-lg font-black text-sky-700">{store.reservation_count}</p>
+                                <p className="text-[10px] text-sky-600/70 mt-0.5">総予約数</p>
+                              </div>
+                              <div className="bg-purple-50 rounded-xl p-3 text-center">
+                                <p className="text-lg font-black text-purple-700">{store.bag_count}</p>
+                                <p className="text-[10px] text-purple-600/70 mt-0.5">バッグ数</p>
+                              </div>
+                            </div>
+
+                            <div className="text-[11px] text-muted-foreground flex items-center gap-4">
+                              <span>登録日: {new Date(store.created_at).toLocaleDateString('ja-JP')}</span>
+                              {store.stripe_account_id && (
+                                <span className="text-emerald-600 font-bold">Stripe連携済み</span>
+                              )}
+                            </div>
+
+                            {/* 店舗ページリンク */}
+                            <Link href={`/stores/${store.id}`}>
+                              <div className="flex items-center justify-center gap-1.5 bg-secondary/60 rounded-xl py-2 text-xs font-bold text-muted-foreground hover:bg-secondary transition-colors">
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                店舗公開ページを確認
+                              </div>
+                            </Link>
+
+                            {/* アクションボタン */}
+                            <div className="flex gap-2 flex-wrap">
+                              {isPending && (
+                                <>
+                                  <button onClick={() => approveStore(store.id)} disabled={isProcessing}
+                                    className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl transition-colors disabled:opacity-50">
+                                    {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                    承認する
+                                  </button>
+                                  <button onClick={() => rejectStore(store.id)} disabled={isProcessing}
+                                    className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs py-2.5 rounded-xl transition-colors border border-red-200 disabled:opacity-50">
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    却下
+                                  </button>
+                                </>
+                              )}
+                              {isApprovedActive && (
+                                <button onClick={() => suspendStore(store.id)} disabled={isProcessing}
+                                  className="flex items-center justify-center gap-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-orange-200 disabled:opacity-50">
+                                  {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5" />}
+                                  一時停止
+                                </button>
+                              )}
+                              {isSuspended && !isPending && (
+                                <button onClick={() => approveStore(store.id)} disabled={isProcessing}
+                                  className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-emerald-200 disabled:opacity-50">
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  再承認する
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 );
               })}

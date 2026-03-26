@@ -107,11 +107,60 @@ const queryClient = new QueryClient({
   },
 });
 
+// ── ページ遷移ローディングオーバーレイ（ロゴグロウ）────────────────────────
+function PageTransitionOverlay() {
+  const [location] = useLocation();
+  const [visible, setVisible] = React.useState(false);
+
+  useEffect(() => {
+    setVisible(true);
+    const t = setTimeout(() => setVisible(false), 320);
+    return () => clearTimeout(t);
+  }, [location]);
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key="page-loader"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.18 } }}
+          transition={{ duration: 0.08 }}
+          className="fixed inset-0 z-[999] bg-background flex items-center justify-center pointer-events-none"
+        >
+          <motion.div
+            animate={{ scale: [1, 1.12, 1], opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 0.6, ease: 'easeInOut' }}
+            className="flex flex-col items-center gap-2"
+          >
+            {/* OsusOwake ロゴマーク */}
+            <div className="relative">
+              <motion.div
+                animate={{ opacity: [0.4, 0.9, 0.4] }}
+                transition={{ duration: 0.6, ease: 'easeInOut' }}
+                className="absolute inset-0 rounded-2xl blur-xl"
+                style={{ background: 'radial-gradient(circle, rgba(242,100,25,0.55) 0%, transparent 70%)' }}
+              />
+              <div
+                className="relative w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #F07826 0%, #E85A0C 100%)' }}
+              >
+                <span className="text-white font-black text-xl" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em' }}>Ow</span>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 // ── ページ遷移フェードアニメーション ─────────────────────────────────────────
 const pageVariants = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.2, ease: 'easeOut' } },
-  exit:    { opacity: 0, y: -4, transition: { duration: 0.15, ease: 'easeIn' } },
+  initial: { opacity: 0, y: 4 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1], delay: 0.12 } },
+  exit:    { opacity: 0, transition: { duration: 0.1, ease: 'easeIn' } },
 };
 
 function AnimatedRoutes() {
@@ -122,7 +171,9 @@ function AnimatedRoutes() {
   }, [location]);
 
   return (
-    <AnimatePresence mode="wait">
+    <>
+      <PageTransitionOverlay />
+      <AnimatePresence mode="wait">
       <motion.div
         key={location}
         variants={pageVariants}
@@ -190,7 +241,8 @@ function AnimatedRoutes() {
           <Route component={NotFound} />
         </Switch>
       </motion.div>
-    </AnimatePresence>
+      </AnimatePresence>
+    </>
   );
 }
 

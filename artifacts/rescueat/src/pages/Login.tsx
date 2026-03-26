@@ -9,10 +9,12 @@ export default function Login() {
   const [, navigate] = useLocation();
   const { signIn } = useAuth();
 
-  const params = new URLSearchParams(window.location.search);
-  const initialTab = params.get('tab') === 'store' ? 'store' : 'user';
+  function getInitialTab(): 'user' | 'store' {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') === 'store' ? 'store' : 'user';
+  }
 
-  const [activeTab,  setActiveTab]  = useState<'user' | 'store'>(initialTab);
+  const [activeTab,  setActiveTab]  = useState<'user' | 'store'>(getInitialTab);
   const [email,      setEmail]      = useState('');
   const [password,   setPassword]   = useState('');
   const [showPw,     setShowPw]     = useState(false);
@@ -20,11 +22,15 @@ export default function Login() {
   const [error,      setError]      = useState('');
   const [shakeKey,   setShakeKey]   = useState(0);
 
-  useEffect(() => {
+  // タブ変更時: URLを更新（リマウント時の状態リセット防止）、フォームをクリア
+  function handleTabChange(tab: 'user' | 'store') {
+    setActiveTab(tab);
+    const base = window.location.pathname;
+    window.history.replaceState(null, '', tab === 'store' ? `${base}?tab=store` : base);
     setEmail('');
     setPassword('');
     setError('');
-  }, [activeTab]);
+  }
 
   const isValid = email.trim() && password.length >= 1 && !isLoading;
 
@@ -81,7 +87,7 @@ export default function Login() {
   const isStore = activeTab === 'store';
 
   return (
-    <AuthShell activeTab={activeTab} onTabChange={setActiveTab} mode="login">
+    <AuthShell activeTab={activeTab} onTabChange={handleTabChange} mode="login">
 
       <AnimatePresence mode="wait">
         <motion.div

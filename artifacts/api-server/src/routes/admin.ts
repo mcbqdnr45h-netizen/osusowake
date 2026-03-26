@@ -45,7 +45,7 @@ router.get("/admin/metrics", requireAdmin, async (_req, res) => {
         COALESCE(SUM(r.total_price), 0)::numeric AS gmv,
         COUNT(DISTINCT r.user_id)::int            AS active_users
       FROM reservations r
-      WHERE r.status IN ('confirmed', 'picked_up', 'completed')
+      WHERE r.status IN ('confirmed', 'picked_up')
     `);
     const gmv = Number((gmvResult.rows[0] as any)?.gmv ?? 0);
     const activeUsers = Number((gmvResult.rows[0] as any)?.active_users ?? 0);
@@ -86,7 +86,7 @@ router.get("/admin/stores", requireAdmin, async (_req, res) => {
         s.image_url, s.owner_id, s.created_at, s.stripe_account_id,
         COUNT(DISTINCT b.id)::int AS bag_count,
         COUNT(DISTINCT r.id)::int AS reservation_count,
-        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up','completed')), 0)::numeric AS revenue
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue
       FROM stores s
       LEFT JOIN surprise_bags b ON b.store_id = s.id
       LEFT JOIN reservations r  ON r.store_id = s.id
