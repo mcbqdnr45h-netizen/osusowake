@@ -5,34 +5,64 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0" +
-" hover-elevate active-elevate-2",
+  // ── Base: 全バリアント共通 ──────────────────────────────────────────────────
+  // transition-all で色・影・transformを一括補間。duration-200で滑らか。
+  // active:scale で「押し込まれた」感覚。disabled はポインター無効＋透過。
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold",
+    "transition-all duration-200 ease-out",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1",
+    "disabled:pointer-events-none disabled:opacity-40",
+    "active:scale-[0.97] active:duration-75",
+    "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+    "select-none cursor-pointer",
+  ].join(" "),
   {
     variants: {
       variant: {
+        // プライマリ: オレンジ塗り。ホバーで輝度UP＋わずかに浮かぶ。
         default:
-           // @replit: no hover, and add primary border
-           "bg-primary text-primary-foreground border border-primary-border",
+          "bg-primary text-primary-foreground rounded-xl " +
+          "shadow-sm shadow-primary/20 " +
+          "hover:brightness-105 hover:-translate-y-px hover:shadow-md hover:shadow-primary/25 " +
+          "active:brightness-95 active:translate-y-0 active:shadow-sm",
+
+        // 破壊的: 赤塗り。
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm border-destructive-border",
+          "bg-destructive text-destructive-foreground rounded-xl " +
+          "shadow-sm " +
+          "hover:brightness-105 hover:-translate-y-px hover:shadow-md " +
+          "active:brightness-95 active:translate-y-0",
+
+        // アウトライン: 背景透明・枠線あり。ホバーで薄く塗る。
         outline:
-          // @replit Shows the background color of whatever card / sidebar / accent background it is inside of.
-          // Inherits the current text color. Uses shadow-xs. no shadow on active
-          // No hover state
-          " border [border-color:var(--button-outline)] shadow-xs active:shadow-none ",
+          "border border-border bg-transparent text-foreground rounded-xl " +
+          "hover:bg-muted/70 hover:border-foreground/20 " +
+          "active:bg-muted",
+
+        // セカンダリ: 薄いオレンジ背景。
         secondary:
-          // @replit border, no hover, no shadow, secondary border.
-          "border bg-secondary text-secondary-foreground border border-secondary-border ",
-        // @replit no hover, transparent border
-        ghost: "border border-transparent",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-secondary text-secondary-foreground rounded-xl " +
+          "hover:bg-secondary/80 hover:-translate-y-px " +
+          "active:translate-y-0",
+
+        // ゴースト: 背景なし。ホバーでミュート背景。
+        ghost:
+          "text-foreground rounded-xl " +
+          "hover:bg-muted hover:text-foreground " +
+          "active:bg-muted/80",
+
+        // リンク: テキストのみ。
+        link:
+          "text-primary underline-offset-4 hover:underline p-0 h-auto rounded-none",
       },
       size: {
-        // @replit changed sizes
-        default: "min-h-9 px-4 py-2",
-        sm: "min-h-8 rounded-md px-3 text-xs",
-        lg: "min-h-10 rounded-md px-8",
-        icon: "h-9 w-9",
+        default: "h-11 px-5 py-2.5 text-sm rounded-xl",
+        sm:      "h-9  px-4 py-2   text-xs rounded-lg",
+        lg:      "h-12 px-7 py-3   text-base rounded-xl",
+        xl:      "h-14 px-8 py-4   text-base rounded-2xl",
+        icon:    "h-10 w-10 rounded-xl",
+        "icon-sm": "h-8 w-8 rounded-lg",
       },
     },
     defaultVariants: {

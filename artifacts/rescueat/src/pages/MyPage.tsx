@@ -83,7 +83,8 @@ export default function MyPage() {
         <h1 className="text-2xl font-black mb-6 text-foreground">マイページ</h1>
 
         {/* Profile Card */}
-        <div className="bg-card border border-border rounded-2xl p-5 mb-4 shadow-sm">
+        <div className="bg-card rounded-2xl p-5 mb-4"
+          style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)' }}>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0 border border-primary/30">
               <User className="w-8 h-8" />
@@ -318,7 +319,8 @@ export default function MyPage() {
         )}
 
         {/* Menu List */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-card rounded-2xl overflow-hidden"
+          style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)' }}>
 
           {!isStoreOwner && (
             <Link
