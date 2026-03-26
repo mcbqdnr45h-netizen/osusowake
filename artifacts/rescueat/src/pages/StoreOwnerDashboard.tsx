@@ -590,7 +590,7 @@ export default function StoreOwnerDashboard() {
 
         {/* ── 公式パートナー認定バッジ（Stripe 完全設定済みの場合のみ）── */}
         <AnimatePresence>
-          {connectStatus?.chargesEnabled && connectStatus?.payoutsEnabled && (
+          {connectStatus?.connected && connectStatus?.detailsSubmitted && connectStatus?.chargesEnabled && connectStatus?.payoutsEnabled && (
             <motion.div
               initial={{ opacity: 0, scale: 0.92, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}

@@ -6,6 +6,7 @@ import { getCategoryIcon } from '@/lib/category-utils';
 import { LocateFixed, AlertTriangle } from 'lucide-react';
 
 import { loadGoogleMapsScript } from '@/lib/maps-loader';
+import { updateCachedCoords } from '@/hooks/use-user-location';
 
 const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
 
@@ -360,24 +361,35 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
   }, [userPos, status]);
 
-  // ── GPS ──────────────────────────────────────────────────────────────
+  // ── GPS ── iOS Safari 対策: getCurrentPosition は必ずクリックハンドラ内で同期呼び出し
   function handleLocate() {
     if (userPos) {
       mapRef.current?.panTo(userPos);
       mapRef.current?.setZoom(15);
       return;
     }
+    if (!navigator.geolocation) {
+      console.warn('[Map] geolocation not supported');
+      return;
+    }
     setLocating(true);
+    // ⚠️ Safari iOS: async/await や Promise chain を挟まず、
+    //    onClick から直接 getCurrentPosition を呼ぶことで
+    //    権限ダイアログが確実に表示される。
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        updateCachedCoords(ll);   // 共有キャッシュ更新 → SearchPage の距離ソートにも反映
         setUserPos(ll);
         mapRef.current?.panTo(ll);
         mapRef.current?.setZoom(15);
         setLocating(false);
       },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000 }
+      (err) => {
+        console.warn('[Map] geolocation error:', err.code, err.message);
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
   }
 

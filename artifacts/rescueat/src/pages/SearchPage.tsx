@@ -209,11 +209,14 @@ function StoreBottomSheet({
               <h2 className="text-white font-black text-2xl leading-tight tracking-tight line-clamp-1 drop-shadow-sm">
                 {store.name}
               </h2>
-              {/* PR文 — 店名より小さく、白/70 */}
+              {/* PR文 — 半透明ピル背景付きで確実に読めるように */}
               {store.description && (
-                <p className="text-white/80 text-[13px] font-medium leading-snug mt-1 line-clamp-2 drop-shadow-sm">
-                  {store.description}
-                </p>
+                <div className="mt-1.5 inline-block max-w-full">
+                  <p className="text-white text-[12px] font-medium leading-snug line-clamp-2
+                    bg-black/45 backdrop-blur-sm rounded-lg px-2.5 py-1">
+                    {store.description}
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -472,7 +475,6 @@ export default function SearchPage() {
 
   const searchRef  = useRef<HTMLInputElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
-  const { coords: locCoords } = useUserLocation();
 
   const predictions = usePlacesAutocomplete(inputValue);
   const showPredictions = predictions.length > 0 && inputValue.trim().length >= 2;
@@ -578,15 +580,15 @@ export default function SearchPage() {
       });
     }
 
-    // ソート
-    if (sort === 'distance' && locCoords) {
+    // ソート（userPos = GPS ボタンで取得した現在地、Safari 対応のためボタン経由のみ）
+    if (sort === 'distance' && userPos) {
       result = [...result].sort((a, b) => {
         const aLat = a.store.lat ?? Number(a.store.latitude);
         const aLng = a.store.lng ?? Number(a.store.longitude);
         const bLat = b.store.lat ?? Number(b.store.latitude);
         const bLng = b.store.lng ?? Number(b.store.longitude);
-        const dA = haversineMeters(locCoords.lat, locCoords.lng, aLat, aLng);
-        const dB = haversineMeters(locCoords.lat, locCoords.lng, bLat, bLng);
+        const dA = haversineMeters(userPos.lat, userPos.lng, aLat, aLng);
+        const dB = haversineMeters(userPos.lat, userPos.lng, bLat, bLng);
         return dA - dB;
       });
     } else if (sort === 'price_asc')  { result = [...result].sort((a, b) => a.discountedPrice - b.discountedPrice); }
@@ -594,7 +596,7 @@ export default function SearchPage() {
     else if (sort === 'stock_desc') { result = [...result].sort((a, b) => b.stockCount - a.stockCount); }
 
     return result;
-  }, [bags, liveQuery, category, sort, inStockOnly, areaSearchActive, mapBounds, locCoords]);
+  }, [bags, liveQuery, category, sort, inStockOnly, areaSearchActive, mapBounds, userPos]);
 
   const recommendBags  = useMemo(() => (bags || []).filter(b => b.stockCount > 0).slice(0, 3), [bags]);
 
@@ -630,7 +632,7 @@ export default function SearchPage() {
   const isFiltering       = !!liveQuery || category !== '' || inStockOnly || sort !== 'default' || areaSearchActive;
   const activeFilterCount = [category !== '', inStockOnly, sort !== 'default'].filter(Boolean).length;
   const currentSortLabel  = SORT_OPTIONS.find(o => o.value === sort)?.label || 'おすすめ順';
-  const hasLocation       = !!locCoords;
+  const hasLocation       = !!userPos;
 
   function clearAllFilters() {
     setCategory(''); setInStockOnly(false); setSort('default');

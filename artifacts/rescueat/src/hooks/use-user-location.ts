@@ -6,42 +6,33 @@ export interface UserCoords {
 }
 
 let cachedCoords: UserCoords | null = null;
-let fetchPromise: Promise<UserCoords | null> | null = null;
 
+/** Map の GPS ボタンなど、ユーザー操作の中から呼び出して共有キャッシュを更新する */
+export function updateCachedCoords(coords: UserCoords | null) {
+  cachedCoords = coords;
+}
+
+/**
+ * キャッシュ済みの位置情報を返すだけのフック。
+ * ⚠️ iOS Safari 対策: useEffect 内で getCurrentPosition を呼ぶと
+ * ユーザーのジェスチャー外となり権限ダイアログが出ない場合があるため、
+ * 自動取得は行わない。位置取得は必ずボタンクリックから行う。
+ */
 export function useUserLocation() {
   const [coords, setCoords] = useState<UserCoords | null>(cachedCoords);
-  const [loading, setLoading] = useState(!cachedCoords);
   const mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
-    if (cachedCoords) { setCoords(cachedCoords); setLoading(false); return; }
-    if (!navigator.geolocation) { setLoading(false); return; }
-
-    if (!fetchPromise) {
-      fetchPromise = new Promise<UserCoords | null>((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            cachedCoords = c;
-            resolve(c);
-          },
-          () => resolve(null),
-          { timeout: 8000, maximumAge: 600_000 }
-        );
-      });
-    }
-
-    fetchPromise.then((c) => {
-      if (!mounted.current) return;
-      setCoords(c);
-      setLoading(false);
-    });
-
+    if (cachedCoords) setCoords(cachedCoords);
     return () => { mounted.current = false; };
   }, []);
 
-  return { coords, loading };
+  const refresh = () => {
+    if (cachedCoords && mounted.current) setCoords(cachedCoords);
+  };
+
+  return { coords, loading: false, refresh };
 }
 
 export function haversineMeters(
@@ -81,7 +72,6 @@ export function formatDistanceLabel(meters: number): string {
   const minutes = metersToWalkMinutes(meters);
   if (minutes < 1)   return 'すぐそこ';
   if (minutes <= 60) return `徒歩${minutes}分`;
-  // 1時間超は徒歩ではなく距離で表示
   if (meters < 1000) return `${Math.round(meters)}m`;
   return `${(meters / 1000).toFixed(1)}km`;
 }

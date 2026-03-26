@@ -164,10 +164,13 @@ function PostBagModal({
     }
     setIsSubmitting(true);
     try {
+      const cleanTitle = (pastBag.title?.trim().length >= 4)
+        ? pastBag.title.trim()
+        : `${storeName}のおすそわけバッグ`;
       await createBag.mutateAsync({
         storeId,
         data: {
-          title: pastBag.title,
+          title: cleanTitle,
           description: `${storeName}の美味しいおすそわけです！`,
           originalPrice: Number(pastBag.originalPrice),
           discountedPrice: Number(pastBag.discountedPrice),
@@ -203,7 +206,7 @@ function PostBagModal({
       await createBag.mutateAsync({
         storeId,
         data: {
-          title: form.title,
+          title: form.title.trim().length >= 4 ? form.title.trim() : `${storeName}のおすそわけバッグ`,
           description: form.description.trim() || `${storeName}の美味しいおすそわけです！`,
           originalPrice: Number(form.originalPrice),
           discountedPrice: Number(form.discountedPrice),
