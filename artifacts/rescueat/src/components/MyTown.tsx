@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { getTownStage, TOWN_STAGES, MAX_STAGE } from '@/lib/town-stage';
 
 interface MyTownProps {
@@ -9,81 +10,140 @@ interface MyTownProps {
 
 const LS_KEY = 'rescueat_mytownStage';
 
+// ── 称号テーブル（Lv 0〜10）──────────────────────────────────────────────
+const TITLES: Record<number, string> = {
+  0:  '見習い市民',
+  1:  '新米市長',
+  2:  '若葉の守り手',
+  3:  '芽吹きの使者',
+  4:  '緑の開拓者',
+  5:  'レスキュー隊長',
+  6:  '森の守護者',
+  7:  '収穫の達人',
+  8:  '環境の英雄',
+  9:  '伝説の守り手',
+  10: 'フードロス・ヒーロー',
+};
+
+function getTitle(stage: number) {
+  return TITLES[Math.min(stage, MAX_STAGE)] ?? TITLES[MAX_STAGE];
+}
+
+// ── Confetti 発火 ──────────────────────────────────────────────────────────
+function fireConfetti() {
+  const colors = ['#FF8C00', '#FFD700', '#4CAF50', '#2196F3', '#E91E63', '#9C27B0', '#fff'];
+  const shared = { particleCount: 60, spread: 80, colors, startVelocity: 45, gravity: 0.9 };
+  confetti({ ...shared, origin: { x: 0.25, y: 0.55 }, angle: 60 });
+  confetti({ ...shared, origin: { x: 0.75, y: 0.55 }, angle: 120 });
+  setTimeout(() => {
+    confetti({ particleCount: 40, spread: 100, colors, origin: { x: 0.5, y: 0.4 }, gravity: 0.7 });
+  }, 250);
+}
+
 // ── Evolution Popup ────────────────────────────────────────────────────────
 function EvolutionPopup({ stage, onClose }: { stage: number; onClose: () => void }) {
   const info = TOWN_STAGES[stage];
+  const title = getTitle(stage);
+
   useEffect(() => {
-    const t = setTimeout(onClose, 5000);
+    fireConfetti();
+    const t = setTimeout(onClose, 7000);
     return () => clearTimeout(t);
   }, [onClose]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm px-6"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/65 backdrop-blur-sm px-5"
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.7, opacity: 0, y: 40 }}
+        initial={{ scale: 0.6, opacity: 0, y: 50 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.8, opacity: 0, y: 20 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 260 }}
-        className="bg-card border-2 border-primary/30 rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center"
+        exit={{ scale: 0.85, opacity: 0, y: 20 }}
+        transition={{ type: 'spring', damping: 16, stiffness: 280 }}
+        className="relative bg-card border-2 border-primary/40 rounded-[2rem] shadow-2xl p-7 max-w-sm w-full text-center overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
+        {/* 背景グロー */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+
+        {/* LEVEL UP! バウンス見出し */}
+        <motion.div
+          initial={{ scale: 0, rotate: -10 }}
+          animate={{ scale: [0, 1.35, 0.95, 1.1, 1], rotate: [0, 4, -3, 2, 0] }}
+          transition={{ delay: 0.05, duration: 0.7, times: [0, 0.4, 0.6, 0.8, 1] }}
+          className="mb-3"
+        >
+          <span
+            className="inline-block text-3xl font-black tracking-widest text-transparent"
+            style={{
+              fontFamily: "'Outfit', 'Noto Sans JP', sans-serif",
+              background: 'linear-gradient(135deg, #FF8C00 0%, #FFD700 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: 'none',
+              letterSpacing: '0.12em',
+            }}
+          >
+            LEVEL UP!
+          </span>
+        </motion.div>
+
+        {/* アイコン */}
         <motion.div
           initial={{ scale: 0 }}
-          animate={{ scale: [0, 1.3, 1] }}
-          transition={{ delay: 0.15, times: [0, 0.6, 1], duration: 0.5 }}
-          className="text-7xl mb-4 leading-none"
+          animate={{ scale: [0, 1.4, 1] }}
+          transition={{ delay: 0.2, times: [0, 0.6, 1], duration: 0.5 }}
+          className="text-6xl mb-3 leading-none"
         >
           {info.icon}
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.35, duration: 0.4 }}
         >
-          <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">
-            ステージ {stage} に進化！
-          </p>
-          <h2 className="text-3xl font-black text-foreground mb-2">
-            「{info.name}」
-          </h2>
-          <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-            {info.description}
-          </p>
-
-          <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 mb-5">
-            <p className="text-xs font-black text-primary mb-0.5">🎁 進化特典</p>
-            <p className="text-sm font-semibold text-foreground">{info.benefit}</p>
+          {/* ステージ + 称号 */}
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <span className="bg-primary text-primary-foreground text-xs font-black px-2.5 py-0.5 rounded-full">
+              Lv.{stage}
+            </span>
+            <span className="text-sm font-black text-primary" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              {title}
+            </span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-full bg-primary text-primary-foreground font-black py-3.5 rounded-xl hover:bg-primary/90 active:scale-[0.98] transition-all"
-          >
-            おめでとう！続けよう 🌿
-          </button>
-        </motion.div>
+          <h2 className="text-2xl font-black text-foreground mb-1" style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif" }}>
+            「{info.name}」
+          </h2>
+          <p className="text-xs text-muted-foreground mb-4 leading-relaxed">{info.description}</p>
 
-        {/* Confetti dots */}
-        {[...Array(12)].map((_, i) => (
+          {/* 解放メッセージ */}
           <motion.div
-            key={i}
-            className="absolute w-2.5 h-2.5 rounded-full pointer-events-none"
-            style={{
-              background: ['#FF8C00','#FFD700','#4CAF50','#2196F3','#E91E63','#9C27B0'][i % 6],
-              left: `${10 + (i * 7) % 80}%`,
-              top: `${5 + (i * 11) % 30}%`,
-            }}
-            initial={{ y: 0, opacity: 1, scale: 1 }}
-            animate={{ y: [0, -60 - i * 5, 60], opacity: [1, 1, 0], scale: [1, 1.2, 0.5] }}
-            transition={{ duration: 1.2, delay: 0.1 + i * 0.05, ease: 'easeOut' }}
-          />
-        ))}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.55 }}
+            className="bg-gradient-to-r from-primary/15 to-yellow-400/10 border border-primary/25 rounded-2xl px-4 py-3 mb-5"
+          >
+            <p className="text-[10px] font-black text-primary uppercase tracking-wider mb-1">🎁 解放されました！</p>
+            <p className="text-sm font-bold text-foreground leading-snug">{info.benefit}</p>
+          </motion.div>
+
+          {/* ボタン */}
+          <motion.button
+            onClick={onClose}
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+            className="w-full bg-primary text-primary-foreground font-black py-3.5 rounded-2xl shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors text-sm"
+            style={{ fontFamily: "'Outfit', 'Noto Sans JP', sans-serif" }}
+          >
+            やったー！続けよう 🌿
+          </motion.button>
+        </motion.div>
       </motion.div>
     </motion.div>
   );
@@ -393,66 +453,108 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
+  const title = getTitle(stage);
+  const gameFont = { fontFamily: "'Outfit', 'Noto Sans JP', sans-serif" };
+
   // ── Info Panel（共通）────────────────────────────────────────────────
   const infoPanel = (
     <div className={fullPage ? 'px-4 pt-4 pb-5' : 'px-4 pt-3 pb-4'}>
-      <div className="flex items-start justify-between mb-2.5">
+
+      {/* ヘッダー行：タイトル＋レベル＋称号 */}
+      <div className="flex items-center justify-between mb-2.5 gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className={`font-black text-foreground flex items-center gap-2 ${fullPage ? 'text-xl' : 'text-base'}`}>
-            🏘️ マイタウン
-            <span className="text-xs font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+          {/* 称号バッジ */}
+          <motion.div
+            key={stage}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center gap-1.5 mb-1 flex-wrap"
+          >
+            <span className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-0.5 rounded-full tracking-wide"
+              style={gameFont}>
               Lv.{stage}
             </span>
+            <span className={`font-black text-primary ${fullPage ? 'text-sm' : 'text-xs'}`} style={gameFont}>
+              {title}
+            </span>
+          </motion.div>
+
+          <h3 className={`font-black text-foreground flex items-center gap-1.5 ${fullPage ? 'text-lg' : 'text-[15px]'}`}
+            style={gameFont}>
+            🏘️ マイタウン
           </h3>
           <p className={`text-muted-foreground mt-0.5 leading-snug ${fullPage ? 'text-sm' : 'text-xs'}`}>
             {stageInfo.description}
           </p>
         </div>
-        <div className="text-right ml-3 shrink-0">
-          <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide">ステージ</div>
-          <div className={`font-black text-primary leading-none ${fullPage ? 'text-5xl' : 'text-3xl'}`}>{stage}</div>
+
+        {/* ステージ数字（大） */}
+        <div className="text-right shrink-0">
+          <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide">STAGE</div>
+          <motion.div
+            key={stage}
+            initial={{ scale: 1.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            className={`font-black text-primary leading-none ${fullPage ? 'text-5xl' : 'text-4xl'}`}
+            style={gameFont}
+          >
+            {stage}
+          </motion.div>
           <div className="text-[9px] text-muted-foreground">/ {MAX_STAGE}</div>
         </div>
       </div>
 
+      {/* プログレスバー */}
       {!isMax ? (
         <>
-          <div className="mb-1">
-            <div className="flex items-center justify-between text-[11px] mb-1">
-              <span className="text-muted-foreground font-medium">
+          <div className="mb-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-muted-foreground font-medium ${fullPage ? 'text-xs' : 'text-[11px]'}`}>
                 次: {nextStage!.icon} {nextStage!.name}
               </span>
-              <span className="font-black text-foreground">あと {nextStage!.minCount - purchaseCount}回</span>
+              <span className={`font-black text-foreground ${fullPage ? 'text-xs' : 'text-[11px]'}`}>
+                あと {nextStage!.minCount - purchaseCount}回
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`flex-1 relative bg-secondary rounded-full overflow-hidden ${fullPage ? 'h-3.5' : 'h-2.5'}`}>
+              <div className={`flex-1 relative bg-secondary rounded-full overflow-hidden ${fullPage ? 'h-4' : 'h-3'}`}>
                 <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500"
+                  className="h-full rounded-full"
+                  style={{ background: 'linear-gradient(90deg, #4ade80, #22c55e, #16a34a)' }}
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.max(3, progressPct)}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+                  animate={{ width: `${Math.max(4, progressPct)}%` }}
+                  transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }}
                 />
+                {/* グロー光沢 */}
+                <div className="absolute inset-y-0 left-0 right-0 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none" />
               </div>
-              <div className="flex flex-col items-center shrink-0 opacity-40">
-                <span className="text-base leading-none">{finalStage.icon.split('')[0]}</span>
+              <div className="flex flex-col items-center shrink-0 opacity-35">
+                <span className="text-sm leading-none">{finalStage.icon[0]}</span>
                 <span className="text-[8px] font-black text-muted-foreground whitespace-nowrap">Lv.{MAX_STAGE}</span>
               </div>
             </div>
           </div>
-          <div className="mt-2 space-y-1">
+
+          {/* 次の進化メッセージ */}
+          <motion.div
+            className="bg-secondary/60 rounded-2xl px-3 py-2.5"
+            whileTap={{ scale: 0.97 }}
+          >
             <p className={`text-muted-foreground leading-snug ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
-              あと <span className="font-black text-foreground">{nextStage!.minCount - purchaseCount}回</span> おすそ分けすると「{nextStage!.name}」に進化！🌿
+              あと <span className="font-black text-foreground" style={gameFont}>{nextStage!.minCount - purchaseCount}回</span> おすそ分けすると「{nextStage!.name}」に進化！🌿
             </p>
-            <p className={`text-primary font-bold flex items-center gap-1 ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
-              <span>✨ 進化すると：</span>
+            <p className={`text-primary font-bold mt-1 flex items-center gap-1 ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
+              <span>✨</span>
               <span className="text-foreground font-semibold">{nextStage!.benefit}</span>
             </p>
-          </div>
+          </motion.div>
         </>
       ) : (
-        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3 text-center">
-          <p className={`font-black text-emerald-700 dark:text-emerald-400 ${fullPage ? 'text-base' : 'text-sm'}`}>
-            🌟 最高ステージ達成！あなたは千年の森の守護者です
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl px-4 py-3 text-center">
+          <p className={`font-black text-emerald-700 dark:text-emerald-400 ${fullPage ? 'text-base' : 'text-sm'}`} style={gameFont}>
+            🌟 最高ステージ達成！フードロス・ヒーロー
           </p>
           <p className={`text-emerald-600 dark:text-emerald-500 mt-1 ${fullPage ? 'text-sm' : 'text-xs'}`}>
             {stageInfo.benefit}
