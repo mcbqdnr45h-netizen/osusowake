@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute, GuestRoute } from "@/components/ProtectedRoute";
+import { ProtectedRoute, GuestRoute, GuestWallRoute } from "@/components/ProtectedRoute";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 
@@ -57,19 +57,25 @@ const Protected = (C: React.ComponentType, role?: 'customer' | 'store_owner') =>
 const Guest = (C: React.ComponentType) =>
   function GuestWrapper() { return <GuestRoute component={C} />; };
 
+// ゲストウォール（未ログインはプレースホルダー、ログイン済みは通常表示）
+const GuestWall = (C: React.ComponentType) =>
+  function GuestWallWrapper() { return <GuestWallRoute component={C} />; };
+
 // ── 各ページのラッパー（コンポーネント安定化のため外で定義）──────────────────────
 const GuardedLogin          = Guest(Login);
 const GuardedSignUp         = Guest(SignUp);
 const GuardedStoreLogin     = Guest(StoreLogin);
 const GuardedStoreSignUp    = Guest(StoreSignUp);
-const GuardedMyPage         = Protected(MyPage);
-const GuardedMyReservations = Protected(MyReservations);
+// タブページ：未ログインはプレースホルダー（ウォール）
+const GuardedMyPage         = GuestWall(MyPage);
+const GuardedMyReservations = GuestWall(MyReservations);
+const GuardedOrders         = GuestWall(Orders);
+const GuardedFavorites      = GuestWall(FavoritesPage);
+// チェックアウト・チケット・設定は完全保護（ウェルカム画面へリダイレクト）
 const GuardedCheckout       = Protected(Checkout);
 const GuardedOrderTicket    = Protected(OrderTicket);
-const GuardedOrders         = Protected(Orders);
 const GuardedSettings       = Protected(Settings);
 const GuardedPaymentMethods = Protected(PaymentMethods);
-const GuardedFavorites      = Protected(FavoritesPage);
 const GuardedStoreDashboard  = Protected(StoreDashboard, 'store_owner');
 const GuardedStoreOwnerDash  = Protected(StoreOwnerDashboard, 'store_owner');
 const GuardedStoreBags       = Protected(StoreBagsPage, 'store_owner');

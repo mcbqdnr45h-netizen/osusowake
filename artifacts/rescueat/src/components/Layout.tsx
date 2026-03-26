@@ -40,11 +40,11 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
   ];
 
   const customerNavItems = [
-    { href: '/',                                 icon: Map,     label: '発見',       isUser: false },
-    { href: '/map',                              icon: MapPin,  label: 'マップ',     isUser: false },
-    { href: '/my-reservations',                  icon: Package, label: 'お届け',     isUser: false },
-    { href: '/favorites',                        icon: Heart,   label: 'お気に入り', isUser: false },
-    { href: user ? '/mypage' : '/welcome',       icon: User,    label: user ? 'マイページ' : 'ログイン', isUser: true },
+    { href: '/',                icon: Map,     label: '発見',       isUser: false },
+    { href: '/map',             icon: MapPin,  label: 'マップ',     isUser: false },
+    { href: '/my-reservations', icon: Package, label: 'お届け',     isUser: false },
+    { href: '/favorites',       icon: Heart,   label: 'お気に入り', isUser: false },
+    { href: '/mypage',          icon: User,    label: 'マイページ', isUser: true },
   ];
 
   const navItems = isStoreOwner ? storeNavItems : customerNavItems;
