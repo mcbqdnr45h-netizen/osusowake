@@ -38,7 +38,7 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
 
             {/* タイトル＋店舗名 */}
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-primary/70 tracking-widest uppercase leading-none">
+              <p className="text-[10px] font-bold text-primary/70 tracking-widest leading-none">
                 OsusOwake 店舗管理
               </p>
               <p className="text-sm font-black text-foreground truncate leading-tight mt-0.5">
