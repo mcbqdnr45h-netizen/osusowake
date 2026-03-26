@@ -245,7 +245,7 @@ function StoreBottomSheet({
             <div className="flex items-center gap-2">
               {hasBags ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black text-white"
-                  style={{ background: 'linear-gradient(135deg,#4AAF96,#1E3F38)' }}>
+                  style={{ background: 'linear-gradient(135deg,#F8854A,#D44A00)' }}>
                   <ShoppingBag className="w-3.5 h-3.5" />出品中 · {bagCount}個あり
                 </span>
               ) : (
@@ -600,7 +600,7 @@ export default function SearchPage() {
       if (seenLoc.has(locKey)) return false;
       seenLoc.add(locKey);
       return true;
-    }).filter(s => !liveQuery || filteredStoreIds.has(s.id));
+    }).filter(s => (!liveQuery && !inStockOnly) || filteredStoreIds.has(s.id));
   }, [stores, liveQuery, filteredStoreIds]);
 
   const isFiltering       = !!liveQuery || category !== '' || inStockOnly || sort !== 'default' || areaSearchActive;
@@ -817,48 +817,58 @@ export default function SearchPage() {
             {/* 区切り線 */}
             <div className="w-px h-4 bg-border shrink-0 mx-0.5" />
 
-            {/* 並び替え */}
-            <div className="relative shrink-0">
-              <button onClick={() => setShowSort(v => !v)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all tap-scale whitespace-nowrap
-                  ${sort !== 'default' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-foreground border-border'}`}>
-                <ArrowUpDown className="w-3 h-3" />
-                {currentSortLabel}
-                <ChevronDown className={`w-2.5 h-2.5 transition-transform ${showSort ? 'rotate-180' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {showSort && (
-                  <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.13 }}
-                    className="absolute top-full mt-1.5 left-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
-                    {SORT_OPTIONS.map(opt => {
-                      const disabled = opt.needsLocation && !hasLocation;
-                      return (
-                        <button key={opt.value}
-                          onClick={() => { if (!disabled) { setSort(opt.value); setShowSort(false); } }}
-                          disabled={disabled}
-                          className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-border/30 last:border-0
-                            ${sort === opt.value ? 'text-primary bg-primary/5' : disabled ? 'text-muted-foreground/40 cursor-not-allowed' : 'text-foreground hover:bg-secondary tap-opacity'}`}>
-                          <span className="flex items-center gap-2">
-                            {sort === opt.value && <span>✓</span>}
-                            {opt.value === 'distance' && <Navigation className="w-3 h-3 text-primary" />}
-                            {opt.label}
-                            {disabled && <span className="text-[9px] text-muted-foreground/50 ml-auto">位置情報が必要</span>}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* 並び替え — リストビューのみ表示 */}
+            {view === 'list' && (
+              <div className="relative shrink-0">
+                <button onClick={() => setShowSort(v => !v)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all tap-scale whitespace-nowrap
+                    ${sort !== 'default' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-foreground border-border'}`}>
+                  <ArrowUpDown className="w-3 h-3" />
+                  {currentSortLabel}
+                  <ChevronDown className={`w-2.5 h-2.5 transition-transform ${showSort ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showSort && (
+                    <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.13 }}
+                      className="absolute top-full mt-1.5 left-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
+                      {SORT_OPTIONS.map(opt => {
+                        const disabled = opt.needsLocation && !hasLocation;
+                        return (
+                          <button key={opt.value}
+                            onClick={() => { if (!disabled) { setSort(opt.value); setShowSort(false); } }}
+                            disabled={disabled}
+                            className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-border/30 last:border-0
+                              ${sort === opt.value ? 'text-primary bg-primary/5' : disabled ? 'text-muted-foreground/40 cursor-not-allowed' : 'text-foreground hover:bg-secondary tap-opacity'}`}>
+                            <span className="flex items-center gap-2">
+                              {sort === opt.value && <span>✓</span>}
+                              {opt.value === 'distance' && <Navigation className="w-3 h-3 text-primary" />}
+                              {opt.label}
+                              {disabled && <span className="text-[9px] text-muted-foreground/50 ml-auto">位置情報が必要</span>}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
-            {/* 在庫あり */}
-            <button onClick={() => setInStockOnly(v => !v)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all tap-scale whitespace-nowrap shrink-0
-                ${inStockOnly ? 'bg-green-100 text-green-700 border-green-300' : 'bg-card text-foreground border-border'}`}>
-              <span className={`w-2 h-2 rounded-full shrink-0 ${inStockOnly ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
-              在庫あり
+            {/* 在庫あり — トグルスイッチUI */}
+            <button
+              onClick={() => setInStockOnly(v => !v)}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg tap-scale whitespace-nowrap shrink-0 transition-all"
+            >
+              {/* スイッチ本体 */}
+              <span className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out
+                ${inStockOnly ? 'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]' : 'bg-muted-foreground/25'}`}>
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out
+                  ${inStockOnly ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </span>
+              <span className={`text-xs font-bold transition-colors ${inStockOnly ? 'text-emerald-700' : 'text-muted-foreground'}`}>
+                在庫あり
+              </span>
             </button>
 
             {/* エリア解除バッジ */}

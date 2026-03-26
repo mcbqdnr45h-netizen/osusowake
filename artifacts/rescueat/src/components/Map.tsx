@@ -10,13 +10,31 @@ import { loadGoogleMapsScript } from '@/lib/maps-loader';
 const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
 
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { featureType: 'poi',            stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit',        stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'road',           elementType: 'geometry',          stylers: [{ color: '#f5f5f5' }] },
-  { featureType: 'road',           elementType: 'labels.text.fill',  stylers: [{ color: '#aaaaaa' }] },
-  { featureType: 'water',          elementType: 'geometry',          stylers: [{ color: '#c9e0e8' }] },
-  { featureType: 'landscape',      elementType: 'geometry',          stylers: [{ color: '#f8f8f8' }] },
-  { featureType: 'administrative', elementType: 'labels.text.fill',  stylers: [{ color: '#888888' }] },
+  // POI・交通機関を完全非表示（静かな地図）
+  { featureType: 'poi',                        stylers:                     [{ visibility: 'off' }] },
+  { featureType: 'transit',                    stylers:                     [{ visibility: 'off' }] },
+  // 道路ジオメトリ — ウォームグレー
+  { featureType: 'road',                       elementType: 'geometry',     stylers: [{ color: '#f0ece5' }] },
+  { featureType: 'road.highway',               elementType: 'geometry',     stylers: [{ color: '#e8e2d8' }] },
+  { featureType: 'road.highway',               elementType: 'geometry.stroke', stylers: [{ color: '#d8d0c4' }] },
+  // 道路ラベル — 幹線のみ残す・極限まで薄く
+  { featureType: 'road',                       elementType: 'labels',       stylers: [{ visibility: 'simplified' }] },
+  { featureType: 'road',                       elementType: 'labels.text.fill',   stylers: [{ color: '#c4bbb0' }] },
+  { featureType: 'road',                       elementType: 'labels.text.stroke', stylers: [{ color: '#f8f5f0' }] },
+  { featureType: 'road.arterial',              elementType: 'labels',       stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.local',                 elementType: 'labels',       stylers: [{ visibility: 'off' }] },
+  // 水域 — 落ち着いたペールブルー
+  { featureType: 'water',                      elementType: 'geometry',     stylers: [{ color: '#dce8f0' }] },
+  { featureType: 'water',                      elementType: 'labels',       stylers: [{ visibility: 'off' }] },
+  // 背景・景観 — ウォームオフホワイト
+  { featureType: 'landscape',                  elementType: 'geometry',     stylers: [{ color: '#f8f5f0' }] },
+  { featureType: 'landscape.natural',          elementType: 'geometry',     stylers: [{ color: '#edf2e6' }] },
+  { featureType: 'landscape.man_made',         elementType: 'geometry',     stylers: [{ color: '#f5f2ed' }] },
+  // 行政区画ラベル — 最小限・薄いウォームグレー
+  { featureType: 'administrative',             elementType: 'labels.text.fill',   stylers: [{ color: '#b8afa6' }] },
+  { featureType: 'administrative',             elementType: 'labels.text.stroke', stylers: [{ color: '#f8f5f0' }] },
+  { featureType: 'administrative.locality',    elementType: 'labels',       stylers: [{ visibility: 'simplified' }] },
+  { featureType: 'administrative.neighborhood',elementType: 'labels',       stylers: [{ visibility: 'off' }] },
 ];
 
 function makeStoreIconUrl(category: string, isListing: boolean, bagCount: number): string {
@@ -67,40 +85,33 @@ function makeUserIconUrl(): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-// ── カスタムクラスターレンダラー (#FF8C00 テーマ) ─────────────────────────
+// ── カスタムクラスターレンダラー（テラコッタ・繊細デザイン）─────────────
 function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
   return {
     render: (cluster: Cluster, stats: ClusterStats, map: google.maps.Map) => {
-      const count   = cluster.count;
-      const maxVal  = stats.clusters.markers.max;
+      const count  = cluster.count;
+      const maxVal = stats.clusters.markers.max;
 
-      // カウントに応じてサイズを段階的に変化させる
+      // コンパクトサイズ（従来の約半分）
       const ratio  = Math.min(count / Math.max(maxVal, 1), 1);
-      const size   = Math.round(44 + ratio * 20); // 44px〜64px
+      const size   = Math.round(28 + ratio * 10); // 28px〜38px
       const half   = size / 2;
-      const r      = half - 3;
+      const r      = half - 2;
 
-      // カウントに応じてオレンジの濃さを変える
-      const outerColor = count >= 20 ? '#d44a00' : count >= 10 ? '#e96000' : '#FF8C00';
-      const innerColor = count >= 20 ? '#e96000' : count >= 10 ? '#FF8C00' : '#ffa840';
-
-      const fontSize = count >= 100 ? 11 : count >= 10 ? 13 : 15;
+      // テラコッタ・透過デザイン — 濃さはカウントに応じて
+      const strokeColor  = count >= 20 ? '#D44A00' : count >= 5 ? '#F26419' : '#F07826';
+      const fillOpacity  = count >= 20 ? '0.22'    : count >= 5 ? '0.16'   : '0.12';
+      const fillColor    = `rgba(242,100,25,${fillOpacity})`;
+      const textColor    = count >= 20 ? '#B83D00'  : '#D44A00';
+      const fontSize     = count >= 100 ? 9 : count >= 10 ? 10 : 11;
+      const fontWeight   = '500';
 
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-        <defs>
-          <radialGradient id="cg" cx="38%" cy="32%" r="68%">
-            <stop offset="0%" stop-color="${innerColor}"/>
-            <stop offset="100%" stop-color="${outerColor}"/>
-          </radialGradient>
-          <filter id="cs" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.28)"/>
-          </filter>
-        </defs>
-        <circle cx="${half}" cy="${half}" r="${r + 3}" fill="rgba(255,140,0,0.22)" filter="url(#cs)"/>
-        <circle cx="${half}" cy="${half}" r="${r}" fill="url(#cg)" stroke="rgba(255,255,255,0.75)" stroke-width="2"/>
-        <text x="${half}" y="${half + fontSize * 0.38}"
-          text-anchor="middle" font-size="${fontSize}" font-family="'Outfit','Noto Sans JP',sans-serif"
-          font-weight="800" fill="white" letter-spacing="-0.5">${count}</text>
+        <circle cx="${half}" cy="${half}" r="${r + 3}" fill="rgba(242,100,25,0.07)"/>
+        <circle cx="${half}" cy="${half}" r="${r}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.5"/>
+        <text x="${half}" y="${half + fontSize * 0.4}"
+          text-anchor="middle" font-size="${fontSize}" font-family="'Noto Sans JP','Outfit',sans-serif"
+          font-weight="${fontWeight}" fill="${textColor}" letter-spacing="0">${count}</text>
       </svg>`;
 
       const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
