@@ -967,6 +967,19 @@ export default function StoreDashboard() {
   const [deletingId, setDeletingId]       = useState<number | null>(null);
   const [confirmId, setConfirmId]         = useState<number | null>(null);
   const [editingBag, setEditingBag]       = useState<Bag | null>(null);
+  const [showPickedUp, setShowPickedUp]   = useState(false);
+
+  // サマリーカードのスクロール先 ref
+  const activeBagsRef   = useRef<HTMLDivElement>(null);
+  const pendingRef      = useRef<HTMLDivElement>(null);
+  const pickedUpRef     = useRef<HTMLDivElement>(null);
+
+  function scrollToSection(ref: React.RefObject<HTMLDivElement>, open?: boolean) {
+    if (open) setShowPickedUp(true);
+    setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, open ? 50 : 0);
+  }
 
   const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -1225,18 +1238,37 @@ export default function StoreDashboard() {
           </div>
         </motion.button>
 
-        {/* ── クイックサマリー ── */}
+        {/* ── クイックサマリー（タップで各セクションへジャンプ）── */}
         <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: '出品中', value: activeBags.length, unit: '件', color: 'text-primary', bg: 'bg-orange-50', border: 'border-orange-100' },
-            { label: '本日の予約', value: todayPending.length, unit: '件', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-            { label: '本日受取済', value: todayPickedUp.length, unit: '件', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' },
-          ].map(item => (
-            <div key={item.label} className={`${item.bg} border ${item.border} rounded-2xl p-3 text-center`}>
-              <p className={`text-2xl font-black ${item.color}`}>{item.value}</p>
-              <p className="text-[10px] font-bold text-muted-foreground mt-0.5">{item.label}</p>
-            </div>
-          ))}
+          {/* 出品中 → 出品中商品セクション */}
+          <button
+            onClick={() => scrollToSection(activeBagsRef)}
+            className="bg-orange-50 border border-orange-100 rounded-2xl p-3 text-center active:scale-95 transition-transform hover:bg-orange-100/60 cursor-pointer"
+          >
+            <p className="text-2xl font-black text-primary">{activeBags.length}</p>
+            <p className="text-[10px] font-bold text-muted-foreground mt-0.5">出品中</p>
+            <p className="text-[9px] text-orange-400 mt-0.5 font-medium">タップで確認 →</p>
+          </button>
+
+          {/* 本日の予約 → 受取予定セクション */}
+          <button
+            onClick={() => scrollToSection(pendingRef)}
+            className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center active:scale-95 transition-transform hover:bg-blue-100/60 cursor-pointer"
+          >
+            <p className="text-2xl font-black text-blue-600">{todayPending.length}</p>
+            <p className="text-[10px] font-bold text-muted-foreground mt-0.5">本日の予約</p>
+            <p className="text-[9px] text-blue-400 mt-0.5 font-medium">タップで確認 →</p>
+          </button>
+
+          {/* 本日受取済 → 受取済みセクション（展開して表示） */}
+          <button
+            onClick={() => scrollToSection(pickedUpRef, true)}
+            className="bg-green-50 border border-green-100 rounded-2xl p-3 text-center active:scale-95 transition-transform hover:bg-green-100/60 cursor-pointer"
+          >
+            <p className="text-2xl font-black text-green-600">{todayPickedUp.length}</p>
+            <p className="text-[10px] font-bold text-muted-foreground mt-0.5">本日受取済</p>
+            <p className="text-[9px] text-green-400 mt-0.5 font-medium">タップで確認 →</p>
+          </button>
         </div>
 
         {/* ── Stripe 残高カード ── */}
@@ -1309,7 +1341,7 @@ export default function StoreDashboard() {
 
         {/* ── 出品中の商品（isActive 全件）── */}
         {nonIdleBags.length > 0 && (
-          <div>
+          <div ref={activeBagsRef}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-black text-foreground flex items-center gap-2">
                 <Eye className="w-5 h-5 text-primary" />
@@ -1343,7 +1375,7 @@ export default function StoreDashboard() {
         )}
 
         {/* ── 本日の受取予定リスト ── */}
-        <div>
+        <div ref={pendingRef}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-black text-foreground flex items-center gap-2">
               <Ticket className="w-5 h-5 text-primary" />
@@ -1379,26 +1411,42 @@ export default function StoreDashboard() {
           )}
         </div>
 
-        {/* ── 本日受取済み（折りたたみ） ── */}
+        {/* ── 本日受取済み（折りたたみ）── */}
         {todayPickedUp.length > 0 && (
-          <details className="group">
-            <summary className="flex items-center gap-2 cursor-pointer select-none text-sm font-bold text-muted-foreground list-none">
+          <div ref={pickedUpRef}>
+            <button
+              onClick={() => setShowPickedUp(v => !v)}
+              className="flex items-center gap-2 w-full text-left text-sm font-bold text-muted-foreground select-none"
+            >
               <CheckCircle2 className="w-4 h-4 text-green-500" />
               本日の受取済み（{todayPickedUp.length}件）
-              <span className="ml-auto text-xs text-muted-foreground/60 group-open:hidden">▼ 表示</span>
-              <span className="ml-auto text-xs text-muted-foreground/60 hidden group-open:inline">▲ 閉じる</span>
-            </summary>
-            <div className="mt-3 space-y-3 opacity-60">
-              {todayPickedUp.map(res => (
-                <ReservationCard
-                  key={res.id}
-                  res={res as Reservation}
-                  onPickedUp={handlePickedUp}
-                  loading={false}
-                />
-              ))}
-            </div>
-          </details>
+              <span className="ml-auto text-xs text-muted-foreground/60">
+                {showPickedUp ? '▲ 閉じる' : '▼ 表示'}
+              </span>
+            </button>
+            <AnimatePresence>
+              {showPickedUp && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-3 space-y-3 opacity-60">
+                    {todayPickedUp.map(res => (
+                      <ReservationCard
+                        key={res.id}
+                        res={res as Reservation}
+                        onPickedUp={handlePickedUp}
+                        loading={false}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
       </div>
 
