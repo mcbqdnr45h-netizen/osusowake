@@ -6,14 +6,16 @@ export interface AppSettings {
   maintenance_mode: string;
   maintenance_title: string;
   maintenance_message: string;
+  auto_approve_stripe_verified: string;
 }
 
 const DEFAULTS: AppSettings = {
-  catchphrase:         'あなたの街のおすそわけ',
-  sub_catchphrase:     'おいしいものを、もっとみんなへ。',
-  maintenance_mode:    'false',
-  maintenance_title:   'ただいまメンテナンス中です',
-  maintenance_message: 'より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏',
+  catchphrase:                  'あなたの街のおすそわけ',
+  sub_catchphrase:              'おいしいものを、もっとみんなへ。',
+  maintenance_mode:             'false',
+  maintenance_title:            'ただいまメンテナンス中です',
+  maintenance_message:          'より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏',
+  auto_approve_stripe_verified: 'false',
 };
 
 let _cached: AppSettings | null = null;

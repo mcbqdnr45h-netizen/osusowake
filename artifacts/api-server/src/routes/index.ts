@@ -10,11 +10,13 @@ import notificationsRouter from "./notifications";
 import classifyRouter from "./classify";
 import favoritesRouter from "./favorites";
 import adminRouter from "./admin";
+import stripeWebhookRouter from "./stripe-webhook";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 const router: IRouter = Router();
 
 router.use(adminRouter);
+router.use(stripeWebhookRouter);
 router.use(healthRouter);
 router.use(storesRouter);
 router.use(bagsRouter);

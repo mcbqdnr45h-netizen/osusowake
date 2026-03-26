@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import {
   ShieldCheck, TrendingUp, Users, Store, Clock, CheckCircle, XCircle,
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
-  BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench,
+  BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench, CreditCard,
 } from 'lucide-react';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 
@@ -82,10 +82,11 @@ export default function AdminDashboard() {
   // ── アプリ設定 ──
   const [catchphrase,        setCatchphrase]        = useState('あなたの街のおすそわけ');
   const [subCatchphrase,     setSubCatchphrase]     = useState('おいしいものを、もっとみんなへ。');
-  const [maintenanceMode,    setMaintenanceMode]    = useState(false);
-  const [maintenanceTitle,   setMaintenanceTitle]   = useState('ただいまメンテナンス中です');
-  const [maintenanceMessage, setMaintenanceMessage] = useState('より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏');
-  const [settingsSaving,     setSettingsSaving]     = useState(false);
+  const [maintenanceMode,       setMaintenanceMode]       = useState(false);
+  const [maintenanceTitle,      setMaintenanceTitle]      = useState('ただいまメンテナンス中です');
+  const [maintenanceMessage,    setMaintenanceMessage]    = useState('より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏');
+  const [autoApproveStripe,     setAutoApproveStripe]     = useState(false);
+  const [settingsSaving,        setSettingsSaving]        = useState(false);
 
   const [storeFilter, setStoreFilter] = useState<'all' | 'pending' | 'approved' | 'suspended'>('pending');
   const [showAllStores, setShowAllStores] = useState(false);
@@ -116,6 +117,7 @@ export default function AdminDashboard() {
       setMaintenanceMode(appSettings.maintenance_mode === 'true');
       setMaintenanceTitle(appSettings.maintenance_title);
       setMaintenanceMessage(appSettings.maintenance_message);
+      setAutoApproveStripe(appSettings.auto_approve_stripe_verified === 'true');
     } catch (e) {
       console.error(e);
     } finally {
@@ -130,11 +132,12 @@ export default function AdminDashboard() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          catchphrase:         catchphrase.trim(),
-          sub_catchphrase:     subCatchphrase.trim(),
-          maintenance_mode:    maintenanceMode ? 'true' : 'false',
-          maintenance_title:   maintenanceTitle.trim(),
-          maintenance_message: maintenanceMessage.trim(),
+          catchphrase:                  catchphrase.trim(),
+          sub_catchphrase:              subCatchphrase.trim(),
+          maintenance_mode:             maintenanceMode ? 'true' : 'false',
+          maintenance_title:            maintenanceTitle.trim(),
+          maintenance_message:          maintenanceMessage.trim(),
+          auto_approve_stripe_verified: autoApproveStripe ? 'true' : 'false',
         }),
       });
       if (res.ok) {
@@ -548,6 +551,40 @@ export default function AdminDashboard() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* ─ Stripe自動承認 ─ */}
+            <div className="pt-4 border-t border-border/40">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
+                <CreditCard className="w-3.5 h-3.5" />Stripe認証で自動公開
+              </h2>
+
+              <div
+                onClick={() => setAutoApproveStripe(v => !v)}
+                className={`flex items-center justify-between px-4 py-4 rounded-2xl border-2 cursor-pointer transition-all select-none ${
+                  autoApproveStripe
+                    ? 'border-green-400 bg-green-50'
+                    : 'border-border/60 bg-secondary/30 hover:bg-secondary/50'
+                }`}
+              >
+                <div>
+                  <p className={`text-sm font-black ${autoApproveStripe ? 'text-green-700' : 'text-foreground'}`}>
+                    {autoApproveStripe ? '⚡ Stripe KYC完了で自動承認 ON' : '自動承認 OFF（手動で承認）'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {autoApproveStripe
+                      ? '店舗のStripe本人確認が完了した瞬間に自動で公開されます'
+                      : 'ONにすると charges_enabled になった店舗を自動で approved + is_active にします'}
+                  </p>
+                </div>
+                {autoApproveStripe
+                  ? <ToggleRight className="w-8 h-8 text-green-500 shrink-0" />
+                  : <ToggleLeft  className="w-8 h-8 text-muted-foreground/40 shrink-0" />}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground mt-2 px-1">
+                ※ OFFでも Stripe KYC完了時に管理者へ承認依頼メールが届きます。
+              </p>
             </div>
 
             {/* 保存ボタン */}

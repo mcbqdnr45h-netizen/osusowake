@@ -259,14 +259,29 @@ async function runMigrations() {
     // デフォルト値を INSERT OR IGNORE で挿入
     await client.query(`
       INSERT INTO app_settings (key, value) VALUES
-        ('catchphrase',          'あなたの街のおすそわけ'),
-        ('sub_catchphrase',      'おいしいものを、もっとみんなへ。'),
-        ('maintenance_mode',     'false'),
-        ('maintenance_title',    'ただいまメンテナンス中です'),
-        ('maintenance_message',  'より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏')
+        ('catchphrase',                   'あなたの街のおすそわけ'),
+        ('sub_catchphrase',               'おいしいものを、もっとみんなへ。'),
+        ('maintenance_mode',              'false'),
+        ('maintenance_title',             'ただいまメンテナンス中です'),
+        ('maintenance_message',           'より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏'),
+        ('auto_approve_stripe_verified',  'false')
       ON CONFLICT (key) DO NOTHING;
     `);
     console.log('[migration] app_settings table ✅');
+
+    // ── stores.stripe_kyc_admin_email_sent 列 ─────────────────────────────────
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='stores'
+            AND column_name='stripe_kyc_admin_email_sent'
+        ) THEN
+          ALTER TABLE stores ADD COLUMN stripe_kyc_admin_email_sent BOOLEAN NOT NULL DEFAULT false;
+        END IF;
+      END $$;
+    `);
+    console.log('[migration] stores.stripe_kyc_admin_email_sent ✅');
 
   } catch (err) {
     console.error('[migration] failed:', err);
