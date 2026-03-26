@@ -90,11 +90,17 @@ export default function Privacy() {
               <li><strong>お問い合わせ内容：</strong>対応完了から2年間</li>
             </ul>
             <p>保存期間が経過した個人情報は、復元できない方法で速やかに廃棄または匿名化処理を行います。ただし、法令により保存が義務付けられている情報については、当該法令の定める期間にわたり保存します。</p>
-            <p>ご自身の情報の削除を希望される場合は、お問い合わせフォームよりご連絡ください。法令上の保存義務がある情報を除き、合理的な期間内に対応いたします。</p>
+            <p>
+              <strong>アカウントおよび個人情報の削除について：</strong>ご自身のアカウント（個人情報）の削除を希望される場合は、アプリ内の「マイページ」→「アカウント設定」メニューから、いつでもご自身で退会手続き（アカウントおよび関連する個人情報の削除）を完結させることができます。法令上の保存義務がある情報（取引履歴等）を除き、退会と同時にご登録情報を削除いたします。お問い合わせフォームまたは下記メールアドレスへのご連絡でも対応いたします。
+            </p>
           </Section>
 
           <Section title="9. 個人情報の開示・修正・削除">
-            <p>利用者は自身の個人情報の開示・修正・削除を請求する権利を有します。ご要望の場合は、お問い合わせフォームよりご連絡ください。合理的な期間内に対応いたします。</p>
+            <p>利用者は自身の個人情報の開示・修正・削除を請求する権利を有します。</p>
+            <p>
+              <strong>アプリ内での削除：</strong>アカウントの退会（個人情報の削除）は、アプリ内の「マイページ」→「アカウント設定」から、いつでもご自身で手続きを完結させることができます。外部への連絡や手続き等は不要です。
+            </p>
+            <p>開示・修正のご要望、またはその他の個人情報に関するご請求は、アプリ内お問い合わせフォームまたは下記メールアドレスへご連絡ください。合理的な期間内に対応いたします。</p>
           </Section>
 
           <Section title="10. 未成年者のプライバシー">
@@ -106,12 +112,25 @@ export default function Privacy() {
           </Section>
 
           <Section title="12. お問い合わせ">
-            <p>
-              本ポリシーに関するご質問・ご要望は、下記よりお問い合わせください。<br />
-              <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
-                お問い合わせフォーム
-              </a>
-            </p>
+            <p>本ポリシーに関するご質問・ご要望、または個人情報の開示・修正・削除のご請求は、以下のいずれかの方法にてご連絡ください。</p>
+            <ul>
+              <li>
+                <strong>アプリ内での退会（アカウント削除）：</strong>「マイページ」→「アカウント設定」からいつでも手続きが完結できます
+              </li>
+              <li>
+                <strong>メールアドレス：</strong>
+                <a href="mailto:support@osusowake.example.com" className="text-primary underline underline-offset-2 ml-1">
+                  support@osusowake.example.com
+                </a>
+              </li>
+              <li>
+                <strong>お問い合わせフォーム：</strong>
+                <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 ml-1">
+                  フォームはこちら
+                </a>
+              </li>
+            </ul>
+            <p className="text-muted-foreground text-xs mt-2">OsusOwake 事務局</p>
           </Section>
 
           <div className="mt-10 pt-6 border-t border-border text-xs text-muted-foreground text-center">
