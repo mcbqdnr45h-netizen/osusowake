@@ -5,7 +5,7 @@ import { useListAllBags, useListReservations, SurpriseBagWithStore } from '@work
 import {
   Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
-  Globe, Clock, ArrowLeft, ShoppingBag,
+  Globe, Clock, ArrowLeft, ShoppingBag, Megaphone,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
@@ -310,6 +310,22 @@ export default function Home() {
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // ── お知らせバナー ──
+  const [announcement, setAnnouncement]         = useState<{ id: number; title: string; body: string } | null>(null);
+  const [annDismissed, setAnnDismissed]         = useState(false);
+  useEffect(() => {
+    const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+    fetch(`${BASE_URL}/api/announcements?limit=1`)
+      .then(r => r.ok ? r.json() : [])
+      .then((list: { id: number; title: string; body: string }[]) => {
+        if (list.length > 0) {
+          const key = `ann_dismissed_${list[0].id}`;
+          if (!sessionStorage.getItem(key)) setAnnouncement(list[0]);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const { user, profile, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const { isApprovedOwner } = useMyStore();
@@ -584,6 +600,29 @@ export default function Home() {
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >
+          {/* ── お知らせバナー ── */}
+          <AnimatePresence>
+            {announcement && !annDismissed && (
+              <motion.div key="announcement-banner"
+                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                className="mx-3 mt-3 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
+                <Megaphone className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-amber-800 leading-tight">{announcement.title}</p>
+                  <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed line-clamp-2">{announcement.body}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    sessionStorage.setItem(`ann_dismissed_${announcement.id}`, '1');
+                    setAnnDismissed(true);
+                  }}
+                  className="shrink-0 p-1 rounded-full hover:bg-amber-100 transition-colors">
+                  <X className="w-3.5 h-3.5 text-amber-500" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* ── 仮押さえ中バナー ── */}
           <AnimatePresence>
             {activeReservation && (

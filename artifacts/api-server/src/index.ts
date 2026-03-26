@@ -216,6 +216,38 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS stores_status_active_idx ON stores (status, is_active)`);
     console.log('[migration] performance indexes ✅');
 
+    // ── announcements テーブル ────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS announcements (
+        id          SERIAL PRIMARY KEY,
+        title       TEXT NOT NULL,
+        body        TEXT NOT NULL,
+        created_by  TEXT NOT NULL,
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+    console.log('[migration] announcements table ✅');
+
+    // ── web_push_subscriptions テーブル ──────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+        id          SERIAL PRIMARY KEY,
+        user_id     TEXT NOT NULL,
+        endpoint    TEXT NOT NULL UNIQUE,
+        p256dh      TEXT NOT NULL,
+        auth        TEXT NOT NULL,
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS wps_user_id_idx ON web_push_subscriptions (user_id);
+    `);
+    console.log('[migration] web_push_subscriptions table ✅');
+
+    // ── store_status enum に suspended を追加 ─────────────────────────────────
+    await client.query(`ALTER TYPE store_status ADD VALUE IF NOT EXISTS 'suspended'`);
+    console.log('[migration] store_status suspended ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

@@ -1,384 +1,428 @@
-import React, { useState } from 'react';
-import { Layout } from '@/components/Layout';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ChevronLeft, CheckCircle2, XCircle, Store, MapPin, Phone,
-  FileText, ShieldCheck, Clock, Eye, EyeOff, RefreshCw,
-  AlertCircle, Bell, BarChart2,
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { motion } from 'framer-motion';
+import {
+  ShieldCheck, TrendingUp, Users, Store, Clock, CheckCircle, XCircle,
+  Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
+  BadgeDollarSign, BarChart2, Bell,
+} from 'lucide-react';
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
 
-interface PendingStore {
+interface Metrics {
+  gmv: number;
+  platformFee: number;
+  activeUsers: number;
+  totalStores: number;
+  approvedStores: number;
+  pendingStores: number;
+  suspendedStores: number;
+}
+
+interface AdminStore {
   id: number;
   name: string;
+  status: string;
+  is_active: boolean;
+  category: string;
   address: string;
   city: string;
-  category: string;
-  phone: string | null;
-  imageUrl: string | null;
-  licenseNumber: string | null;
-  licenseImageUrl: string | null;
-  idImageUrl: string | null;
-  pledgeSigned: boolean;
-  status: string;
-  createdAt: string;
+  image_url: string | null;
+  owner_id: string;
+  created_at: string;
+  stripe_account_id: string | null;
+  bag_count: number;
+  reservation_count: number;
+  revenue: number;
 }
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  meals: '🍱', bakery_sweets: '🥐', ingredients: '🍎',
-  // 旧値後方互換
-  bakery: '🥐', restaurant: '🍱', cafe: '🥐',
-  supermarket: '🍎', convenience: '🍱', other: '🍱',
-};
-
-async function fetchPending(): Promise<PendingStore[]> {
-  const res = await fetch(`${BASE}/api/admin/stores/pending`);
-  if (!res.ok) throw new Error('Failed');
-  return res.json();
-}
-async function fetchAllStores(): Promise<PendingStore[]> {
-  const res = await fetch(`${BASE}/api/admin/stores`);
-  if (!res.ok) throw new Error('Failed');
-  return res.json();
+interface Announcement {
+  id: number;
+  title: string;
+  body: string;
+  created_by: string;
+  created_at: string;
 }
 
-function ImageViewer({ src, label }: { src: string; label: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="w-full h-32 bg-secondary rounded-xl overflow-hidden hover:opacity-90 transition-opacity relative group"
-      >
-        <img src={src} alt={label} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Eye className="w-6 h-6 text-white" />
-        </div>
-        <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full">{label}</div>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-            onClick={() => setOpen(false)}
-          >
-            <img src={src} alt={label} className="max-w-full max-h-full rounded-2xl shadow-2xl" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
+function fmt(n: number) {
+  return new Intl.NumberFormat('ja-JP').format(n);
 }
 
-function StoreCard({ store, onApprove, onReject, approving, rejecting }: {
-  store: PendingStore;
-  onApprove: () => void;
-  onReject: () => void;
-  approving: boolean;
-  rejecting: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm"
-    >
-      {/* Header */}
-      <div className="flex items-start gap-3 p-4">
-        <div className="w-14 h-14 bg-muted rounded-xl overflow-hidden shrink-0">
-          {store.imageUrl ? (
-            <img src={store.imageUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-2xl">
-              {CATEGORY_EMOJI[store.category] || '🍴'}
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-black text-foreground">{store.name}</h3>
-            <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
-              <Clock className="w-2.5 h-2.5" /> 審査待ち
-            </span>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-            <MapPin className="w-3 h-3" />
-            <span className="truncate">{store.address}</span>
-          </div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            申請: {new Date(store.createdAt).toLocaleDateString('ja-JP')}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick stats */}
-      <div className="grid grid-cols-3 gap-px bg-border mx-4 rounded-xl overflow-hidden mb-4">
-        <div className="bg-card p-2.5 text-center">
-          <p className="text-[10px] text-muted-foreground font-bold">ジャンル</p>
-          <p className="text-sm font-black">{CATEGORY_EMOJI[store.category]} {store.category}</p>
-        </div>
-        <div className="bg-card p-2.5 text-center">
-          <p className="text-[10px] text-muted-foreground font-bold">誓約</p>
-          <p className={`text-sm font-black ${store.pledgeSigned ? 'text-emerald-600' : 'text-rose-500'}`}>
-            {store.pledgeSigned ? '✓ 同意済' : '✗ 未同意'}
-          </p>
-        </div>
-        <div className="bg-card p-2.5 text-center">
-          <p className="text-[10px] text-muted-foreground font-bold">許可証No.</p>
-          <p className="text-xs font-black truncate">{store.licenseNumber || '—'}</p>
-        </div>
-      </div>
-
-      {/* Expand for documents */}
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 border-t border-border/60 text-sm font-bold text-muted-foreground hover:bg-secondary/40 transition-colors"
-      >
-        <span className="flex items-center gap-1.5">
-          <FileText className="w-4 h-4" /> 提出書類を確認
-        </span>
-        {expanded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </button>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4 space-y-3">
-              {store.licenseImageUrl ? (
-                <ImageViewer src={store.licenseImageUrl} label="営業許可証" />
-              ) : (
-                <div className="w-full h-20 bg-destructive/10 rounded-xl flex items-center justify-center">
-                  <span className="text-xs text-destructive font-bold flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4" /> 営業許可証なし
-                  </span>
-                </div>
-              )}
-              {store.idImageUrl ? (
-                <ImageViewer src={store.idImageUrl} label="本人確認書類" />
-              ) : (
-                <div className="w-full h-20 bg-destructive/10 rounded-xl flex items-center justify-center">
-                  <span className="text-xs text-destructive font-bold flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4" /> 本人確認書類なし
-                  </span>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Action buttons */}
-      <div className="grid grid-cols-2 gap-3 p-4 border-t border-border/60">
-        <button
-          onClick={onReject}
-          disabled={approving || rejecting}
-          className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-destructive/30 text-destructive font-bold text-sm hover:bg-destructive/5 transition-colors disabled:opacity-50"
-        >
-          {rejecting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-          却下する
-        </button>
-        <button
-          onClick={onApprove}
-          disabled={approving || rejecting}
-          className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 shadow-md shadow-emerald-200"
-        >
-          {approving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-          承認する
-        </button>
-      </div>
-    </motion.div>
-  );
+function statusBadge(store: AdminStore) {
+  if (!store.is_active && store.status === 'approved') return { label: '一時停止', cls: 'bg-orange-100 text-orange-700' };
+  switch (store.status) {
+    case 'approved':      return { label: '承認済み',  cls: 'bg-emerald-100 text-emerald-700' };
+    case 'pending_review':
+    case 'pending':       return { label: '審査待ち',  cls: 'bg-amber-100 text-amber-700' };
+    case 'rejected':      return { label: '却下',      cls: 'bg-red-100 text-red-700' };
+    case 'suspended':     return { label: '停止中',    cls: 'bg-red-100 text-red-700' };
+    default:              return { label: store.status, cls: 'bg-secondary text-muted-foreground' };
+  }
 }
 
 export default function AdminDashboard() {
+  const { user, session } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const qc = useQueryClient();
-  const [tab, setTab] = useState<'pending' | 'all'>('pending');
-  const [actingId, setActingId] = useState<number | null>(null);
-  const [actingType, setActingType] = useState<'approve' | 'reject' | null>(null);
 
-  const pendingQuery = useQuery({ queryKey: ['admin-pending'], queryFn: fetchPending, refetchInterval: 30_000 });
-  const allQuery = useQuery({ queryKey: ['admin-all'], queryFn: fetchAllStores, enabled: tab === 'all' });
+  const [metrics, setMetrics]             = useState<Metrics | null>(null);
+  const [stores, setStores]               = useState<AdminStore[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
 
-  async function handleApprove(id: number) {
-    setActingId(id); setActingType('approve');
+  const [annTitle, setAnnTitle] = useState('');
+  const [annBody, setAnnBody]   = useState('');
+  const [annSending, setAnnSending] = useState(false);
+
+  const [storeFilter, setStoreFilter] = useState<'all' | 'pending' | 'approved' | 'suspended'>('pending');
+  const [showAllStores, setShowAllStores] = useState(false);
+
+  const token = session?.access_token;
+
+  useEffect(() => {
+    if (!user) { navigate('/login'); return; }
+    if (user.email !== ADMIN_EMAIL) { navigate('/'); return; }
+  }, [user]);
+
+  const fetchAll = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/stores/${id}/approve`, { method: 'POST' });
-      if (!res.ok) throw new Error();
-      await qc.invalidateQueries({ queryKey: ['admin-pending'] });
-      await qc.invalidateQueries({ queryKey: ['admin-all'] });
-      toast({
-        title: '✅ 承認しました！',
-        description: '店舗に「承認されました！出品を開始できます」と通知しました（ダミー）',
+      const [mRes, sRes, aRes] = await Promise.all([
+        fetch(`${BASE}/api/admin/metrics`,       { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${BASE}/api/admin/stores`,        { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${BASE}/api/admin/announcements`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (mRes.ok) setMetrics(await mRes.json());
+      if (sRes.ok) setStores(await sRes.json());
+      if (aRes.ok) setAnnouncements(await aRes.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  async function approveStore(storeId: number) {
+    setActionLoading(storeId);
+    try {
+      const res = await fetch(`${BASE}/api/admin/stores/${storeId}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
       });
-    } catch {
-      toast({ title: '承認失敗', variant: 'destructive' });
-    } finally {
-      setActingId(null); setActingType(null);
-    }
+      if (res.ok) { toast({ title: '✅ 承認しました' }); await fetchAll(); }
+      else toast({ title: 'エラー', description: '承認に失敗しました', variant: 'destructive' });
+    } finally { setActionLoading(null); }
   }
 
-  async function handleReject(id: number) {
-    setActingId(id); setActingType('reject');
+  async function suspendStore(storeId: number) {
+    if (!confirm('この店舗を一時停止しますか？')) return;
+    setActionLoading(storeId);
     try {
-      const res = await fetch(`${BASE}/api/admin/stores/${id}/reject`, { method: 'POST' });
-      if (!res.ok) throw new Error();
-      await qc.invalidateQueries({ queryKey: ['admin-pending'] });
-      await qc.invalidateQueries({ queryKey: ['admin-all'] });
-      toast({ title: '却下しました', description: '店舗への通知を送りました（ダミー）' });
-    } catch {
-      toast({ title: '却下失敗', variant: 'destructive' });
-    } finally {
-      setActingId(null); setActingType(null);
-    }
+      const res = await fetch(`${BASE}/api/admin/stores/${storeId}/suspend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) { toast({ title: '⏸ 一時停止しました' }); await fetchAll(); }
+      else toast({ title: 'エラー', variant: 'destructive' });
+    } finally { setActionLoading(null); }
   }
 
-  const pendingStores = pendingQuery.data ?? [];
-  const allStores = allQuery.data ?? [];
-  const displayStores = tab === 'pending' ? pendingStores : allStores;
+  async function rejectStore(storeId: number) {
+    if (!confirm('この店舗を却下しますか？')) return;
+    setActionLoading(storeId);
+    try {
+      const res = await fetch(`${BASE}/api/admin/stores/${storeId}/reject`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) { toast({ title: '❌ 却下しました' }); await fetchAll(); }
+      else toast({ title: 'エラー', variant: 'destructive' });
+    } finally { setActionLoading(null); }
+  }
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-amber-100 text-amber-700',
-    approved: 'bg-emerald-100 text-emerald-700',
-    rejected: 'bg-rose-100 text-rose-600',
-    pending_review: 'bg-blue-100 text-blue-700',
-  };
+  async function sendAnnouncement() {
+    if (!annTitle.trim() || !annBody.trim()) {
+      toast({ title: 'タイトルと本文を入力してください', variant: 'destructive' }); return;
+    }
+    setAnnSending(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/announcements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: annTitle.trim(), body: annBody.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: `📣 配信完了！${data.userCount}人に送信されました` });
+        setAnnTitle(''); setAnnBody('');
+        await fetchAll();
+      } else {
+        toast({ title: 'エラー', description: data.error, variant: 'destructive' });
+      }
+    } finally { setAnnSending(false); }
+  }
+
+  const filteredStores = stores.filter(s => {
+    if (storeFilter === 'pending')   return s.status === 'pending_review' || s.status === 'pending';
+    if (storeFilter === 'approved')  return s.status === 'approved' && s.is_active;
+    if (storeFilter === 'suspended') return !s.is_active || s.status === 'suspended' || s.status === 'rejected';
+    return true;
+  });
+  const displayedStores = showAllStores ? filteredStores : filteredStores.slice(0, 10);
+
+  if (user && user.email !== ADMIN_EMAIL) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center p-8">
+          <AlertTriangle className="w-16 h-16 text-destructive mx-auto mb-4" />
+          <p className="font-bold text-xl">アクセス権限がありません</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Layout showBottomNav={false}>
-      <div className="max-w-md mx-auto pb-16">
-
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
-          style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
-          <button
-            onClick={() => navigate('/mypage')}
-            className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-xl font-black text-foreground leading-tight">管理者ダッシュボード</h1>
-            <p className="text-xs text-muted-foreground">Admin Dashboard</p>
+    <div className="min-h-screen bg-background pb-20">
+      {/* ヘッダー */}
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-border/40"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-purple-600" />
+            <span className="font-black text-foreground">管理者ダッシュボード</span>
+            <span className="text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">神モード</span>
           </div>
-          <button
-            onClick={() => { pendingQuery.refetch(); allQuery.refetch(); }}
-            className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
-          >
-            <RefreshCw className={`w-4 h-4 ${pendingQuery.isFetching ? 'animate-spin' : ''}`} />
+          <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-secondary transition-colors">
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
+      </div>
 
-        <div className="px-4 pt-5">
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 rounded-2xl p-3 text-center">
-              <p className="text-2xl font-black text-amber-600">{pendingStores.length}</p>
-              <p className="text-[10px] font-bold text-amber-600/70 mt-0.5">審査待ち</p>
-            </div>
-            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 rounded-2xl p-3 text-center">
-              <p className="text-2xl font-black text-emerald-600">
-                {allStores.filter(s => s.status === 'approved').length}
-              </p>
-              <p className="text-[10px] font-bold text-emerald-600/70 mt-0.5">承認済み</p>
-            </div>
-            <div className="bg-card border border-border rounded-2xl p-3 text-center">
-              <p className="text-2xl font-black text-foreground">{allStores.length}</p>
-              <p className="text-[10px] font-bold text-muted-foreground mt-0.5">合計</p>
-            </div>
-          </div>
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
-          {/* Pending alert */}
-          {pendingStores.length > 0 && tab === 'pending' && (
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
-              <Bell className="w-5 h-5 text-amber-600 shrink-0" />
-              <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
-                {pendingStores.length}件の申請が承認待ちです
-              </p>
-            </div>
-          )}
-
-          {/* Tabs */}
-          <div className="flex gap-2 mb-4">
-            <button onClick={() => setTab('pending')}
-              className={`px-4 py-2 rounded-full text-xs font-black transition-all ${tab === 'pending' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
-              審査待ち {pendingStores.length > 0 && `(${pendingStores.length})`}
-            </button>
-            <button onClick={() => setTab('all')}
-              className={`px-4 py-2 rounded-full text-xs font-black transition-all ${tab === 'all' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
-              全店舗
-            </button>
-          </div>
-
-          {/* Content */}
-          {pendingQuery.isLoading ? (
-            <div className="flex justify-center py-16">
-              <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : tab === 'pending' ? (
-            <AnimatePresence>
-              {pendingStores.length === 0 ? (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  className="bg-secondary/50 rounded-2xl p-10 text-center">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-                  <p className="font-bold text-foreground">全て対応済みです！</p>
-                  <p className="text-xs text-muted-foreground mt-1">審査待ちの申請はありません</p>
-                </motion.div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingStores.map(store => (
-                    <StoreCard
-                      key={store.id}
-                      store={store}
-                      onApprove={() => handleApprove(store.id)}
-                      onReject={() => handleReject(store.id)}
-                      approving={actingId === store.id && actingType === 'approve'}
-                      rejecting={actingId === store.id && actingType === 'reject'}
-                    />
-                  ))}
-                </div>
-              )}
-            </AnimatePresence>
-          ) : (
-            <div className="space-y-3">
-              {allStores.map(store => (
-                <div key={store.id} className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3">
-                  <div className="w-11 h-11 bg-muted rounded-xl overflow-hidden shrink-0">
-                    {store.imageUrl
-                      ? <img src={store.imageUrl} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center">{CATEGORY_EMOJI[store.category] || '🍴'}</div>
-                    }
+        {/* ── メトリクスパネル ── */}
+        {metrics && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
+              <BarChart2 className="w-3.5 h-3.5" />全体統計
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: '流通額 (GMV)',          value: `¥${fmt(metrics.gmv)}`,         icon: TrendingUp,      color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                { label: '手数料収益 (25%)',       value: `¥${fmt(metrics.platformFee)}`, icon: BadgeDollarSign,  color: 'text-primary',     bg: 'bg-primary/5' },
+                { label: 'アクティブユーザー',     value: `${fmt(metrics.activeUsers)}人`, icon: Users,           color: 'text-sky-600',     bg: 'bg-sky-50' },
+                { label: '登録店舗',               value: `${fmt(metrics.totalStores)}店`, icon: Store,           color: 'text-purple-600',  bg: 'bg-purple-50' },
+              ].map(({ label, value, icon: Icon, color, bg }) => (
+                <div key={label} className={`${bg} rounded-2xl p-4 flex items-start gap-3`}>
+                  <div className={`${color} mt-0.5 shrink-0`}><Icon className="w-4 h-4" /></div>
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium leading-tight mb-1">{label}</p>
+                    <p className={`text-lg font-black ${color}`}>{value}</p>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-sm text-foreground truncate">{store.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{store.address}</p>
-                  </div>
-                  <span className={`text-[10px] font-black px-2 py-1 rounded-full shrink-0 ${statusColors[store.status] || 'bg-secondary text-muted-foreground'}`}>
-                    {store.status === 'pending' ? '審査待ち'
-                      : store.status === 'approved' ? '承認済'
-                      : store.status === 'rejected' ? '却下'
-                      : 'レビュー中'}
-                  </span>
                 </div>
               ))}
             </div>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {[
+                { label: '承認済み', n: metrics.approvedStores,  color: 'text-emerald-600' },
+                { label: '審査待ち', n: metrics.pendingStores,   color: 'text-amber-600' },
+                { label: '停止中',   n: metrics.suspendedStores, color: 'text-red-600' },
+              ].map(({ label, n, color }) => (
+                <div key={label} className="bg-secondary/50 rounded-xl p-3 text-center">
+                  <p className={`text-xl font-black ${color}`}>{n}</p>
+                  <p className="text-[11px] text-muted-foreground">{label}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── 店舗審査パネル ── */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Store className="w-3.5 h-3.5" />店舗管理
+            </h2>
+            {metrics && metrics.pendingStores > 0 && (
+              <span className="text-[11px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Clock className="w-3 h-3" />{metrics.pendingStores}件 審査待ち
+              </span>
+            )}
+          </div>
+
+          {/* フィルタータブ */}
+          <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+            {(['pending', 'approved', 'suspended', 'all'] as const).map(f => {
+              const counts: Record<typeof f, number> = {
+                pending:   stores.filter(s => s.status === 'pending_review' || s.status === 'pending').length,
+                approved:  stores.filter(s => s.status === 'approved' && s.is_active).length,
+                suspended: stores.filter(s => !s.is_active || s.status === 'suspended' || s.status === 'rejected').length,
+                all:       stores.length,
+              };
+              const labels = { pending: '審査待ち', approved: '承認済み', suspended: '停止/却下', all: 'すべて' };
+              return (
+                <button key={f} onClick={() => { setStoreFilter(f); setShowAllStores(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${storeFilter === f ? 'bg-foreground text-background' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
+                  {labels[f]} ({counts[f]})
+                </button>
+              );
+            })}
+          </div>
+
+          {loading ? (
+            <div className="space-y-3">
+              {[1,2,3].map(i => <div key={i} className="h-28 bg-secondary/50 rounded-2xl animate-pulse" />)}
+            </div>
+          ) : filteredStores.length === 0 ? (
+            <div className="bg-secondary/30 rounded-2xl p-8 text-center">
+              <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-3 opacity-60" />
+              <p className="font-bold text-foreground">
+                {storeFilter === 'pending' ? '審査待ちの店舗はありません' : '該当する店舗はありません'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {displayedStores.map(store => {
+                const badge = statusBadge(store);
+                const isProcessing = actionLoading === store.id;
+                const isPending = store.status === 'pending_review' || store.status === 'pending';
+                const isApprovedActive = store.status === 'approved' && store.is_active;
+                const isSuspended = !store.is_active || store.status === 'suspended' || store.status === 'rejected';
+                return (
+                  <motion.div key={store.id}
+                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    className="bg-card border border-border/60 rounded-2xl overflow-hidden"
+                  >
+                    <div className="p-4">
+                      <div className="flex items-start gap-3">
+                        {store.image_url ? (
+                          <img src={store.image_url} alt={store.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center shrink-0 text-2xl">🏪</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-black text-foreground">{store.name}</h3>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">{store.address}</p>
+                          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                            <span>バッグ {store.bag_count}個</span>
+                            <span>予約 {store.reservation_count}件</span>
+                            <span className="text-primary font-bold">¥{fmt(Number(store.revenue ?? 0))}</span>
+                            <span className="ml-auto text-[10px] text-muted-foreground/60">
+                              {new Date(store.created_at).toLocaleDateString('ja-JP')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 mt-3 flex-wrap">
+                        {isPending && (
+                          <>
+                            <button onClick={() => approveStore(store.id)} disabled={isProcessing}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl transition-colors disabled:opacity-50">
+                              {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                              承認する
+                            </button>
+                            <button onClick={() => rejectStore(store.id)} disabled={isProcessing}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs py-2.5 rounded-xl transition-colors border border-red-200 disabled:opacity-50">
+                              <XCircle className="w-3.5 h-3.5" />
+                              却下
+                            </button>
+                          </>
+                        )}
+                        {isApprovedActive && (
+                          <button onClick={() => suspendStore(store.id)} disabled={isProcessing}
+                            className="flex items-center justify-center gap-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-orange-200 disabled:opacity-50">
+                            {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5" />}
+                            一時停止
+                          </button>
+                        )}
+                        {isSuspended && !isPending && (
+                          <button onClick={() => approveStore(store.id)} disabled={isProcessing}
+                            className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-emerald-200 disabled:opacity-50">
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            再承認する
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+              {filteredStores.length > 10 && (
+                <button onClick={() => setShowAllStores(v => !v)}
+                  className="w-full py-3 flex items-center justify-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+                  {showAllStores
+                    ? <><ChevronUp className="w-4 h-4" />折りたたむ</>
+                    : <><ChevronDown className="w-4 h-4" />残り{filteredStores.length - 10}件を表示</>}
+                </button>
+              )}
+            </div>
           )}
-        </div>
+        </motion.div>
+
+        {/* ── お知らせ配信パネル ── */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="bg-card border border-border/60 rounded-2xl overflow-hidden">
+          <div className="px-5 pt-5 pb-5">
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
+              <Megaphone className="w-3.5 h-3.5" />お知らせ配信
+            </h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">タイトル</label>
+                <input
+                  type="text" value={annTitle} onChange={e => setAnnTitle(e.target.value)}
+                  placeholder="例：今日のおすそわけ情報"
+                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">本文</label>
+                <textarea
+                  value={annBody} onChange={e => setAnnBody(e.target.value)} rows={3}
+                  placeholder="全ユーザーに配信されるメッセージを入力してください"
+                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                />
+              </div>
+              <button onClick={sendAnnouncement} disabled={annSending || !annTitle.trim() || !annBody.trim()}
+                className="w-full h-12 bg-primary text-white font-black rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98] shadow-sm shadow-primary/20">
+                {annSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                全ユーザーに配信する
+              </button>
+            </div>
+
+            {announcements.length > 0 && (
+              <div className="mt-5 pt-5 border-t border-border/40">
+                <p className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5" />配信済み ({announcements.length}件)
+                </p>
+                <div className="space-y-2">
+                  {announcements.slice(0, 5).map(ann => (
+                    <div key={ann.id} className="bg-secondary/40 rounded-xl px-3 py-2.5">
+                      <p className="text-xs font-bold text-foreground">{ann.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{ann.body}</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-1">
+                        {new Date(ann.created_at).toLocaleString('ja-JP')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
       </div>
-    </Layout>
+    </div>
   );
 }

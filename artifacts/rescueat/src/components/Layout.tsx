@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import {
   Map, MapPin, Package, Heart, User, Menu, X,
   FileText, Shield, Store, Settings, ChevronRight, Coins, BarChart2,
-  MessageCircle, HelpCircle, ExternalLink,
+  MessageCircle, HelpCircle, ExternalLink, ShieldCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
@@ -33,6 +33,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
   useEffect(() => { setMenuOpen(false); }, [location]);
 
   const isStoreOwner = profile?.role === 'store_owner';
+  const isAdmin = user?.email === 'yuuhi0125416@icloud.com';
 
   const storeNavItems = [
     { href: '/store/dashboard', icon: Store,     label: '出品管理', isUser: false },
@@ -201,6 +202,16 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
                           className="flex items-center gap-3 px-4 py-2.5 border-t border-border/40 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-150">
                           <Settings className="w-4 h-4 shrink-0" />
                           アカウント設定
+                        </Link>
+                      )}
+
+                      {isAdmin && (
+                        <Link href="/admin"
+                          className="flex items-center gap-3 px-4 py-2.5 border-t border-border/40 text-sm font-bold hover:bg-purple-50 transition-colors duration-150"
+                          style={{ color: '#7c3aed' }}>
+                          <ShieldCheck className="w-4 h-4 shrink-0" />
+                          <span>管理者ダッシュボード</span>
+                          <span className="ml-auto text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">神モード</span>
                         </Link>
                       )}
 

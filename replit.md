@@ -33,24 +33,27 @@
 
 ## Pages
 
-- `/` - ホーム（マップ＋バッグ一覧）
+- `/` - ホーム（マップ＋バッグ一覧）、お知らせバナー表示
 - `/bags/:id` - バッグ詳細
 - `/checkout/:id` - 決済
 - `/my-reservations` - 予約一覧
 - `/store-dashboard` - 店舗管理
 - `/search` - 検索
 - `/favorites` - お気に入り
-- `/mypage` - マイページ
+- `/mypage` - マイページ（ベルアイコン→お知らせ展開）
+- `/admin` - 管理者ダッシュボード（神モード）※yuuhi0125416@icloud.comのみアクセス可
 
 ## Database Tables（全テーブル Supabase PostgreSQL）
 
 > **DB 接続**: `lib/db/src/index.ts` が `SUPABASE_DATABASE_URL`（SSL付き）を使用。  
 > `DATABASE_URL`（Replit ローカル DB）は使用しない。
 
-- `stores` - 店舗情報（lat/lng含む）
+- `stores` - 店舗情報（lat/lng含む）、`status`: `pending_review` → `approved` / `rejected` / `suspended`
 - `surprise_bags` - バッグ出品情報
 - `reservations` - 予約情報（ステータス・ピックアップコード含む）
-- `notifications` - 通知
+- `notifications` - ユーザー通知（お知らせ含む）
+- `announcements` - 管理者が全ユーザーに配信するお知らせ
+- `web_push_subscriptions` - Webプッシュ通知購読情報
 - `reports` / `reviews` - 報告・レビュー
 - `users` - Supabase Auth と連携したプロフィール（public.users）
 

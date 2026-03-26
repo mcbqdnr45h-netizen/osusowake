@@ -114,7 +114,7 @@ router.get("/bags", async (_req, res) => {
       .innerJoin(storesTable, eq(surpriseBagsTable.storeId, storesTable.id))
       .where(and(
         eq(surpriseBagsTable.isActive, true),
-        sql`(${storesTable.isActive} = true OR ${storesTable.status} = 'approved')`,
+        sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true`,
         notExpiredCondition,
       ));
 

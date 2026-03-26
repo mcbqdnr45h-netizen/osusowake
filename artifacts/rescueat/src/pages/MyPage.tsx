@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone } from 'lucide-react';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +14,7 @@ export default function MyPage() {
   const userId = useUserId();
   const { store, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStore();
   const [, navigate] = useLocation();
-  const { user, profile, isLoading: authLoading, signOut, refreshProfile } = useAuth();
+  const { user, profile, session, isLoading: authLoading, signOut, refreshProfile } = useAuth();
   const roleFixedRef = useRef(false);
 
   // ── ストアがあるのに customer 表示の場合 → role を修正してプロフィールを再取得 ──
@@ -40,6 +40,21 @@ export default function MyPage() {
   const pickedUpCount  = pickedUpReservations.length;
   const foodSavedKg    = +(pickedUpCount * 0.5).toFixed(1);
   const co2Saved       = +(pickedUpCount * 2.5).toFixed(1);
+
+  // ── お知らせ（通知）──
+  const [notifications, setNotifications] = useState<{ id: number; title: string; body: string; type: string; read: boolean; createdAt: string }[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  useEffect(() => {
+    if (!userId || !session?.access_token) return;
+    const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+    fetch(`${BASE_URL}/api/notifications`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then(r => r.ok ? r.json() : { notifications: [], unreadCount: 0 })
+      .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unreadCount || 0); })
+      .catch(() => {});
+  }, [userId, session?.access_token]);
 
   async function handleLogout() {
     await signOut();
@@ -80,7 +95,57 @@ export default function MyPage() {
 
   const pageContent = (
     <div className="max-w-md mx-auto py-8 px-4 pb-24">
-        <h1 className="text-2xl font-black mb-6 text-foreground">マイページ</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-black text-foreground">マイページ</h1>
+          {userId && (
+            <button
+              onClick={() => setShowNotifications(v => !v)}
+              className="relative p-2 rounded-xl bg-secondary/60 hover:bg-secondary transition-colors">
+              <Bell className="w-5 h-5 text-foreground" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-destructive text-white text-[10px] font-black rounded-full flex items-center justify-center px-1">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* お知らせパネル */}
+        {showNotifications && (
+          <div className="bg-card rounded-2xl border border-border mb-4 overflow-hidden"
+            style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08)' }}>
+            <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
+              <span className="font-black text-sm text-foreground flex items-center gap-1.5">
+                <Bell className="w-4 h-4 text-primary" />お知らせ
+              </span>
+              <button onClick={() => setShowNotifications(false)} className="text-xs text-muted-foreground hover:text-foreground">閉じる</button>
+            </div>
+            {notifications.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="text-sm text-muted-foreground">お知らせはありません</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/40">
+                {notifications.slice(0, 8).map(n => (
+                  <div key={n.id} className={`px-4 py-3 ${!n.read ? 'bg-primary/[0.03]' : ''}`}>
+                    <div className="flex items-start gap-2.5">
+                      <Megaphone className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-bold ${!n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{n.body}</p>
+                        <p className="text-[10px] text-muted-foreground/50 mt-1">
+                          {new Date(n.createdAt).toLocaleDateString('ja-JP')}
+                        </p>
+                      </div>
+                      {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Profile Card */}
         <div className="bg-card rounded-2xl p-5 mb-4"

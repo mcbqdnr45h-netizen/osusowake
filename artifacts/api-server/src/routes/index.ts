@@ -9,10 +9,12 @@ import uploadRouter from "./upload";
 import notificationsRouter from "./notifications";
 import classifyRouter from "./classify";
 import favoritesRouter from "./favorites";
+import adminRouter from "./admin";
 import { supabaseAdmin } from "../lib/supabase.js";
 
 const router: IRouter = Router();
 
+router.use(adminRouter);
 router.use(healthRouter);
 router.use(storesRouter);
 router.use(bagsRouter);

@@ -72,7 +72,7 @@ const storeSelectFields = {
     THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
 
-// Public: list approved + pending_review stores (both are publicly visible)
+// Public: list only approved + active stores
 router.get("/stores", async (req, res) => {
   try {
     ListStoresQueryParams.parse(req.query);
@@ -81,7 +81,7 @@ router.get("/stores", async (req, res) => {
       .select(storeSelectFields)
       .from(storesTable)
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
-      .where(sql`${storesTable.status} IN ('approved', 'pending_review')`)
+      .where(sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true`)
       .groupBy(storesTable.id);
 
     res.json(stores);
@@ -143,7 +143,7 @@ router.post("/stores/apply", async (req, res) => {
       return res.status(409).json({ error: "already_exists", store: { ...store, totalBagsAvailable: 0 } });
     }
 
-    // 基本情報のみ保存 — Stripe は呼ばない、即 approved
+    // 基本情報のみ保存 — 審査待ち（pending_review）で登録
     const inserted = await db.insert(storesTable).values({
       name: body.name,
       description: body.description ?? null,
@@ -155,7 +155,7 @@ router.post("/stores/apply", async (req, res) => {
       imageUrl: body.imageUrl ?? null,
       phone: body.phone ?? null,
       isActive: false,
-      status: "approved",
+      status: "pending_review",
       ownerId: body.ownerId,
       licenseNumber: null,
       licenseImageUrl: null,
@@ -171,7 +171,60 @@ router.post("/stores/apply", async (req, res) => {
       return res.status(500).json({ error: "insert_no_result", message: "店舗情報の保存が確認できませんでした。再度お試しください。" });
     }
 
-    console.log("[/stores/apply] ✅ 店舗作成・即承認 id=", store.id, "ownerId=", store.ownerId, "DB=ローカル Replit PostgreSQL");
+    console.log("[/stores/apply] ✅ 店舗登録・審査待ち id=", store.id, "ownerId=", store.ownerId);
+
+    // ── 管理者への審査依頼メールを送信 ──────────────────────────────────────────
+    try {
+      const resendApiKey = process.env.RESEND_API_KEY;
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
+        const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
+        const adminEmail = "yuuhi0125416@icloud.com";
+        const secret = process.env.ADMIN_APPROVAL_SECRET ?? "osusowake-admin-secret";
+        const crypto = await import('node:crypto');
+        const token = crypto.createHmac('sha256', secret).update(String(store.id)).digest('hex');
+        const approveUrl = `${appUrl}/api/admin/approve-store?storeId=${store.id}&token=${token}`;
+
+        await resend.emails.send({
+          from: `OsusOwake <${fromDomain}>`,
+          to: adminEmail,
+          subject: `【OsusOwake】新しい店舗が審査待ちです: ${store.name}`,
+          html: `
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#F26419 0%,#d44a00 100%);padding:40px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">🏪</div>
+      <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0;">新規店舗が審査待ちです</h1>
+    </div>
+    <div style="padding:32px;">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;width:100px;">店舗名</td><td style="padding:8px 0;font-weight:bold;font-size:15px;">${store.name}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;">住所</td><td style="padding:8px 0;font-size:13px;">${store.address}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;">カテゴリ</td><td style="padding:8px 0;font-size:13px;">${store.category}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;">登録日時</td><td style="padding:8px 0;font-size:13px;">${new Date().toLocaleString('ja-JP')}</td></tr>
+      </table>
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${approveUrl}" style="display:inline-block;background:linear-gradient(135deg,#F26419,#d44a00);color:#ffffff;font-size:16px;font-weight:900;padding:16px 48px;border-radius:14px;text-decoration:none;">
+          ✅ ワンタップで承認する
+        </a>
+      </div>
+      <p style="color:#999;font-size:12px;text-align:center;margin:0;">
+        管理者ダッシュボードでも審査できます: <a href="${appUrl}/admin" style="color:#F26419;">${appUrl}/admin</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`.trim(),
+        });
+        console.log("[/stores/apply] ✅ 管理者通知メール送信完了 →", adminEmail);
+      }
+    } catch (mailErr: any) {
+      console.warn("[/stores/apply] 管理者通知メール送信エラー:", mailErr?.message);
+    }
 
     // ── オーナーの role を store_owner に更新（customer から登録した場合も対応）──
     try {
