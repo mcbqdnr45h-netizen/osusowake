@@ -8,7 +8,7 @@ import { useListReservations } from '@workspace/api-client-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Receipt, ShoppingBag, CheckCircle2, XCircle,
-  Clock, Store, Download, Share2, ChevronRight, X,
+  Clock, Store, Printer, Share2, ChevronRight, X,
   QrCode, Leaf,
 } from 'lucide-react';
 
@@ -65,13 +65,28 @@ function formatDateShort(dateStr?: string | null) {
 }
 
 function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () => void }) {
-  const status = (reservation.status as ReservationStatus) || 'pending';
-  const meta = STATUS_META[status] || STATUS_META.pending;
-  const orderId = `ORD-${String(reservation.id).padStart(8, '0')}`;
-  const co2Saved = status === 'picked_up' ? 2.5 : 0;
+  const { profile } = useAuth();
+  const status    = (reservation.status as ReservationStatus) || 'pending';
+  const orderId   = `ORD-${String(reservation.id).padStart(8, '0')}`;
+  const total     = Math.round(reservation.totalPrice);
+  const TAX_RATE  = 0.08;                                  // 食品は軽減税率 8%
+  const preTax    = Math.floor(total / (1 + TAX_RATE));
+  const taxAmount = total - preTax;
+  const co2Saved  = 2.5;
+
+  const recipientName = profile?.display_name || profile?.full_name || 'お客様';
+  const storeName     = reservation.store?.name  || '店舗名';
+  const bagTitle      = reservation.bag?.title   || 'サプライズバッグ';
+
+  const issueDateStr = (() => {
+    const d = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
+    return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+  })();
+
+  function handlePrint() { window.print(); }
 
   async function handleShare() {
-    const text = `OsusOwake レシート\n${reservation.store?.name}\n${reservation.bag?.title}\n¥${reservation.totalPrice.toLocaleString()} | ${meta.label}`;
+    const text = `OsusOwake 電子領収書\n${storeName}\n${bagTitle}\n金額: ¥${total.toLocaleString()}\n${orderId}`;
     if (navigator.share) {
       try { await navigator.share({ title: 'OsusOwake 電子領収書', text }); } catch {}
     }
@@ -79,11 +94,28 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
 
   return (
     <AnimatePresence>
+      {/* ── Print CSS (グローバルに挿入) ─────────── */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #receipt-printable, #receipt-printable * { visibility: visible !important; }
+          #receipt-printable {
+            position: fixed !important;
+            inset: 0 !important;
+            padding: 24px 32px !important;
+            background: white !important;
+            font-size: 12pt !important;
+            color: #111 !important;
+          }
+          .print-hidden { display: none !important; }
+        }
+      `}</style>
+
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 z-50 flex items-end"
+        className="fixed inset-0 bg-black/60 z-50 flex items-end print:hidden"
         onClick={onClose}
       >
         <motion.div
@@ -91,101 +123,189 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="w-full max-w-md mx-auto bg-background rounded-t-3xl overflow-hidden shadow-2xl max-h-[92dvh] overflow-y-auto"
+          className="w-full max-w-lg mx-auto bg-white rounded-t-3xl overflow-hidden shadow-2xl max-h-[95dvh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
-          {/* Drag handle */}
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 bg-border rounded-full" />
+          {/* ── ドラッグハンドル + 閉じる ─── */}
+          <div className="flex items-center justify-between px-5 pt-3 pb-2 print-hidden">
+            <div className="flex-1 flex justify-center">
+              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
           </div>
 
-          {/* Receipt header */}
-          <div className="px-5 pt-2 pb-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-black text-foreground">電子領収書</h2>
-                <p className="text-xs text-muted-foreground">{orderId}</p>
-              </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                <X className="w-4 h-4" />
-              </button>
+          {/* ══════════════════════════════════════
+              領収書本体（印刷対象）
+          ══════════════════════════════════════ */}
+          <div
+            id="receipt-printable"
+            className="px-6 pb-4"
+            style={{ fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif' }}
+          >
+            {/* ── タイトル ─────────────── */}
+            <div className="text-center mb-5 border-b-2 border-t-2 border-gray-800 py-3">
+              <h2 className="text-2xl font-bold tracking-[0.4em] text-gray-900">領　収　書</h2>
+              <p className="text-[10px] text-gray-400 font-sans tracking-wider mt-0.5">OFFICIAL RECEIPT</p>
             </div>
 
-            {/* Status banner */}
-            <div className={`${meta.bg} ${meta.color} rounded-2xl px-4 py-3 flex items-center gap-2 mb-5`}>
-              {meta.icon}
-              <span className="font-black text-sm">{meta.label}</span>
-              <span className="ml-auto text-xs font-medium opacity-70">{formatDate(reservation.createdAt)}</span>
+            {/* ── 番号・発行日 ─────────── */}
+            <div className="flex justify-between text-xs text-gray-500 mb-4 font-sans">
+              <span>No. {orderId}</span>
+              <span>発行日: {issueDateStr}</span>
             </div>
 
-            {/* Store info */}
-            <div className="flex items-start gap-3 mb-5 pb-5 border-b border-border border-dashed">
-              <div className="w-12 h-12 bg-muted rounded-xl overflow-hidden shrink-0">
-                <img
-                  src={reservation.store?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&q=70'}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
+            {/* ── 宛名 ─────────────────── */}
+            <div className="mb-4 pb-2 border-b border-gray-300">
+              <div className="flex items-end gap-2">
+                <span className="text-lg font-bold text-gray-900 tracking-wide">{recipientName}</span>
+                <span className="text-base text-gray-700 mb-0.5">様</span>
               </div>
-              <div>
-                <p className="font-black text-foreground">{reservation.store?.name || '店舗不明'}</p>
-                <p className="text-sm text-muted-foreground mt-0.5">{reservation.bag?.title || 'サプライズバッグ'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">数量: {reservation.quantity}個</p>
-              </div>
+              <p className="text-[11px] text-gray-400 font-sans mt-0.5">下記の通り、正に領収いたしました。</p>
             </div>
 
-            {/* Price breakdown */}
-            <div className="space-y-2.5 mb-5 pb-5 border-b border-border border-dashed">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">小計</span>
-                <span className="font-medium text-foreground">¥{reservation.totalPrice.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between font-black text-base border-t border-border pt-2.5 mt-2.5">
-                <span>合計</span>
-                <span className="text-primary">¥{reservation.totalPrice.toLocaleString()}</span>
+            {/* ── 金額（フォーマル二重線） ─ */}
+            <div className="my-5">
+              <div
+                className="border-4 border-gray-800 rounded px-5 py-4 text-center relative"
+                style={{ boxShadow: 'inset 0 0 0 2px white, inset 0 0 0 3px #1f2937' }}
+              >
+                <p className="text-[11px] text-gray-500 font-sans mb-1 tracking-widest">合計金額（税込）</p>
+                <p className="text-2xl font-bold tracking-[0.15em] text-gray-900">
+                  一　金　<span className="text-3xl text-gray-900">{total.toLocaleString()}</span>　円　也
+                </p>
               </div>
             </div>
 
-            {/* Eco */}
-            {status === 'picked_up' && (
-              <div className="mb-5">
-                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 text-center">
-                  <Leaf className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
-                  <p className="text-lg font-black text-emerald-600">{co2Saved}kg</p>
-                  <p className="text-[10px] text-emerald-500 font-bold">CO2削減</p>
+            {/* ── 但し書き ──────────────── */}
+            <div className="mb-5 text-sm text-gray-700">
+              <span className="mr-2">但し：</span>
+              <span className="font-bold">{bagTitle}</span>
+              <span className="ml-1">代として</span>
+            </div>
+
+            {/* ── 内訳テーブル ─────────── */}
+            <div className="mb-5">
+              <table className="w-full text-sm border-collapse font-sans">
+                <thead>
+                  <tr className="border-b-2 border-gray-800">
+                    <th className="text-left py-1.5 text-xs text-gray-600 font-bold">項目</th>
+                    <th className="text-right py-1.5 text-xs text-gray-600 font-bold">金額</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-200">
+                    <td className="py-1.5 text-gray-700">小計（税抜）</td>
+                    <td className="py-1.5 text-right text-gray-700">¥{preTax.toLocaleString()}</td>
+                  </tr>
+                  <tr className="border-b border-gray-200">
+                    <td className="py-1.5 text-gray-600">
+                      消費税（軽減税率 8%）
+                      <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-bold">食品</span>
+                    </td>
+                    <td className="py-1.5 text-right text-gray-600">¥{taxAmount.toLocaleString()}</td>
+                  </tr>
+                  <tr className="border-b-2 border-gray-800 font-bold">
+                    <td className="py-2 text-gray-900">合計（税込）</td>
+                    <td className="py-2 text-right text-gray-900">¥{total.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="text-[10px] text-gray-400 font-sans mt-1.5">
+                ※ 軽減税率（8%）対象：食料品
+              </p>
+            </div>
+
+            {/* ── 商品・注文情報 ────────── */}
+            <div className="bg-gray-50 rounded-lg px-4 py-3 mb-5 font-sans text-xs text-gray-600 space-y-1 border border-gray-200">
+              <div className="flex justify-between">
+                <span>ご注文番号</span>
+                <span className="font-mono font-bold text-gray-800">{orderId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>お買上げ店舗</span>
+                <span className="font-bold text-gray-800">{storeName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>商品名</span>
+                <span className="font-bold text-gray-800 text-right max-w-[60%]">{bagTitle}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>数量</span>
+                <span className="font-bold text-gray-800">{reservation.quantity}個</span>
+              </div>
+              <div className="flex justify-between">
+                <span>お支払い方法</span>
+                <span className="font-bold text-gray-800">クレジットカード（Stripe）</span>
+              </div>
+            </div>
+
+            {/* ── 発行元 + 電子印鑑 ────── */}
+            <div className="flex items-end justify-between mt-6 pt-4 border-t-2 border-gray-800">
+              <div className="font-sans text-xs text-gray-700 space-y-0.5">
+                <p className="font-bold text-sm text-gray-900">{storeName}</p>
+                <p className="text-gray-500">〒530-0001 大阪府大阪市北区（例）</p>
+                <p className="text-gray-500">TEL: 06-0000-0000（例）</p>
+                <p className="text-gray-500 mt-1">
+                  <span className="font-bold text-gray-700">適格請求書発行事業者</span><br />
+                  登録番号: T1234567890123（プレースホルダー）
+                </p>
+              </div>
+
+              {/* 電子印鑑（CSSで再現） */}
+              <div className="shrink-0 ml-4">
+                <div
+                  className="w-16 h-16 rounded-full border-[3px] border-red-600 flex flex-col items-center justify-center"
+                  style={{ color: '#dc2626' }}
+                >
+                  <span className="text-[8px] font-bold tracking-widest" style={{ fontFamily: 'serif' }}>電子</span>
+                  <span className="text-[9px] font-bold leading-tight text-center px-1" style={{ fontFamily: 'serif' }}>
+                    {storeName.slice(0, 4)}
+                  </span>
+                  <span className="text-[8px] font-bold tracking-widest" style={{ fontFamily: 'serif' }}>之印</span>
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* QR code placeholder */}
-            <div className="bg-secondary/50 rounded-2xl p-4 flex items-center gap-4 mb-5">
-              <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                <QrCode className="w-8 h-8 text-slate-600" />
-              </div>
-              <div>
-                <p className="font-bold text-sm text-foreground">電子チケット</p>
-                <p className="text-xs text-muted-foreground mt-0.5">店舗でQRコードを提示してください</p>
-                <p className="text-[10px] text-muted-foreground/70 font-mono mt-1">{orderId}</p>
+            {/* ── 環境貢献バッジ ────────── */}
+            <div className="mt-5 flex justify-end">
+              <div className="border border-emerald-300 bg-emerald-50 rounded-xl px-3 py-2 flex items-center gap-2">
+                <Leaf className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-bold text-emerald-700 leading-tight">環境貢献実績</p>
+                  <p className="text-xs font-black text-emerald-800">CO₂ {co2Saved}kg 削減</p>
+                </div>
+                <span className="text-[9px] text-emerald-500 font-sans">OsusOwake</span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleShare}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-border text-foreground font-bold text-sm hover:bg-secondary transition-colors"
-              >
-                <Share2 className="w-4 h-4" />
-                シェア
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-border text-foreground font-bold text-sm hover:bg-secondary transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                保存
-              </button>
-            </div>
+            {/* ── フッター ─────────────── */}
+            <p className="text-center text-[9px] text-gray-400 font-sans mt-4">
+              本書は電子領収書です。印刷してご使用いただけます。
+              OsusOwake — お店の余ったおいしさを、あなたへ。
+            </p>
+          </div>
+
+          {/* ── アクションボタン（印刷時非表示） ── */}
+          <div className="px-6 pb-6 flex gap-3 print-hidden border-t border-gray-100 pt-4">
+            <button
+              onClick={handleShare}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
+            >
+              <Share2 className="w-4 h-4" />
+              シェア
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-900 text-white font-bold text-sm hover:bg-gray-800 transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              印刷・保存
+            </button>
           </div>
         </motion.div>
       </motion.div>
