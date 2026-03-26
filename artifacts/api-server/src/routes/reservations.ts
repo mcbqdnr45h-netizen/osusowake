@@ -11,60 +11,62 @@ import { eq, and, sql, lt } from "drizzle-orm";
 
 const HOLD_MINUTES = 5;
 
-/** 期限切れの cart_reservations を清算し、在庫を復元する */
+/**
+ * 期限切れの cart_reservations を清算し、在庫を復元する
+ *
+ * ① 単一 UPDATE で cart_reservations を一括 expired → IDs を返却
+ * ② 在庫を bag_id ごとに集計して一括 UPDATE（N+1 → O(1)）
+ * ③ 紐づく reservations を一括キャンセル
+ * コネクションを 1 本使い回すだけで完結する。
+ */
 export async function releaseExpiredCartReservations(): Promise<void> {
   try {
-    const now = new Date();
-
-    // 期限切れ & active なレコードを取得
+    // ① 期限切れレコードを active → expired に一括変更し、変更行を返す
     const expired = await db
-      .select()
-      .from(cartReservationsTable)
+      .update(cartReservationsTable)
+      .set({ status: "expired" })
       .where(
         and(
           eq(cartReservationsTable.status, "active"),
-          lt(cartReservationsTable.expiresAt, now)
+          lt(cartReservationsTable.expiresAt, new Date())
         )
-      );
+      )
+      .returning();
 
     if (expired.length === 0) return;
 
+    // ② bag_id ごとに返却数量を集計して在庫を一括加算
+    const byBag = new Map<number, number>();
     for (const cr of expired) {
-      await db.transaction(async (tx) => {
-        // 在庫を復元
-        const [bag] = await tx
-          .select()
-          .from(surpriseBagsTable)
-          .where(eq(surpriseBagsTable.id, cr.bagId))
-          .for("update");
+      byBag.set(cr.bagId, (byBag.get(cr.bagId) ?? 0) + cr.quantity);
+    }
+    await Promise.all(
+      [...byBag.entries()].map(([bagId, qty]) =>
+        db
+          .update(surpriseBagsTable)
+          .set({
+            stockCount: sql`${surpriseBagsTable.stockCount} + ${qty}`,
+            isActive: true,
+          })
+          .where(eq(surpriseBagsTable.id, bagId))
+      )
+    );
 
-        if (bag) {
-          const restoredStock = bag.stockCount + cr.quantity;
-          await tx
-            .update(surpriseBagsTable)
-            .set({ stockCount: restoredStock, isActive: true })
-            .where(eq(surpriseBagsTable.id, cr.bagId));
-        }
+    // ③ 紐づく reservations を一括キャンセル
+    const reservationIds = expired
+      .map((cr) => cr.reservationId)
+      .filter((id): id is number => id !== null);
 
-        // 予約をキャンセル
-        if (cr.reservationId) {
-          await tx
-            .update(reservationsTable)
-            .set({ status: "cancelled" })
-            .where(
-              and(
-                eq(reservationsTable.id, cr.reservationId),
-                eq(reservationsTable.status, "pending")
-              )
-            );
-        }
-
-        // cart_reservation を期限切れに
-        await tx
-          .update(cartReservationsTable)
-          .set({ status: "expired" })
-          .where(eq(cartReservationsTable.id, cr.id));
-      });
+    if (reservationIds.length > 0) {
+      await db
+        .update(reservationsTable)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            sql`${reservationsTable.id} = ANY(${sql.raw(`ARRAY[${reservationIds.join(",")}]::int[]`)})`,
+            eq(reservationsTable.status, "pending")
+          )
+        );
     }
 
     console.log(`[cart-reservations] released ${expired.length} expired holds`);

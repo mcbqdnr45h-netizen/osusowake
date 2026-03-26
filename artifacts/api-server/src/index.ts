@@ -203,6 +203,19 @@ async function runMigrations() {
     `);
     console.log('[migration] cart_reservations table ✅');
 
+    // ── パフォーマンス用インデックス（冪等）────────────────────────────────────
+    // bags 一覧: is_active + created_at フィルタで高速スキャン
+    await client.query(`CREATE INDEX IF NOT EXISTS sb_active_created_idx   ON surprise_bags (is_active, created_at DESC)`);
+    // バッグ → ストア JOIN キー
+    await client.query(`CREATE INDEX IF NOT EXISTS sb_store_id_idx          ON surprise_bags (store_id)`);
+    // status=active の期限切れ仮押さえ cleanup
+    await client.query(`CREATE INDEX IF NOT EXISTS cr_status_expires_idx    ON cart_reservations (status, expires_at)`);
+    // 予約一覧をユーザー軸で高速取得
+    await client.query(`CREATE INDEX IF NOT EXISTS res_user_id_idx          ON reservations (user_id)`);
+    // ストア一覧: 承認済みフィルタ
+    await client.query(`CREATE INDEX IF NOT EXISTS stores_status_active_idx ON stores (status, is_active)`);
+    console.log('[migration] performance indexes ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

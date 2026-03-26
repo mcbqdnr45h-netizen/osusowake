@@ -9,33 +9,51 @@ interface ImageUploadProps {
   required?: boolean;
 }
 
-/** canvas で画像をリサイズ＋JPEG圧縮して File に変換（アップロード高速化） */
-async function compressImage(file: File, maxPx = 1024, quality = 0.82): Promise<File> {
+/**
+ * canvas で画像をリサイズ＋WebP圧縮して File に変換
+ * - 最大辺 1200px にダウンスケール（超えていれば縮小、小さければそのまま）
+ * - WebP は JPEG より 25〜35% 小さく Supabase Storage の無料枠を長持ちさせる
+ * - WebP 非対応ブラウザ（古い Safari 等）は JPEG にフォールバック
+ */
+async function compressImage(file: File, maxWidth = 1200, quality = 0.82): Promise<File> {
   return new Promise((resolve) => {
     const img = new Image();
-    const url = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objectUrl);
       const { naturalWidth: w, naturalHeight: h } = img;
-      const scale = Math.min(1, maxPx / Math.max(w, h));
+
+      // 長辺が maxWidth を超える場合のみ縮小（短辺基準ではなく長辺基準）
+      const scale = w > maxWidth ? maxWidth / w : 1;
       const cw = Math.round(w * scale);
       const ch = Math.round(h * scale);
+
       const canvas = document.createElement('canvas');
       canvas.width  = cw;
       canvas.height = ch;
       const ctx = canvas.getContext('2d')!;
+      // 高品質ダウンスケール
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, cw, ch);
+
+      // WebP を優先、非対応なら JPEG にフォールバック
+      const supportsWebP = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+      const mimeType  = supportsWebP ? 'image/webp' : 'image/jpeg';
+      const extension = supportsWebP ? '.webp'      : '.jpg';
+
       canvas.toBlob(
         (blob) => {
           if (!blob) { resolve(file); return; }
-          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+          const baseName = file.name.replace(/\.[^.]+$/, '');
+          resolve(new File([blob], `${baseName}${extension}`, { type: mimeType }));
         },
-        'image/jpeg',
+        mimeType,
         quality,
       );
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
   });
 }
 
