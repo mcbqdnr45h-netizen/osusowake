@@ -35,10 +35,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
 
   // 店舗オーナー用ナビ（StoreLayout と同じ4タブ）
   const storeNavItems = [
-    { href: '/store/dashboard', icon: Store,       label: 'ダッシュボード', isUser: false },
-    { href: '/store/bags',      icon: Package,     label: '出品管理',       isUser: false },
-    { href: '/store/sales',     icon: BarChart2,   label: '売上確認',       isUser: false },
-    { href: '/mypage',          icon: User,        label: 'マイページ',     isUser: true  },
+    { href: '/store/dashboard', icon: Store,       label: '出品管理',   isUser: false },
+    { href: '/store/sales',     icon: BarChart2,   label: '売上確認',   isUser: false },
+    { href: '/mypage',          icon: User,        label: 'マイページ', isUser: true  },
   ];
 
   // 一般ユーザー用ナビ
