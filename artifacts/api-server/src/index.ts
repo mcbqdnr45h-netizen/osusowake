@@ -1,5 +1,6 @@
 import app from "./app";
 import { pool } from "@workspace/db";
+import { releaseExpiredCartReservations } from "./routes/reservations";
 
 // ── 起動時マイグレーション（冪等・全て Supabase PostgreSQL 対象）──────────────
 async function runMigrations() {
@@ -212,4 +213,9 @@ runMigrations().then(() => {
   app.listen(port, () => {
     console.log(`Server listening on port ${port} — DB: Supabase PostgreSQL`);
   });
+
+  // 期限切れ仮押さえを1分ごとに自動解放（在庫復元）
+  setInterval(() => {
+    releaseExpiredCartReservations().catch(() => {});
+  }, 60_000);
 });
