@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
+import type { Renderer, Cluster, ClusterStats } from '@googlemaps/markerclusterer';
 import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
 import { LocateFixed, AlertTriangle } from 'lucide-react';
@@ -62,6 +64,58 @@ function makeUserIconUrl(): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+// ── カスタムクラスターレンダラー (#FF8C00 テーマ) ─────────────────────────
+function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
+  return {
+    render: (cluster: Cluster, stats: ClusterStats, map: google.maps.Map) => {
+      const count   = cluster.count;
+      const maxVal  = stats.clusters.markers.max;
+
+      // カウントに応じてサイズを段階的に変化させる
+      const ratio  = Math.min(count / Math.max(maxVal, 1), 1);
+      const size   = Math.round(44 + ratio * 20); // 44px〜64px
+      const half   = size / 2;
+      const r      = half - 3;
+
+      // カウントに応じてオレンジの濃さを変える
+      const outerColor = count >= 20 ? '#d44a00' : count >= 10 ? '#e96000' : '#FF8C00';
+      const innerColor = count >= 20 ? '#e96000' : count >= 10 ? '#FF8C00' : '#ffa840';
+
+      const fontSize = count >= 100 ? 11 : count >= 10 ? 13 : 15;
+
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        <defs>
+          <radialGradient id="cg" cx="38%" cy="32%" r="68%">
+            <stop offset="0%" stop-color="${innerColor}"/>
+            <stop offset="100%" stop-color="${outerColor}"/>
+          </radialGradient>
+          <filter id="cs" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.28)"/>
+          </filter>
+        </defs>
+        <circle cx="${half}" cy="${half}" r="${r + 3}" fill="rgba(255,140,0,0.22)" filter="url(#cs)"/>
+        <circle cx="${half}" cy="${half}" r="${r}" fill="url(#cg)" stroke="rgba(255,255,255,0.75)" stroke-width="2"/>
+        <text x="${half}" y="${half + fontSize * 0.38}"
+          text-anchor="middle" font-size="${fontSize}" font-family="'Outfit','Noto Sans JP',sans-serif"
+          font-weight="800" fill="white" letter-spacing="-0.5">${count}</text>
+      </svg>`;
+
+      const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+
+      return new gMaps.Marker({
+        position: cluster.position,
+        icon: {
+          url,
+          scaledSize: new gMaps.Size(size, size),
+          anchor:     new gMaps.Point(half, half),
+        },
+        title:  `${count}店舗`,
+        zIndex: Number(gMaps.Marker.MAX_ZINDEX) + count,
+      });
+    },
+  };
+}
+
 export interface MapBounds {
   north: number; south: number; east: number; west: number;
   centerLat: number; centerLng: number;
@@ -93,6 +147,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const mapRef          = useRef<google.maps.Map | null>(null);
   const userMarkerRef   = useRef<google.maps.Marker | null>(null);
   const storeMarkersRef = useRef<google.maps.Marker[]>([]);
+  const clustererRef    = useRef<MarkerClusterer | null>(null);
   const onStoreSelectRef        = useRef(onStoreSelect);
   const onUserPositionChangeRef = useRef(onUserPositionChange);
   const onMapIdleRef            = useRef(onMapIdle);
@@ -106,12 +161,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   const mapCenter = center ? { lat: center[0], lng: center[1] } : OSAKA_CENTER;
 
-  // コールバックを常に最新に保つ
   useEffect(() => { onStoreSelectRef.current        = onStoreSelect;        }, [onStoreSelect]);
   useEffect(() => { onUserPositionChangeRef.current = onUserPositionChange; }, [onUserPositionChange]);
   useEffect(() => { onMapIdleRef.current            = onMapIdle;            }, [onMapIdle]);
 
-  // 外部から mapRef を操作できるインターフェース
   useImperativeHandle(ref, () => ({
     panTo: (lat: number, lng: number, z?: number) => {
       const map = mapRef.current;
@@ -141,10 +194,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     },
   }), []);
 
-  // userPos が変化したら親に通知
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
-  // 承認済み店舗のみ + ID 重複排除（同一 ID のマーカーが複数追加されるのを防ぐ）
   const approvedStores = useMemo(() => {
     const seen = new Set<number | string>();
     return stores.filter(s => {
@@ -192,7 +243,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
         mapRef.current = map;
 
-        // idle イベント：地図が止まるたびにバウンドを親へ通知（初回除く）
         map.addListener('idle', () => {
           if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
           const bounds = map.getBounds();
@@ -218,30 +268,37 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return () => { cancelled = true; };
   }, []);
 
-  // ── 登録店舗マーカー ────────────────────────────────────────────────────
+  // ── 登録店舗マーカー（クラスタリング付き）────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
     const map   = mapRef.current;
     const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
     if (!map || !gMaps) return;
 
-    // 既存マーカーをすべてマップから除去
+    // 既存クラスターを破棄
+    if (clustererRef.current) {
+      clustererRef.current.clearMarkers();
+      clustererRef.current = null;
+    }
+
+    // 既存マーカーをすべてクリア
     storeMarkersRef.current.forEach(m => {
       gMaps.event.clearInstanceListeners(m);
       m.setMap(null);
     });
     storeMarkersRef.current = [];
 
-    // 各店舗を個別マーカーとして直接マップに追加（クラスタリングなし）
+    if (approvedStores.length === 0) return;
+
+    // マーカーを生成（mapは指定せずクラスターに渡す）
     const markers: google.maps.Marker[] = approvedStores.map(store => {
       const bagCount  = store.totalBagsAvailable ?? 0;
       const isListing = bagCount > 0;
 
       const marker = new gMaps.Marker({
         position: { lat: store.lat, lng: store.lng },
-        map,
         icon: {
-          url: makeStoreIconUrl(store.category, isListing, bagCount),
+          url:        makeStoreIconUrl(store.category, isListing, bagCount),
           scaledSize: new gMaps.Size(isListing ? 44 : 36, isListing ? 52 : 44),
           anchor:     new gMaps.Point(isListing ? 22 : 18, isListing ? 50 : 42),
         },
@@ -269,6 +326,18 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     });
 
     storeMarkersRef.current = markers;
+
+    // MarkerClusterer を生成（SuperCluster アルゴリズム）
+    clustererRef.current = new MarkerClusterer({
+      map,
+      markers,
+      algorithm: new SuperClusterAlgorithm({
+        radius:    80,   // クラスタリング半径（px）
+        maxZoom:   15,   // このズーム以上では個別マーカー表示
+        minPoints: 2,    // 2個以上重なったらクラスター化
+      }),
+      renderer: makeClusterRenderer(gMaps),
+    });
   }, [approvedStores.map(s => `${s.id}-${s.totalBagsAvailable}`).join(','), status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 現在地マーカー ────────────────────────────────────────────────────
