@@ -17,7 +17,7 @@ export default function Terms() {
 
         <article>
           <h1 className="text-2xl font-black text-foreground mb-1">利用規約</h1>
-          <p className="text-xs text-muted-foreground mb-8">最終更新日：2025年6月1日</p>
+          <p className="text-xs text-muted-foreground mb-8">最終更新日：2026年3月26日</p>
 
           <p className="text-sm text-muted-foreground leading-relaxed mb-8">
             OsusOwake（以下「本サービス」）をご利用いただくにあたり、以下の利用規約（以下「本規約」）をよくお読みください。本サービスを利用することで、本規約に同意したものとみなします。
