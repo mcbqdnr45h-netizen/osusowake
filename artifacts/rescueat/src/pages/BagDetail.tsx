@@ -7,6 +7,8 @@ import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, Ch
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/contexts/FavoritesContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
@@ -200,6 +202,7 @@ export default function BagDetail() {
   const [, params] = useRoute('/bags/:id');
   const bagId = params?.id ? parseInt(params.id) : 0;
   const userId = useUserId();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { isFavorite, toggle } = useFavorites();
 
@@ -213,6 +216,13 @@ export default function BagDetail() {
   const [showReport,    setShowReport]    = useState(false);
   const [heroImgLoaded, setHeroImgLoaded] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [showLoginNudge, setShowLoginNudge] = useState(false);
+  const [loginNudgeReason, setLoginNudgeReason] = useState<'favorite' | 'purchase'>('purchase');
+
+  function requireLogin(reason: 'favorite' | 'purchase') {
+    setLoginNudgeReason(reason);
+    setShowLoginNudge(true);
+  }
   const { coords: userCoords } = useUserLocation();
 
   // 受取時間が過ぎているか判定（JST基準・深夜またぎ対応）
@@ -335,7 +345,7 @@ export default function BagDetail() {
   const isUnavailable = isExpired || isSoldOut;
 
   const handleReserve = () => {
-    if (!userId) return;
+    if (!user) { requireLogin('purchase'); return; }
 
     createReservation.mutate({
       data: {
@@ -357,7 +367,12 @@ export default function BagDetail() {
     });
   };
 
-  return (
+  return (<>
+    <LoginNudgeSheet
+      isOpen={showLoginNudge}
+      onClose={() => setShowLoginNudge(false)}
+      reason={loginNudgeReason}
+    />
     <Layout showBottomNav={false}>
       <AnimatePresence>
         {showReport && userId && (
@@ -551,7 +566,7 @@ export default function BagDetail() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-medium text-foreground">{bag.store.name}</div>
                     <button
-                      onClick={() => toggle(bag.store.id)}
+                      onClick={() => { if (!user) { requireLogin('favorite'); return; } toggle(bag.store.id); }}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shrink-0
                         ${isFavorite(bag.store.id)
                           ? 'bg-rose-500 text-white border-rose-500'
@@ -763,5 +778,5 @@ export default function BagDetail() {
         </a>
       </div>
     </Layout>
-  );
+  </>);
 }

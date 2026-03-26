@@ -16,6 +16,7 @@ import { Heart } from 'lucide-react';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
+import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 
 // ─── カテゴリーピル ────────────────────────────────────────────────────────
 const SCROLL_CATS = [
@@ -74,18 +75,20 @@ function CategoryPills({
 // ─── 横スクロールカード ────────────────────────────────────────────────────
 function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: number }) {
   const { isFavorite, toggle } = useFavorites();
+  const { user } = useAuth();
   const isSoldOut   = bag.stockCount <= 0;
   const discountPct = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
   const isLowStock  = bag.stockCount > 0 && bag.stockCount < 3;
   const favorited   = isFavorite(bag.store.id);
   const [loaded, setLoaded] = useState(false);
+  const [showNudge, setShowNudge] = useState(false);
   const imgSrc = bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category);
 
   const distLabel = distM != null
     ? distM < 50 ? 'すぐそこ' : distM < 1000 ? `${Math.round(distM / 10) * 10}m` : `${(distM / 1000).toFixed(1)}km`
     : null;
 
-  return (
+  return (<>
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       onClick={e => isSoldOut && e.preventDefault()}
@@ -122,7 +125,7 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
 
         {/* お気に入りボタン */}
         <button
-          onClick={e => { e.preventDefault(); e.stopPropagation(); toggle(bag.store.id); }}
+          onClick={e => { e.preventDefault(); e.stopPropagation(); if (!user) { setShowNudge(true); return; } toggle(bag.store.id); }}
           className={`absolute bottom-2 right-2 w-6 h-6 rounded-full flex items-center justify-center tap-scale-sm
             ${favorited ? 'bg-rose-500' : 'bg-white/80 backdrop-blur-sm'}`}
           aria-label="お気に入り"
@@ -161,7 +164,8 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
         </div>
       </div>
     </Link>
-  );
+    <LoginNudgeSheet isOpen={showNudge} onClose={() => setShowNudge(false)} reason="favorite" />
+  </>);
 }
 
 function HorizBagCardSkeleton() {
@@ -333,8 +337,7 @@ export default function Home() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { navigate('/welcome', { replace: true }); return; }
-    if (profile?.role === 'store_owner') { navigate('/store/dashboard', { replace: true }); return; }
+    if (user && profile?.role === 'store_owner') { navigate('/store/dashboard', { replace: true }); return; }
   }, [authLoading, user, profile, navigate]);
 
   useEffect(() => {
@@ -437,7 +440,7 @@ export default function Home() {
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label || 'おすすめ順';
 
-  if (authLoading || !user) return null;
+  if (authLoading) return null;
 
   const areaTitle = geoLoading
     ? '現在地を確認中...'

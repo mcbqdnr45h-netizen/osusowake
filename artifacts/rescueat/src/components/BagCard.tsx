@@ -3,9 +3,11 @@ import { Clock, Package, Heart, Navigation, ChefHat } from 'lucide-react';
 import { Link } from 'wouter';
 import { SurpriseBagWithStore } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
 import { useToast } from '@/hooks/use-toast';
+import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 
 interface BagCardProps {
   bag: SurpriseBagWithStore;
@@ -51,16 +53,19 @@ export function BagCard({ bag }: BagCardProps) {
   const isSoldOut  = bag.stockCount <= 0;
   const isLowStock = bag.stockCount > 0 && bag.stockCount <= 2;
   const { isFavorite, toggle } = useFavorites();
+  const { user } = useAuth();
   const { toast } = useToast();
   const storeId   = bag.store.id;
   const favorited = isFavorite(storeId);
-  const [burst, setBurst]         = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const [fanBurst, setFanBurst]   = useState(false);
+  const [burst, setBurst]               = useState(false);
+  const [imgLoaded, setImgLoaded]       = useState(false);
+  const [fanBurst, setFanBurst]         = useState(false);
+  const [showLoginNudge, setShowLoginNudge] = useState(false);
 
   function handleFavorite(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (!user) { setShowLoginNudge(true); return; }
     const wasNotFavorited = !favorited;
     toggle(storeId);
     if (wasNotFavorited) {
@@ -72,6 +77,7 @@ export function BagCard({ bag }: BagCardProps) {
   function handleSoldOutFan(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (!user) { setShowLoginNudge(true); return; }
     const wasNotFavorited = !favorited;
     toggle(storeId);
     if (wasNotFavorited) {
@@ -93,7 +99,7 @@ export function BagCard({ bag }: BagCardProps) {
     ? storeComment.length > 36 ? storeComment.slice(0, 35) + '…' : storeComment
     : null;
 
-  return (
+  return (<>
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       className={[
@@ -261,7 +267,12 @@ export function BagCard({ bag }: BagCardProps) {
         )}
       </div>
     </Link>
-  );
+    <LoginNudgeSheet
+      isOpen={showLoginNudge}
+      onClose={() => setShowLoginNudge(false)}
+      reason="favorite"
+    />
+  </>);
 }
 
 export function BagCardSkeleton() {
