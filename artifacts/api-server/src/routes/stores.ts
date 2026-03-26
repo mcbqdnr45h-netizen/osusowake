@@ -836,6 +836,87 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
   }
 });
 
+// ─── Stripe Account Link（インクリメンタル認証）──────────────────────────────
+// POST /api/stores/:storeId/connect/account-link
+// requirements.currently_due を確認し、不足情報だけを補完するためのStripe管理ページURLを生成する
+router.post("/stores/:storeId/connect/account-link", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+      return;
+    }
+
+    const { returnUrl, refreshUrl } = req.body as { returnUrl?: string; refreshUrl?: string };
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "Store not found" });
+      return;
+    }
+
+    if (!store.stripeAccountId) {
+      res.status(400).json({ error: "no_stripe_account", message: "Stripe account not connected" });
+      return;
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      res.status(503).json({ error: "stripe_not_configured", message: "Stripe is not configured" });
+      return;
+    }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    // アカウント情報と不足要件を取得
+    const account = await stripe.accounts.retrieve(store.stripeAccountId);
+    const currentlyDue = account.requirements?.currently_due ?? [];
+
+    // currently_due があれば account_update（差分更新）、なければ account_onboarding
+    const linkType: "account_onboarding" | "account_update" =
+      account.details_submitted && currentlyDue.length > 0
+        ? "account_update"
+        : "account_onboarding";
+
+    // URLのデフォルト値（フロントエンドから渡せる）
+    const baseUrl = returnUrl?.replace(/\/(stripe-kyc.*|store\/.*)$/, '') ?? "https://osusowake.example.com";
+    const safeReturnUrl  = returnUrl  ?? `${baseUrl}/store/dashboard`;
+    const safeRefreshUrl = refreshUrl ?? `${baseUrl}/store/dashboard`;
+
+    const accountLink = await stripe.accountLinks.create({
+      account: store.stripeAccountId,
+      return_url:  safeReturnUrl,
+      refresh_url: safeRefreshUrl,
+      type: linkType,
+    });
+
+    console.log(
+      `[AccountLink] storeId=${storeId} type=${linkType} ` +
+      `currently_due=${JSON.stringify(currentlyDue)} url=${accountLink.url}`
+    );
+
+    res.json({
+      url:          accountLink.url,
+      type:         linkType,
+      currentlyDue,
+      requirements: {
+        currentlyDue,
+        eventuallyDue:      account.requirements?.eventually_due ?? [],
+        errors:             account.requirements?.errors ?? [],
+        pendingVerification:account.requirements?.pending_verification ?? [],
+        disabledReason:     account.requirements?.disabled_reason ?? null,
+      },
+    });
+  } catch (err: any) {
+    console.error("Stripe Account Link error:", err);
+    res.status(500).json({ error: "stripe_error", message: err?.message ?? "Failed to create account link" });
+  }
+});
+
 // ─── Stripe 残高・ペイアウト情報 ─────────────────────────────────────────────
 // GET /api/stores/:storeId/connect/balance
 router.get("/stores/:storeId/connect/balance", async (req, res) => {

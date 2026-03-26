@@ -37,12 +37,62 @@ interface TodaySales {
   connected: boolean;
 }
 
+interface ConnectRequirements {
+  currentlyDue: string[];
+  eventuallyDue: string[];
+  errors: { code: string; reason: string; requirement: string }[];
+  pendingVerification: string[];
+  disabledReason: string | null;
+}
+
 interface ConnectStatus {
   connected: boolean;
   detailsSubmitted: boolean;
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
   accountId?: string;
+  requirements?: ConnectRequirements;
+}
+
+// Stripe requirement キー → 読みやすい日本語ラベル
+function translateRequirement(key: string): string {
+  const map: Record<string, string> = {
+    'individual.first_name':                    '代表者名（名）',
+    'individual.last_name':                     '代表者名（姓）',
+    'individual.first_name_kana':               '代表者名カナ（名）',
+    'individual.last_name_kana':                '代表者名カナ（姓）',
+    'individual.first_name_kanji':              '代表者名（名・漢字）',
+    'individual.last_name_kanji':               '代表者名（姓・漢字）',
+    'individual.dob.day':                       '生年月日（日）',
+    'individual.dob.month':                     '生年月日（月）',
+    'individual.dob.year':                      '生年月日（年）',
+    'individual.address_kanji.postal_code':     '住所（郵便番号）',
+    'individual.address_kanji.state':           '住所（都道府県）',
+    'individual.address_kanji.city':            '住所（市区町村）',
+    'individual.address_kanji.town':            '住所（町名・番地）',
+    'individual.address_kana.postal_code':      'カナ住所（郵便番号）',
+    'individual.address_kana.state':            'カナ住所（都道府県）',
+    'individual.address_kana.city':             'カナ住所（市区町村）',
+    'individual.address_kana.town':             'カナ住所（町名・番地）',
+    'individual.phone':                         '電話番号',
+    'individual.email':                         'メールアドレス',
+    'individual.verification.document':         '本人確認書類（表面）',
+    'individual.verification.document.front':   '本人確認書類（表面）',
+    'individual.verification.document.back':    '本人確認書類（裏面）',
+    'individual.verification.additional_document':       '補足確認書類',
+    'individual.verification.additional_document.front': '補足確認書類（表面）',
+    'individual.verification.additional_document.back':  '補足確認書類（裏面）',
+    'business_profile.product_description':     '事業内容の説明',
+    'business_profile.url':                     'ウェブサイトURL',
+    'business_type':                            '事業形態',
+    'tos_acceptance.date':                      '利用規約への同意',
+    'external_account':                         '振込先口座（銀行口座）',
+    'company.name':                             '法人名',
+    'company.name_kana':                        '法人名（カナ）',
+  };
+  // ドット記法 → ブラケット記法も対応
+  const normalized = key.replace(/\[([^\]]+)\]/g, '.$1');
+  return map[normalized] ?? map[key] ?? key;
 }
 
 function GuardScreen({ message, children }: { message: string; children?: React.ReactNode }) {
@@ -83,6 +133,7 @@ export default function StoreOwnerDashboard() {
   const [bags, setBags] = useState<BagData[]>([]);
   const [todaySales, setTodaySales] = useState<TodaySales | null>(null);
   const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
+  const [accountLinkLoading, setAccountLinkLoading] = useState(false);
 
   const [loadingStore, setLoadingStore] = useState(true);
   const [loadingBags, setLoadingBags] = useState(false);
@@ -219,6 +270,31 @@ export default function StoreOwnerDashboard() {
     setEmergencyStopped(true);
     setTimeout(() => setEmergencyStopped(false), 3000);
   };
+
+  // ── Stripe Account Link（インクリメンタル認証）──────────────────────────
+  const handleAccountLink = useCallback(async () => {
+    if (!store) return;
+    setAccountLinkLoading(true);
+    try {
+      const currentUrl = window.location.href;
+      const res = await fetch(`/api/stores/${store.id}/connect/account-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          returnUrl:  currentUrl,
+          refreshUrl: currentUrl,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? '認証ページを取得できませんでした');
+      if (data.url) {
+        window.location.href = data.url; // Stripe管理ページへリダイレクト
+      }
+    } catch (err: any) {
+      setError(err.message ?? '認証ページの取得に失敗しました');
+      setAccountLinkLoading(false);
+    }
+  }, [store]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -403,36 +479,113 @@ export default function StoreOwnerDashboard() {
           )}
         </AnimatePresence>
 
-        {/* ── Stripe 未設定警告バナー ── */}
+        {/* ── Stripe 認証バナー（インクリメンタル表示）── */}
         <AnimatePresence>
-          {connectStatus !== null && !(connectStatus.detailsSubmitted && connectStatus.chargesEnabled) && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-4"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                  <CreditCard className="w-5 h-5 text-amber-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-amber-800 text-sm leading-tight">
-                    【重要】お支払いの受取設定を完了させてください
-                  </p>
-                  <p className="text-amber-700 text-xs mt-1 leading-relaxed">
-                    {connectStatus.connected
-                      ? 'Stripe の審査・設定が完了していません。お客様からの入金を受け取るには設定を完了してください。'
-                      : '売上を受け取るには、Stripe Connect の銀行口座登録が必要です。'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => navigate('/store/bank-setup')}
-                className="mt-3 w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 transition-colors active:scale-[0.98]"
+          {connectStatus !== null && !(connectStatus.detailsSubmitted && connectStatus.chargesEnabled) && (() => {
+            const reqs = connectStatus.requirements;
+            const currentlyDue = reqs?.currentlyDue ?? [];
+            const errors       = reqs?.errors ?? [];
+            const pending      = reqs?.pendingVerification ?? [];
+
+            // 不足項目のカテゴリ分類
+            const needsDoc     = currentlyDue.some(k => k.includes('verification'));
+            const needsBank    = currentlyDue.some(k => k.includes('external_account'));
+            const needsIdentity= currentlyDue.some(k =>
+              k.includes('individual.first_name') || k.includes('individual.last_name') ||
+              k.includes('individual.dob') || k.includes('individual.address')
+            );
+
+            // メッセージの決定
+            let headline = '【重要】売上の受取設定を完了してください';
+            let subMessage = '';
+            if (!connectStatus.connected) {
+              headline   = '振込先口座の登録が必要です';
+              subMessage = '売上を受け取るには、まず銀行口座を登録してください。';
+            } else if (errors.length > 0) {
+              headline   = '⚠️ 審査でエラーが発生しています';
+              subMessage = errors.map(e => e.reason).join(' / ');
+            } else if (pending.length > 0 && currentlyDue.length === 0) {
+              headline   = '⏳ Stripeが審査中です';
+              subMessage = '審査が完了するまでしばらくお待ちください（通常1〜3営業日）。';
+            } else if (needsDoc && needsBank) {
+              headline   = '⚠️ 本人確認書類と口座情報の登録が必要です';
+            } else if (needsDoc) {
+              headline   = '⚠️ 本人確認書類をアップロードしてください';
+              subMessage = '運転免許証またはマイナンバーカードの写真が必要です。';
+            } else if (needsBank) {
+              headline   = '⚠️ 口座情報の登録が必要です';
+              subMessage = '振込先の銀行口座を登録してください。';
+            } else if (needsIdentity) {
+              headline   = '⚠️ 代表者情報の入力が必要です';
+            } else if (currentlyDue.length > 0) {
+              headline   = '⚠️ 認証情報の追加登録が必要です';
+            }
+
+            // 具体的な不足項目リスト（最大4件）
+            const dueTags = currentlyDue.slice(0, 4).map(translateRequirement);
+
+            const isPending = pending.length > 0 && currentlyDue.length === 0 && errors.length === 0;
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className={`rounded-2xl p-4 border-2 ${isPending
+                  ? 'bg-blue-50 border-blue-300'
+                  : errors.length > 0 ? 'bg-red-50 border-red-300'
+                  : 'bg-amber-50 border-amber-400'}`}
               >
-                <CreditCard className="w-4 h-4" />今すぐ振込先を登録する
-              </button>
-            </motion.div>
-          )}
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                    isPending ? 'bg-blue-100' : errors.length > 0 ? 'bg-red-100' : 'bg-amber-100'
+                  }`}>
+                    <CreditCard className={`w-5 h-5 ${
+                      isPending ? 'text-blue-600' : errors.length > 0 ? 'text-red-600' : 'text-amber-600'
+                    }`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-black text-sm leading-tight ${
+                      isPending ? 'text-blue-800' : errors.length > 0 ? 'text-red-800' : 'text-amber-800'
+                    }`}>{headline}</p>
+                    {subMessage && (
+                      <p className={`text-xs mt-1 leading-relaxed ${
+                        isPending ? 'text-blue-700' : errors.length > 0 ? 'text-red-700' : 'text-amber-700'
+                      }`}>{subMessage}</p>
+                    )}
+                    {dueTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {dueTags.map((tag, i) => (
+                          <span key={i} className="text-[10px] font-bold bg-amber-200/60 text-amber-900 px-2 py-0.5 rounded-full">
+                            {tag}
+                          </span>
+                        ))}
+                        {currentlyDue.length > 4 && (
+                          <span className="text-[10px] font-bold text-amber-700">他{currentlyDue.length - 4}件</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {!isPending && (
+                  <button
+                    onClick={connectStatus.connected ? handleAccountLink : () => navigate('/store/bank-setup')}
+                    disabled={accountLinkLoading}
+                    className={`mt-3 w-full py-3 text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 transition-colors active:scale-[0.98] disabled:opacity-60 ${
+                      errors.length > 0
+                        ? 'bg-red-500 hover:bg-red-600'
+                        : 'bg-amber-500 hover:bg-amber-600'
+                    }`}
+                  >
+                    {accountLinkLoading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" />Stripeに接続中...</>
+                      : connectStatus.connected
+                        ? <><ExternalLink className="w-4 h-4" />不足情報をStripeで入力する</>
+                        : <><CreditCard className="w-4 h-4" />今すぐ口座を登録する</>
+                    }
+                  </button>
+                )}
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
 
         {/* ── 緊急停止スイッチ ── */}

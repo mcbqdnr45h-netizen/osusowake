@@ -102,31 +102,31 @@ export default function StoreLegal() {
 
   return (
     <StoreLayout showHeader={false}>
-      <div className="max-w-xl mx-auto pb-10">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
-          style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
-          <button
-            onClick={() => navigate('/mypage')}
-            className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-lg font-black text-foreground">特定商取引法に基づく表記</h1>
-            <p className="text-xs text-muted-foreground">販売に必要な法定表示事項を入力してください</p>
+      {/* ── ページ全体ラッパー（ヘッダー分の padding-top を確保）── */}
+      <div className="max-w-xl mx-auto w-full flex flex-col"
+        style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
+
+        {/* ── 固定ヘッダー（top:0 でレイアウトヘッダーがない場合に正しく機能）── */}
+        <div
+          className="sticky z-20 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm"
+          style={{ top: 0, paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          <div className="flex items-center gap-3 px-4 h-14">
+            <button
+              onClick={() => navigate('/mypage')}
+              className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base font-black text-foreground truncate">特定商取引法に基づく表記</h1>
+              <p className="text-[10px] text-muted-foreground leading-tight">販売に必要な法定表示事項</p>
+            </div>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-60 hover:bg-primary/90 transition-colors"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? '保存中...' : '保存'}
-          </button>
         </div>
 
-        <div className="px-4 py-6 space-y-5">
+        {/* ── スクロールコンテンツ ── */}
+        <div className="px-4 pt-5 pb-4 space-y-5">
           {/* 説明バナー */}
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
@@ -201,16 +201,24 @@ export default function StoreLegal() {
               </Field>
             </div>
           </motion.div>
-
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-60"
-          >
-            <Save className="w-5 h-5" />
-            {saving ? '保存中...' : '内容を保存する'}
-          </button>
         </div>
+      </div>
+
+      {/* ── フローティング保存ボタン（画面下部に固定）── */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50 px-4 pt-3"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      >
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 disabled:opacity-60"
+        >
+          {saving
+            ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />保存中...</>
+            : <><Save className="w-5 h-5" />内容を保存する</>
+          }
+        </button>
       </div>
     </StoreLayout>
   );
