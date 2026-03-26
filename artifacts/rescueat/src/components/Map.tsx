@@ -9,117 +9,112 @@ import { loadGoogleMapsScript } from '@/lib/maps-loader';
 
 const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
 
+// ── プロ仕様・超ミニマル Silver マップスタイル ────────────────────────────
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  // POI・交通機関を完全非表示（静かな地図）
-  { featureType: 'poi',                        stylers:                     [{ visibility: 'off' }] },
-  { featureType: 'transit',                    stylers:                     [{ visibility: 'off' }] },
-  // 道路ジオメトリ — ウォームグレー
-  { featureType: 'road',                       elementType: 'geometry',     stylers: [{ color: '#f0ece5' }] },
-  { featureType: 'road.highway',               elementType: 'geometry',     stylers: [{ color: '#e8e2d8' }] },
-  { featureType: 'road.highway',               elementType: 'geometry.stroke', stylers: [{ color: '#d8d0c4' }] },
-  // 道路ラベル — 幹線のみ残す・極限まで薄く
-  { featureType: 'road',                       elementType: 'labels',       stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'road',                       elementType: 'labels.text.fill',   stylers: [{ color: '#c4bbb0' }] },
-  { featureType: 'road',                       elementType: 'labels.text.stroke', stylers: [{ color: '#f8f5f0' }] },
-  { featureType: 'road.arterial',              elementType: 'labels',       stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.local',                 elementType: 'labels',       stylers: [{ visibility: 'off' }] },
-  // 水域 — 落ち着いたペールブルー
-  { featureType: 'water',                      elementType: 'geometry',     stylers: [{ color: '#dce8f0' }] },
-  { featureType: 'water',                      elementType: 'labels',       stylers: [{ visibility: 'off' }] },
-  // 背景・景観 — ウォームオフホワイト
-  { featureType: 'landscape',                  elementType: 'geometry',     stylers: [{ color: '#f8f5f0' }] },
-  { featureType: 'landscape.natural',          elementType: 'geometry',     stylers: [{ color: '#edf2e6' }] },
-  { featureType: 'landscape.man_made',         elementType: 'geometry',     stylers: [{ color: '#f5f2ed' }] },
-  // 行政区画ラベル — 最小限・薄いウォームグレー
-  { featureType: 'administrative',             elementType: 'labels.text.fill',   stylers: [{ color: '#b8afa6' }] },
-  { featureType: 'administrative',             elementType: 'labels.text.stroke', stylers: [{ color: '#f8f5f0' }] },
-  { featureType: 'administrative.locality',    elementType: 'labels',       stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'administrative.neighborhood',elementType: 'labels',       stylers: [{ visibility: 'off' }] },
+  // 全要素をシルバーグレーに統一
+  { elementType: 'geometry',          stylers: [{ color: '#f2f0eb' }] },
+  { elementType: 'labels.text.fill',  stylers: [{ color: '#b0a898' }] },
+  { elementType: 'labels.text.stroke',stylers: [{ color: '#f2f0eb' }] },
+  // POI・交通機関 — 完全非表示
+  { featureType: 'poi',     stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  // 道路 — 細い白線、ラベルは最小限
+  { featureType: 'road',                elementType: 'geometry',          stylers: [{ color: '#ffffff' }] },
+  { featureType: 'road',                elementType: 'geometry.stroke',   stylers: [{ color: '#e8e4de' }] },
+  { featureType: 'road',                elementType: 'labels.text.fill',  stylers: [{ color: '#c8c0b8' }] },
+  { featureType: 'road',                elementType: 'labels.text.stroke',stylers: [{ color: '#f2f0eb' }] },
+  { featureType: 'road.highway',        elementType: 'geometry',          stylers: [{ color: '#f0ebe2' }] },
+  { featureType: 'road.highway',        elementType: 'geometry.stroke',   stylers: [{ color: '#ddd8cf' }] },
+  { featureType: 'road.arterial',       elementType: 'labels',            stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.local',          elementType: 'labels',            stylers: [{ visibility: 'off' }] },
+  // 水域 — ペールグレーブルー
+  { featureType: 'water', elementType: 'geometry',stylers: [{ color: '#d8e4ec' }] },
+  { featureType: 'water', elementType: 'labels',  stylers: [{ visibility: 'off' }] },
+  // 景観 — ウォームシルバー
+  { featureType: 'landscape',       elementType: 'geometry',stylers: [{ color: '#f2f0eb' }] },
+  { featureType: 'landscape.natural',elementType: 'geometry',stylers: [{ color: '#e8ede0' }] },
+  // 行政区画 — 市区名のみ、非常に薄く
+  { featureType: 'administrative',             elementType: 'labels',            stylers: [{ visibility: 'simplified' }] },
+  { featureType: 'administrative',             elementType: 'labels.text.fill',  stylers: [{ color: '#c0b8b0' }] },
+  { featureType: 'administrative.locality',    elementType: 'labels.text.fill',  stylers: [{ color: '#a8a098' }] },
+  { featureType: 'administrative.neighborhood',elementType: 'labels',            stylers: [{ visibility: 'off' }] },
 ];
 
-function makeStoreIconUrl(category: string, isListing: boolean, bagCount: number): string {
+// ── 出品中ピン（テラコッタ テアドロップ）────────────────────────────────
+function makeListingPinUrl(category: string): string {
   const emoji = getCategoryIcon(category);
-
-  if (isListing) {
-    // テラコッタ テアドロップ型ピン（出品中）
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
-      <defs>
-        <radialGradient id="g1" cx="38%" cy="30%" r="70%">
-          <stop offset="0%" stop-color="#F8854A"/>
-          <stop offset="100%" stop-color="#D44A00"/>
-        </radialGradient>
-        <filter id="ds1" x="-20%" y="-10%" width="140%" height="130%">
-          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="rgba(180,60,0,0.38)"/>
-        </filter>
-      </defs>
-      <ellipse cx="24" cy="57" rx="7" ry="2.5" fill="rgba(0,0,0,0.18)"/>
-      <path d="M24 54 Q10 40, 6 24 A18 18 0 1 1 42 24 Q38 40, 24 54 Z"
-        fill="url(#g1)" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" filter="url(#ds1)"/>
-      <circle cx="24" cy="23" r="13" fill="rgba(255,255,255,0.18)"/>
-      <text x="24" y="29.5" text-anchor="middle" font-size="18" font-family="serif">${emoji}</text>
-    </svg>`;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-  } else {
-    // グレー 小ピン（未出品登録店舗）
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">
-      <defs>
-        <radialGradient id="g2" cx="38%" cy="30%" r="70%">
-          <stop offset="0%" stop-color="#E5E7EB"/>
-          <stop offset="100%" stop-color="#9CA3AF"/>
-        </radialGradient>
-      </defs>
-      <ellipse cx="18" cy="43" rx="5" ry="2" fill="rgba(0,0,0,0.10)"/>
-      <path d="M18 41 Q8 30, 5 18 A13 13 0 1 1 31 18 Q28 30, 18 41 Z"
-        fill="url(#g2)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-      <text x="18" y="22.5" text-anchor="middle" font-size="13" font-family="serif">${emoji}</text>
-    </svg>`;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-  }
-}
-
-function makeUserIconUrl(): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
-    <circle cx="11" cy="11" r="10" fill="rgba(59,130,246,0.25)"/>
-    <circle cx="11" cy="11" r="6" fill="#3B82F6" stroke="white" stroke-width="2.5"/>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="66" viewBox="0 0 52 66">
+    <defs>
+      <radialGradient id="g1" cx="38%" cy="28%" r="72%">
+        <stop offset="0%" stop-color="#FA9455"/>
+        <stop offset="100%" stop-color="#D44A00"/>
+      </radialGradient>
+      <filter id="ds1" x="-25%" y="-10%" width="150%" height="135%">
+        <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="rgba(160,50,0,0.42)"/>
+      </filter>
+    </defs>
+    <!-- 影 -->
+    <ellipse cx="26" cy="63" rx="8" ry="3" fill="rgba(0,0,0,0.16)"/>
+    <!-- ピン本体（テアドロップ） -->
+    <path d="M26 59 Q11 43, 7 26 A19 19 0 1 1 45 26 Q41 43, 26 59 Z"
+      fill="url(#g1)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" filter="url(#ds1)"/>
+    <!-- 内側ハイライト -->
+    <circle cx="26" cy="24" r="14" fill="rgba(255,255,255,0.15)"/>
+    <!-- 絵文字 -->
+    <text x="26" y="31" text-anchor="middle" font-size="18" font-family="serif">${emoji}</text>
   </svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-// ── カスタムクラスターレンダラー（テラコッタ・繊細デザイン）─────────────
+// ── 現在地マーカー（テラコッタ波紋アニメーション）────────────────────────
+function makeUserIconUrl(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+    <!-- 外側波紋（遅延なし） -->
+    <circle cx="24" cy="24" r="4" fill="none" stroke="#F26419" stroke-width="1.5" opacity="0">
+      <animate attributeName="r"       values="4;22;22"   dur="2.2s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
+      <animate attributeName="opacity" values="0.7;0;0"   dur="2.2s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
+    </circle>
+    <!-- 中間波紋（0.6s 遅延） -->
+    <circle cx="24" cy="24" r="4" fill="none" stroke="#F26419" stroke-width="1" opacity="0">
+      <animate attributeName="r"       values="4;16;16"   dur="2.2s" begin="0.6s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
+      <animate attributeName="opacity" values="0.5;0;0"   dur="2.2s" begin="0.6s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
+    </circle>
+    <!-- 中心ドット -->
+    <circle cx="24" cy="24" r="7" fill="rgba(242,100,25,0.2)"/>
+    <circle cx="24" cy="24" r="5" fill="#F26419" stroke="white" stroke-width="2.5"/>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+// ── クラスターレンダラー（出品中のみ・テラコッタ繊細デザイン）────────────
 function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
   return {
-    render: (cluster: Cluster, stats: ClusterStats, map: google.maps.Map) => {
+    render: (cluster: Cluster, stats: ClusterStats, _map: google.maps.Map) => {
       const count  = cluster.count;
       const maxVal = stats.clusters.markers.max;
 
-      // コンパクトサイズ（従来の約半分）
-      const ratio  = Math.min(count / Math.max(maxVal, 1), 1);
-      const size   = Math.round(28 + ratio * 10); // 28px〜38px
-      const half   = size / 2;
-      const r      = half - 2;
+      const ratio = Math.min(count / Math.max(maxVal, 1), 1);
+      const size  = Math.round(30 + ratio * 10); // 30〜40px
+      const half  = size / 2;
+      const r     = half - 2.5;
 
-      // テラコッタ・透過デザイン — 濃さはカウントに応じて
-      const strokeColor  = count >= 20 ? '#D44A00' : count >= 5 ? '#F26419' : '#F07826';
-      const fillOpacity  = count >= 20 ? '0.22'    : count >= 5 ? '0.16'   : '0.12';
-      const fillColor    = `rgba(242,100,25,${fillOpacity})`;
-      const textColor    = count >= 20 ? '#B83D00'  : '#D44A00';
-      const fontSize     = count >= 100 ? 9 : count >= 10 ? 10 : 11;
-      const fontWeight   = '500';
+      const strokeColor = count >= 10 ? '#D44A00' : '#F26419';
+      const fillAlpha   = count >= 10 ? 0.20 : 0.13;
+      const textColor   = count >= 10 ? '#B83D00' : '#D44A00';
+      const fontSize    = count >= 100 ? 9 : count >= 10 ? 10 : 11;
 
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-        <circle cx="${half}" cy="${half}" r="${r + 3}" fill="rgba(242,100,25,0.07)"/>
-        <circle cx="${half}" cy="${half}" r="${r}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.5"/>
-        <text x="${half}" y="${half + fontSize * 0.4}"
+        <circle cx="${half}" cy="${half}" r="${r + 3.5}" fill="rgba(242,100,25,0.06)"/>
+        <circle cx="${half}" cy="${half}" r="${r}" fill="rgba(242,100,25,${fillAlpha})" stroke="${strokeColor}" stroke-width="1.5"/>
+        <text x="${half}" y="${half + fontSize * 0.38}"
           text-anchor="middle" font-size="${fontSize}" font-family="'Noto Sans JP','Outfit',sans-serif"
-          font-weight="${fontWeight}" fill="${textColor}" letter-spacing="0">${count}</text>
+          font-weight="500" fill="${textColor}">${count}</text>
       </svg>`;
-
-      const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 
       return new gMaps.Marker({
         position: cluster.position,
         icon: {
-          url,
+          url:        `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
           scaledSize: new gMaps.Size(size, size),
           anchor:     new gMaps.Point(half, half),
         },
@@ -167,9 +162,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const onMapIdleRef            = useRef(onMapIdle);
   const isFirstIdleRef          = useRef(true);
 
-  const [status,      setStatus]     = useState<'loading' | 'ready' | 'error'>('loading');
-  const [locating,    setLocating]   = useState(false);
-  const [userPos,     setUserPos]    = useState<{ lat: number; lng: number } | null>(
+  const [status,    setStatus]  = useState<'loading' | 'ready' | 'error'>('loading');
+  const [locating,  setLocating]= useState(false);
+  const [userPos,   setUserPos] = useState<{ lat: number; lng: number } | null>(
     userPosition ? { lat: userPosition[0], lng: userPosition[1] } : null
   );
   const [visibleBounds, setVisibleBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
@@ -211,11 +206,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
-  const approvedStores = useMemo(() => {
+  // 【重要】出品中（在庫あり）の店舗のみをマップに表示
+  const listingStores = useMemo(() => {
     const seen = new Set<number | string>();
     return stores.filter(s => {
-      const ok = (s as any).status === 'approved' || !(s as any).status;
-      if (!ok || seen.has(s.id)) return false;
+      const ok       = (s as any).status === 'approved' || !(s as any).status;
+      const bagCount = s.totalBagsAvailable ?? 0;
+      if (!ok || bagCount === 0 || seen.has(s.id)) return false;
       seen.add(s.id);
       return true;
     });
@@ -254,6 +251,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           gestureHandling: 'greedy',
           styles: MAP_STYLES,
           clickableIcons: false,
+          backgroundColor: '#f2f0eb',
         });
 
         mapRef.current = map;
@@ -287,42 +285,35 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return () => { cancelled = true; };
   }, []);
 
-  // ── 登録店舗マーカー（クラスタリング付き）────────────────────────────────
+  // ── 出品中マーカー（クラスタリング）────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
     const map   = mapRef.current;
     const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
     if (!map || !gMaps) return;
 
-    // 既存クラスターを破棄
     if (clustererRef.current) {
       clustererRef.current.clearMarkers();
       clustererRef.current = null;
     }
-
-    // 既存マーカーをすべてクリア
     storeMarkersRef.current.forEach(m => {
       gMaps.event.clearInstanceListeners(m);
       m.setMap(null);
     });
     storeMarkersRef.current = [];
 
-    if (approvedStores.length === 0) return;
+    if (listingStores.length === 0) return;
 
-    // マーカーを生成（mapは指定せずクラスターに渡す）
-    const markers: google.maps.Marker[] = approvedStores.map(store => {
-      const bagCount  = store.totalBagsAvailable ?? 0;
-      const isListing = bagCount > 0;
-
+    const markers: google.maps.Marker[] = listingStores.map(store => {
       const marker = new gMaps.Marker({
         position: { lat: store.lat, lng: store.lng },
         icon: {
-          url:        makeStoreIconUrl(store.category, isListing, bagCount),
-          scaledSize: new gMaps.Size(isListing ? 48 : 36, isListing ? 60 : 46),
-          anchor:     new gMaps.Point(isListing ? 24 : 18, isListing ? 54 : 41),
+          url:        makeListingPinUrl(store.category),
+          scaledSize: new gMaps.Size(52, 66),
+          anchor:     new gMaps.Point(26, 59),
         },
         title:  store.name,
-        zIndex: isListing ? 10 : 3,
+        zIndex: 10,
       });
 
       marker.addListener('click', () => {
@@ -346,20 +337,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     storeMarkersRef.current = markers;
 
-    // MarkerClusterer を生成（SuperCluster アルゴリズム）
     clustererRef.current = new MarkerClusterer({
       map,
       markers,
       algorithm: new SuperClusterAlgorithm({
-        radius:    80,   // クラスタリング半径（px）
-        maxZoom:   15,   // このズーム以上では個別マーカー表示
-        minPoints: 2,    // 2個以上重なったらクラスター化
+        radius:    80,
+        maxZoom:   15,
+        minPoints: 2,
       }),
       renderer: makeClusterRenderer(gMaps),
     });
-  }, [approvedStores.map(s => `${s.id}-${s.totalBagsAvailable}`).join(','), status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [listingStores.map(s => `${s.id}`).join(','), status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 現在地マーカー ────────────────────────────────────────────────────
+  // ── 現在地マーカー（テラコッタ波紋）────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
     const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
@@ -371,7 +361,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       userMarkerRef.current = new gMaps.Marker({
         position: userPos,
         map,
-        icon: { url: makeUserIconUrl(), scaledSize: new gMaps.Size(22, 22), anchor: new gMaps.Point(11, 11) },
+        icon: {
+          url:        makeUserIconUrl(),
+          scaledSize: new gMaps.Size(48, 48),
+          anchor:     new gMaps.Point(24, 24),
+        },
         title:  '現在地',
         zIndex: 999,
       });
@@ -399,30 +393,27 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
   }
 
-  const visibleStores = useMemo(() => {
-    if (!visibleBounds) return approvedStores;
+  const visibleListingCount = useMemo(() => {
+    if (!visibleBounds) return listingStores.length;
     const { north, south, east, west } = visibleBounds;
-    return approvedStores.filter(s =>
+    return listingStores.filter(s =>
       s.lat >= south && s.lat <= north && s.lng >= west && s.lng <= east
-    );
-  }, [approvedStores, visibleBounds]);
-
-  const listingCount  = visibleStores.filter(s => (s.totalBagsAvailable ?? 0) > 0).length;
-  const registedCount = visibleStores.filter(s => (s.totalBagsAvailable ?? 0) === 0).length;
+    ).length;
+  }, [listingStores, visibleBounds]);
 
   return (
     <div className="w-full h-full relative">
       <div ref={containerRef} className="w-full h-full" />
 
       {status === 'loading' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted gap-3">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3">
+          <div className="w-9 h-9 border-[3px] border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-muted-foreground font-medium">地図を読み込んでいます...</p>
         </div>
       )}
 
       {status === 'error' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted gap-3 px-6 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3 px-6 text-center">
           <AlertTriangle className="w-10 h-10 text-amber-500" />
           <p className="text-sm font-bold text-foreground">地図を読み込めませんでした</p>
           <p className="text-xs text-muted-foreground">Google Maps APIキーを確認してください</p>
@@ -432,47 +423,48 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       {status === 'ready' && (
         <>
           {/* カスタムズームボタン */}
-          <div className="absolute bottom-[152px] right-2 z-10 flex flex-col overflow-hidden rounded-2xl shadow-lg border border-gray-200">
+          <div className="absolute bottom-[140px] right-3 z-10 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
+            style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
             <button
               onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) + 1)}
-              className="w-10 h-10 bg-white flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-all border-b border-gray-100 text-xl font-light"
+              className="w-9 h-9 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-95 transition-all border-b border-gray-100 text-lg font-light"
               aria-label="ズームイン"
             >＋</button>
             <button
               onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) - 1)}
-              className="w-10 h-10 bg-white flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-all text-xl font-light"
+              className="w-9 h-9 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-95 transition-all text-lg font-light"
               aria-label="ズームアウト"
             >－</button>
           </div>
 
-          {/* GPS ボタン */}
+          {/* GPS FAB ボタン（洗練されたフローティングボタン） */}
           <button
             onClick={handleLocate}
-            className={`absolute bottom-24 right-2 z-10 h-12 bg-white rounded-full shadow-lg flex items-center gap-2 px-4 border active:scale-95 transition-all
-              ${userPos ? 'border-primary/30 hover:bg-primary/5 text-primary' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}
+            aria-label={locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地を表示'}
+            className={`absolute bottom-24 right-3 z-10 w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
+              ${userPos
+                ? 'bg-white border border-primary/25 text-primary'
+                : 'bg-white border border-gray-200/80 text-gray-500'
+              }`}
+            style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
           >
             {locating
-              ? <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              : <LocateFixed className={`w-5 h-5 ${userPos ? 'text-primary' : 'text-gray-500'}`} />
+              ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              : <LocateFixed className={`w-4.5 h-4.5 ${userPos ? 'text-primary' : 'text-gray-400'}`} strokeWidth={2.5} />
             }
-            <span className="text-sm font-bold whitespace-nowrap">
-              {locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地'}
-            </span>
           </button>
 
-          {/* 凡例 */}
-          <div className="absolute bottom-[76px] left-4 z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg px-3.5 py-2.5 flex flex-col gap-2 border border-gray-100">
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#F8854A,#D44A00)' }} />
-              <span className="text-xs font-bold text-gray-700">出品中</span>
-              {listingCount > 0 && <span className="ml-auto text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">{listingCount}</span>}
+          {/* 凡例（出品中のみ） */}
+          {visibleListingCount > 0 && (
+            <div className="absolute bottom-[76px] left-3 z-10 bg-white/96 backdrop-blur-sm rounded-2xl px-3 py-2 flex items-center gap-2 border border-gray-100/80"
+              style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+              <div className="w-3 h-3 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#FA9455,#D44A00)' }} />
+              <span className="text-[11px] font-bold text-gray-700">おすそわけ受付中</span>
+              <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                {visibleListingCount}店
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#D1D5DB,#9CA3AF)' }} />
-              <span className="text-xs font-medium text-gray-500">登録店舗</span>
-              {registedCount > 0 && <span className="ml-auto text-[10px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{registedCount}</span>}
-            </div>
-          </div>
+          )}
         </>
       )}
     </div>
