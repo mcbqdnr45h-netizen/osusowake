@@ -3,8 +3,8 @@ import { useLocation } from 'wouter';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, Save, Scale, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ChevronLeft, Save, Scale, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -26,14 +26,36 @@ const EMPTY: LegalForm = {
   legalOther: '',
 };
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+type StripePrefill = {
+  available: boolean;
+  legalName?: string;
+  representative?: string;
+  legalAddress?: string;
+  legalPhone?: string;
+  legalEmail?: string;
+};
+
+function Field({ label, required, hint, badge, children }: { label: string; required?: boolean; hint?: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-        {label}{required && <span className="text-red-500 ml-1">*</span>}
-      </label>
+      <div className="flex items-center gap-1 mb-1.5">
+        <label className="text-xs font-bold text-muted-foreground">
+          {label}{required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+        {badge}
+      </div>
       {children}
+      {hint && <p className="text-[11px] text-muted-foreground mt-1 leading-tight">{hint}</p>}
     </div>
+  );
+}
+
+function AutoFillBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 ml-2">
+      <Sparkles className="w-2.5 h-2.5" />
+      Stripe取得
+    </span>
   );
 }
 
@@ -44,27 +66,69 @@ export default function StoreLegal() {
 
   const [form, setForm] = useState<LegalForm>(EMPTY);
   const [saving, setSaving] = useState(false);
-  const [fetched, setFetched] = useState(false);
+  const [stripeFilled, setStripeFilled] = useState<Set<keyof LegalForm>>(new Set());
+  const [stripeAutoCount, setStripeAutoCount] = useState(0);
+  const [prefillDone, setPrefillDone] = useState(false);
 
-  const set = (key: keyof LegalForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const set = (key: keyof LegalForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm(f => ({ ...f, [key]: e.target.value }));
+    setStripeFilled(prev => { const n = new Set(prev); n.delete(key); return n; });
+  };
 
   useEffect(() => {
     if (!store) return;
-    fetch(`${BASE}/api/stores/${store.id}/legal`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data) return;
-        setForm({
-          legalName: data.legalName ?? '',
-          legalRepresentative: data.legalRepresentative ?? '',
-          legalAddress: data.legalAddress ?? '',
-          legalPhone: data.legalPhone ?? '',
-          legalEmail: data.legalEmail ?? '',
-          legalOther: data.legalOther ?? '',
-        });
-        setFetched(true);
-      });
+
+    const loadAll = async () => {
+      // 1) 保存済みの特商法データを取得
+      const savedRes = await fetch(`${BASE}/api/stores/${store.id}/legal`).catch(() => null);
+      const savedData: Partial<LegalForm> & { name?: string } = savedRes?.ok ? await savedRes.json() : {};
+
+      const base: LegalForm = {
+        legalName: savedData.legalName ?? '',
+        legalRepresentative: savedData.legalRepresentative ?? '',
+        legalAddress: savedData.legalAddress ?? '',
+        legalPhone: savedData.legalPhone ?? '',
+        legalEmail: savedData.legalEmail ?? '',
+        legalOther: savedData.legalOther ?? '',
+      };
+
+      // 2) Stripe からの自動取得（空欄フィールドのみ補完）
+      try {
+        const stripeRes = await fetch(`${BASE}/api/stores/${store.id}/connect/stripe-prefill`);
+        if (stripeRes.ok) {
+          const prefill: StripePrefill = await stripeRes.json();
+          if (prefill.available) {
+            const filled = new Set<keyof LegalForm>();
+            const merged = { ...base };
+
+            const tryFill = (key: keyof LegalForm, value: string | undefined) => {
+              if (!merged[key] && value) {
+                merged[key] = value;
+                filled.add(key);
+              }
+            };
+
+            tryFill('legalName', prefill.legalName);
+            tryFill('legalRepresentative', prefill.representative);
+            tryFill('legalAddress', prefill.legalAddress);
+            tryFill('legalPhone', prefill.legalPhone);
+            tryFill('legalEmail', prefill.legalEmail);
+
+            setForm(merged);
+            setStripeFilled(filled);
+            setStripeAutoCount(filled.size);
+            setPrefillDone(filled.size > 0);
+            return;
+          }
+        }
+      } catch {
+        // Stripe prefill 失敗は無視して保存済みデータで続行
+      }
+
+      setForm(base);
+    };
+
+    loadAll();
   }, [store]);
 
   const handleSave = async () => {
@@ -102,11 +166,10 @@ export default function StoreLegal() {
 
   return (
     <StoreLayout showHeader={false} showBottomNav={false}>
-      {/* ── ページ全体ラッパー（ヘッダー分の padding-top を確保）── */}
       <div className="max-w-xl mx-auto w-full flex flex-col"
         style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
 
-        {/* ── 固定ヘッダー（top:0 でレイアウトヘッダーがない場合に正しく機能）── */}
+        {/* 固定ヘッダー */}
         <div
           className="sticky z-20 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm"
           style={{ top: 0, paddingTop: 'env(safe-area-inset-top)' }}
@@ -125,8 +188,28 @@ export default function StoreLegal() {
           </div>
         </div>
 
-        {/* ── スクロールコンテンツ ── */}
-        <div className="px-4 pt-5 pb-4 space-y-5">
+        <div className="px-4 pt-5 pb-4 space-y-4">
+
+          {/* Stripe 自動入力バナー */}
+          <AnimatePresence>
+            {prefillDone && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex gap-3"
+              >
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-emerald-800">Stripe から {stripeAutoCount} 項目を自動入力しました</p>
+                  <p className="text-xs text-emerald-700 mt-0.5 leading-relaxed">
+                    内容をご確認のうえ、必要に応じて修正してから保存してください。
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* 説明バナー */}
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
@@ -142,69 +225,82 @@ export default function StoreLegal() {
           {/* フォーム */}
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 pt-5 pb-3 border-b border-border/50">
-              <h2 className="font-black text-sm flex items-center gap-2"><Scale className="w-4 h-4 text-primary" />事業者情報</h2>
+              <h2 className="font-black text-sm flex items-center gap-2">
+                <Scale className="w-4 h-4 text-primary" />
+                事業者情報
+              </h2>
             </div>
             <div className="p-5 space-y-4">
-              <Field label="販売事業者名（屋号・法人名）" required>
+
+              <Field label="販売事業者名（屋号・法人名）" required badge={stripeFilled.has('legalName') ? <AutoFillBadge /> : null}>
                 <input
                   type="text"
                   value={form.legalName}
                   onChange={set('legalName')}
-                  placeholder="例：合同会社 おすそわけグループ"
-                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="例：おすそわけ食堂"
+                  className={`w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${stripeFilled.has('legalName') ? 'border-emerald-300 bg-emerald-50/40' : 'border-border/50'}`}
                 />
               </Field>
-              <Field label="代表者名" required>
+
+              <Field label="代表者名" required badge={stripeFilled.has('legalRepresentative') ? <AutoFillBadge /> : null}>
                 <input
                   type="text"
                   value={form.legalRepresentative}
                   onChange={set('legalRepresentative')}
-                  placeholder="例：山田 太郎"
-                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="例：鈴木 一郎"
+                  className={`w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${stripeFilled.has('legalRepresentative') ? 'border-emerald-300 bg-emerald-50/40' : 'border-border/50'}`}
                 />
               </Field>
-              <Field label="所在地（住所）" required>
+
+              <Field label="所在地（住所）" required badge={stripeFilled.has('legalAddress') ? <AutoFillBadge /> : null}>
                 <input
                   type="text"
                   value={form.legalAddress}
                   onChange={set('legalAddress')}
-                  placeholder="例：東京都渋谷区〇〇1-2-3"
-                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="例：東京都世田谷区〇〇町1-2-3"
+                  className={`w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${stripeFilled.has('legalAddress') ? 'border-emerald-300 bg-emerald-50/40' : 'border-border/50'}`}
                 />
               </Field>
-              <Field label="電話番号">
+
+              <Field label="電話番号" badge={stripeFilled.has('legalPhone') ? <AutoFillBadge /> : null}>
                 <input
                   type="tel"
                   value={form.legalPhone}
                   onChange={set('legalPhone')}
-                  placeholder="例：03-1234-5678"
-                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="例：090-0000-0000"
+                  className={`w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${stripeFilled.has('legalPhone') ? 'border-emerald-300 bg-emerald-50/40' : 'border-border/50'}`}
                 />
               </Field>
-              <Field label="メールアドレス">
+
+              <Field label="メールアドレス" badge={stripeFilled.has('legalEmail') ? <AutoFillBadge /> : null}>
                 <input
                   type="email"
                   value={form.legalEmail}
                   onChange={set('legalEmail')}
-                  placeholder="例：info@example.com"
-                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="例：info@osusowake.jp"
+                  className={`w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${stripeFilled.has('legalEmail') ? 'border-emerald-300 bg-emerald-50/40' : 'border-border/50'}`}
                 />
               </Field>
-              <Field label="その他の特記事項（返品・交換ポリシー等）">
+
+              <Field
+                label="その他の特記事項（返品・交換ポリシー等）"
+                hint="食品の性質上、返品・交換不可の場合は必ず明記してください"
+              >
                 <textarea
                   value={form.legalOther}
                   onChange={set('legalOther')}
                   rows={4}
-                  placeholder="例：食品の性質上、商品お引き渡し後の返品・交換は原則お受けできません。..."
+                  placeholder="例：食品の性質上、商品お引き渡し後の返品・交換は原則お受けできません。衛生上の理由から、受け取り後のキャンセルも承っておりません。"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </Field>
+
             </div>
           </motion.div>
         </div>
       </div>
 
-      {/* ── フローティング保存ボタン（画面下部に固定）── */}
+      {/* フローティング保存ボタン */}
       <div
         className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50 px-4 pt-3"
         style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}

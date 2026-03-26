@@ -2022,7 +2022,97 @@ router.put("/stores/:storeId/profile", async (req, res) => {
   }
 });
 
-// ─── 特定商取引法表記 取得（公開）─────────────────────────────────────────────
+// ─── Stripe情報を特商法フォームの初期値として取得 ─────────────────────────────
+// GET /api/stores/:storeId/connect/stripe-prefill
+router.get("/stores/:storeId/connect/stripe-prefill", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+      return;
+    }
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store?.stripeAccountId) {
+      res.json({ available: false });
+      return;
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      res.json({ available: false });
+      return;
+    }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+    const account = await stripe.accounts.retrieve(store.stripeAccountId);
+
+    // 代表者名の取得（individualまたはpersons API）
+    let representative = '';
+    if (account.individual?.first_name || account.individual?.last_name) {
+      const parts = [account.individual.last_name, account.individual.first_name].filter(Boolean);
+      representative = parts.join(' ').trim();
+    } else {
+      try {
+        const persons = await stripe.accounts.listPersons(store.stripeAccountId, {
+          relationship: { representative: true },
+          limit: 1,
+        });
+        const rep = persons.data[0];
+        if (rep) {
+          const parts = [rep.last_name, rep.first_name].filter(Boolean);
+          representative = parts.join(' ').trim();
+        }
+      } catch {
+        // personsが取得できない場合は空のまま
+      }
+    }
+
+    // 住所の組み立て（日本語順：都道府県→市区町村→番地）
+    const addr = account.company?.address_kanji
+      ?? account.individual?.address_kanji
+      ?? account.company?.address
+      ?? account.individual?.address;
+
+    let legalAddress = '';
+    if (addr && typeof addr === 'object') {
+      const a = addr as { state?: string | null; city?: string | null; town?: string | null; line1?: string | null; line2?: string | null; postal_code?: string | null };
+      const parts = [a.state, a.city, a.town, a.line1, a.line2].filter(Boolean);
+      if (parts.length > 0) legalAddress = parts.join('');
+      else if (a.postal_code) legalAddress = a.postal_code;
+    }
+
+    // 電話番号
+    const legalPhone = account.company?.phone
+      ?? account.individual?.phone
+      ?? '';
+
+    // メール
+    const legalEmail = account.email ?? '';
+
+    // 事業者名（法人名 > 屋号 > ビジネスプロフィール名）
+    const legalName = account.company?.name
+      ?? account.business_profile?.name
+      ?? '';
+
+    res.json({
+      available: true,
+      legalName,
+      representative,
+      legalAddress,
+      legalPhone,
+      legalEmail,
+    });
+  } catch (err: any) {
+    console.error("Stripe prefill error:", err);
+    res.json({ available: false });
+  }
+});
+
 router.get("/stores/:storeId/legal", async (req, res) => {
   try {
     const storeId = parseInt(req.params.storeId);
