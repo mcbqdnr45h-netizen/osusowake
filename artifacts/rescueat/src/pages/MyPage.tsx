@@ -4,7 +4,8 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, TreePine } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare } from 'lucide-react';
+import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
@@ -211,6 +212,11 @@ export default function MyPage() {
 
         </div>}
 
+        {/* ── マイタウン（カスタマーのみ・インライン表示）── */}
+        {!isStoreOwner && (
+          <MyTown purchaseCount={pickedUpCount} />
+        )}
+
         {/* ── 店舗オーナー：接続エラー中（リトライ待機）── */}
         {profile?.role === 'store_owner' && !loadingStore && store === null && fetchError && (
           <div className="mb-4 bg-muted/50 border border-border rounded-2xl p-5 flex items-center gap-3">
@@ -327,21 +333,6 @@ export default function MyPage() {
             </Link>
           )}
 
-          {!isStoreOwner && (
-            <Link
-              href="/my-town"
-              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
-            >
-              <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">
-                <TreePine className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="font-bold text-foreground">マイタウン</div>
-                <div className="text-xs text-muted-foreground">購入回数で街が成長するゲーム</div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </Link>
-          )}
 
           {profile?.role === 'store_owner' && (store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') && (
             <Link
