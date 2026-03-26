@@ -993,7 +993,6 @@ export default function StoreDashboard() {
           </div>
           <div className="text-left">
             <p className="font-black text-base leading-tight">本日のOsusOwakeを出品する</p>
-            <p className="text-xs text-white/75 font-medium mt-0.5">おすそ分けで食品ロスを減らそう</p>
           </div>
         </motion.button>
 
