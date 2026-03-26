@@ -10,7 +10,7 @@ import {
 import {
   Plus, Minus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
-  History, CreditCard, Zap,
+  History, CreditCard, Zap, Pencil, Trash2, Save,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -632,6 +632,234 @@ function PostBagModal({
   );
 }
 
+// ─── バッグ編集モーダル ────────────────────────────────────────────────────
+function EditBagModal({
+  bag,
+  storeId,
+  BASE,
+  onClose,
+  onSaved,
+  onDeleted,
+}: {
+  bag: Bag;
+  storeId: number;
+  BASE: string;
+  onClose: () => void;
+  onSaved: () => void;
+  onDeleted: () => void;
+}) {
+  const { toast } = useToast();
+  const [form, setForm] = React.useState({
+    title:          bag.title,
+    stockCount:     bag.stockCount,
+    pickupStart:    bag.pickupStart ?? '',
+    pickupEnd:      bag.pickupEnd   ?? '',
+    originalPrice:  bag.originalPrice,
+    discountedPrice: bag.discountedPrice,
+  });
+  const [saving,   setSaving]   = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title:           form.title.trim(),
+          stockCount:      form.stockCount,
+          pickupStart:     form.pickupStart || null,
+          pickupEnd:       form.pickupEnd   || null,
+          originalPrice:   form.originalPrice,
+          discountedPrice: form.discountedPrice,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: '商品情報を更新しました ✓' });
+      onSaved();
+    } catch {
+      toast({ title: '更新に失敗しました', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      // 公開中の場合は先に非公開にしてから削除
+      if (bag.isActive) {
+        await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: false }),
+        });
+      }
+      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? '削除に失敗しました');
+      }
+      toast({ title: '商品を削除しました' });
+      onDeleted();
+    } catch (err: any) {
+      toast({ title: err.message ?? '削除に失敗しました', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const discountPct = form.originalPrice > 0
+    ? Math.round((1 - form.discountedPrice / form.originalPrice) * 100)
+    : 0;
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[60] flex flex-col justify-end"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    >
+      {/* 背景オーバーレイ */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+
+      {/* モーダル本体 */}
+      <motion.div
+        className="relative bg-background rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col"
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+      >
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <Pencil className="w-4 h-4 text-primary" />
+            <h2 className="text-lg font-black text-foreground">商品を編集</h2>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* フォーム */}
+        <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
+
+          {/* タイトル */}
+          <div>
+            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">商品名</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              className="w-full border border-border rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background"
+              placeholder="例：本日のおすすめセット"
+            />
+          </div>
+
+          {/* 在庫数 */}
+          <div>
+            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">在庫数</label>
+            <div className="flex items-center gap-3">
+              <button type="button"
+                onClick={() => setForm(f => ({ ...f, stockCount: Math.max(0, f.stockCount - 1) }))}
+                className="w-10 h-10 rounded-xl border border-border bg-secondary flex items-center justify-center hover:bg-muted active:scale-90 transition-all"
+              ><Minus className="w-4 h-4" /></button>
+              <span className="w-12 text-center text-2xl font-black tabular-nums">{form.stockCount}</span>
+              <button type="button"
+                onClick={() => setForm(f => ({ ...f, stockCount: f.stockCount + 1 }))}
+                className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center hover:bg-primary/90 active:scale-90 transition-all"
+              ><Plus className="w-4 h-4" /></button>
+              <span className="text-sm text-muted-foreground font-medium">個</span>
+            </div>
+          </div>
+
+          {/* 受け取り時間 */}
+          <div>
+            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">受け取り時間</label>
+            <div className="flex items-center gap-3">
+              <input type="time" value={form.pickupStart}
+                onChange={e => setForm(f => ({ ...f, pickupStart: e.target.value }))}
+                className="flex-1 border border-border rounded-xl px-3 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background"
+              />
+              <span className="text-muted-foreground font-bold">〜</span>
+              <input type="time" value={form.pickupEnd}
+                onChange={e => setForm(f => ({ ...f, pickupEnd: e.target.value }))}
+                className="flex-1 border border-border rounded-xl px-3 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background"
+              />
+            </div>
+          </div>
+
+          {/* 価格 */}
+          <div>
+            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">価格</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground mb-1">元値（税込）</p>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
+                  <input type="number" min={0} value={form.originalPrice}
+                    onChange={e => setForm(f => ({ ...f, originalPrice: Number(e.target.value) }))}
+                    className="w-full border border-border rounded-xl pl-7 pr-3 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background"
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground mb-1">販売価格（税込）</p>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
+                  <input type="number" min={0} value={form.discountedPrice}
+                    onChange={e => setForm(f => ({ ...f, discountedPrice: Number(e.target.value) }))}
+                    className="w-full border border-border rounded-xl pl-7 pr-3 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background"
+                  />
+                </div>
+              </div>
+            </div>
+            {discountPct > 0 && (
+              <p className="text-xs font-bold text-primary mt-2">{discountPct}% OFF で販売</p>
+            )}
+          </div>
+
+          {/* 削除 */}
+          <div className="pt-2 border-t border-border/60">
+            {confirmDelete ? (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                <p className="text-sm font-black text-red-700 mb-1">本当に削除しますか？</p>
+                <p className="text-xs text-red-500 mb-3">この操作は取り消せません。{bag.isActive ? '公開中の場合は先に非公開にしてから削除されます。' : ''}</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setConfirmDelete(false)}
+                    className="flex-1 py-2 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-colors">
+                    キャンセル
+                  </button>
+                  <button type="button" onClick={handleDelete} disabled={deleting}
+                    className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-black hover:bg-red-600 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1">
+                    {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 className="w-4 h-4" />削除する</>}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setConfirmDelete(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
+                <Trash2 className="w-4 h-4" />
+                この商品を削除する
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 保存ボタン */}
+        <div className="px-5 pb-6 pt-3 shrink-0 border-t border-border/60 bg-background"
+          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+          <button type="button" onClick={handleSave} disabled={saving || !form.title.trim()}
+            className="w-full py-4 rounded-2xl bg-primary text-white font-black text-base flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-50 shadow-md shadow-primary/20">
+            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5" />変更を保存する</>}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ─── 予約カード ──────────────────────────────────────────────────────────
 function ReservationCard({
   res,
@@ -738,6 +966,7 @@ export default function StoreDashboard() {
   const [adjustingId, setAdjustingId]     = useState<number | null>(null);
   const [deletingId, setDeletingId]       = useState<number | null>(null);
   const [confirmId, setConfirmId]         = useState<number | null>(null);
+  const [editingBag, setEditingBag]       = useState<Bag | null>(null);
 
   const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -1106,6 +1335,7 @@ export default function StoreDashboard() {
                   onDelete={handleDeleteBag}
                   onStockAdjust={handleStockAdjust}
                   onConfirmChange={setConfirmId}
+                  onEdit={bag => setEditingBag(bag)}
                 />
               ))}
             </div>
@@ -1183,6 +1413,26 @@ export default function StoreDashboard() {
               setShowPostModal(false);
               queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
               refetch();
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── 編集モーダル ── */}
+      <AnimatePresence>
+        {editingBag && storeId && (
+          <EditBagModal
+            bag={editingBag}
+            storeId={storeId}
+            BASE={BASE}
+            onClose={() => setEditingBag(null)}
+            onSaved={() => {
+              setEditingBag(null);
+              queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
+            }}
+            onDeleted={() => {
+              setEditingBag(null);
+              queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
             }}
           />
         )}

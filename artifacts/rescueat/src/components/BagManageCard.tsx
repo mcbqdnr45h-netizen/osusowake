@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Clock, Loader2, Minus, Package2, Plus, ToggleLeft, ToggleRight, Trash2,
+  Clock, Loader2, Minus, Package2, Pencil, Plus, ToggleLeft, ToggleRight, Trash2,
 } from 'lucide-react';
 
 // ─── 型 ──────────────────────────────────────────────────────────────────────
@@ -57,12 +57,13 @@ interface Props {
   onDelete: (bag: Bag) => void;
   onStockAdjust: (bag: Bag, delta: number) => void;
   onConfirmChange: (id: number | null) => void;
+  onEdit: (bag: Bag) => void;
 }
 
 // ─── コンポーネント ───────────────────────────────────────────────────────────
 export function BagManageCard({
   bag, togglingId, deletingId, adjustingId, confirmId,
-  onToggle, onDelete, onStockAdjust, onConfirmChange,
+  onToggle, onDelete, onStockAdjust, onConfirmChange, onEdit,
 }: Props) {
   const now       = new Date();
   const status    = getBagStatus(bag, now);
@@ -115,8 +116,18 @@ export function BagManageCard({
             )}
           </div>
 
-          {/* 右：トグル + 削除 */}
+          {/* 右：編集 + トグル + 削除 */}
           <div className="shrink-0 flex flex-col items-center gap-2">
+            {/* 編集ボタン（右上） */}
+            <button
+              type="button"
+              onClick={() => onEdit(bag)}
+              className="w-8 h-8 rounded-xl bg-secondary hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-colors"
+              title="編集"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+
             {/* 公開/非公開トグル */}
             <button
               type="button"
