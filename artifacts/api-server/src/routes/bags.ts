@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { surpriseBagsTable, storesTable, reservationsTable, favoritesTable, notificationsTable } from "@workspace/db/schema";
+import { surpriseBagsTable, storesTable, reservationsTable, favoritesTable, notificationsTable, reviewsTable } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { releaseExpiredCartReservations } from "./reservations";
 import {
@@ -107,6 +107,8 @@ router.get("/bags", async (_req, res) => {
         isActive: surpriseBagsTable.isActive,
         createdAt: surpriseBagsTable.createdAt,
         store: storesTable,
+        storeAvgRating: sql<number | null>`(SELECT ROUND(AVG(r.rating)::numeric, 1) FROM reviews r WHERE r.store_id = ${storesTable.id})`,
+        storeReviewCount: sql<number>`(SELECT COUNT(*)::integer FROM reviews r WHERE r.store_id = ${storesTable.id})`,
       })
       .from(surpriseBagsTable)
       .innerJoin(storesTable, eq(surpriseBagsTable.storeId, storesTable.id))
@@ -116,9 +118,9 @@ router.get("/bags", async (_req, res) => {
         notExpiredCondition,
       ));
 
-    const result = bags.map((b) => ({
+    const result = bags.map(({ storeAvgRating, storeReviewCount, ...b }) => ({
       ...b,
-      store: { ...b.store, totalBagsAvailable: b.stockCount },
+      store: { ...b.store, totalBagsAvailable: b.stockCount, avgRating: storeAvgRating, reviewCount: storeReviewCount },
     }));
     res.json(result);
   } catch (err) {

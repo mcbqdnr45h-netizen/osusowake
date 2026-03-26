@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles } from 'lucide-react';
+import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles, Star } from 'lucide-react';
 import { Link } from 'wouter';
 import { SurpriseBagWithStore } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -98,6 +98,8 @@ export function BagCard({ bag }: BagCardProps) {
   const trimmedComment = storeComment
     ? storeComment.length > 36 ? storeComment.slice(0, 35) + '…' : storeComment
     : null;
+  const avgRating = (bag.store as any).avgRating as number | null | undefined;
+  const reviewCount = (bag.store as any).reviewCount as number | undefined;
 
   return (<>
     <Link
@@ -205,11 +207,22 @@ export function BagCard({ bag }: BagCardProps) {
       {/* ── カード情報エリア ── */}
       <div className="p-4 pb-3.5">
 
-        {/* 商品タイトル */}
-        <h3 className={`font-bold leading-snug mb-2.5 line-clamp-2 tracking-tight
-          ${isSoldOut ? 'text-sm text-muted-foreground' : 'text-[15px] text-foreground'}`}>
-          {bag.title}
-        </h3>
+        {/* 商品タイトル + 評価 */}
+        <div className="mb-2">
+          <h3 className={`font-bold leading-snug line-clamp-2 tracking-tight
+            ${isSoldOut ? 'text-sm text-muted-foreground' : 'text-[15px] text-foreground'}`}>
+            {bag.title}
+          </h3>
+          {avgRating && !isSoldOut && (
+            <div className="flex items-center gap-1 mt-1">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+              <span className="text-[12px] font-black text-amber-500">{Number(avgRating).toFixed(1)}</span>
+              {reviewCount ? (
+                <span className="text-[11px] text-muted-foreground font-medium">({reviewCount}件)</span>
+              ) : null}
+            </div>
+          )}
+        </div>
 
         {/* 店主の一言 */}
         {trimmedComment && !isSoldOut && (

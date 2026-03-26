@@ -4,6 +4,7 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, MapPin, Loader2 } from 'lucide-react';
+import { TimePicker } from '@/components/TimePicker';
 import { motion } from 'framer-motion';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
@@ -257,7 +258,7 @@ export default function StoreProfileEdit() {
                   type="text"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="例：たけのこ食堂"
+                  placeholder="例：おすそわけ食堂 渋谷店"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
@@ -269,7 +270,7 @@ export default function StoreProfileEdit() {
                   type="tel"
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  placeholder="例：03-1234-5678"
+                  placeholder="例：090-0000-0000"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
@@ -281,7 +282,7 @@ export default function StoreProfileEdit() {
                   type="text"
                   value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                  placeholder="例：大阪府大阪市北区梅田1-2-3"
+                  placeholder="例：東京都渋谷区神南1-2-3"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
@@ -347,20 +348,18 @@ export default function StoreProfileEdit() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">営業開始</label>
-                  <input
-                    type="time"
+                  <TimePicker
                     value={form.openTime}
-                    onChange={e => setForm(f => ({ ...f, openTime: e.target.value }))}
-                    className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    onChange={v => setForm(f => ({ ...f, openTime: v }))}
+                    label="営業開始時間"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">営業終了</label>
-                  <input
-                    type="time"
+                  <TimePicker
                     value={form.closeTime}
-                    onChange={e => setForm(f => ({ ...f, closeTime: e.target.value }))}
-                    className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    onChange={v => setForm(f => ({ ...f, closeTime: v }))}
+                    label="営業終了時間"
                   />
                 </div>
               </div>
@@ -370,7 +369,7 @@ export default function StoreProfileEdit() {
                   type="text"
                   value={form.pickupHours}
                   onChange={e => setForm(f => ({ ...f, pickupHours: e.target.value }))}
-                  placeholder="例：17:00〜20:00（毎日）"
+                  placeholder="例：18:00〜21:00（平日）、17:00〜20:00（土日）"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
@@ -382,7 +381,7 @@ export default function StoreProfileEdit() {
                   type="text"
                   value={form.holiday}
                   onChange={e => setForm(f => ({ ...f, holiday: e.target.value }))}
-                  placeholder="例：毎週月曜日・祝日"
+                  placeholder="例：毎週水曜日・年末年始"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>

@@ -182,7 +182,7 @@ function StoreBottomSheet({
           style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
         >
           {/* 店舗画像バナー */}
-          <div className="relative mx-4 mt-1 mb-3 rounded-2xl overflow-hidden bg-muted shrink-0" style={{ height: store.description ? 192 : 148 }}>
+          <div className="relative mx-4 mt-1 mb-3 rounded-2xl overflow-hidden bg-muted shrink-0 shadow-md shadow-black/10" style={{ height: store.description ? 192 : 148 }}>
             <img
               src={store.imageUrl || getCategoryImage(store.category)}
               alt={store.name}
@@ -254,18 +254,30 @@ function StoreBottomSheet({
               </div>
             </div>
 
-            {/* Google Maps ボタン（住所がある場合）*/}
+            {/* 外部リンクボタン群 */}
             {mapsUrl && (
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 w-full bg-sky-50 border border-sky-200 text-sky-700 font-black text-xs px-3.5 py-2.5 rounded-xl tap-scale"
-              >
-                <Navigation className="w-3.5 h-3.5 shrink-0" />
-                Google マップで経路を確認
-                <ExternalLink className="w-3 h-3 ml-auto text-sky-400" />
-              </a>
+              <div className="flex gap-2">
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 bg-sky-50 border border-sky-200 text-sky-700 font-black text-[11px] px-3 py-2 rounded-xl tap-scale"
+                >
+                  <Navigation className="w-3.5 h-3.5 shrink-0" />
+                  ナビ
+                  <ExternalLink className="w-2.5 h-2.5 text-sky-400" />
+                </a>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address || store.name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-black text-[11px] px-3 py-2 rounded-xl tap-scale"
+                >
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  地図で見る
+                  <ExternalLink className="w-2.5 h-2.5 text-emerald-400" />
+                </a>
+              </div>
             )}
 
             <div className="flex items-center gap-2">

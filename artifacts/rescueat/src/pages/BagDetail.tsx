@@ -649,10 +649,13 @@ export default function BagDetail() {
                   </div>
                 </div>
               ) : reviewData && reviewData.count === 0 ? (
-                <div className="border-2 border-dashed border-border rounded-2xl p-6 text-center mb-5">
-                  <Star className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground font-medium">まだ口コミがありません</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">購入して受け取った方が最初の口コミを投稿できます</p>
+                <div className="rounded-2xl p-8 text-center mb-5 bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-100/60">
+                  <div className="text-5xl mb-3 leading-none select-none" aria-hidden>🍱</div>
+                  <p className="font-black text-foreground text-[15px] mb-1.5">まだ口コミがありません</p>
+                  <p className="text-sm text-muted-foreground/80 leading-relaxed">
+                    最初のレビュアーになりませんか？<br />
+                    受け取った感想が次のお客様の<br />大きな参考になります
+                  </p>
                 </div>
               ) : (
                 <div className="h-20 bg-secondary/50 rounded-2xl animate-pulse mb-5" />
