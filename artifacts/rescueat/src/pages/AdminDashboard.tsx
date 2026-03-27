@@ -66,9 +66,16 @@ function statusBadge(store: AdminStore) {
 }
 
 export default function AdminDashboard() {
-  const { user, session, signOut } = useAuth();
+  const { user, session, signOut, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate('/login?redirect=%2Fadmin', { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   const [metrics, setMetrics]             = useState<Metrics | null>(null);
   const [stores, setStores]               = useState<AdminStore[]>([]);
@@ -248,7 +255,15 @@ export default function AdminDashboard() {
   });
   const displayedStores = showAllStores ? filteredStores : filteredStores.slice(0, 10);
 
-  if (user && user.email !== ADMIN_EMAIL) {
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (user.email !== ADMIN_EMAIL) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8">

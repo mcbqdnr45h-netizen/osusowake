@@ -87,7 +87,6 @@ const GuardedStoreSales      = Protected(StoreSalesPage, 'store_owner');
 const GuardedRegisterStore   = Protected(RegisterStore, 'store_owner');
 const GuardedStoreOnboarding = Protected(StoreOnboarding, 'store_owner');
 const GuardedStripeBankSetup = Protected(StripeBankSetup, 'store_owner');
-const GuardedAdmin           = Protected(AdminDashboard);
 const GuardedAdminVerify     = Protected(AdminVerifyShops);
 const GuardedStoreProfileEdit = Protected(StoreProfileEdit, 'store_owner');
 const GuardedStoreReviews    = Protected(StoreReviews, 'store_owner');
@@ -243,7 +242,7 @@ function AnimatedRoutes() {
           <Route path="/stores/:id/legal" component={StoreLegalPublic} />
 
           {/* ── 管理者 ── */}
-          <Route path="/admin" component={GuardedAdmin} />
+          <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin-verify-shops" component={GuardedAdminVerify} />
 
           <Route component={NotFound} />
