@@ -710,13 +710,13 @@ export default function Home() {
                 className="px-4 pt-3 pb-6"
               >
                 {isLoadingBags ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-2">
                     {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
                   </div>
                 ) : filteredBags.length > 0 ? (
                   <motion.div
                     key={`${activeCategory}-${searchQuery}`}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                    className="grid grid-cols-2 gap-2"
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.18 }}
                   >
@@ -724,7 +724,7 @@ export default function Home() {
                       <motion.div key={bag.id}
                         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.2, delay: i * 0.04 }}>
-                        <BagCard bag={bag} />
+                        <BagCard bag={bag} compact />
                       </motion.div>
                     ))}
                   </motion.div>
@@ -757,8 +757,8 @@ export default function Home() {
                           <span className="text-[11px] font-black text-muted-foreground px-1">✨ 代わりにこちらはいかがですか？</span>
                           <div className="flex-1 h-px bg-border/60" />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4">
-                          {visibleBags.slice(0, 3).map(bag => <BagCard key={bag.id} bag={bag} />)}
+                        <div className="grid grid-cols-2 gap-2 px-4">
+                          {visibleBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
                         </div>
                       </div>
                     )}
@@ -879,7 +879,7 @@ export default function Home() {
                 {/* バッググリッド */}
                 <div className="px-4">
                   {isLoadingBags ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                       {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
                     </div>
                   ) : sortedVisibleBags.length === 0 ? (
@@ -909,13 +909,13 @@ export default function Home() {
                     </div>
                   ) : (
                     <motion.div
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                      className="grid grid-cols-2 gap-2"
                       initial="hidden" animate="show"
                       variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
                     >
                       {sortedVisibleBags.map(bag => (
                         <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-                          <BagCard bag={bag} />
+                          <BagCard bag={bag} compact />
                         </motion.div>
                       ))}
                     </motion.div>

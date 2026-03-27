@@ -11,6 +11,7 @@ import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 
 interface BagCardProps {
   bag: SurpriseBagWithStore;
+  compact?: boolean;
 }
 
 function WalkTimeBadge({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
@@ -48,7 +49,7 @@ function OwnerComment({ comment }: { comment: string }) {
   );
 }
 
-export function BagCard({ bag }: BagCardProps) {
+export function BagCard({ bag, compact = false }: BagCardProps) {
   const discountPercent = bag.originalPrice > 0
     ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
     : 0;
@@ -189,7 +190,7 @@ export function BagCard({ bag }: BagCardProps) {
         </div>
 
         {/* 左下: 徒歩時間 */}
-        {!isSoldOut && bag.store.lat && bag.store.lng && (
+        {!isSoldOut && !compact && bag.store.lat && bag.store.lng && (
           <div className="absolute bottom-2.5 left-2.5 bg-black/45 backdrop-blur-sm px-2 py-1 rounded-full">
             <WalkTimeBadge storeLat={bag.store.lat} storeLng={bag.store.lng} />
           </div>
@@ -209,15 +210,17 @@ export function BagCard({ bag }: BagCardProps) {
       </div>
 
       {/* ── カード情報エリア ── */}
-      <div className="p-4 pb-3.5">
+      <div className={compact ? 'p-2.5 pb-2' : 'p-4 pb-3.5'}>
 
         {/* 商品タイトル + 評価 */}
-        <div className="mb-2">
-          <h3 className={`font-bold leading-snug line-clamp-2 tracking-tight
-            ${isSoldOut ? 'text-sm text-muted-foreground' : 'text-[15px] text-foreground'}`}>
+        <div className={compact ? 'mb-1.5' : 'mb-2'}>
+          <h3 className={`font-bold leading-snug tracking-tight
+            ${compact ? 'text-[11px] line-clamp-2' : 'line-clamp-2'}
+            ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}
+            ${!compact && !isSoldOut ? 'text-[15px]' : ''}`}>
             {bag.title}
           </h3>
-          {avgRating && !isSoldOut && (
+          {avgRating && !isSoldOut && !compact && (
             <div className="flex items-center gap-1 mt-1">
               <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
               <span className="text-[12px] font-black text-amber-500">{Number(avgRating).toFixed(1)}</span>
@@ -228,8 +231,8 @@ export function BagCard({ bag }: BagCardProps) {
           )}
         </div>
 
-        {/* 店主の一言 */}
-        {trimmedComment && !isSoldOut && (
+        {/* 店主の一言（compactでは非表示） */}
+        {trimmedComment && !isSoldOut && !compact && (
           <OwnerComment comment={trimmedComment} />
         )}
 
@@ -254,6 +257,34 @@ export function BagCard({ bag }: BagCardProps) {
           </div>
         ) : (
           <>
+            {compact ? (
+              /* ── compact: 受取時間 ＋ 価格を縦2行でシンプル表示 ── */
+              <div className="space-y-1 mt-0.5">
+                {(bag.pickupStart || bag.pickupEnd) && (
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Clock className="w-2.5 h-2.5 text-primary shrink-0" />
+                    <span className="font-medium truncate">{bag.pickupStart}{bag.pickupEnd ? `〜${bag.pickupEnd}` : '〜'}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <Gift className={`w-2.5 h-2.5 shrink-0 ${isLowStock ? 'text-rose-500' : 'text-primary'}`} />
+                    <span className={isLowStock ? 'text-rose-600 font-bold' : 'font-medium'}>残り{bag.stockCount}個</span>
+                  </div>
+                  <span className="text-base font-black text-primary leading-none whitespace-nowrap">
+                    ¥{bag.discountedPrice.toLocaleString()}
+                  </span>
+                </div>
+                {bag.originalPrice > 0 && (
+                  <div className="flex items-center justify-end">
+                    <span className="text-[10px] text-muted-foreground/60 line-through font-medium">
+                      ¥{bag.originalPrice.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
             {/* 受取時間 ＋ 残り在庫 */}
             <div className="flex items-center justify-between mb-3 gap-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 px-2.5 py-1.5 rounded-lg">
@@ -292,6 +323,8 @@ export function BagCard({ bag }: BagCardProps) {
                 </span>
               </div>
             </div>
+              </>
+            )}
           </>
         )}
       </div>
