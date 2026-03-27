@@ -114,6 +114,7 @@ export default function AdminDashboard() {
   const [storeFilter, setStoreFilter] = useState<'all' | 'pending' | 'approved' | 'suspended'>('pending');
   const [showAllStores, setShowAllStores] = useState(false);
   const [expandedStore, setExpandedStore] = useState<number | null>(null);
+  const [expandedLead, setExpandedLead]   = useState<number | null>(null);
 
   const token = session?.access_token;
 
@@ -798,59 +799,109 @@ export default function AdminDashboard() {
                   <p className="text-sm text-muted-foreground">まだリードはありません</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {salesLeads.map(lead => (
-                    <div key={lead.id} className={`rounded-2xl border p-4 space-y-2 ${
-                      lead.status === 'new' ? 'bg-orange-50 border-orange-200' :
-                      lead.status === 'contacted' ? 'bg-blue-50 border-blue-200' :
-                      lead.status === 'converted' ? 'bg-green-50 border-green-200' :
-                      'bg-secondary border-border'
-                    }`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-black text-sm text-foreground truncate">{lead.store_name}</p>
-                            <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${
-                              lead.status === 'new'       ? 'bg-orange-200 text-orange-800' :
-                              lead.status === 'contacted' ? 'bg-blue-200 text-blue-800' :
-                              lead.status === 'converted' ? 'bg-green-200 text-green-800' :
-                                                            'bg-gray-200 text-gray-700'
-                            }`}>
-                              {lead.status === 'new' ? '未対応' : lead.status === 'contacted' ? '連絡済み' : lead.status === 'converted' ? '成約' : 'クローズ'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
-                            <MapPin className="w-3 h-3 shrink-0" />
-                            <span>{lead.location}</span>
-                          </div>
-                          {lead.memo && (
-                            <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">{lead.memo}</p>
-                          )}
-                          <p className="text-[10px] text-muted-foreground/50 mt-1">
-                            {new Date(lead.created_at).toLocaleDateString('ja-JP')}
-                          </p>
-                        </div>
-                        <select
-                          value={lead.status}
-                          onChange={async (e) => {
-                            const newStatus = e.target.value;
-                            await fetch(`${BASE}/api/admin/sales-leads/${lead.id}`, {
-                              method:  'PATCH',
-                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                              body:    JSON.stringify({ status: newStatus }),
-                            });
-                            setSalesLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: newStatus } : l));
-                          }}
-                          className="shrink-0 text-[11px] font-bold border border-border rounded-xl px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                <div className="space-y-2">
+                  {salesLeads.map(lead => {
+                    const isExpanded = expandedLead === lead.id;
+                    const badgeCls = lead.status === 'new'       ? 'bg-orange-200 text-orange-800' :
+                                     lead.status === 'contacted' ? 'bg-blue-200 text-blue-800' :
+                                     lead.status === 'converted' ? 'bg-green-200 text-green-800' :
+                                                                   'bg-gray-200 text-gray-700';
+                    const cardCls  = lead.status === 'new'       ? 'bg-orange-50 border-orange-200' :
+                                     lead.status === 'contacted' ? 'bg-blue-50 border-blue-200' :
+                                     lead.status === 'converted' ? 'bg-green-50 border-green-200' :
+                                                                   'bg-secondary border-border';
+                    return (
+                      <div key={lead.id} className={`rounded-2xl border overflow-hidden ${cardCls}`}>
+                        {/* ── 行ヘッダー（常に表示）── */}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedLead(isExpanded ? null : lead.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left"
                         >
-                          <option value="new">未対応</option>
-                          <option value="contacted">連絡済み</option>
-                          <option value="converted">成約</option>
-                          <option value="closed">クローズ</option>
-                        </select>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-black text-sm text-foreground">{lead.store_name}</p>
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${badgeCls}`}>
+                                {lead.status === 'new' ? '未対応' : lead.status === 'contacted' ? '連絡済み' : lead.status === 'converted' ? '成約' : 'クローズ'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                              <MapPin className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{lead.location}</span>
+                            </div>
+                          </div>
+                          {isExpanded
+                            ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                            : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
+                        </button>
+
+                        {/* ── 展開詳細パネル ── */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-4 pb-4 pt-1 space-y-3 border-t border-black/5">
+                                {/* 店名 */}
+                                <div>
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-0.5">店舗名</p>
+                                  <p className="text-sm font-black text-foreground">{lead.store_name}</p>
+                                </div>
+                                {/* 場所 */}
+                                <div>
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-0.5">場所・エリア</p>
+                                  <div className="flex items-start gap-1.5">
+                                    <MapPin className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                                    <p className="text-sm font-medium text-foreground">{lead.location}</p>
+                                  </div>
+                                </div>
+                                {/* メモ */}
+                                <div>
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-0.5">詳細メモ</p>
+                                  <p className="text-sm text-foreground leading-relaxed">
+                                    {lead.memo || <span className="text-muted-foreground italic">（メモなし）</span>}
+                                  </p>
+                                </div>
+                                {/* 報告日 */}
+                                <div>
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-0.5">報告日時</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(lead.created_at).toLocaleString('ja-JP')}
+                                  </p>
+                                </div>
+                                {/* ステータス変更 */}
+                                <div>
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">対応ステータス</p>
+                                  <select
+                                    value={lead.status}
+                                    onChange={async (e) => {
+                                      const newStatus = e.target.value;
+                                      await fetch(`${BASE}/api/admin/sales-leads/${lead.id}`, {
+                                        method:  'PATCH',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                        body:    JSON.stringify({ status: newStatus }),
+                                      });
+                                      setSalesLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: newStatus } : l));
+                                    }}
+                                    className="w-full text-sm font-bold border border-border rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                  >
+                                    <option value="new">📌 未対応</option>
+                                    <option value="contacted">📞 連絡済み</option>
+                                    <option value="converted">✅ 成約</option>
+                                    <option value="closed">🚫 クローズ</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

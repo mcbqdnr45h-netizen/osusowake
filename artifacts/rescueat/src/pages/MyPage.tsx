@@ -367,83 +367,13 @@ export default function MyPage() {
           </div>
         )}
 
-        {/* ── 店舗オーナー：承認済み・Stripe連携完了（緑カード） ── */}
+        {/* ── 店舗オーナー：承認済み・Stripe連携完了（緑バッジ・コンパクト版） ── */}
         {profile?.role === 'store_owner' && !loadingStore && isApprovedOwner && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, type: 'spring', stiffness: 200, damping: 22 }}
-            className="mb-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-5 shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center shrink-0">
-                <FileCheck className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-black text-green-900 text-base leading-tight">
-                  ✅ 公式アカウント認証済み
-                </p>
-                <p className="text-xs text-green-700 font-semibold mt-0.5">
-                  入金設定完了 — 出品・売上受取が可能です
-                </p>
-              </div>
-              <span className="text-[10px] font-black bg-green-200 text-green-800 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
-                有効
-              </span>
-            </div>
-          </motion.div>
-        )}
-
-        {/* ── 紹介コードカード（全ユーザー）── */}
-        {referralCode && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="mb-4 rounded-2xl overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #FFF8F0 0%, #FFE8CC 100%)', border: '2px solid rgba(242,100,25,0.25)' }}
-          >
-            <div className="px-5 py-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🌱</span>
-                  <p className="text-sm font-black text-foreground">あなたの紹介コード</p>
-                </div>
-                <span className="text-[10px] font-bold text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
-                  友達に教えよう
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mb-3">紹介経由で登録が増えると、今後特別な特典があるかも？🌱</p>
-              <div className="bg-white/80 rounded-2xl py-4 flex items-center justify-center mb-3 border border-primary/15">
-                <span className="text-4xl font-black font-mono tracking-[0.2em] text-primary">{referralCode}</span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(referralCode).then(() => {
-                      setReferralCopied(true);
-                      setTimeout(() => setReferralCopied(false), 2000);
-                    });
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-muted-foreground hover:bg-muted transition-colors tap-scale"
-                >
-                  {referralCopied
-                    ? <><Check className="w-4 h-4 text-green-500" /><span className="text-green-500">コピー済み</span></>
-                    : <><Copy className="w-4 h-4" />コピー</>}
-                </button>
-                <button
-                  onClick={() => {
-                    const text = `OsusOwakeで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」で登録してみて 🌱\nhttps://osusowake.app`;
-                    if (navigator.share) navigator.share({ text }).catch(() => {});
-                    else navigator.clipboard.writeText(text);
-                  }}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-black hover:bg-primary/90 transition-colors tap-scale"
-                >
-                  <Share2 className="w-4 h-4" />シェア
-                </button>
-              </div>
-            </div>
-          </motion.div>
+          <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+            <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
+            <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
+            <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">有効</span>
+          </div>
         )}
 
         {/* Menu List */}
@@ -576,6 +506,58 @@ export default function MyPage() {
             <div className="flex-1 font-bold">ログアウト</div>
           </button>
         </div>
+
+        {/* ── 紹介コードカード（一番下）── */}
+        {referralCode && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="mt-4 rounded-2xl overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #FFF8F0 0%, #FFE8CC 100%)', border: '2px solid rgba(242,100,25,0.25)' }}
+          >
+            <div className="px-5 py-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🌱</span>
+                  <p className="text-sm font-black text-foreground">あなたの紹介コード</p>
+                </div>
+                <span className="text-[10px] font-bold text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
+                  友達に教えよう
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-3">紹介経由で登録が増えると、今後特別な特典があるかも？🌱</p>
+              <div className="bg-white/80 rounded-2xl py-4 flex items-center justify-center mb-3 border border-primary/15">
+                <span className="text-4xl font-black font-mono tracking-[0.2em] text-primary">{referralCode}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(referralCode).then(() => {
+                      setReferralCopied(true);
+                      setTimeout(() => setReferralCopied(false), 2000);
+                    });
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-muted-foreground hover:bg-muted transition-colors tap-scale"
+                >
+                  {referralCopied
+                    ? <><Check className="w-4 h-4 text-green-500" /><span className="text-green-500">コピー済み</span></>
+                    : <><Copy className="w-4 h-4" />コピー</>}
+                </button>
+                <button
+                  onClick={() => {
+                    const text = `OsusOwakeで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」で登録してみて 🌱\nhttps://osusowake.app`;
+                    if (navigator.share) navigator.share({ text }).catch(() => {});
+                    else navigator.clipboard.writeText(text);
+                  }}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-black hover:bg-primary/90 transition-colors tap-scale"
+                >
+                  <Share2 className="w-4 h-4" />シェア
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* 法的情報リンク */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">

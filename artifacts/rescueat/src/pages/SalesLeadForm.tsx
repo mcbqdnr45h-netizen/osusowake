@@ -122,7 +122,7 @@ export default function SalesLeadForm() {
                       type="text"
                       value={storeName}
                       onChange={e => setStoreName(e.target.value)}
-                      placeholder="例：駅前のパン屋さん、〇〇スーパー など"
+                      placeholder="（例）高槻市の〇〇ベーカリー"
                       maxLength={100}
                       className="w-full bg-card border border-border/80 rounded-2xl px-4 py-3.5 text-sm font-medium placeholder:text-muted-foreground/40 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                       style={{ boxShadow: '0 1px 4px -1px rgba(10,8,6,0.06)' }}
@@ -140,7 +140,7 @@ export default function SalesLeadForm() {
                       type="text"
                       value={location}
                       onChange={e => setLocation(e.target.value)}
-                      placeholder="例：大阪府高槻市駅前通り、梅田の近く など"
+                      placeholder="（例）大阪府高槻市駅前通り、梅田の近く"
                       maxLength={200}
                       className="w-full bg-card border border-border/80 rounded-2xl px-4 py-3.5 text-sm font-medium placeholder:text-muted-foreground/40 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                       style={{ boxShadow: '0 1px 4px -1px rgba(10,8,6,0.06)' }}
@@ -157,7 +157,7 @@ export default function SalesLeadForm() {
                     <textarea
                       value={memo}
                       onChange={e => setMemo(e.target.value)}
-                      placeholder="例：夕方になると揚げ物が半額になるけど、売れ残りが多そうです"
+                      placeholder="夕方18時ごろにお弁当が余っているようです"
                       maxLength={400}
                       rows={3}
                       className="w-full bg-card border border-border/80 rounded-2xl px-4 py-3.5 text-sm font-medium placeholder:text-muted-foreground/40 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all resize-none"
