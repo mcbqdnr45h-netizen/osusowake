@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layout } from '@/components/Layout';
-import { Scale } from 'lucide-react';
+import { Scale, ChevronLeft } from 'lucide-react';
+import { useLocation } from 'wouter';
 
 const ROWS: { label: string; value: React.ReactNode }[] = [
   { label: '販売事業者名', value: 'OsusOwake 事務局' },
@@ -20,19 +21,27 @@ const ROWS: { label: string; value: React.ReactNode }[] = [
 ];
 
 export default function TokushoPage() {
+  const [, navigate] = useLocation();
   return (
-    <Layout showBottomNav>
-      <div className="max-w-md mx-auto px-4 pt-6 pb-24">
+    <Layout showBottomNav={false}>
+      <div className="max-w-md mx-auto pb-24">
 
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center shrink-0">
-            <Scale className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-foreground">特定商取引法に基づく表記</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Legal Notice</p>
+        {/* ヘッダー */}
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border/50 px-4 h-14 flex items-center gap-3"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <button
+            onClick={() => navigate(-1 as any)}
+            className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Scale className="w-4 h-4 text-blue-600" />
+            <h1 className="text-base font-black text-foreground">特定商取引法に基づく表記</h1>
           </div>
         </div>
+
+        <div className="px-4 pt-6">
 
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
           {ROWS.map((row, i) => (
@@ -48,6 +57,7 @@ export default function TokushoPage() {
         </p>
         <p className="text-[10px] text-muted-foreground/50 mt-4 text-center">最終更新：2026年3月26日</p>
 
+        </div>
       </div>
     </Layout>
   );
