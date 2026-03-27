@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Layout } from '@/components/Layout';
-import { ChevronDown, ChevronUp, HelpCircle, ShoppingBag, CreditCard, AlertTriangle, MessageCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronLeft, HelpCircle, ShoppingBag, CreditCard, AlertTriangle, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
 
@@ -149,7 +149,17 @@ function FaqAccordion({ item }: { item: FaqItem }) {
 export default function HelpPage() {
   return (
     <Layout showBottomNav>
-      <div className="max-w-md mx-auto px-4 pt-6 pb-28">
+      <div className="max-w-md mx-auto px-4 pt-4 pb-28">
+
+        {/* 戻るボタン */}
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-4 -ml-1 tap-opacity"
+          aria-label="前の画面に戻る"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span>戻る</span>
+        </button>
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">

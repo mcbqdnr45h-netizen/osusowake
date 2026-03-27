@@ -251,13 +251,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
-  // ── バッグのある店舗IDセット ─────────────────────────────────────────────
-  const storeIdsWithBags = useMemo(
-    () => new Set(bags.map(b => b.store.id)),
-    [bags]
-  );
-
-  // ── マップに表示する店舗（バッグ保有店のみ・ID+座標で重複排除）──────────────
+  // ── マップに表示する店舗（全承認済み店舗・ID+座標で重複排除）────────────────
+  // 在庫の有無にかかわらず全店舗を表示する（在庫あり→オレンジ、なし→グレー）
   // 重複排除ロジック:
   //   1. 店舗IDで重複排除（同じIDが複数来ても1ピンのみ）
   //   2. 同一座標（約11m精度）の別店舗も1ピンに統合（「2」バグの根本原因修正）
@@ -266,8 +261,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const seenLoc = new Set<string>();
     return stores.filter(s => {
       const ok = (s as any).status === 'approved' || !(s as any).status;
-      // バッグを持つ店舗のみ（在庫ゼロでも今日出品中ならグレーで表示）
-      if (!ok || !storeIdsWithBags.has(s.id as number)) return false;
+      if (!ok) return false;
       if (seenId.has(s.id)) return false;
       seenId.add(s.id);
       // 同一lat/lng（約11m精度）の重複ピンを排除
@@ -276,7 +270,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       seenLoc.add(locKey);
       return true;
     });
-  }, [stores, storeIdsWithBags]);
+  }, [stores]);
 
   // ── アクティブ店舗（オレンジピン: 在庫あり + 受取時間内）────────────────────
   const activeListingStores = useMemo(() => {
@@ -567,7 +561,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
                 <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#b8c0cc] shrink-0" />
                   <span className="text-[10px] text-gray-400 font-medium">
-                    {listingStores.length - activeListingStores.length}店 時間外
+                    {listingStores.length - activeListingStores.length}店 受付外
                   </span>
                 </div>
               )}

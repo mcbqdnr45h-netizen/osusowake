@@ -6,7 +6,7 @@ import { useLocation, Link } from 'wouter';
 import {
   ChevronLeft, User, Camera, Bell, Gift, LogOut,
   Copy, Share2, Check, ChevronRight, Mail, Pencil,
-  Sparkles, X,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -196,7 +196,7 @@ export default function Settings() {
   }, [profile?.display_name, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Referral code: first 6 chars of userId, uppercase
-  const referralCode = `RESCUE${userId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+  const referralCode = `OW${userId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
 
   // Avatar initials
   const initials = displayName.trim().slice(0, 2) || 'GU';
@@ -255,7 +255,7 @@ export default function Settings() {
   }
 
   async function handleShare() {
-    const text = `OsusOwakeで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」を使うと初回特典があります 🌱\nhttps://rescueat.app`;
+    const text = `OsusOwakeで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」で登録してみて 🌱\nhttps://osusowake.app`;
     if (navigator.share) {
       try {
         await navigator.share({ title: 'OsusOwakeに参加しよう', text });
@@ -450,15 +450,10 @@ export default function Settings() {
             <div className="bg-gradient-to-br from-primary/10 to-primary/5 px-4 py-4 border-b border-border/60">
               <div className="flex items-center gap-2 mb-1.5">
                 <Gift className="w-4 h-4 text-primary" />
-                <span className="text-sm font-black text-primary">友達紹介キャンペーン</span>
-                <span className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5" />
-                  実施中
-                </span>
+                <span className="text-sm font-black text-primary">友達にOsusOwakeを教えよう</span>
               </div>
               <p className="text-sm text-foreground font-medium leading-relaxed">
-                友達が初めておすそわけを受け取るとすると、<br />
-                あなたに <span className="text-primary font-black text-base">100pt</span> プレゼント！
+                紹介経由で登録が増えると、今後特別な特典があるかも？🌱
               </p>
             </div>
 
