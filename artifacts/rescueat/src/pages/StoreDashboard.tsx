@@ -464,6 +464,7 @@ function PostBagModal({
 
                     {/* 出品ボタン */}
                     <button
+                      type="button"
                       onClick={handleQuickSubmit}
                       disabled={!imageUrl || !bagCategory || isSubmitting}
                       className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all ${
@@ -488,7 +489,7 @@ function PostBagModal({
           )}
 
           {mode === 'manual' && (
-            <form onSubmit={handleManualSubmit} className="space-y-4">
+            <form onSubmit={handleManualSubmit} className="space-y-4" noValidate>
 
               {/* 商品タイプ選択 */}
               <div>

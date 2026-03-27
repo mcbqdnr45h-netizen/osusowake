@@ -244,6 +244,7 @@ export default function StoreBagsPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               onSubmit={handleSubmit}
+              noValidate
               className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-lg space-y-4"
             >
               <h3 className="font-black text-foreground">新しいおすそわけバッグ</h3>
