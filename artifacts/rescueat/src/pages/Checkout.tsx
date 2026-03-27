@@ -247,9 +247,10 @@ export default function Checkout() {
           >
             <h2 className="text-base font-black mb-3">お支払い内訳</h2>
             {(() => {
-              const total = Math.round(reservation.totalPrice);
-              const platformFee = Math.floor(total * 0.25);
-              const shopAmount = total - platformFee;
+              const total       = Math.round(reservation.totalPrice);
+              const platformFee = Math.floor(total * 0.25);          // OsusOwake 25%（全額ベース）
+              const stripeFee   = Math.round(total * 0.036);         // Stripe 決済手数料 3.6%（店舗負担）
+              const shopAmount  = total - platformFee - stripeFee;   // 店舗実受取額
               return (
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
@@ -261,16 +262,23 @@ export default function Checkout() {
                       <span className="inline-block w-2 h-2 rounded-full bg-primary/40" />
                       OsusOwake プラットフォーム手数料 (25%)
                     </span>
-                    <span className="text-muted-foreground">¥{platformFee.toLocaleString()}</span>
+                    <span className="text-muted-foreground">-¥{platformFee.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground flex items-center gap-1">
-                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
-                      店舗受取予定
+                      <span className="inline-block w-2 h-2 rounded-full bg-orange-300" />
+                      Stripe 決済手数料 (3.6%)
                     </span>
-                    <span className="text-emerald-700 font-medium">¥{shopAmount.toLocaleString()}</span>
+                    <span className="text-muted-foreground">-¥{stripeFee.toLocaleString()}</span>
                   </div>
-                  <div className="border-t border-border pt-2 mt-2 flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1.5">
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                      店舗受取予定額
+                    </span>
+                    <span className="text-emerald-700 font-black">¥{shopAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="border-t border-border pt-2 mt-1 flex items-center justify-between">
                     <span className="font-black text-foreground">お支払い合計</span>
                     <span className="font-black text-lg text-primary">¥{total.toLocaleString()}</span>
                   </div>
