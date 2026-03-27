@@ -42,8 +42,8 @@ export default function StoreBagsPage() {
 
   const [form, setForm] = useState({
     title: '',
-    originalPrice: 1000,
-    discountedPrice: 350,
+    originalPrice: 0,
+    discountedPrice: 0,
     stockCount: 3,
     pickupStart: '18:00',
     pickupEnd: '20:00',
@@ -108,7 +108,7 @@ export default function StoreBagsPage() {
       setImageUrl(null);
       setBagCategory('');
       setAiSuggested(null);
-      setForm({ title: '', originalPrice: 1000, discountedPrice: 350, stockCount: 3, pickupStart: '18:00', pickupEnd: '20:00' });
+      setForm({ title: '', originalPrice: 0, discountedPrice: 0, stockCount: 3, pickupStart: '18:00', pickupEnd: '20:00' });
     } catch {
       toast({ title: '出品に失敗しました', variant: 'destructive' });
     } finally {
@@ -278,8 +278,12 @@ export default function StoreBagsPage() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
                       <input
                         type="number" inputMode="numeric" required
-                        value={form.originalPrice || ''}
-                        onChange={e => setForm({ ...form, originalPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        value={form.originalPrice === 0 ? '' : form.originalPrice}
+                        onFocus={e => e.target.select()}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                          setForm({ ...form, originalPrice: raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0) });
+                        }}
                         className="w-full bg-secondary/40 border-2 border-border rounded-xl pl-7 pr-3 py-3 font-bold focus:border-primary outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
@@ -290,8 +294,12 @@ export default function StoreBagsPage() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
                       <input
                         type="number" inputMode="numeric" required
-                        value={form.discountedPrice || ''}
-                        onChange={e => setForm({ ...form, discountedPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        value={form.discountedPrice === 0 ? '' : form.discountedPrice}
+                        onFocus={e => e.target.select()}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                          setForm({ ...form, discountedPrice: raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0) });
+                        }}
                         className="w-full bg-secondary/40 border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary focus:border-primary outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>

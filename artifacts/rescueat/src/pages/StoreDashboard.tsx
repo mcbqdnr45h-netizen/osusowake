@@ -110,8 +110,8 @@ function PostBagModal({
     description: '',
     allergyInfo: '',
     pickupNote: '',
-    originalPrice: 1000,
-    discountedPrice: 350,
+    originalPrice: 0,
+    discountedPrice: 0,
     stockCount: 3,
     pickupStart: '18:00',
     pickupEnd: '20:00',
@@ -571,8 +571,12 @@ function PostBagModal({
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
                       <input
                         type="number" inputMode="numeric" required
-                        value={form.originalPrice || ''}
-                        onChange={e => setForm({ ...form, originalPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        value={form.originalPrice === 0 ? '' : form.originalPrice}
+                        onFocus={e => e.target.select()}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                          setForm({ ...form, originalPrice: raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0) });
+                        }}
                         className="w-full bg-secondary/40 border-2 border-border rounded-xl pl-7 pr-3 py-3 font-bold focus:border-primary outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
@@ -583,8 +587,12 @@ function PostBagModal({
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-bold text-sm">¥</span>
                       <input
                         type="number" inputMode="numeric" required
-                        value={form.discountedPrice || ''}
-                        onChange={e => setForm({ ...form, discountedPrice: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        value={form.discountedPrice === 0 ? '' : form.discountedPrice}
+                        onFocus={e => e.target.select()}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                          setForm({ ...form, discountedPrice: raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0) });
+                        }}
                         className="w-full bg-secondary/40 border-2 border-primary/30 rounded-xl pl-7 pr-3 py-3 font-black text-primary focus:border-primary outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
@@ -968,9 +976,14 @@ function EditBagModal({
                 <p className="text-[10px] font-bold text-muted-foreground mb-1">元値（税込）</p>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
-                  <input type="number" min={0} value={form.originalPrice}
-                    onChange={e => setForm(f => ({ ...f, originalPrice: Number(e.target.value) }))}
-                    className="w-full border border-border rounded-xl pl-7 pr-3 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background"
+                  <input type="number" inputMode="numeric" min={0}
+                    value={form.originalPrice === 0 ? '' : form.originalPrice}
+                    onFocus={e => e.target.select()}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                      setForm(f => ({ ...f, originalPrice: raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0) }));
+                    }}
+                    className="w-full border border-border rounded-xl pl-7 pr-3 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -978,9 +991,14 @@ function EditBagModal({
                 <p className="text-[10px] font-bold text-muted-foreground mb-1">販売価格（税込）</p>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">¥</span>
-                  <input type="number" min={0} value={form.discountedPrice}
-                    onChange={e => setForm(f => ({ ...f, discountedPrice: Number(e.target.value) }))}
-                    className="w-full border border-border rounded-xl pl-7 pr-3 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background"
+                  <input type="number" inputMode="numeric" min={0}
+                    value={form.discountedPrice === 0 ? '' : form.discountedPrice}
+                    onFocus={e => e.target.select()}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                      setForm(f => ({ ...f, discountedPrice: raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0) }));
+                    }}
+                    className="w-full border border-border rounded-xl pl-7 pr-3 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
