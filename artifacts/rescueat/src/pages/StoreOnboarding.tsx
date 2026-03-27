@@ -41,7 +41,8 @@ async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<
 }
 
 const ONBOARDING_DRAFT_KEY = 'store-onboarding-draft-v1';
-type OnboardingDraft = { name: string; address: string; city: string; category: string; phone: string };
+const BUSINESS_TYPE_KEY = 'store-business-type';
+type OnboardingDraft = { name: string; address: string; city: string; category: string; phone: string; businessType?: 'individual' | 'company' };
 function saveOnboardingDraft(d: OnboardingDraft) {
   try { localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
 }
@@ -50,6 +51,9 @@ function loadOnboardingDraft(): Partial<OnboardingDraft> {
 }
 function clearOnboardingDraft() {
   try { localStorage.removeItem(ONBOARDING_DRAFT_KEY); } catch (_) {}
+}
+function saveBusinessType(t: 'individual' | 'company') {
+  try { localStorage.setItem(BUSINESS_TYPE_KEY, t); } catch (_) {}
 }
 
 export default function StoreOnboarding() {
@@ -64,6 +68,9 @@ export default function StoreOnboarding() {
   const [imagePreview, setImagePreview] = useState('');
 
   const obDraft = loadOnboardingDraft();
+  const [businessType, setBusinessType] = useState<'individual' | 'company'>(
+    obDraft.businessType ?? 'individual'
+  );
   const [form, setForm] = useState({
     name:     obDraft.name     ?? '',
     address:  obDraft.address  ?? '',
@@ -87,10 +94,11 @@ export default function StoreOnboarding() {
   // 入力内容を自動保存（フォーム変化から1秒後）
   useEffect(() => {
     const t = setTimeout(() => {
-      saveOnboardingDraft({ name: form.name, address: form.address, city: form.city, category: form.category, phone: form.phone });
+      saveOnboardingDraft({ name: form.name, address: form.address, city: form.city, category: form.category, phone: form.phone, businessType });
+      saveBusinessType(businessType);
     }, 1000);
     return () => clearTimeout(t);
-  }, [form.name, form.address, form.city, form.category, form.phone]);
+  }, [form.name, form.address, form.city, form.category, form.phone, businessType]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -178,10 +186,11 @@ export default function StoreOnboarding() {
           const stored = body?.store;
           console.log('[StoreOnboarding] already_exists stripeAccountId=', stored?.stripeAccountId);
           clearOnboardingDraft();
+          saveBusinessType(businessType);
           if (stored?.stripeAccountId) {
             navigate('/store/dashboard');
           } else {
-            navigate('/store/bank-setup');
+            navigate(`/store/bank-setup?type=${businessType}`);
           }
           return;
         }
@@ -207,7 +216,8 @@ export default function StoreOnboarding() {
       // 登録成功 → 下書きクリアして bank-setup へ
       console.log('[StoreOnboarding] ✅ 登録成功 id=', responseBody.id, '→ /store/bank-setup');
       clearOnboardingDraft();
-      navigate('/store/bank-setup');
+      saveBusinessType(businessType);
+      navigate(`/store/bank-setup?type=${businessType}`);
     } catch (err: unknown) {
       clearTimeout(timeout);
 
@@ -220,7 +230,8 @@ export default function StoreOnboarding() {
             const checkStore = await check.json().catch(() => null);
             console.log('[StoreOnboarding] タイムアウト後、店舗確認 OK → 遷移');
             clearOnboardingDraft();
-            navigate(checkStore?.stripeAccountId ? '/store/dashboard' : '/store/bank-setup');
+            saveBusinessType(businessType);
+            navigate(checkStore?.stripeAccountId ? '/store/dashboard' : `/store/bank-setup?type=${businessType}`);
             return;
           }
         } catch (_) {}
@@ -282,18 +293,44 @@ export default function StoreOnboarding() {
             </div>
           </div>
 
-          {/* 個人事業主専用バッジ */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3 text-sm">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
-              <span className="text-base">🏪</span>
+          {/* 事業形態選択 */}
+          <div>
+            <label className="block text-sm font-bold text-muted-foreground mb-2">
+              事業形態を選択してください <span className="text-destructive">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { type: 'individual' as const, emoji: '👤', label: '個人事業主', desc: '個人・フリーランス・小規模店舗' },
+                { type: 'company'    as const, emoji: '🏢', label: '法人',       desc: '株式会社・合同会社・社団法人など' },
+              ]).map(({ type, emoji, label, desc }) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => { setBusinessType(type); saveBusinessType(type); }}
+                  className={`relative flex flex-col items-center gap-1.5 p-4 rounded-2xl border-2 text-center transition-all ${
+                    businessType === type
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-input bg-background hover:border-primary/40'
+                  }`}
+                >
+                  {businessType === type && (
+                    <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                      <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 text-white fill-none stroke-white stroke-[1.5]">
+                        <polyline points="2,5.5 4.2,7.5 8,3" />
+                      </svg>
+                    </span>
+                  )}
+                  <span className="text-2xl">{emoji}</span>
+                  <span className={`font-black text-sm ${businessType === type ? 'text-primary' : 'text-foreground'}`}>{label}</span>
+                  <span className="text-[10px] leading-tight text-muted-foreground">{desc}</span>
+                </button>
+              ))}
             </div>
-            <div>
-              <div className="font-black text-blue-800">個人事業主・小規模事業者向け</div>
-              <div className="text-blue-600 text-xs mt-0.5 leading-relaxed">
-                Stripe Connect を使用した個人事業主向けの設定で動作します。
-                口座登録後、売上は毎週月曜日に振り込まれます。
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              {businessType === 'individual'
+                ? '👤 個人事業主として Stripe Connect に登録されます。売上は毎週月曜日に振り込まれます。'
+                : '🏢 法人として Stripe Connect に登録されます。登記簿情報と代表者情報が必要です。'}
+            </p>
           </div>
 
           {/* 店舗写真 */}

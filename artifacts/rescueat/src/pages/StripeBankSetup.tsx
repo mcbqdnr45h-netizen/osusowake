@@ -35,6 +35,10 @@ async function compressIdImage(dataUrl: string, maxPx = 1280, quality = 0.82): P
 
 // ── localStorage 下書き保存（アプリ終了後も復元）────────────────────────────────
 const DRAFT_KEY = 'bank-setup-draft-v1';
+const BUSINESS_TYPE_KEY = 'store-business-type';
+function loadSavedBusinessType(): 'individual' | 'company' {
+  try { const v = localStorage.getItem(BUSINESS_TYPE_KEY); return v === 'company' ? 'company' : 'individual'; } catch (_) { return 'individual'; }
+}
 type DraftState = {
   lastNameKanji: string; firstNameKanji: string;
   lastNameKana: string;  firstNameKana: string;
@@ -46,6 +50,7 @@ type DraftState = {
   productDescription: string; businessUrl: string;
   bankName: string; bankCode: string; branchCode: string;
   accountNumber: string; holderName: string;
+  companyNameKanji?: string; companyNameKana?: string;
 };
 function saveDraft(d: DraftState) {
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
@@ -166,10 +171,14 @@ function Field({ label, hint, required, children }: { label: string; hint?: stri
 
 // ────────────────────────────────────────────────────────────────────────────
 export default function StripeBankSetup() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { store, loading: loadingStore, fetchError, refetch } = useMyStore();
   const { session, refreshProfile } = useAuth();
   const notifiedRef = useRef(false);
+
+  // ── URL パラム or localStorage から事業形態を復元 ──
+  const urlType = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('type');
+  const initialBusinessType: 'individual' | 'company' = urlType === 'company' ? 'company' : urlType === 'individual' ? 'individual' : loadSavedBusinessType();
 
   // ── localStorage から下書きを復元（useState より先に宣言）──
   const draft = loadDraft();
@@ -184,7 +193,11 @@ export default function StripeBankSetup() {
   const [tosTime, setTosTime]             = useState<number | null>(null);
 
   // ── KYC: 事業形態 ──
-  const [businessType, setBusinessType] = useState<'individual' | 'company'>('individual');
+  const [businessType, setBusinessType] = useState<'individual' | 'company'>(initialBusinessType);
+
+  // ── KYC: 法人情報（法人の場合のみ） ──
+  const [companyNameKanji, setCompanyNameKanji] = useState(draft.companyNameKanji ?? '');
+  const [companyNameKana, setCompanyNameKana]   = useState(draft.companyNameKana  ?? '');
 
   // ── KYC: 代表者氏名 ──
   const [lastNameKanji, setLastNameKanji]   = useState(draft.lastNameKanji   ?? '');
@@ -239,6 +252,7 @@ export default function StripeBankSetup() {
     stateKana, cityKana, townKana, line1Kana,
     productDescription, businessUrl,
     bankName, bankCode, branchCode, accountNumber, holderName,
+    companyNameKanji, companyNameKana,
   });
   useEffect(() => {
     draftStateRef.current = {
@@ -248,6 +262,7 @@ export default function StripeBankSetup() {
       stateKana, cityKana, townKana, line1Kana,
       productDescription, businessUrl,
       bankName, bankCode, branchCode, accountNumber, holderName,
+      companyNameKanji, companyNameKana,
     };
     const t = setTimeout(() => saveDraft(draftStateRef.current), 2000);
     return () => clearTimeout(t);
@@ -256,7 +271,8 @@ export default function StripeBankSetup() {
       postalCode, stateKanji, cityKanji, townKanji, line1Kanji,
       stateKana, cityKana, townKana, line1Kana,
       productDescription, businessUrl,
-      bankName, bankCode, branchCode, accountNumber, holderName]);
+      bankName, bankCode, branchCode, accountNumber, holderName,
+      companyNameKanji, companyNameKana]);
 
   // 30秒おきにも保存
   useEffect(() => {
@@ -395,6 +411,7 @@ export default function StripeBankSetup() {
         body: JSON.stringify({
           bankToken:    result.token.id,
           tosTimestamp: tosTime,
+          businessType,
           kycData: {
             firstNameKanji: firstNameKanji.trim(),
             lastNameKanji:  lastNameKanji.trim(),
@@ -412,6 +429,10 @@ export default function StripeBankSetup() {
             line1Kana:  line1Kana.trim() || undefined,
             productDescription: productDescription.trim() || undefined,
             businessUrl:        businessUrl.trim() || undefined,
+            ...(businessType === 'company' ? {
+              companyNameKanji: companyNameKanji.trim() || undefined,
+              companyNameKana:  companyNameKana.trim()  || undefined,
+            } : {}),
           },
           // 本人確認書類（base64 data URL のまま送信）
           docFrontBase64: docFrontPreview,
@@ -607,19 +628,51 @@ export default function StripeBankSetup() {
           {/* ── ① 事業形態 ── */}
           <FormSection title="事業形態" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
             <div className="grid grid-cols-2 gap-3">
-              {(['individual', 'company'] as const).map(t => (
-                <button key={t} type="button" onClick={() => setBusinessType(t)}
-                  className={`py-3 rounded-xl font-bold text-sm border-2 transition-all ${
+              {([
+                { t: 'individual' as const, emoji: '👤', label: '個人事業主' },
+                { t: 'company'    as const, emoji: '🏢', label: '法人' },
+              ]).map(({ t, emoji, label }) => (
+                <button key={t} type="button"
+                  onClick={() => {
+                    setBusinessType(t);
+                    try { localStorage.setItem('store-business-type', t); } catch (_) {}
+                  }}
+                  className={`relative py-3 px-2 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center gap-0.5 ${
                     businessType === t ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500'
                   }`}>
-                  {t === 'individual' ? '👤 個人事業主' : '🏢 法人'}
+                  {businessType === t && (
+                    <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full bg-orange-500 flex items-center justify-center">
+                      <svg viewBox="0 0 10 10" className="w-2 h-2 fill-none stroke-white stroke-[1.8]"><polyline points="2,5.5 4.2,7.5 8,3" /></svg>
+                    </span>
+                  )}
+                  <span className="text-lg">{emoji}</span>
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
+            <p className="text-xs text-gray-400 mt-2">
+              {businessType === 'individual'
+                ? '個人事業主として Stripe に登録されます。マイナンバー等の個人情報が必要です。'
+                : '法人として Stripe に登録されます。法人名（登記簿上の名称）と代表者情報が必要です。'}
+            </p>
           </FormSection>
 
+          {/* ── ①-b 法人情報（法人のみ表示）── */}
+          {businessType === 'company' && (
+            <FormSection title="法人情報" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
+              <Field label="法人名（漢字・登記簿上の名称）" required hint="例：株式会社〇〇フード">
+                <input type="text" value={companyNameKanji} onChange={e => setCompanyNameKanji(e.target.value)}
+                  placeholder="株式会社〇〇フード" required={businessType === 'company'} className={inputClass} />
+              </Field>
+              <Field label="法人名（カナ）" required hint="全角カタカナ（例：カブシキガイシャ〇〇フード）">
+                <input type="text" value={companyNameKana} onChange={e => setCompanyNameKana(e.target.value)}
+                  placeholder="カブシキガイシャ〇〇フード" required={businessType === 'company'} className={inputClass} />
+              </Field>
+            </FormSection>
+          )}
+
           {/* ── ② 代表者氏名 ── */}
-          <FormSection title="代表者氏名" icon={<User className="w-5 h-5 text-orange-500" />}>
+          <FormSection title={businessType === 'company' ? '代表者（法人代表）の氏名' : '代表者氏名'} icon={<User className="w-5 h-5 text-orange-500" />}>
             <div className="grid grid-cols-2 gap-3">
               <Field label="姓（漢字）" required>
                 <input type="text" value={lastNameKanji} onChange={e => setLastNameKanji(e.target.value)}
@@ -679,7 +732,7 @@ export default function StripeBankSetup() {
           </FormSection>
 
           {/* ── ④ 住所 ── */}
-          <FormSection title="代表者（本人）の住所" icon={<MapPin className="w-5 h-5 text-orange-500" />}>
+          <FormSection title={businessType === 'company' ? '代表者（法人代表）の住所' : '代表者（本人）の住所'} icon={<MapPin className="w-5 h-5 text-orange-500" />}>
             <Field label="郵便番号（ハイフンなし7桁）" required>
               <div className="relative">
                 <input type="text" value={postalCode} onChange={e => handlePostalCodeChange(e.target.value)}
@@ -784,9 +837,12 @@ export default function StripeBankSetup() {
           </FormSection>
 
           {/* ── ⑧ 本人確認書類 ── */}
-          <FormSection title="本人確認書類" icon={<BadgeCheck className="w-5 h-5 text-orange-500" />}>
+          <FormSection title={businessType === 'company' ? '代表者の本人確認書類' : '本人確認書類'} icon={<BadgeCheck className="w-5 h-5 text-orange-500" />}>
             <p className="text-sm text-gray-500 -mt-1 mb-3">
-              運転免許証・マイナンバーカード・パスポートなど。<span className="text-red-500 font-medium">表面は必須</span>、裏面は任意です。
+              {businessType === 'company'
+                ? '代表者（法人代表）の運転免許証・マイナンバーカード・パスポートなど。'
+                : '運転免許証・マイナンバーカード・パスポートなど。'}
+              <span className="text-red-500 font-medium">表面は必須</span>、裏面は任意です。
             </p>
             {/* hidden inputs */}
             <input ref={frontInputRef} type="file" accept="image/*,image/heic,image/heif" className="hidden"

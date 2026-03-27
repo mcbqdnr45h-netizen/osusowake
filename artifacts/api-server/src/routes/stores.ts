@@ -1421,6 +1421,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
   const body = req.body as {
     bankToken: string;
     tosTimestamp: number;
+    businessType?: "individual" | "company";
     kycData: {
       firstNameKanji: string; lastNameKanji: string;
       firstNameKana: string;  lastNameKana: string;
@@ -1430,12 +1431,13 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       stateKanji: string; cityKanji: string; townKanji: string; line1Kanji?: string;
       stateKana: string;  cityKana: string;  townKana: string;  line1Kana?: string;
       productDescription?: string; businessUrl?: string;
+      companyNameKanji?: string; companyNameKana?: string;
     };
     docFrontBase64: string; docFrontMime: string;
     docBackBase64?: string; docBackMime?: string;
   };
 
-  const { bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime, docBackBase64, docBackMime } = body;
+  const { bankToken, tosTimestamp, businessType = "individual", kycData, docFrontBase64, docFrontMime, docBackBase64, docBackMime } = body;
 
   if (!bankToken || !tosTimestamp || !kycData || !docFrontBase64 || !docFrontMime) {
     res.status(400).json({ error: "bad_request", message: "bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime は必須です" });
@@ -1656,14 +1658,31 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       indiv.political_exposure = "none";
 
       const step4Payload: Record<string, any> = {
-        business_type:    "individual",
+        business_type:    businessType,
         business_profile: bizProfile,
         // ToS 再確認（JP では date・ip・service_agreement の3点セットが必須）
         tos_acceptance:   { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
         // 送金スケジュール: 毎日自動・2日後（要件充足後即時送金を有効にする）
         settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
       };
-      if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
+
+      if (businessType === "company") {
+        // 法人の場合: company オブジェクトに法人名 + 代表者情報を設定
+        const companyObj: Record<string, any> = {};
+        if (k.companyNameKanji?.trim()) companyObj.name       = k.companyNameKanji;
+        if (k.companyNameKana?.trim())  companyObj.name_kana  = k.companyNameKana;
+        if (k.postalCode?.trim()) {
+          companyObj.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
+          companyObj.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+        }
+        if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
+        if (Object.keys(companyObj).length > 0) step4Payload.company = companyObj;
+        // 法人の場合も individual に代表者の本人確認情報を付加する（Stripe JP 要件）
+        if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
+      } else {
+        // 個人事業主
+        if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
+      }
 
       console.log(`📤 [bank-setup] BG STEP4 accounts.update for ${accountId}:`);
       console.log(JSON.stringify(step4Payload, null, 2));
