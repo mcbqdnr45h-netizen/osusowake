@@ -8,16 +8,39 @@ import { LocateFixed, AlertTriangle } from 'lucide-react';
 import { loadGoogleMapsScript } from '@/lib/maps-loader';
 import { updateCachedCoords, TAKATSUKI_STATION } from '@/hooks/use-user-location';
 
+// ── バッグ情報（ピン色判定用）────────────────────────────────────────────────
+export interface BagMapInfo {
+  store: { id: number };
+  stockCount: number;
+  pickupStart?: string | null;
+  pickupEnd?: string | null;
+}
+
+// ── 受取時間内かどうかを判定（深夜またぎ対応）─────────────────────────────────
+function isInPickupWindow(start?: string | null, end?: string | null): boolean {
+  if (!start || !end) return true; // 時間制限なし → 常に表示
+  const now      = new Date();
+  const nowMins  = now.getHours() * 60 + now.getMinutes();
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const startMins = sh * 60 + sm;
+  const endMins   = eh * 60 + em;
+  if (endMins >= startMins) {
+    // 通常ウィンドウ（例: 18:00〜20:00）
+    return nowMins >= startMins && nowMins <= endMins;
+  } else {
+    // 深夜またぎ（例: 22:00〜02:00）
+    return nowMins >= startMins || nowMins <= endMins;
+  }
+}
+
 // ── プロ仕様・超ミニマル Silver マップスタイル ────────────────────────────
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  // 全要素をシルバーグレーに統一
   { elementType: 'geometry',          stylers: [{ color: '#f2f0eb' }] },
   { elementType: 'labels.text.fill',  stylers: [{ color: '#b0a898' }] },
   { elementType: 'labels.text.stroke',stylers: [{ color: '#f2f0eb' }] },
-  // POI・交通機関 — 完全非表示
   { featureType: 'poi',     stylers: [{ visibility: 'off' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  // 道路 — 細い白線、ラベルは最小限
   { featureType: 'road',                elementType: 'geometry',          stylers: [{ color: '#ffffff' }] },
   { featureType: 'road',                elementType: 'geometry.stroke',   stylers: [{ color: '#e8e4de' }] },
   { featureType: 'road',                elementType: 'labels.text.fill',  stylers: [{ color: '#c8c0b8' }] },
@@ -26,21 +49,18 @@ const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: 'road.highway',        elementType: 'geometry.stroke',   stylers: [{ color: '#ddd8cf' }] },
   { featureType: 'road.arterial',       elementType: 'labels',            stylers: [{ visibility: 'off' }] },
   { featureType: 'road.local',          elementType: 'labels',            stylers: [{ visibility: 'off' }] },
-  // 水域 — ペールグレーブルー
   { featureType: 'water', elementType: 'geometry',stylers: [{ color: '#d8e4ec' }] },
   { featureType: 'water', elementType: 'labels',  stylers: [{ visibility: 'off' }] },
-  // 景観 — ウォームシルバー
   { featureType: 'landscape',       elementType: 'geometry',stylers: [{ color: '#f2f0eb' }] },
   { featureType: 'landscape.natural',elementType: 'geometry',stylers: [{ color: '#e8ede0' }] },
-  // 行政区画 — 市区名のみ、非常に薄く
   { featureType: 'administrative',             elementType: 'labels',            stylers: [{ visibility: 'simplified' }] },
   { featureType: 'administrative',             elementType: 'labels.text.fill',  stylers: [{ color: '#c0b8b0' }] },
   { featureType: 'administrative.locality',    elementType: 'labels.text.fill',  stylers: [{ color: '#a8a098' }] },
   { featureType: 'administrative.neighborhood',elementType: 'labels',            stylers: [{ visibility: 'off' }] },
 ];
 
-// ── 出品中ピン（テラコッタ テアドロップ）────────────────────────────────
-function makeListingPinUrl(category: string): string {
+// ── オレンジピン（在庫あり・受取時間内）─────────────────────────────────────
+function makeActivePinUrl(category: string): string {
   const emoji = getCategoryIcon(category);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="66" viewBox="0 0 52 66">
     <defs>
@@ -52,15 +72,29 @@ function makeListingPinUrl(category: string): string {
         <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="rgba(160,50,0,0.42)"/>
       </filter>
     </defs>
-    <!-- 影 -->
     <ellipse cx="26" cy="63" rx="8" ry="3" fill="rgba(0,0,0,0.16)"/>
-    <!-- ピン本体（テアドロップ） -->
     <path d="M26 59 Q11 43, 7 26 A19 19 0 1 1 45 26 Q41 43, 26 59 Z"
       fill="url(#g1)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" filter="url(#ds1)"/>
-    <!-- 内側ハイライト -->
     <circle cx="26" cy="24" r="14" fill="rgba(255,255,255,0.15)"/>
-    <!-- 絵文字 -->
     <text x="26" y="31" text-anchor="middle" font-size="18" font-family="serif">${emoji}</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+// ── グレーピン（在庫切れ or 受取時間外）────────────────────────────────────
+function makeGrayPinUrl(category: string): string {
+  const emoji = getCategoryIcon(category);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="56" viewBox="0 0 44 56">
+    <defs>
+      <filter id="ds2" x="-25%" y="-10%" width="150%" height="135%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.18)"/>
+      </filter>
+    </defs>
+    <ellipse cx="22" cy="53" rx="6" ry="2.5" fill="rgba(0,0,0,0.10)"/>
+    <path d="M22 50 Q9 36, 6 22 A16 16 0 1 1 38 22 Q35 36, 22 50 Z"
+      fill="#b8c0cc" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" filter="url(#ds2)"/>
+    <circle cx="22" cy="20" r="12" fill="rgba(255,255,255,0.12)"/>
+    <text x="22" y="26" text-anchor="middle" font-size="15" font-family="serif" opacity="0.7">${emoji}</text>
   </svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
@@ -68,24 +102,21 @@ function makeListingPinUrl(category: string): string {
 // ── 現在地マーカー（テラコッタ波紋アニメーション）────────────────────────
 function makeUserIconUrl(): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-    <!-- 外側波紋（遅延なし） -->
     <circle cx="24" cy="24" r="4" fill="none" stroke="#F26419" stroke-width="1.5" opacity="0">
       <animate attributeName="r"       values="4;22;22"   dur="2.2s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
       <animate attributeName="opacity" values="0.7;0;0"   dur="2.2s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
     </circle>
-    <!-- 中間波紋（0.6s 遅延） -->
     <circle cx="24" cy="24" r="4" fill="none" stroke="#F26419" stroke-width="1" opacity="0">
       <animate attributeName="r"       values="4;16;16"   dur="2.2s" begin="0.6s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
       <animate attributeName="opacity" values="0.5;0;0"   dur="2.2s" begin="0.6s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
     </circle>
-    <!-- 中心ドット -->
     <circle cx="24" cy="24" r="7" fill="rgba(242,100,25,0.2)"/>
     <circle cx="24" cy="24" r="5" fill="#F26419" stroke="white" stroke-width="2.5"/>
   </svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-// ── クラスターレンダラー（出品中のみ・テラコッタ繊細デザイン）────────────
+// ── クラスターレンダラー（アクティブ店舗のみ対象）────────────────────────────
 function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
   return {
     render: (cluster: Cluster, stats: ClusterStats, _map: google.maps.Map) => {
@@ -93,7 +124,7 @@ function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
       const maxVal = stats.clusters.markers.max;
 
       const ratio = Math.min(count / Math.max(maxVal, 1), 1);
-      const size  = Math.round(30 + ratio * 10); // 30〜40px
+      const size  = Math.round(30 + ratio * 10);
       const half  = size / 2;
       const r     = half - 2.5;
 
@@ -139,6 +170,7 @@ export interface MapViewHandle {
 
 interface MapViewProps {
   stores: Store[];
+  bags?: BagMapInfo[];          // ← ピン色判定用バッグ一覧
   center?: [number, number];
   zoom?: number;
   userPosition?: [number, number] | null;
@@ -148,7 +180,7 @@ interface MapViewProps {
 }
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { stores, center, zoom, userPosition, onStoreSelect, onUserPositionChange, onMapIdle },
+  { stores, bags = [], center, zoom, userPosition, onStoreSelect, onUserPositionChange, onMapIdle },
   ref
 ) {
   const containerRef    = useRef<HTMLDivElement>(null);
@@ -174,13 +206,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => { onUserPositionChangeRef.current = onUserPositionChange; }, [onUserPositionChange]);
   useEffect(() => { onMapIdleRef.current            = onMapIdle;            }, [onMapIdle]);
 
-  // 外部から userPosition が渡されたときにマップをパンする
   const prevUserPositionRef = useRef<[number, number] | null | undefined>(userPosition);
   useEffect(() => {
     const prev = prevUserPositionRef.current;
     prevUserPositionRef.current = userPosition;
     if (!userPosition) return;
-    // 同じ位置なら何もしない
     if (prev && prev[0] === userPosition[0] && prev[1] === userPosition[1]) return;
     const ll = { lat: userPosition[0], lng: userPosition[1] };
     setUserPos(ll);
@@ -221,17 +251,56 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
-  // 【重要】出品中（在庫あり）の店舗のみをマップに表示
+  // ── バッグのある店舗IDセット ─────────────────────────────────────────────
+  const storeIdsWithBags = useMemo(
+    () => new Set(bags.map(b => b.store.id)),
+    [bags]
+  );
+
+  // ── マップに表示する店舗（バッグ保有店のみ・ID+座標で重複排除）──────────────
+  // 重複排除ロジック:
+  //   1. 店舗IDで重複排除（同じIDが複数来ても1ピンのみ）
+  //   2. 同一座標（約11m精度）の別店舗も1ピンに統合（「2」バグの根本原因修正）
   const listingStores = useMemo(() => {
-    const seen = new Set<number | string>();
+    const seenId  = new Set<number | string>();
+    const seenLoc = new Set<string>();
     return stores.filter(s => {
-      const ok       = (s as any).status === 'approved' || !(s as any).status;
-      const bagCount = s.totalBagsAvailable ?? 0;
-      if (!ok || bagCount === 0 || seen.has(s.id)) return false;
-      seen.add(s.id);
+      const ok = (s as any).status === 'approved' || !(s as any).status;
+      // バッグを持つ店舗のみ（在庫ゼロでも今日出品中ならグレーで表示）
+      if (!ok || !storeIdsWithBags.has(s.id as number)) return false;
+      if (seenId.has(s.id)) return false;
+      seenId.add(s.id);
+      // 同一lat/lng（約11m精度）の重複ピンを排除
+      const locKey = `${Math.round(s.lat * 10000)}-${Math.round(s.lng * 10000)}`;
+      if (seenLoc.has(locKey)) return false;
+      seenLoc.add(locKey);
       return true;
     });
-  }, [stores]);
+  }, [stores, storeIdsWithBags]);
+
+  // ── アクティブ店舗（オレンジピン: 在庫あり + 受取時間内）────────────────────
+  const activeListingStores = useMemo(() => {
+    return listingStores.filter(s =>
+      bags.some(b =>
+        b.store.id === s.id &&
+        b.stockCount > 0 &&
+        isInPickupWindow(b.pickupStart, b.pickupEnd)
+      )
+    );
+  }, [listingStores, bags]);
+
+  // ── マーカーKey（ID:色 文字列）─────────────────────────────────────────────
+  // 店舗リストや在庫・時間が変わったときだけマーカーを再描画
+  const markerKey = useMemo(() => {
+    return listingStores.map(s => {
+      const isActive = bags.some(b =>
+        b.store.id === s.id &&
+        b.stockCount > 0 &&
+        isInPickupWindow(b.pickupStart, b.pickupEnd)
+      );
+      return `${s.id}:${isActive ? 'orange' : 'gray'}`;
+    }).join(',');
+  }, [listingStores, bags]);
 
   // ── マップ初期化 ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -240,11 +309,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     async function init() {
       try {
-        // ⚠️ Safari iOS: geolocationはユーザー操作（ボタンタップ）の中でのみ呼び出す。
-        // 初期化時に呼ぶとSafariのプライバシー制限でパーミッションダイアログが出ない場合がある。
-        // 現在地取得はhandleLocate()に委ねる。
         const startCenter = mapCenter;
-
         await loadGoogleMapsScript();
         if (cancelled || !containerRef.current) return;
 
@@ -292,13 +357,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return () => { cancelled = true; };
   }, []);
 
-  // ── 出品中マーカー（クラスタリング）────────────────────────────────────
+  // ── 店舗マーカー（オレンジ/グレー色分け + クラスタリング）──────────────────
+  // クラスタリング対象はオレンジ（アクティブ）のみ。
+  // グレーはクラスターに含めず、個別ピンとして常に表示する。
   useEffect(() => {
     if (status !== 'ready') return;
     const map   = mapRef.current;
     const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
     if (!map || !gMaps) return;
 
+    // 既存マーカーをすべて削除
     if (clustererRef.current) {
       clustererRef.current.clearMarkers();
       clustererRef.current = null;
@@ -311,48 +379,65 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     if (listingStores.length === 0) return;
 
-    const markers: google.maps.Marker[] = listingStores.map(store => {
+    const activeMarkers: google.maps.Marker[] = [];
+    const allMarkers:    google.maps.Marker[] = [];
+
+    listingStores.forEach(store => {
+      // このstoreが「アクティブ（在庫あり + 受取時間内）」かを判定
+      const isActive = bags.some(b =>
+        b.store.id === store.id &&
+        b.stockCount > 0 &&
+        isInPickupWindow(b.pickupStart, b.pickupEnd)
+      );
+
+      const pinUrl = isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category);
+      const [w, h, ax, ay] = isActive ? [52, 66, 26, 59] : [44, 56, 22, 50];
+
       const marker = new gMaps.Marker({
         position: { lat: store.lat, lng: store.lng },
         icon: {
-          url:        makeListingPinUrl(store.category),
-          scaledSize: new gMaps.Size(52, 66),
-          anchor:     new gMaps.Point(26, 59),
+          url:        pinUrl,
+          scaledSize: new gMaps.Size(w, h),
+          anchor:     new gMaps.Point(ax, ay),
         },
         title:  store.name,
-        zIndex: 10,
+        zIndex: isActive ? 10 : 5,
+        // グレーピンはクラスタに入れないためmapを直接設定
+        map: isActive ? undefined : map,
       });
 
       marker.addListener('click', () => {
         const pos = marker.getPosition();
         if (pos) {
-          // zoom 15 に設定してから中心をピンに合わせ、下へオフセットしてピンを画面上部に表示
           map.setZoom(15);
           map.panTo(pos);
-          // 下方向に200pxパンすることで、60%ボトムシート表示時もピンが上半分に映る
           setTimeout(() => { map.panBy(0, 200); }, 80);
         }
         onStoreSelectRef.current?.(store);
       });
 
-      return marker;
+      allMarkers.push(marker);
+      if (isActive) activeMarkers.push(marker);
     });
 
-    storeMarkersRef.current = markers;
+    storeMarkersRef.current = allMarkers;
 
-    clustererRef.current = new MarkerClusterer({
-      map,
-      markers,
-      algorithm: new SuperClusterAlgorithm({
-        radius:    80,
-        maxZoom:   15,
-        minPoints: 2,
-      }),
-      renderer: makeClusterRenderer(gMaps),
-    });
-  }, [listingStores.map(s => `${s.id}`).join(','), status]); // eslint-disable-line react-hooks/exhaustive-deps
+    // オレンジマーカーのみクラスタリング
+    if (activeMarkers.length > 0) {
+      clustererRef.current = new MarkerClusterer({
+        map,
+        markers: activeMarkers,
+        algorithm: new SuperClusterAlgorithm({
+          radius:    80,
+          maxZoom:   15,
+          minPoints: 2,
+        }),
+        renderer: makeClusterRenderer(gMaps),
+      });
+    }
+  }, [markerKey, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 現在地マーカー（テラコッタ波紋）────────────────────────────────────
+  // ── 現在地マーカー ────────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
     const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
@@ -375,7 +460,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
   }, [userPos, status]);
 
-  // ── GPS ── iOS Safari 対策: getCurrentPosition は必ずクリックハンドラ内で同期呼び出し
+  // ── GPS ── iOS Safari 対策 ─────────────────────────────────────────────────
   function handleLocate() {
     if (userPos) {
       mapRef.current?.panTo(userPos);
@@ -387,13 +472,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       return;
     }
     setLocating(true);
-    // ⚠️ Safari iOS: async/await や Promise chain を挟まず、
-    //    onClick から直接 getCurrentPosition を呼ぶことで
-    //    権限ダイアログが確実に表示される。
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        updateCachedCoords(ll);   // 共有キャッシュ更新 → SearchPage の距離ソートにも反映
+        updateCachedCoords(ll);
         setUserPos(ll);
         mapRef.current?.panTo(ll);
         mapRef.current?.setZoom(15);
@@ -407,13 +489,15 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
   }
 
+  // ── 表示範囲内のアクティブ店舗数（凡例カウント）─────────────────────────────
+  // 「おすそわけ受付中 ○店」はオレンジ（在庫あり + 受取時間内）の店舗のみ数える
   const visibleListingCount = useMemo(() => {
-    if (!visibleBounds) return listingStores.length;
+    if (!visibleBounds) return activeListingStores.length;
     const { north, south, east, west } = visibleBounds;
-    return listingStores.filter(s =>
+    return activeListingStores.filter(s =>
       s.lat >= south && s.lat <= north && s.lng >= west && s.lng <= east
     ).length;
-  }, [listingStores, visibleBounds]);
+  }, [activeListingStores, visibleBounds]);
 
   return (
     <div className="w-full h-full relative">
@@ -451,7 +535,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             >－</button>
           </div>
 
-          {/* GPS FAB ボタン（洗練されたフローティングボタン） */}
+          {/* GPS FAB */}
           <button
             onClick={handleLocate}
             aria-label={locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地を表示'}
@@ -468,15 +552,25 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             }
           </button>
 
-          {/* 凡例（出品中のみ） */}
-          {visibleListingCount > 0 && (
+          {/* 凡例バッジ（オレンジ店舗のみカウント）*/}
+          {(visibleListingCount > 0 || listingStores.length > 0) && (
             <div className="absolute bottom-[76px] left-3 z-10 bg-white/96 backdrop-blur-sm rounded-2xl px-3 py-2 flex items-center gap-2 border border-gray-100/80"
               style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-              <div className="w-3 h-3 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#FA9455,#D44A00)' }} />
-              <span className="text-[11px] font-bold text-gray-700">おすそわけ受付中</span>
-              <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                {visibleListingCount}店
-              </span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#FA9455,#D44A00)' }} />
+                <span className="text-[11px] font-bold text-gray-700">受付中</span>
+                <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                  {visibleListingCount}店
+                </span>
+              </div>
+              {listingStores.length > activeListingStores.length && (
+                <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#b8c0cc] shrink-0" />
+                  <span className="text-[10px] text-gray-400 font-medium">
+                    {listingStores.length - activeListingStores.length}店 時間外
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </>

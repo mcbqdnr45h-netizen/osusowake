@@ -1022,6 +1022,7 @@ export default function SearchPage() {
               <MapView
                 ref={mapViewRef}
                 stores={displayStores}
+                bags={bags || []}
                 center={mapInitPos ?? undefined}
                 userPosition={mapInitPos ?? undefined}
                 onStoreSelect={handleStoreSelect}
