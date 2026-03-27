@@ -284,6 +284,20 @@ async function runMigrations() {
     `);
     console.log('[migration] stores.stripe_kyc_admin_email_sent ✅');
 
+    // ── sales_leads テーブル ─────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sales_leads (
+        id          SERIAL PRIMARY KEY,
+        reported_by TEXT,
+        store_name  TEXT NOT NULL,
+        location    TEXT NOT NULL,
+        memo        TEXT,
+        status      TEXT NOT NULL DEFAULT 'new',
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+    console.log('[migration] sales_leads table ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

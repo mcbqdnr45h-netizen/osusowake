@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { storesTable, announcementsTable, webPushSubscriptionsTable, notificationsTable } from "@workspace/db/schema";
+import { storesTable, announcementsTable, webPushSubscriptionsTable, notificationsTable, salesLeadsTable } from "@workspace/db/schema";
 import { eq, sql, desc } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import { Resend } from "resend";
@@ -429,6 +429,83 @@ router.post("/admin/notifications/broadcast", requireAdmin, async (req: any, res
     res.json({ ok: true, sentTo: rows.length });
   } catch (err: any) {
     console.error("[admin] notification broadcast error:", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── POST /sales-leads ── 誰でもOK（食品ロスのお店を通報）─────────────────────
+router.post("/sales-leads", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const { storeName, location, memo } = req.body as {
+      storeName?: string;
+      location?: string;
+      memo?: string;
+    };
+    if (!storeName?.trim() || !location?.trim()) {
+      res.status(400).json({ error: "bad_request", message: "店舗名と場所は必須です" });
+      return;
+    }
+    const [lead] = await db.insert(salesLeadsTable).values({
+      reportedBy: user?.id ?? null,
+      storeName:  storeName.trim(),
+      location:   location.trim(),
+      memo:       memo?.trim() ?? null,
+      status:     "new",
+    }).returning();
+
+    // 管理者に in-app 通知
+    const { data: adminRow } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("email", ADMIN_EMAIL)
+      .maybeSingle();
+    if (adminRow?.id) {
+      await db.insert(notificationsTable).values({
+        userId: adminRow.id,
+        type:   "sales_lead",
+        title:  "🏪 新しい営業リードが届きました！",
+        body:   `${storeName.trim()}（${location.trim()}）`,
+        read:   false,
+      });
+    }
+    res.json({ ok: true, id: lead.id });
+  } catch (err: any) {
+    console.error("[sales-leads] POST error:", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── GET /admin/sales-leads ── 管理者のみ ───────────────────────────────────
+router.get("/admin/sales-leads", requireAdmin, async (_req, res) => {
+  try {
+    const leads = await db
+      .select()
+      .from(salesLeadsTable)
+      .orderBy(desc(salesLeadsTable.createdAt));
+    res.json(leads);
+  } catch (err: any) {
+    console.error("[admin] sales-leads GET error:", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── PATCH /admin/sales-leads/:id ── ステータス更新 ────────────────────────
+router.patch("/admin/sales-leads/:id", requireAdmin, async (req: any, res) => {
+  try {
+    const id     = Number(req.params.id);
+    const status = (req.body as { status?: string }).status;
+    if (!status) {
+      res.status(400).json({ error: "bad_request", message: "status is required" });
+      return;
+    }
+    await db
+      .update(salesLeadsTable)
+      .set({ status })
+      .where(eq(salesLeadsTable.id, id));
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error("[admin] sales-leads PATCH error:", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });

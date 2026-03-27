@@ -7,7 +7,7 @@ import {
   ShieldCheck, TrendingUp, Users, Store, Clock, CheckCircle, XCircle,
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench, CreditCard,
-  LogOut, ExternalLink, Package, Receipt,
+  LogOut, ExternalLink, Package, Receipt, Flag, MapPin,
 } from 'lucide-react';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 
@@ -49,6 +49,16 @@ interface Announcement {
   created_at: string;
 }
 
+interface SalesLead {
+  id: number;
+  reported_by: string | null;
+  store_name: string;
+  location: string;
+  memo: string | null;
+  status: string;
+  created_at: string;
+}
+
 function fmt(n: number) {
   return new Intl.NumberFormat('ja-JP').format(n);
 }
@@ -80,6 +90,7 @@ export default function AdminDashboard() {
   const [metrics, setMetrics]             = useState<Metrics | null>(null);
   const [stores, setStores]               = useState<AdminStore[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [salesLeads, setSalesLeads]       = useState<SalesLead[]>([]);
   const [loading, setLoading]             = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
@@ -115,14 +126,16 @@ export default function AdminDashboard() {
     if (!token) return;
     setLoading(true);
     try {
-      const [mRes, sRes, aRes] = await Promise.all([
+      const [mRes, sRes, aRes, lRes] = await Promise.all([
         fetch(`${BASE}/api/admin/metrics`,       { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${BASE}/api/admin/stores`,        { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${BASE}/api/admin/announcements`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${BASE}/api/admin/sales-leads`,   { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (mRes.ok) setMetrics(await mRes.json());
       if (sRes.ok) setStores(await sRes.json());
       if (aRes.ok) setAnnouncements(await aRes.json());
+      if (lRes.ok) setSalesLeads(await lRes.json());
       // 設定の読み込み（グローバルキャッシュ経由）
       const appSettings = await fetchAppSettings();
       setCatchphrase(appSettings.catchphrase);
@@ -761,6 +774,86 @@ export default function AdminDashboard() {
               {maintenanceMode ? '🔧 設定を保存してメンテナンス開始' : '設定を保存する'}
             </button>
 
+          </div>
+        </motion.div>
+
+        {/* ── 営業リード（食品ロスのお店情報）── */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+          <div className="bg-card rounded-3xl overflow-hidden"
+            style={{ boxShadow: '0 4px 16px -4px rgba(10,8,6,0.1)' }}>
+            <div className="px-5 pt-5 pb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Flag className="w-4 h-4 text-orange-500" />
+                  <p className="font-black text-foreground">営業リード</p>
+                  <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                    {salesLeads.filter(l => l.status === 'new').length} 件未対応
+                  </span>
+                </div>
+              </div>
+
+              {salesLeads.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Flag className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">まだリードはありません</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {salesLeads.map(lead => (
+                    <div key={lead.id} className={`rounded-2xl border p-4 space-y-2 ${
+                      lead.status === 'new' ? 'bg-orange-50 border-orange-200' :
+                      lead.status === 'contacted' ? 'bg-blue-50 border-blue-200' :
+                      lead.status === 'converted' ? 'bg-green-50 border-green-200' :
+                      'bg-secondary border-border'
+                    }`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-black text-sm text-foreground truncate">{lead.store_name}</p>
+                            <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${
+                              lead.status === 'new'       ? 'bg-orange-200 text-orange-800' :
+                              lead.status === 'contacted' ? 'bg-blue-200 text-blue-800' :
+                              lead.status === 'converted' ? 'bg-green-200 text-green-800' :
+                                                            'bg-gray-200 text-gray-700'
+                            }`}>
+                              {lead.status === 'new' ? '未対応' : lead.status === 'contacted' ? '連絡済み' : lead.status === 'converted' ? '成約' : 'クローズ'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                            <MapPin className="w-3 h-3 shrink-0" />
+                            <span>{lead.location}</span>
+                          </div>
+                          {lead.memo && (
+                            <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">{lead.memo}</p>
+                          )}
+                          <p className="text-[10px] text-muted-foreground/50 mt-1">
+                            {new Date(lead.created_at).toLocaleDateString('ja-JP')}
+                          </p>
+                        </div>
+                        <select
+                          value={lead.status}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value;
+                            await fetch(`${BASE}/api/admin/sales-leads/${lead.id}`, {
+                              method:  'PATCH',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body:    JSON.stringify({ status: newStatus }),
+                            });
+                            setSalesLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: newStatus } : l));
+                          }}
+                          className="shrink-0 text-[11px] font-bold border border-border rounded-xl px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                          <option value="new">未対応</option>
+                          <option value="contacted">連絡済み</option>
+                          <option value="converted">成約</option>
+                          <option value="closed">クローズ</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
 

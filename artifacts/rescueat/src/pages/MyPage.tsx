@@ -4,7 +4,7 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Share2, Copy, Check, Flag } from 'lucide-react';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +15,8 @@ export default function MyPage() {
   const { store, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStore();
   const [, navigate] = useLocation();
   const { user, profile, session, isLoading: authLoading, signOut, refreshProfile } = useAuth();
+  const referralCode = userId ? `OW${userId.replace(/-/g, '').slice(0, 6).toUpperCase()}` : null;
+  const [referralCopied, setReferralCopied] = useState(false);
   const roleFixedRef = useRef(false);
 
   // ── ストアがあるのに customer 表示の場合 → role を修正してプロフィールを再取得 ──
@@ -130,7 +132,16 @@ export default function MyPage() {
                 {notifications.slice(0, 8).map(n => (
                   <div key={n.id} className={`px-4 py-3 ${!n.read ? 'bg-primary/[0.03]' : ''}`}>
                     <div className="flex items-start gap-2.5">
-                      <Megaphone className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      {(() => {
+                        switch (n.type) {
+                          case 'new_bag':         return <ShoppingBag className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />;
+                          case 'bag_sold':        return <Receipt className="w-3.5 h-3.5 text-green-600 shrink-0 mt-0.5" />;
+                          case 'pickup_reminder': return <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />;
+                          case 'store_approved':  return <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0 mt-0.5" />;
+                          case 'store_rejected':  return <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />;
+                          default:                return <Megaphone className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />;
+                        }
+                      })()}
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs font-bold ${!n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
                         <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{n.body}</p>
@@ -383,6 +394,58 @@ export default function MyPage() {
           </motion.div>
         )}
 
+        {/* ── 紹介コードカード（全ユーザー）── */}
+        {referralCode && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="mb-4 rounded-2xl overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #FFF8F0 0%, #FFE8CC 100%)', border: '2px solid rgba(242,100,25,0.25)' }}
+          >
+            <div className="px-5 py-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🌱</span>
+                  <p className="text-sm font-black text-foreground">あなたの紹介コード</p>
+                </div>
+                <span className="text-[10px] font-bold text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
+                  友達に教えよう
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-3">紹介経由で登録が増えると、今後特別な特典があるかも？🌱</p>
+              <div className="bg-white/80 rounded-2xl py-4 flex items-center justify-center mb-3 border border-primary/15">
+                <span className="text-4xl font-black font-mono tracking-[0.2em] text-primary">{referralCode}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(referralCode).then(() => {
+                      setReferralCopied(true);
+                      setTimeout(() => setReferralCopied(false), 2000);
+                    });
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-muted-foreground hover:bg-muted transition-colors tap-scale"
+                >
+                  {referralCopied
+                    ? <><Check className="w-4 h-4 text-green-500" /><span className="text-green-500">コピー済み</span></>
+                    : <><Copy className="w-4 h-4" />コピー</>}
+                </button>
+                <button
+                  onClick={() => {
+                    const text = `OsusOwakeで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」で登録してみて 🌱\nhttps://osusowake.app`;
+                    if (navigator.share) navigator.share({ text }).catch(() => {});
+                    else navigator.clipboard.writeText(text);
+                  }}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-black hover:bg-primary/90 transition-colors tap-scale"
+                >
+                  <Share2 className="w-4 h-4" />シェア
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Menu List */}
         <div className="bg-card rounded-2xl overflow-hidden"
           style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)' }}>
@@ -477,6 +540,20 @@ export default function MyPage() {
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </Link>
           )}
+
+          <Link
+            href="/report-store"
+            className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors border-b border-border"
+          >
+            <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shrink-0">
+              <Flag className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <div className="font-bold text-foreground">食品ロスのお店を教えて</div>
+              <div className="text-xs text-muted-foreground">OsusOwakeスタッフが直接お伺いします</div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </Link>
 
           <Link
             href="/help"

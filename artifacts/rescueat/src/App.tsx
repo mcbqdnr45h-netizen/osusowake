@@ -49,6 +49,7 @@ import StoreDetailPublic from "./pages/StoreDetailPublic";
 import HelpPage from "./pages/HelpPage";
 import TokushoPage from "./pages/TokushoPage";
 import MyTownPage from "./pages/MyTownPage";
+import SalesLeadForm from "./pages/SalesLeadForm";
 
 // ── ルートガードファクトリ ─────────────────────────────────────────────────────
 // 認証が必要なルート
@@ -194,6 +195,7 @@ function AnimatedRoutes() {
           <Route path="/privacy" component={Privacy} />
           <Route path="/legal" component={TokushoPage} />
           <Route path="/help" component={HelpPage} />
+          <Route path="/report-store" component={SalesLeadForm} />
           <Route path="/tokusho" component={TokushoPage} />
           <Route path="/verify-email" component={VerifyEmail} />
           <Route path="/success" component={CheckoutSuccess} />

@@ -12,6 +12,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -292,8 +293,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   }
 
+  async function resetPasswordForEmail(email: string): Promise<{ error: string | null }> {
+    try {
+      const origin = window.location.origin;
+      const base = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.BASE_URL : '') ?? '';
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${origin}${base.replace(/\/$/, '')}/reset-password`,
+      });
+      if (error) return { error: translateError(error.message) };
+      return { error: null };
+    } catch {
+      return { error: 'エラーが発生しました。しばらくしてから再試行してください' };
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, session, isLoading, signUp, signUpAsStore, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, session, isLoading, signUp, signUpAsStore, signIn, signOut, refreshProfile, resetPasswordForEmail }}>
       {children}
     </AuthContext.Provider>
   );

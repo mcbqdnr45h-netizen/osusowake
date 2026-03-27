@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, Store } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Store, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
 
 export default function Login() {
   const [, navigate] = useLocation();
-  const { signIn } = useAuth();
+  const { signIn, resetPasswordForEmail } = useAuth();
 
   function getInitialTab(): 'user' | 'store' {
     const params = new URLSearchParams(window.location.search);
@@ -21,6 +21,23 @@ export default function Login() {
   const [isLoading,  setIsLoading]  = useState(false);
   const [error,      setError]      = useState('');
   const [shakeKey,   setShakeKey]   = useState(0);
+
+  // ── パスワードリセット ──
+  const [showForgotPw,  setShowForgotPw]  = useState(false);
+  const [forgotEmail,   setForgotEmail]   = useState('');
+  const [forgotSending, setForgotSending] = useState(false);
+  const [forgotSent,    setForgotSent]    = useState(false);
+  const [forgotError,   setForgotError]   = useState('');
+
+  async function handleForgotPw() {
+    if (!forgotEmail.trim() || forgotSending) return;
+    setForgotSending(true);
+    setForgotError('');
+    const { error: err } = await resetPasswordForEmail(forgotEmail);
+    setForgotSending(false);
+    if (err) { setForgotError(err); return; }
+    setForgotSent(true);
+  }
 
   // タブ変更時: URLを更新（リマウント時の状態リセット防止）、フォームをクリア
   function handleTabChange(tab: 'user' | 'store') {
@@ -174,6 +191,87 @@ export default function Login() {
                 </motion.button>
               </div>
             </div>
+
+            {/* パスワードを忘れた方はこちら */}
+            {!isStore && (
+              <div className="flex justify-end -mt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotPw(v => !v); setForgotEmail(email); setForgotSent(false); setForgotError(''); }}
+                  className="text-[12px] text-primary font-bold hover:underline underline-offset-2"
+                >
+                  パスワードを忘れた方はこちら
+                </button>
+              </div>
+            )}
+
+            {/* パスワードリセットパネル */}
+            <AnimatePresence>
+              {showForgotPw && !isStore && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
+                    {forgotSent ? (
+                      <div className="flex flex-col items-center gap-2 py-1">
+                        <CheckCircle className="w-8 h-8 text-green-500" />
+                        <p className="text-sm font-black text-foreground text-center">メールを送信しました！</p>
+                        <p className="text-[12px] text-muted-foreground text-center leading-relaxed">
+                          {forgotEmail} にパスワード再設定のリンクを送りました。<br/>メールをご確認ください。
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => { setShowForgotPw(false); setForgotSent(false); }}
+                          className="text-[12px] text-primary font-bold underline underline-offset-2 mt-1"
+                        >
+                          ログインに戻る
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-[12px] font-bold text-foreground">パスワード再設定メールを送信します</p>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                            <Mail className="w-4 h-4 text-muted-foreground/60" />
+                          </div>
+                          <input
+                            type="email"
+                            value={forgotEmail}
+                            onChange={e => setForgotEmail(e.target.value)}
+                            placeholder="登録メールアドレスを入力"
+                            className="w-full bg-white border border-border/80 rounded-xl pl-10 pr-4 py-3 text-sm font-medium placeholder:text-muted-foreground/45 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                          />
+                        </div>
+                        {forgotError && (
+                          <p className="text-[12px] text-destructive font-semibold">{forgotError}</p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowForgotPw(false)}
+                            className="flex-1 py-2.5 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-colors"
+                          >
+                            キャンセル
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!forgotEmail.trim() || forgotSending}
+                            onClick={handleForgotPw}
+                            className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-black disabled:opacity-50 hover:bg-primary/90 transition-colors"
+                          >
+                            {forgotSending ? '送信中...' : '送信する'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* エラー（シェイク付き） */}
             <AnimatePresence>
