@@ -51,12 +51,12 @@ interface Announcement {
 
 interface SalesLead {
   id: number;
-  reported_by: string | null;
-  store_name: string;
+  reportedBy: string | null;
+  storeName: string;
   location: string;
   memo: string | null;
   status: string;
-  created_at: string;
+  createdAt: string;
 }
 
 function fmt(n: number) {
@@ -820,7 +820,7 @@ export default function AdminDashboard() {
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-black text-sm text-foreground">{lead.store_name}</p>
+                              <p className="font-black text-sm text-foreground">{lead.storeName}</p>
                               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${badgeCls}`}>
                                 {lead.status === 'new' ? '未対応' : lead.status === 'contacted' ? '連絡済み' : lead.status === 'converted' ? '成約' : 'クローズ'}
                               </span>
@@ -839,7 +839,7 @@ export default function AdminDashboard() {
                           <div className="px-4 pb-4 pt-1 space-y-3 border-t border-black/5">
                             <div>
                               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-0.5">店舗名</p>
-                              <p className="text-sm font-black text-foreground">{lead.store_name}</p>
+                              <p className="text-sm font-black text-foreground">{lead.storeName}</p>
                             </div>
                             <div>
                               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-0.5">場所・エリア</p>
@@ -857,7 +857,7 @@ export default function AdminDashboard() {
                             <div>
                               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-0.5">報告日時</p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(lead.created_at).toLocaleString('ja-JP')}
+                                {lead.createdAt ? new Date(lead.createdAt).toLocaleString('ja-JP') : '—'}
                               </p>
                             </div>
                             <div>
