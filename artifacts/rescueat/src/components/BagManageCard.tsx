@@ -20,20 +20,38 @@ export interface Bag {
 export type BagRealStatus = 'active' | 'expired' | 'soldout' | 'inactive';
 
 export function getBagStatus(
-  bag: { isActive: boolean; stockCount: number; pickupEnd: string | null; createdAt: string },
+  bag: { isActive: boolean; stockCount: number; pickupEnd: string | null; pickupStart?: string | null; createdAt: string },
   now: Date,
 ): BagRealStatus {
   if (!bag.isActive) return 'inactive';
   if (bag.pickupEnd) {
-    const created = new Date(bag.createdAt);
-    const isCreatedToday =
-      created.getFullYear() === now.getFullYear() &&
-      created.getMonth()    === now.getMonth()    &&
-      created.getDate()     === now.getDate();
-    if (!isCreatedToday) return 'expired';
-    const [h, m] = bag.pickupEnd.split(':').map(Number);
-    const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0, 0);
-    if (now > endTime) return 'expired';
+    // JST での現在時刻文字列 "HH:MM"
+    const jstNow       = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const currentTime  = jstNow.toISOString().slice(11, 16);
+    const todayStr     = jstNow.toISOString().slice(0, 10);
+    const yesterdayStr = new Date(jstNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const jstCreated = new Date(new Date(bag.createdAt).getTime() + 9 * 60 * 60 * 1000);
+    const createdStr = jstCreated.toISOString().slice(0, 10);
+
+    // 深夜またぎ判定（例: pickupStart="22:00", pickupEnd="01:00"）
+    const isOvernight = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
+
+    if (isOvernight) {
+      if (createdStr === todayStr) {
+        // 今日出品 → 翌日の pickupEnd まで有効（まだ期限切れではない）
+        return bag.stockCount === 0 ? 'soldout' : 'active';
+      } else if (createdStr === yesterdayStr) {
+        // 昨日出品 → 翌日（今日）の pickupEnd を過ぎたら期限切れ
+        if (currentTime > bag.pickupEnd) return 'expired';
+      } else {
+        return 'expired'; // 2日以上前
+      }
+    } else {
+      // 通常バッグ：今日出品 かつ pickupEnd 未達ならアクティブ
+      if (createdStr !== todayStr) return 'expired';
+      if (currentTime > bag.pickupEnd) return 'expired';
+    }
   }
   if (bag.stockCount === 0) return 'soldout';
   return 'active';

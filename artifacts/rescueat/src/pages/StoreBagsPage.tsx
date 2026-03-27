@@ -452,7 +452,7 @@ export default function StoreBagsPage() {
                     onChange={e => setForm({ ...form, pickupEnd: e.target.value })}
                     className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-3 font-bold focus:border-primary outline-none transition-all" />
                   <p className="text-[10px] text-muted-foreground mt-1 leading-tight">
-                    この時間を過ぎると自動で非表示になります
+                    終了が開始より早い場合は翌日の時間として扱います
                   </p>
                 </div>
               </div>

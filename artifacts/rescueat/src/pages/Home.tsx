@@ -430,12 +430,15 @@ export default function Home() {
     return { nearbyBags: withDist, distMap: map };
   }, [visibleBags, userCoords]);
 
-  // ── ④ 今夜の受け取り（17:00〜22:00） ──
+  // ── ④ 今夜の受け取り（17:00〜翌02:00、深夜またぎ含む） ──
   const eveningBags = useMemo(
     () => applySortKey(sortedVisibleBags.filter(b => {
       const start = b.pickupStart || '';
       const end   = b.pickupEnd   || '';
       if (!start) return false;
+      // 深夜またぎ（例: 22:00〜01:00）は必ず含める
+      if (end && end < start) return true;
+      // 通常: 開始が22:00以前 かつ 終了が17:00以降
       return start <= '22:00' && (!end || end >= '17:00');
     })).slice(0, 8),
     [sortedVisibleBags, applySortKey]
