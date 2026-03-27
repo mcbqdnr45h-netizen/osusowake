@@ -33,3 +33,6 @@ channel = "stable-25_05"
 [userenv.shared]
 Maps_API_KEY = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U"
 VITE_MAPS_API_KEY = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U"
+VAPID_PUBLIC_KEY = "BDK8cqECLF0U8qfnfqdNcsLT1biIK7BFHIN_7ZBV19hLGHniUZe4EHrc-CKwRmS9fj7Ae02LrpiNYwZoxRLfTZg"
+VAPID_PRIVATE_KEY = "GHniUZe4EHrc-CKwRmS9fj7Ae02LrpiNYwZoxRLfTZg"
+VAPID_SUBJECT = "mailto:support@osusowake.app"

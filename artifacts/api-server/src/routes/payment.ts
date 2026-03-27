@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { reservationsTable, surpriseBagsTable, storesTable, cartReservationsTable } from "@workspace/db/schema";
+import { reservationsTable, surpriseBagsTable, storesTable, cartReservationsTable, notificationsTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { sendWebPushToUser } from "../lib/push.js";
 import {
   CreatePaymentIntentBody,
   ConfirmPaymentBody,
@@ -268,6 +269,27 @@ router.post("/payment/confirm", async (req, res) => {
       bag: null,
       store: null,
     });
+
+    // 店舗オーナーへの購入通知（レスポンス後・非致命的）
+    setImmediate(async () => {
+      try {
+        const [store] = await db
+          .select({ ownerId: storesTable.ownerId, name: storesTable.name })
+          .from(storesTable)
+          .where(eq(storesTable.id, updated.storeId))
+          .limit(1);
+        if (store?.ownerId) {
+          const title = "【重要】おすそわけバッグが購入されました！";
+          const body  = `受取コード: ${updated.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
+          await Promise.all([
+            db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title, body }),
+            sendWebPushToUser(store.ownerId, { title, body, tag: `bag-sold-${updated.id}`, url: "/store/orders" }),
+          ]);
+        }
+      } catch (e) {
+        console.error("[payment] confirm-payment store notification error:", e);
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: "bad_request", message: "Failed to confirm payment" });
@@ -509,11 +531,12 @@ router.get("/checkout/verify", async (req, res) => {
         totalPrice: reservationsTable.totalPrice,
         paymentStatus: reservationsTable.paymentStatus,
         pickupCode: reservationsTable.pickupCode,
-        bagTitle: surpriseBagsTable.title,
-        storeName: storesTable.name,
-        pickupStart: surpriseBagsTable.pickupStart,
-        pickupEnd: surpriseBagsTable.pickupEnd,
-        stockCount: surpriseBagsTable.stockCount,
+        bagTitle:     surpriseBagsTable.title,
+        storeName:    storesTable.name,
+        storeOwnerId: storesTable.ownerId,
+        pickupStart:  surpriseBagsTable.pickupStart,
+        pickupEnd:    surpriseBagsTable.pickupEnd,
+        stockCount:   surpriseBagsTable.stockCount,
       })
       .from(reservationsTable)
       .leftJoin(surpriseBagsTable, eq(reservationsTable.bagId, surpriseBagsTable.id))
@@ -623,6 +646,23 @@ router.get("/checkout/verify", async (req, res) => {
           console.error("Supabase write error (non-fatal):", supaErr);
         }
       }
+
+      // 店舗オーナーへの購入通知（非同期・非致命的）
+      setImmediate(async () => {
+        try {
+          const ownerId = reservationFull.storeOwnerId;
+          if (ownerId) {
+            const title = "【重要】おすそわけバッグが購入されました！";
+            const body  = `受取コード: ${reservationFull.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
+            await Promise.all([
+              db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title, body }),
+              sendWebPushToUser(ownerId, { title, body, tag: `bag-sold-${reservationId}`, url: "/store/orders" }),
+            ]);
+          }
+        } catch (e) {
+          console.error("[payment] verify-session store notification error:", e);
+        }
+      });
     }
 
     // ── 6. 受付票データを返す ────────────────────────────────────

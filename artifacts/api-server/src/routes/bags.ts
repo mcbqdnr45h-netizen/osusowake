@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { surpriseBagsTable, storesTable, reservationsTable, favoritesTable, notificationsTable, reviewsTable } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { releaseExpiredCartReservations } from "./reservations";
+import { sendWebPushToUsers } from "../lib/push.js";
 import {
   ListStoreBagsParams,
   CreateBagParams,
@@ -250,14 +251,23 @@ router.post("/stores/:storeId/bags", async (req, res) => {
 
       if (fanRows.length > 0 && store) {
         const priceLabel = `¥${Number(body.discountedPrice).toLocaleString()}`;
+        const notifTitle = `🛍️ ${store.name} が新しいおすそ分けを出品`;
+        const notifBody  = `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個`;
         await db.insert(notificationsTable).values(
           fanRows.map(f => ({
             userId: f.userId,
-            type: "new_bag",
-            title: `🛍️ ${store.name} が新しいおすそ分けを出品`,
-            body: `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個`,
+            type:   "new_bag",
+            title:  notifTitle,
+            body:   notifBody,
           }))
         );
+        // Web Push（アプリ外通知）
+        await sendWebPushToUsers(fanRows.map(f => f.userId), {
+          title: notifTitle,
+          body:  notifBody,
+          tag:   `new-bag-${storeId}`,
+          url:   `/stores/${storeId}`,
+        });
         console.log(`[bags] notified ${fanRows.length} favorite users for store ${storeId}`);
       }
     } catch (notifErr) {

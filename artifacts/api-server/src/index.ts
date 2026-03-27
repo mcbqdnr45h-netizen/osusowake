@@ -1,6 +1,7 @@
 import app from "./app";
 import { pool } from "@workspace/db";
 import { releaseExpiredCartReservations } from "./routes/reservations";
+import { sendPickupReminders } from "./lib/pickup-reminder.js";
 
 // ── 起動時マイグレーション（冪等・全て Supabase PostgreSQL 対象）──────────────
 async function runMigrations() {
@@ -313,4 +314,9 @@ runMigrations().then(() => {
   setInterval(() => {
     releaseExpiredCartReservations().catch(() => {});
   }, 60_000);
+
+  // 受取1時間前リマインダーを5分ごとに送信
+  setInterval(() => {
+    sendPickupReminders().catch(() => {});
+  }, 5 * 60_000);
 });
