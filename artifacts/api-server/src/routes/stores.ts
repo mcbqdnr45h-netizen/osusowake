@@ -1506,11 +1506,11 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
             {
               type: "custom", country: "JP",
               ...(ownerEmail ? { email: ownerEmail } : {}),
-              capabilities: { transfers: { requested: true } },
+              capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
               business_profile: { mcc: "5812", url: businessUrl },
               // JP では service_agreement: 'full' が必須
               tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
-              // 送金スケジュール: 毎日・2日後（テスト環境でも最速）
+              // 送金スケジュール: 毎週月曜日
               settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
             },
             { idempotencyKey: `store-${storeId}-account-create` }
