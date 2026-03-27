@@ -106,11 +106,8 @@ const queryClient = new QueryClient({
   },
 });
 
-// ── ホームルーター: ゲストは Welcome、ログイン済みは Home ──────────────────
+// ── ホームルーター: ゲスト・ログイン済み共にHomeを表示 ──────────────────────
 function HomeRouter() {
-  const { user, isLoading } = useAuth();
-  if (isLoading) return null;
-  if (!user) return <Welcome />;
   return <Home />;
 }
 
