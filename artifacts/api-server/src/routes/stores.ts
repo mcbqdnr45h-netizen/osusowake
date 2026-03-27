@@ -2126,6 +2126,27 @@ router.get("/stores/:storeId/connect/stripe-prefill", async (req, res) => {
     }
 
     // 住所の組み立て（日本語順：都道府県→市区町村→番地）
+    // city と town の重複除去: town が city を前置している場合は city を省く
+    function buildJapaneseAddress(parts: (string | null | undefined)[]): string {
+      const filled = parts.filter(Boolean) as string[];
+      const deduped: string[] = [];
+      for (const part of filled) {
+        if (deduped.length === 0) {
+          deduped.push(part);
+        } else {
+          const last = deduped[deduped.length - 1];
+          if (part.startsWith(last)) {
+            // 例: last="高槻市", part="高槻市○○町" → last を longer な part で置換
+            deduped[deduped.length - 1] = part;
+          } else if (!last.endsWith(part) && !last.includes(part)) {
+            deduped.push(part);
+          }
+          // else: part が last に含まれている → スキップ（重複）
+        }
+      }
+      return deduped.join('');
+    }
+
     const addr = account.company?.address_kanji
       ?? account.individual?.address_kanji
       ?? account.company?.address
@@ -2134,15 +2155,39 @@ router.get("/stores/:storeId/connect/stripe-prefill", async (req, res) => {
     let legalAddress = '';
     if (addr && typeof addr === 'object') {
       const a = addr as { state?: string | null; city?: string | null; town?: string | null; line1?: string | null; line2?: string | null; postal_code?: string | null };
-      const parts = [a.state, a.city, a.town, a.line1, a.line2].filter(Boolean);
-      if (parts.length > 0) legalAddress = parts.join('');
-      else if (a.postal_code) legalAddress = a.postal_code;
+      const built = buildJapaneseAddress([a.state, a.city, a.town, a.line1, a.line2]);
+      legalAddress = built || (a.postal_code ? `〒${a.postal_code}` : '');
     }
 
-    // 電話番号
-    const legalPhone = account.company?.phone
-      ?? account.individual?.phone
-      ?? '';
+    // 電話番号: E.164 (+8180...) → 日本ローカル形式 (080-xxxx-xxxx)
+    function formatJapanesePhone(raw: string | null | undefined): string {
+      if (!raw) return '';
+      let digits = raw.replace(/\D/g, '');
+      // E.164: +81 → 先頭の 81 を 0 に置換
+      if (raw.startsWith('+81') || digits.startsWith('81')) {
+        digits = '0' + digits.replace(/^81/, '');
+      }
+      // 携帯・IP電話: 0[5789]0 始まり 11桁 → 0X0-XXXX-XXXX
+      if (/^0[5789]0\d{8}$/.test(digits)) {
+        return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+      }
+      // 2桁市外局番 (03, 06 など) 10桁 → 0X-XXXX-XXXX
+      if (/^0[36]\d{8}$/.test(digits)) {
+        return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+      }
+      // 3桁市外局番 10桁 → 0XX-XXX-XXXX
+      if (/^0\d{2}\d{7}$/.test(digits) && digits.length === 10) {
+        return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+      }
+      // その他 11桁 → 0XXX-XX-XXXX (4桁局番)
+      if (digits.length === 11) {
+        return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+      }
+      return digits;
+    }
+
+    const rawPhone = account.company?.phone ?? account.individual?.phone ?? '';
+    const legalPhone = formatJapanesePhone(rawPhone);
 
     // メール
     const legalEmail = account.email ?? '';
