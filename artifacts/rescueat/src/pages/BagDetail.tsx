@@ -795,7 +795,7 @@ export default function BagDetail() {
       {/* 特商法リンク */}
       <div className="text-center py-4 px-4 border-t border-border/30">
         <a
-          href={`${BASE}/stores/${bag.store.id}/legal`}
+          href="/legal"
           className="text-xs text-muted-foreground/60 hover:text-muted-foreground underline transition-colors"
         >
           特定商取引法に基づく表記

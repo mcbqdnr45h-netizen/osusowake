@@ -212,7 +212,7 @@ export default function HelpPage() {
 
         {/* Legal Links */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-          <Link href="/tokusho" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+          <Link href="/legal" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
             特定商取引法に基づく表記
           </Link>
           <span className="text-muted-foreground/40 text-xs">|</span>

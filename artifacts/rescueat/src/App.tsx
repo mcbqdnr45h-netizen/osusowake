@@ -45,8 +45,6 @@ import NotFound from "./pages/not-found";
 import SupabaseTest from "./pages/SupabaseTest";
 import StoreProfileEdit from "./pages/StoreProfileEdit";
 import StoreReviews from "./pages/StoreReviews";
-import StoreLegal from "./pages/StoreLegal";
-import StoreLegalPublic from "./pages/StoreLegalPublic";
 import StoreDetailPublic from "./pages/StoreDetailPublic";
 import HelpPage from "./pages/HelpPage";
 import TokushoPage from "./pages/TokushoPage";
@@ -90,7 +88,6 @@ const GuardedStripeBankSetup = Protected(StripeBankSetup, 'store_owner');
 const GuardedAdminVerify     = Protected(AdminVerifyShops);
 const GuardedStoreProfileEdit = Protected(StoreProfileEdit, 'store_owner');
 const GuardedStoreReviews    = Protected(StoreReviews, 'store_owner');
-const GuardedStoreLegal      = Protected(StoreLegal, 'store_owner');
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -230,13 +227,9 @@ function AnimatedRoutes() {
           <Route path="/store/bank-setup" component={GuardedStripeBankSetup} />
           <Route path="/store/profile-edit" component={GuardedStoreProfileEdit} />
           <Route path="/store/reviews"   component={GuardedStoreReviews} />
-          <Route path="/store/legal"     component={GuardedStoreLegal} />
 
           {/* ── 公開 店舗詳細 ── */}
           <Route path="/stores/:id" component={StoreDetailPublic} />
-
-          {/* ── 公開 特商法表記 ── */}
-          <Route path="/stores/:id/legal" component={StoreLegalPublic} />
 
           {/* ── 管理者 ── */}
           <Route path="/admin" component={AdminDashboard} />
