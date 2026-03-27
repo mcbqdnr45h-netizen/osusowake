@@ -1111,7 +1111,19 @@ export default function StoreDashboard() {
   );
   const now = new Date();
   const activeBags     = (bags as any[]).filter((b: any) => getBagStatus(b, now) === 'active');
-  const nonIdleBags    = (bags as any[]).filter((b: any) => b.isActive); // 画面に表示する isActive 全件（expired/soldout 含む）
+  const nonIdleBags = [...(bags as any[])]
+    .filter((b: any) => b.isActive) // isActive 全件（expired/soldout 含む）
+    .sort((a: any, b: any) => {
+      // 公開中(0) → 完売(1) → 受付終了(2)
+      const ORD: Record<string, number> = { active: 0, soldout: 1, expired: 2, inactive: 3 };
+      const sa = getBagStatus(a, now);
+      const sb = getBagStatus(b, now);
+      const diff = (ORD[sa] ?? 9) - (ORD[sb] ?? 9);
+      if (diff !== 0) return diff;
+      // 公開中の中は受取開始時間が早い順
+      if (sa === 'active') return (a.pickupStart || '').localeCompare(b.pickupStart || '');
+      return 0;
+    });
 
   // クイック出品用: title で重複排除（最新 id を優先）
   const deduplicatedBags: PastBag[] = React.useMemo(() => {
