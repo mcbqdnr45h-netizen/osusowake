@@ -26,7 +26,7 @@ const FAQ_SECTIONS: FaqSection[] = [
     items: [
       {
         q: '商品の内容は事前にわかりますか？',
-        a: '「おすそわけ袋」はおすそわけ形式のため、具体的な中身は事前にお知らせできません。カテゴリ（お惣菜・パン菓子・食材など）と内容量の目安は商品ページに記載されています。アレルギーが心配な方は、受取時にお店のスタッフへ直接ご確認ください。',
+        a: '商品の種類によって異なります。\n\n・おすそわけ袋：中身はお楽しみのセット形式のため、具体的な中身は事前にお知らせできません。\n\n・単品商品：商品名に記載されている特定の商品を販売しています。\n\nいずれの場合も、アレルギーなどが心配な方は受取時に店舗スタッフへ直接ご確認ください。',
       },
       {
         q: '受取方法を教えてください。',
@@ -137,7 +137,11 @@ function FaqAccordion({ item }: { item: FaqItem }) {
           >
             <div className="px-4 pb-4 flex gap-3">
               <span className="mt-0.5 text-blue-600 font-black text-xs shrink-0 bg-blue-50 dark:bg-blue-950 rounded px-1.5 py-0.5 leading-5">A</span>
-              <p className="text-sm text-muted-foreground leading-relaxed flex-1">{item.a}</p>
+              <div className="text-sm text-muted-foreground leading-relaxed flex-1 space-y-1.5">
+                {item.a.split('\n\n').map((para, pi) => (
+                  <p key={pi}>{para}</p>
+                ))}
+              </div>
             </div>
           </motion.div>
         )}

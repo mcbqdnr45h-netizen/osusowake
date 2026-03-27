@@ -106,7 +106,7 @@ function PostBagModal({
 
   // 手動フォーム
   const [form, setForm] = useState({
-    title: 'おすそわけ袋',
+    title: '',
     description: '',
     allergyInfo: '',
     pickupNote: '',
@@ -198,7 +198,8 @@ function PostBagModal({
 
   async function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.title.trim() || form.discountedPrice <= 0) return;
+    if (itemType === 'item' && !form.title.trim()) return;
+    if (form.discountedPrice <= 0) return;
     if (!imageUrl) {
       toast({ title: '写真を追加してください', variant: 'destructive' });
       return;
@@ -491,11 +492,7 @@ function PostBagModal({
                       type="button"
                       onClick={() => {
                         setItemType(opt.value);
-                        if (opt.value === 'bag') {
-                          setForm(f => ({ ...f, title: 'おすそわけ袋' }));
-                        } else {
-                          setForm(f => ({ ...f, title: '' }));
-                        }
+                        setForm(f => ({ ...f, title: '', description: '' }));
                       }}
                       className={`flex flex-col items-center py-3 px-2 rounded-2xl border-2 transition-all ${
                         itemType === opt.value
@@ -745,9 +742,9 @@ function PostBagModal({
 
               <button
                 type="submit"
-                disabled={isSubmitting || !form.title.trim() || form.discountedPrice <= 0 || !imageUrl}
+                disabled={isSubmitting || (itemType === 'item' && !form.title.trim()) || form.discountedPrice <= 0 || !imageUrl}
                 className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all ${
-                  !isSubmitting && form.title.trim() && form.discountedPrice > 0 && imageUrl
+                  !isSubmitting && (itemType === 'bag' || form.title.trim()) && form.discountedPrice > 0 && imageUrl
                     ? 'bg-primary text-white shadow-lg shadow-primary/25 active:scale-[0.98]'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                 }`}

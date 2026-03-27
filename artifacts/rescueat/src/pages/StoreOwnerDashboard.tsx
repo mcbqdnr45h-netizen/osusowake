@@ -247,17 +247,26 @@ export default function StoreOwnerDashboard() {
   }, []);
 
   const fetchTodaySales = useCallback(async (storeId: number, silent = false) => {
-    if (!silent) setLoadingSales(true);
+    const cacheKey = `sod_sales_v1_${storeId}`;
+    const cached = readCache<TodaySales>(cacheKey, 30 * 1000);
+    if (cached) {
+      setTodaySales(cached);
+      if (!silent) setLoadingSales(false);
+    } else if (!silent) {
+      setLoadingSales(true);
+    }
     setSalesError(false);
     try {
       const res = await fetch(`/api/stores/${storeId}/today-sales`);
       if (res.ok) {
-        setTodaySales(await res.json());
+        const data = await res.json();
+        setTodaySales(data);
+        writeCache(cacheKey, data);
       } else {
-        setSalesError(true);
+        if (!cached) setSalesError(true);
       }
     } catch {
-      setSalesError(true);
+      if (!cached) setSalesError(true);
     } finally {
       if (!silent) setLoadingSales(false);
     }
