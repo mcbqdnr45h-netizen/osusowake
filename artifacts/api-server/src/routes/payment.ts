@@ -386,10 +386,26 @@ router.post("/checkout/session", async (req, res) => {
       feeMetadata["storeStripeAccountId"] = destinationAccountId;
     }
 
-    // ── ブループリント準拠: application_fee_amount + transfer_data.destination ──
-    // 店舗が Stripe Connect アカウントを持っている場合は直接送金方式
-    // 持っていない場合は Separate Charges & Transfers にフォールバック
-    const baseSessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 【統一方式: Separate Charges and Transfers】
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //
+    // ❌ 旧実装（application_fee_amount + transfer_data）の問題:
+    //    Stripe が自動で「total - app_fee = 263円」を店舗へ送金した上に、
+    //    /checkout/verify が さらに手動で 250円を Transfer → 二重送金 → プラットフォームがマイナスに
+    //
+    // ✅ 新実装（Separate C&T）:
+    //    Step 1. チャージ全額（350円）がプラットフォームに着金
+    //    Step 2. Stripe 手数料（13円）がプラットフォームから差し引かれる → 残高 337円
+    //    Step 3. /checkout/verify で shopTransferAmount（250円）を店舗へ 1回だけ Transfer
+    //    Step 4. プラットフォーム Net = 337 - 250 = 87円 = 25% ✓（保証）
+    //
+    //    店舗 250円 ✓ | プラットフォーム 87円（25%）✓ | Stripe 13円（3.6%）✓
+    //    Stripe ダッシュボード: charge 1件 + transfer 1件 = シンプルで明瞭
+    //
+    // ※ application_fee_amount も transfer_data も使わない
+    //    → 自動送金は発生しない → 二重送金なし → マイナス処理なし
+    const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
         {
@@ -411,55 +427,14 @@ router.post("/checkout/session", async (req, res) => {
       cancel_url: cancelUrl,
       metadata: { reservationId: String(reservation.id), userId: userId || '' },
       locale: "ja",
-    };
+      payment_intent_data: { metadata: feeMetadata }, // ← app_fee/transfer_data は使わない
+    });
 
-    let session;
-    let chargeMode: string;
-
-    if (destinationAccountId) {
-      // ── 方式 A: 直接送金（ブループリント準拠） ──
-      // application_fee_amount = プラットフォーム手数料（25%固定）
-      // transfer_data.destination = 店舗 Stripe アカウント
-      try {
-        session = await stripe.checkout.sessions.create({
-          ...baseSessionParams,
-          payment_intent_data: {
-            application_fee_amount: platformRevenue,  // 25% をプラットフォームが受け取る
-            transfer_data: {
-              destination: destinationAccountId,       // 残額が店舗へ自動送金される
-            },
-            metadata: feeMetadata,
-          },
-        });
-        chargeMode = "direct_transfer";
-        console.log(
-          `[Checkout] 方式A 直接送金: total=${total}JPY | ` +
-          `platformFee(25%)=${platformRevenue}JPY → OsusOwake | ` +
-          `shopTransfer≈${shopTransferAmount}JPY → ${destinationAccountId}`
-        );
-      } catch (directErr: any) {
-        // Stripe Connect エラー（charges_enabled でないなど）→ 方式 B にフォールバック
-        if (isStripeConnectError(directErr)) {
-          console.warn(`⚠️  方式A 失敗 [${directErr.code ?? directErr.type}] → 方式B へフォールバック`);
-          session = await stripe.checkout.sessions.create({
-            ...baseSessionParams,
-            payment_intent_data: { metadata: feeMetadata },
-          });
-          chargeMode = "separate_charges_and_transfers";
-        } else {
-          throw directErr;
-        }
-      }
-    } else {
-      // ── 方式 B: Separate Charges & Transfers（Connect 未連携時） ──
-      session = await stripe.checkout.sessions.create({
-        ...baseSessionParams,
-        payment_intent_data: { metadata: feeMetadata },
-      });
-      chargeMode = "separate_charges_and_transfers";
-    }
-
-    console.log(`Checkout session created: ${session.id} (chargeMode=${chargeMode})`);
+    console.log(
+      `[Checkout] Separate C&T セッション作成: ${session.id} | ` +
+      `total=${total}JPY | platformRevenue=${platformRevenue}JPY(25%) | ` +
+      `shopTransfer=${shopTransferAmount}JPY → /checkout/verify で実行`
+    );
 
     await db
       .update(reservationsTable)
@@ -570,9 +545,13 @@ router.get("/checkout/verify", async (req, res) => {
         .catch(() => {});
 
       // ── 4. 店舗への Transfer（Separate Charges and Transfers）─────
-      // チャージ完了後に手動でTransferを作成。これがプラットフォームNet = 87円を保証する
-      // piMetadata.storeStripeAccountId と chargeIdForTransfer は Step 1 で取得済み
-      if (stripeKey && chargeIdForTransfer && piMetadata["storeStripeAccountId"]) {
+      // 【重要】chargeMode が "separate_charges_and_transfers" の場合のみ実行する。
+      // 過去の "direct_transfer"（application_fee_amount + transfer_data）方式の session は
+      // Stripe が自動送金済みのため、ここで Transfer を作ると二重送金・マイナス残高になる。
+      // 新実装では全 session が Separate C&T 方式のため chargeMode は常に一致するが、
+      // 旧データとの混在期間の安全弁としてガード条件を維持する。
+      const isSeparateCT = piMetadata["chargeMode"] === "separate_charges_and_transfers";
+      if (stripeKey && chargeIdForTransfer && piMetadata["storeStripeAccountId"] && isSeparateCT) {
         try {
           const stripe = await import("stripe").then((m) => new m.default(stripeKey));
           const transferAmount = parseInt(piMetadata["shopTransferAmount"] ?? "0", 10);
@@ -586,21 +565,25 @@ router.get("/checkout/verify", async (req, res) => {
               source_transaction: chargeIdForTransfer,       // このチャージと紐付け
               metadata: {
                 reservationId:   String(reservationId),
+                chargeMode:      "separate_charges_and_transfers",
                 platformRevenue: piMetadata["platformRevenue"] ?? "",
-                stripeFee:       piMetadata["stripeFeeEstimate"] ?? "",
+                stripeFeeEst:    piMetadata["stripeFeeEstimate"] ?? "",
                 shopTransfer:    String(transferAmount),
               },
             });
             console.log(
               `✅ Transfer成功: ${transferAmount}JPY → ${storeAccountId} ` +
               `(transfer_id=${transfer.id}, charge=${chargeIdForTransfer}) | ` +
-              `platformNet≈${piMetadata["platformRevenue"]}JPY`
+              `platformNet≈${piMetadata["platformRevenue"]}JPY (25%保証)`
             );
           }
         } catch (transferErr: any) {
           // Transfer失敗は非致命的（手動対応可能）—— 決済確認フローは継続
           console.error("⚠️ Transfer error (non-fatal, manual action may be required):", transferErr?.message ?? transferErr);
         }
+      } else if (stripeKey && stripePaymentId && !isSeparateCT) {
+        // direct_transfer 方式: Stripe 自動送金済みのためスキップ（二重送金防止）
+        console.log(`ℹ️ Transfer スキップ: chargeMode=${piMetadata["chargeMode"] ?? "不明"} — 自動送金済み (reservation=${reservationId})`);
       } else if (stripeKey && stripePaymentId) {
         // 送金先アカウント未設定の場合はスキップ（プラットフォームに全額留保）
         console.log(`ℹ️ Transfer スキップ: 送金先アカウント未設定 (reservation=${reservationId})`);
