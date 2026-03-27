@@ -305,7 +305,9 @@ function StoreBottomSheet({
                 <div className="space-y-3">
                   {storeBags.map(bag => {
                     const isSoldOut   = bag.stockCount <= 0;
-                    const discountPct = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
+                    const discountPct = bag.originalPrice > 0
+                      ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
+                      : 0;
                     const isLowStock  = bag.stockCount > 0 && bag.stockCount < 3;
                     return (
                       <div key={bag.id}

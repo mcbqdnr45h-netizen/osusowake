@@ -98,7 +98,9 @@ export function BagManageCard({
   const isExpired = status === 'expired';
   const typeInfo  = getItemTypeLabel(bag.itemType);
   const remaining = bag.stockCount - (bag.reservedCount ?? 0);
-  const discountPct = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
+  const discountPct = bag.originalPrice > 0
+    ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
+    : 0;
 
   const isToggling  = togglingId  === bag.id;
   const isDeleting  = deletingId  === bag.id;
@@ -123,9 +125,11 @@ export function BagManageCard({
               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${typeInfo.cls}`}>
                 {typeInfo.emoji} {typeInfo.label}
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600">
-                {discountPct}%OFF
-              </span>
+              {discountPct > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600">
+                  {discountPct}%OFF
+                </span>
+              )}
             </div>
             {/* タイトル */}
             <p className="font-black text-foreground leading-snug">{bag.title}</p>

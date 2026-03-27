@@ -340,7 +340,9 @@ export default function BagDetail() {
     );
   }
 
-  const discountPercent = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
+  const discountPercent = bag.originalPrice > 0
+    ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
+    : 0;
   const isSoldOut = bag.stockCount <= 0;
   const isUnavailable = isExpired || isSoldOut;
 

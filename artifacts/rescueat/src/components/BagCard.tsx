@@ -49,7 +49,9 @@ function OwnerComment({ comment }: { comment: string }) {
 }
 
 export function BagCard({ bag }: BagCardProps) {
-  const discountPercent = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
+  const discountPercent = bag.originalPrice > 0
+    ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
+    : 0;
   const isSoldOut  = bag.stockCount <= 0;
   const isLowStock = bag.stockCount > 0 && bag.stockCount <= 2;
   const { isFavorite, toggle } = useFavorites();

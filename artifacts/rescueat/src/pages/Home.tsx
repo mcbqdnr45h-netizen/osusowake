@@ -78,7 +78,9 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
   const { isFavorite, toggle } = useFavorites();
   const { user } = useAuth();
   const isSoldOut   = bag.stockCount <= 0;
-  const discountPct = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
+  const discountPct = bag.originalPrice > 0
+    ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
+    : 0;
   const isLowStock  = bag.stockCount > 0 && bag.stockCount < 3;
   const favorited   = isFavorite(bag.store.id);
   const [loaded, setLoaded] = useState(false);
@@ -108,7 +110,7 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent pointer-events-none" />
 
         {/* 割引バッジ */}
-        {!isSoldOut && (
+        {!isSoldOut && discountPct > 0 && (
           <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-0.5 rounded-md">
             {discountPct}% OFF
           </span>

@@ -221,6 +221,7 @@ export const CreateBagBody = zod.object({
   category: zod.string().optional(),
   allergyInfo: zod.string().optional(),
   pickupNote: zod.string().optional(),
+  itemType: zod.enum(['bag', 'item']).optional(),
 });
 
 /**
@@ -347,6 +348,7 @@ export const UpdateBagBody = zod.object({
   pickupEnd: zod.string().optional(),
   isActive: zod.boolean().optional(),
   category: zod.string().optional(),
+  itemType: zod.enum(['bag', 'item']).optional(),
 });
 
 export const UpdateBagResponse = zod.object({
