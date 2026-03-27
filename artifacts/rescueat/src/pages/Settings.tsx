@@ -441,53 +441,6 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* ── REFERRAL（カスタマーのみ） ── */}
-          {!isStoreOwner && <>
-          <SectionLabel>友達紹介</SectionLabel>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-1">
-
-            {/* Campaign banner */}
-            <div className="bg-gradient-to-br from-primary/10 to-primary/5 px-4 py-4 border-b border-border/60">
-              <div className="flex items-center gap-2 mb-1.5">
-                <Gift className="w-4 h-4 text-primary" />
-                <span className="text-sm font-black text-primary">友達にOsusOwakeを教えよう</span>
-              </div>
-              <p className="text-sm text-foreground font-medium leading-relaxed">
-                紹介経由で登録が増えると、今後特別な特典があるかも？🌱
-              </p>
-            </div>
-
-            {/* Referral code */}
-            <div className="px-4 py-4 border-b border-border/60">
-              <p className="text-xs font-bold text-muted-foreground mb-2">あなたの紹介コード</p>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 bg-secondary rounded-xl px-4 py-3 flex items-center justify-between">
-                  <span className="font-black text-lg text-foreground tracking-widest">{referralCode}</span>
-                </div>
-                <button
-                  onClick={handleCopy}
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0
-                    ${copied ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-foreground'}`}
-                >
-                  {copied
-                    ? <Check className="w-5 h-5" />
-                    : <Copy className="w-5 h-5" />
-                  }
-                </button>
-              </div>
-            </div>
-
-            {/* Share button */}
-            <button
-              onClick={handleShare}
-              className="w-full flex items-center justify-center gap-2 px-4 py-4 font-bold text-primary hover:bg-primary/5 transition-colors"
-            >
-              <Share2 className="w-4 h-4" />
-              友達に教える（シェア）
-            </button>
-          </div>
-          </>}
-
           {/* ── LOGOUT ── */}
           <SectionLabel>アカウント</SectionLabel>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-8">
@@ -501,6 +454,46 @@ export default function Settings() {
               <span className="flex-1 font-bold text-sm text-destructive text-left">ログアウト</span>
             </button>
           </div>
+
+          {/* ── REFERRAL（カスタマーのみ・一番下）── */}
+          {!isStoreOwner && (
+            <>
+              <SectionLabel>友達紹介</SectionLabel>
+              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-8">
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 px-4 py-4 border-b border-border/60">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Gift className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-black text-primary">友達にOsusOwakeを教えよう</span>
+                  </div>
+                  <p className="text-sm text-foreground font-medium leading-relaxed">
+                    紹介経由で登録が増えると、今後特別な特典があるかも？🌱
+                  </p>
+                </div>
+                <div className="px-4 py-4 border-b border-border/60">
+                  <p className="text-xs font-bold text-muted-foreground mb-2">あなたの紹介コード</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-secondary rounded-xl px-4 py-3 flex items-center justify-between">
+                      <span className="font-black text-lg text-foreground tracking-widest">{referralCode}</span>
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0
+                        ${copied ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-foreground'}`}
+                    >
+                      {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={handleShare}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-4 font-bold text-primary hover:bg-primary/5 transition-colors"
+                >
+                  <Share2 className="w-4 h-4" />
+                  友達に教える（シェア）
+                </button>
+              </div>
+            </>
+          )}
 
           <p className="text-center text-xs text-muted-foreground pb-4">OsusOwake v1.0.0</p>
         </div>

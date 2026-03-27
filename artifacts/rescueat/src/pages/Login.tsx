@@ -226,6 +226,9 @@ export default function Login() {
                         <p className="text-[12px] text-muted-foreground text-center leading-relaxed">
                           {forgotEmail} にパスワード再設定のリンクを送りました。<br/>メールをご確認ください。
                         </p>
+                        <p className="text-[11px] text-muted-foreground text-center leading-relaxed bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2">
+                          ※メールが届かない場合は、迷惑メールフォルダやゴミ箱を確認してください。
+                        </p>
                         <button
                           type="button"
                           onClick={() => { setShowForgotPw(false); setForgotSent(false); }}

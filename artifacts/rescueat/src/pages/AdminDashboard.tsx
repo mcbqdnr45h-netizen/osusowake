@@ -780,7 +780,7 @@ export default function AdminDashboard() {
 
         {/* ── 営業リード（食品ロスのお店情報）── */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <div className="bg-card rounded-3xl overflow-hidden"
+          <div className="bg-card rounded-3xl"
             style={{ boxShadow: '0 4px 16px -4px rgba(10,8,6,0.1)' }}>
             <div className="px-5 pt-5 pb-4">
               <div className="flex items-center justify-between mb-4">
