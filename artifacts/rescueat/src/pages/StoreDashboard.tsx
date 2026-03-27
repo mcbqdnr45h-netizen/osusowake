@@ -159,6 +159,10 @@ function PostBagModal({
       toast({ title: '商品を選択してください', variant: 'destructive' });
       return;
     }
+    if (!bagCategory) {
+      toast({ title: 'カテゴリを選択してください', variant: 'destructive' });
+      return;
+    }
     if (!imageUrl) {
       toast({ title: '写真を追加してください', variant: 'destructive' });
       return;
@@ -200,6 +204,10 @@ function PostBagModal({
     e.preventDefault();
     if (itemType === 'item' && !form.title.trim()) return;
     if (form.discountedPrice <= 0) return;
+    if (!bagCategory) {
+      toast({ title: 'カテゴリを選択してください', variant: 'destructive' });
+      return;
+    }
     if (!imageUrl) {
       toast({ title: '写真を追加してください', variant: 'destructive' });
       return;
@@ -417,12 +425,13 @@ function PostBagModal({
                     {/* 写真（過去の画像を引き継ぎ、変更も可） */}
                     <ImageUpload value={imageUrl} onChange={handleImageChange} required />
 
-                    {/* ラベル */}
+                    {/* ラベル（必須） */}
                     <CategoryPicker
                       value={bagCategory}
                       onChange={setBagCategory}
                       classifying={classifying}
                       aiSuggested={aiSuggested}
+                      required
                     />
 
                     {/* アレルギー情報 */}
@@ -456,9 +465,9 @@ function PostBagModal({
                     {/* 出品ボタン */}
                     <button
                       onClick={handleQuickSubmit}
-                      disabled={!imageUrl || isSubmitting}
+                      disabled={!imageUrl || !bagCategory || isSubmitting}
                       className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all ${
-                        imageUrl && !isSubmitting
+                        imageUrl && bagCategory && !isSubmitting
                           ? 'bg-primary text-white shadow-lg shadow-primary/25 active:scale-[0.98]'
                           : 'bg-muted text-muted-foreground cursor-not-allowed'
                       }`}
@@ -467,7 +476,9 @@ function PostBagModal({
                         ? <Loader2 className="w-5 h-5 animate-spin" />
                         : !imageUrl
                           ? '写真を追加してください'
-                          : <><Plus className="w-5 h-5" />{qty}個を今すぐ出品する</>
+                          : !bagCategory
+                            ? 'カテゴリを選択してください'
+                            : <><Plus className="w-5 h-5" />{qty}個を今すぐ出品する</>
                       }
                     </button>
                   </motion.div>
@@ -704,12 +715,13 @@ function PostBagModal({
               {/* 商品写真 */}
               <ImageUpload value={imageUrl} onChange={handleImageChange} required />
 
-              {/* ラベル（AI対応） */}
+              {/* ラベル（AI対応・必須） */}
               <CategoryPicker
                 value={bagCategory}
                 onChange={setBagCategory}
                 classifying={classifying}
                 aiSuggested={aiSuggested}
+                required
               />
 
               {/* アレルギー情報 */}
@@ -742,14 +754,19 @@ function PostBagModal({
 
               <button
                 type="submit"
-                disabled={isSubmitting || (itemType === 'item' && !form.title.trim()) || form.discountedPrice <= 0 || !imageUrl}
+                disabled={isSubmitting || (itemType === 'item' && !form.title.trim()) || form.discountedPrice <= 0 || !imageUrl || !bagCategory}
                 className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all ${
-                  !isSubmitting && (itemType === 'bag' || form.title.trim()) && form.discountedPrice > 0 && imageUrl
+                  !isSubmitting && (itemType === 'bag' || form.title.trim()) && form.discountedPrice > 0 && imageUrl && bagCategory
                     ? 'bg-primary text-white shadow-lg shadow-primary/25 active:scale-[0.98]'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                 }`}
               >
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Plus className="w-5 h-5" />出品する</>}
+                {isSubmitting
+                  ? <Loader2 className="w-5 h-5 animate-spin" />
+                  : !bagCategory
+                    ? 'カテゴリを選択してください'
+                    : <><Plus className="w-5 h-5" />出品する</>
+                }
               </button>
             </form>
           )}

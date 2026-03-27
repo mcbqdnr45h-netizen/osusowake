@@ -7,12 +7,13 @@ export const BAG_LABELS = [
 ];
 
 export function CategoryPicker({
-  value, onChange, classifying = false, aiSuggested = null,
+  value, onChange, classifying = false, aiSuggested = null, required = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   classifying?: boolean;
   aiSuggested?: string | null;
+  required?: boolean;
 }) {
   const suggestedCat = BAG_LABELS.find(c => c.value === aiSuggested);
 
@@ -20,7 +21,11 @@ export function CategoryPicker({
     <div>
       <div className="flex items-center gap-2 mb-2">
         <label className="text-xs font-bold text-muted-foreground">
-          ラベル <span className="text-muted-foreground/60 font-normal">（任意）</span>
+          ラベル
+          {required
+            ? <span className="ml-1 text-destructive font-normal text-[10px]">（必須）</span>
+            : <span className="text-muted-foreground/60 font-normal">（任意）</span>
+          }
         </label>
         {classifying && (
           <span className="flex items-center gap-1 text-[10px] text-violet-500 font-bold">
