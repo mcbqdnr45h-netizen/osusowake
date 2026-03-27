@@ -44,7 +44,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
   const customerNavItems = [
     { href: '/',                icon: Map,     label: '発見',       isUser: false },
     { href: '/map',             icon: MapPin,  label: 'マップ',     isUser: false },
-    { href: '/my-reservations', icon: Package, label: 'お届け',     isUser: false },
+    { href: '/my-reservations', icon: Package, label: 'マイバック',     isUser: false },
     { href: '/favorites',       icon: Heart,   label: 'お気に入り', isUser: false },
     { href: '/mypage',          icon: User,    label: 'マイページ', isUser: true },
   ];
@@ -54,7 +54,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
   const desktopNavItems = [
     { href: '/',    label: '発見'  },
     { href: '/map', label: 'マップ' },
-    { href: '/my-reservations', label: 'お届け' },
+    { href: '/my-reservations', label: 'マイバック' },
   ];
 
   const isLoggedIn = !!user;
