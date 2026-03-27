@@ -218,6 +218,9 @@ export default function StoreDetailPublic() {
                       <Link href={`${BASE}/bags/${bag.id}`}>
                         <div className="flex items-center gap-3 bg-card border border-border/60 rounded-2xl px-4 py-3.5 hover:border-primary/30 hover:bg-primary/[0.02] transition-all active:scale-[0.98] cursor-pointer">
                           <div className="flex-1 min-w-0">
+                            {(bag as any).itemType === 'item' && (
+                              <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 mb-1 leading-none">🥡 単品</span>
+                            )}
                             <p className="font-bold text-sm text-foreground leading-snug truncate">{bag.title}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-base font-black text-primary">

@@ -143,6 +143,9 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
       </div>
 
       <div className="p-2.5">
+        {(bag as any).itemType === 'item' && (
+          <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 mb-1 leading-none">🥡 単品</span>
+        )}
         <p className="font-black text-xs leading-tight line-clamp-2 mb-1.5 text-foreground">{bag.title}</p>
         <div className="flex items-center justify-between gap-1">
           <div className="flex flex-col gap-0.5 min-w-0">

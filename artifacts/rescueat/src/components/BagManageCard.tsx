@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Clock, Loader2, Minus, Package2, Pencil, Plus, ToggleLeft, ToggleRight, Trash2,
+  ShoppingBag, Utensils,
 } from 'lucide-react';
 
 // ─── 型 ──────────────────────────────────────────────────────────────────────
@@ -15,6 +16,14 @@ export interface Bag {
   pickupEnd: string | null;
   isActive: boolean;
   createdAt: string;
+  itemType?: string | null;
+}
+
+export function getItemTypeLabel(itemType?: string | null): { label: string; emoji: string; cls: string } {
+  if (itemType === 'item') {
+    return { label: '単品', emoji: '🥡', cls: 'bg-blue-50 text-blue-600 border border-blue-200' };
+  }
+  return { label: 'おすそわけ袋', emoji: '🛍', cls: 'bg-orange-50 text-orange-600 border border-orange-200' };
 }
 
 export type BagRealStatus = 'active' | 'expired' | 'soldout' | 'inactive';
@@ -87,6 +96,7 @@ export function BagManageCard({
   const status    = getBagStatus(bag, now);
   const badge     = STATUS_BADGE[status];
   const isExpired = status === 'expired';
+  const typeInfo  = getItemTypeLabel(bag.itemType);
   const remaining = bag.stockCount - (bag.reservedCount ?? 0);
   const discountPct = Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100);
 
@@ -106,11 +116,14 @@ export function BagManageCard({
           {/* 左：テキスト情報 */}
           <div className="flex-1 min-w-0">
             {/* ステータスバッジ */}
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${badge.cls}`}>
                 {badge.text}
               </span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600`}>
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${typeInfo.cls}`}>
+                {typeInfo.emoji} {typeInfo.label}
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600">
                 {discountPct}%OFF
               </span>
             </div>

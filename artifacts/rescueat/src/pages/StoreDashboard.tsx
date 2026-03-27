@@ -98,6 +98,7 @@ function PostBagModal({
   const [quickPickupEnd, setQuickPickupEnd] = useState('20:00');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [itemType, setItemType] = useState<'bag' | 'item'>('bag');
 
   // クイックモード追加情報
   const [quickAllergyInfo, setQuickAllergyInfo] = useState('');
@@ -105,7 +106,7 @@ function PostBagModal({
 
   // 手動フォーム
   const [form, setForm] = useState({
-    title: '',
+    title: 'おすそわけ袋',
     description: '',
     allergyInfo: '',
     pickupNote: '',
@@ -181,6 +182,7 @@ function PostBagModal({
           category: bagCategory || undefined,
           allergyInfo: quickAllergyInfo.trim() || undefined,
           pickupNote: quickPickupNote.trim() || undefined,
+          itemType: (pastBag as any).itemType ?? 'bag',
         },
       });
       toast({ title: '出品しました！', description: `${pastBag.title} × ${qty}個` });
@@ -206,7 +208,7 @@ function PostBagModal({
       await createBag.mutateAsync({
         storeId,
         data: {
-          title: form.title.trim().length >= 4 ? form.title.trim() : `${storeName}のおすそわけバッグ`,
+          title: form.title.trim().length >= 2 ? form.title.trim() : (itemType === 'bag' ? 'おすそわけ袋' : `${storeName}の商品`),
           description: form.description.trim() || `${storeName}の美味しいおすそわけです！`,
           originalPrice: Number(form.originalPrice),
           discountedPrice: Number(form.discountedPrice),
@@ -217,6 +219,7 @@ function PostBagModal({
           category: bagCategory || undefined,
           allergyInfo: form.allergyInfo.trim() || undefined,
           pickupNote: form.pickupNote.trim() || undefined,
+          itemType,
         },
       });
       toast({ title: '出品しました！' });
@@ -475,14 +478,50 @@ function PostBagModal({
           {mode === 'manual' && (
             <form onSubmit={handleManualSubmit} className="space-y-4">
 
+              {/* 商品タイプ選択 */}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-2">商品タイプ</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { value: 'bag',  emoji: '🛍', label: 'おすそわけ袋', sub: 'おまかせ詰め合わせ' },
+                    { value: 'item', emoji: '🥡', label: '単品商品',    sub: '特定の商品を販売' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setItemType(opt.value);
+                        if (opt.value === 'bag') {
+                          setForm(f => ({ ...f, title: 'おすそわけ袋' }));
+                        } else {
+                          setForm(f => ({ ...f, title: '' }));
+                        }
+                      }}
+                      className={`flex flex-col items-center py-3 px-2 rounded-2xl border-2 transition-all ${
+                        itemType === opt.value
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-border bg-secondary/30 text-muted-foreground'
+                      }`}
+                    >
+                      <span className="text-2xl mb-1">{opt.emoji}</span>
+                      <span className="text-xs font-black">{opt.label}</span>
+                      <span className="text-[10px] mt-0.5 opacity-70">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* 商品名 */}
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">商品名</label>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                  商品名
+                  {itemType === 'bag' && <span className="ml-1 text-[10px] font-normal text-muted-foreground/60">（デフォルト：おすそわけ袋）</span>}
+                </label>
                 <input
                   required
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
-                  placeholder="例：本日のパン詰め合わせ"
+                  placeholder={itemType === 'bag' ? 'おすそわけ袋' : '例：本日の焼きたてパン、日替わり弁当など'}
                   className="w-full bg-secondary/40 border-2 border-border rounded-xl px-4 py-3 font-bold placeholder:text-muted-foreground/50 placeholder:font-normal focus:border-primary outline-none transition-all"
                 />
               </div>
@@ -490,7 +529,7 @@ function PostBagModal({
               {/* バッグの内容（説明） */}
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-                  バッグの内容 <span className="font-normal text-muted-foreground/60">（空欄で自動入力）</span>
+                  {itemType === 'bag' ? 'バッグの内容' : '商品の説明'} <span className="font-normal text-muted-foreground/60">（空欄で自動入力）</span>
                 </label>
                 <textarea
                   value={form.description}
@@ -747,6 +786,7 @@ function EditBagModal({
     pickupEnd:      bag.pickupEnd   ?? '',
     originalPrice:  bag.originalPrice,
     discountedPrice: bag.discountedPrice,
+    itemType:       (bag.itemType ?? 'bag') as 'bag' | 'item',
   });
   const [saving,   setSaving]   = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
@@ -765,6 +805,7 @@ function EditBagModal({
           pickupEnd:       form.pickupEnd   || null,
           originalPrice:   form.originalPrice,
           discountedPrice: form.discountedPrice,
+          itemType:        form.itemType,
         }),
       });
       if (!res.ok) throw new Error();
@@ -836,6 +877,30 @@ function EditBagModal({
         {/* フォーム */}
         <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
 
+          {/* 商品タイプ */}
+          <div>
+            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-2 block">商品タイプ</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: 'bag',  emoji: '🛍', label: 'おすそわけ袋' },
+                { value: 'item', emoji: '🥡', label: '単品商品' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, itemType: opt.value }))}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-black transition-all ${
+                    form.itemType === opt.value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-border bg-secondary/30 text-muted-foreground'
+                  }`}
+                >
+                  <span>{opt.emoji}</span>{opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* タイトル */}
           <div>
             <label className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">商品名</label>
@@ -844,7 +909,7 @@ function EditBagModal({
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               className="w-full border border-border rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 bg-background"
-              placeholder="例：本日のおすすめセット"
+              placeholder={form.itemType === 'bag' ? 'おすそわけ袋' : '例：本日のおすすめセット'}
             />
           </div>
 

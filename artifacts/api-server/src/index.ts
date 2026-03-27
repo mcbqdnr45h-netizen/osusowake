@@ -298,6 +298,19 @@ async function runMigrations() {
     `);
     console.log('[migration] sales_leads table ✅');
 
+    // ── surprise_bags: item_type 列 ──────────────────────────────────────────
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='surprise_bags' AND column_name='item_type'
+        ) THEN
+          ALTER TABLE surprise_bags ADD COLUMN item_type TEXT DEFAULT 'bag';
+        END IF;
+      END $$;
+    `);
+    console.log('[migration] surprise_bags.item_type ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {
