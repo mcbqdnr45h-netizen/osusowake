@@ -52,6 +52,7 @@ export default function Login() {
         setShakeKey(k => k + 1);
         return;
       }
+      const params = new URLSearchParams(window.location.search);
       const redirect = params.get('redirect');
       if (redirect) {
         const decoded = decodeURIComponent(redirect);
