@@ -55,33 +55,24 @@ export function isBagExpired(bag: {
 }
 
 // 受取時間が過ぎていないか判定するSQL条件（JST基準）
-// ⚠️ created_at は TIMESTAMP WITHOUT TIME ZONE（UTC値）で保存されているため、
-//    AT TIME ZONE 'UTC' で明示的にUTCと宣言してからJSTへ変換する必要がある。
-//    直接 AT TIME ZONE 'Asia/Tokyo' すると「JST値をUTCに変換」と解釈されて9時間ずれる。
-// - pickupEnd が NULL           → 常に表示
-// - 通常バッグ（同日）          → 今日出品(JST) かつ pickupEnd が現在時刻以降
-// - 深夜またぎバッグ            → pickupEnd < pickupStart のとき翌日まで表示
+// ◎ 「今日作成」制約を撤廃し、isActive=true かつ在庫ありならいつ作成されても表示する。
+//   pickupEnd が設定されている場合のみ時刻チェックを行う。
+// - pickupEnd が NULL           → 常に表示（時間制限なし）
+// - 通常バッグ                  → pickupEnd が JST 現在時刻以降なら表示
+// - 深夜またぎバッグ            → pickupEnd < pickupStart のとき常に表示
+//   （23:00〜01:00 のように翌日にまたぐバッグは時刻が逆転している）
 const notExpiredCondition = sql`(
   ${surpriseBagsTable.pickupEnd} IS NULL
 
   OR (
-    -- 通常ケース：今日出品(JST) かつ pickupEnd が現在時刻以降
-    DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
-    AND ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
+    -- 通常ケース: pickupEnd が現在時刻以降（作成日問わず）
+    ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
     AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
   )
 
   OR (
-    -- 深夜またぎ（今日出品JST）: pickupEnd < pickupStart → 翌日の pickupEnd まで常に表示
-    DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
-    AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
-  )
-
-  OR (
-    -- 深夜またぎ（昨日出品JST）: 翌日の今 pickupEnd を過ぎていない
-    DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day'
-    AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
-    AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
+    -- 深夜またぎ: pickupEnd < pickupStart → 時刻が逆転しているバッグは常に表示
+    ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
   )
 )`;
 

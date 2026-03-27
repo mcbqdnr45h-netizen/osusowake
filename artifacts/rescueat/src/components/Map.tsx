@@ -6,9 +6,7 @@ import { getCategoryIcon } from '@/lib/category-utils';
 import { LocateFixed, AlertTriangle } from 'lucide-react';
 
 import { loadGoogleMapsScript } from '@/lib/maps-loader';
-import { updateCachedCoords } from '@/hooks/use-user-location';
-
-const OSAKA_CENTER = { lat: 34.7856, lng: 135.4380 };
+import { updateCachedCoords, TAKATSUKI_STATION } from '@/hooks/use-user-location';
 
 // ── プロ仕様・超ミニマル Silver マップスタイル ────────────────────────────
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
@@ -170,7 +168,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   );
   const [visibleBounds, setVisibleBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
 
-  const mapCenter = center ? { lat: center[0], lng: center[1] } : OSAKA_CENTER;
+  const mapCenter = center ? { lat: center[0], lng: center[1] } : TAKATSUKI_STATION;
 
   useEffect(() => { onStoreSelectRef.current        = onStoreSelect;        }, [onStoreSelect]);
   useEffect(() => { onUserPositionChangeRef.current = onUserPositionChange; }, [onUserPositionChange]);

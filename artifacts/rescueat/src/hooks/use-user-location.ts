@@ -5,6 +5,9 @@ export interface UserCoords {
   lng: number;
 }
 
+// デフォルト位置：高槻駅（GPS 取得失敗時のフォールバック）
+export const TAKATSUKI_STATION: UserCoords = { lat: 34.8456, lng: 135.6174 };
+
 let cachedCoords: UserCoords | null = null;
 
 /** Map の GPS ボタンなど、ユーザー操作の中から呼び出して共有キャッシュを更新する */
@@ -12,11 +15,33 @@ export function updateCachedCoords(coords: UserCoords | null) {
   cachedCoords = coords;
 }
 
+// ページ読み込み時に一度だけ GPS を試みる（非 iOS 向け）
+// iOS Safari はユーザー操作なしでも permission ダイアログは出るが、
+// enableHighAccuracy: false + timeout: 8000 で軽量に取得する
+let autoGpsRequested = false;
+function tryAutoGps(): void {
+  if (autoGpsRequested || !navigator.geolocation) return;
+  autoGpsRequested = true;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      cachedCoords = ll;
+      // リスナーへ通知
+      gpsListeners.forEach(fn => fn(ll));
+    },
+    () => { /* 拒否またはタイムアウト → 無視（フォールバックは高槻駅） */ },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 }
+  );
+}
+
+type GpsListener = (coords: UserCoords) => void;
+const gpsListeners = new Set<GpsListener>();
+
 /**
- * キャッシュ済みの位置情報を返すだけのフック。
- * ⚠️ iOS Safari 対策: useEffect 内で getCurrentPosition を呼ぶと
- * ユーザーのジェスチャー外となり権限ダイアログが出ない場合があるため、
- * 自動取得は行わない。位置取得は必ずボタンクリックから行う。
+ * ユーザーの現在地を返すフック。
+ * - マウント時に自動で GPS を要求（初回のみ）
+ * - 取得できなければ coords は null（Map 側で高槻駅フォールバックを使用）
+ * - GPS ボタン等でキャッシュが更新されたら自動で再レンダリング
  */
 export function useUserLocation() {
   const [coords, setCoords] = useState<UserCoords | null>(cachedCoords);
@@ -24,7 +49,25 @@ export function useUserLocation() {
 
   useEffect(() => {
     mounted.current = true;
-    if (cachedCoords) setCoords(cachedCoords);
+
+    // すでにキャッシュがあれば即反映
+    if (cachedCoords) {
+      setCoords(cachedCoords);
+    } else {
+      // GPS 取得完了時に setState を呼ぶリスナーを登録
+      const listener: GpsListener = (ll) => {
+        if (mounted.current) setCoords(ll);
+      };
+      gpsListeners.add(listener);
+      // 自動 GPS 要求（未実行なら）
+      tryAutoGps();
+
+      return () => {
+        mounted.current = false;
+        gpsListeners.delete(listener);
+      };
+    }
+
     return () => { mounted.current = false; };
   }, []);
 
