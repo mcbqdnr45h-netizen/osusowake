@@ -310,6 +310,7 @@ export default function Home() {
   const [searchQuery,    setSearchQuery]    = useState('');
   const [showSearch,     setShowSearch]     = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
+  const [activeItemType, setActiveItemType] = useState<'all' | 'bag' | 'item'>('all');
   const [inStockOnly,    setInStockOnly]    = useState(true);  // デフォルトON
   const [sortKey,        setSortKey]        = useState<SortKey>('default');
   const [showSort,       setShowSort]       = useState(false);
@@ -369,16 +370,17 @@ export default function Home() {
     else { setSearchQuery(''); }
   }, [showSearch]);
 
-  // 絞り込みモード: 検索・カテゴリが変わった時のみ（ソートはセクション構造を崩さない）
-  const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all';
+  // 絞り込みモード: 検索・カテゴリ・商品タイプが変わった時のみ
+  const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || activeItemType !== 'all';
 
   const allBags = bags || [];
 
-  // 在庫フィルターを適用したベースバッグ
-  const visibleBags = useMemo(
-    () => inStockOnly ? allBags.filter(b => b.stockCount > 0) : allBags,
-    [allBags, inStockOnly]
-  );
+  // 在庫フィルター + 商品タイプフィルターを適用したベースバッグ
+  const visibleBags = useMemo(() => {
+    let b = inStockOnly ? allBags.filter(b => b.stockCount > 0) : allBags;
+    if (activeItemType !== 'all') b = b.filter(b => ((b as any).itemType ?? 'bag') === activeItemType);
+    return b;
+  }, [allBags, inStockOnly, activeItemType]);
 
   // ソート関数（各セクション・縦リスト共通）
   const applySortKey = useCallback((arr: SurpriseBagWithStore[]) => {
@@ -457,7 +459,7 @@ export default function Home() {
   const activeFilterCnt = [activeCategory !== 'all', inStockOnly !== true].filter(Boolean).length;
 
   function clearAll() {
-    setSearchQuery(''); setActiveCategory('all'); setInStockOnly(true); setSortKey('default'); setShowSearch(false);
+    setSearchQuery(''); setActiveCategory('all'); setActiveItemType('all'); setInStockOnly(true); setSortKey('default'); setShowSearch(false);
   }
 
   const dismissKeyboard = useCallback(() => {
@@ -544,6 +546,30 @@ export default function Home() {
 
           {/* Row 2: カテゴリーピル */}
           <CategoryPills activeCategory={activeCategory} onSelect={setActiveCategory} />
+
+          {/* Row 2.5: 商品タイプタブ */}
+          <div className="flex gap-1.5 px-4 pb-2">
+            {([
+              { value: 'all',  label: 'すべて',      emoji: '✨' },
+              { value: 'bag',  label: 'おすそわけ袋', emoji: '🛍' },
+              { value: 'item', label: '単品商品',     emoji: '🥡' },
+            ] as const).map(opt => (
+              <motion.button
+                key={opt.value}
+                type="button"
+                onClick={() => setActiveItemType(prev => prev === opt.value && opt.value !== 'all' ? 'all' : opt.value)}
+                whileTap={{ scale: 0.92 }}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border shrink-0 transition-all ${
+                  activeItemType === opt.value
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-card text-foreground border-border hover:border-primary/40'
+                }`}
+              >
+                <span className="text-sm leading-none">{opt.emoji}</span>
+                <span>{opt.label}</span>
+              </motion.button>
+            ))}
+          </div>
 
           {/* Row 3: フィルターバー */}
           <div className="flex items-center px-4 pb-2 gap-2">
@@ -694,9 +720,13 @@ export default function Home() {
                         <PackageOpen className="w-8 h-8 text-primary/60" />
                       </div>
                       <h3 className="text-base font-black text-foreground mb-1">
-                        {activeCategory !== 'all'
-                          ? `「${SCROLL_CATS.find(c => c.value === activeCategory)?.label}」のおすそわけはまだありません`
-                          : '条件に合うおすそわけが見つかりませんでした'
+                        {activeItemType === 'item' && activeCategory !== 'all'
+                          ? `「${SCROLL_CATS.find(c => c.value === activeCategory)?.label}」の単品商品はまだありません`
+                          : activeItemType === 'item'
+                            ? '単品商品はまだありません'
+                            : activeCategory !== 'all'
+                              ? `「${SCROLL_CATS.find(c => c.value === activeCategory)?.label}」のおすそわけはまだありません`
+                              : '条件に合うおすそわけが見つかりませんでした'
                         }
                       </h3>
                       <p className="text-sm text-muted-foreground leading-relaxed mb-4">ジャンルや条件を変えて探してみてください</p>

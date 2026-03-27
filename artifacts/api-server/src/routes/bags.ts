@@ -127,6 +127,7 @@ router.get("/bags", async (_req, res) => {
         pickupEnd: surpriseBagsTable.pickupEnd,
         imageUrl: surpriseBagsTable.imageUrl,
         category: surpriseBagsTable.category,
+        itemType: surpriseBagsTable.itemType,
         isActive: surpriseBagsTable.isActive,
         createdAt: surpriseBagsTable.createdAt,
         store: storesTable,

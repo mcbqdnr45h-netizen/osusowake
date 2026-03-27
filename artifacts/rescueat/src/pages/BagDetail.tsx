@@ -420,9 +420,11 @@ export default function BagDetail() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
-            <div className="absolute top-4 right-4 bg-accent text-accent-foreground font-bold px-4 py-1.5 rounded-full text-sm shadow-lg shadow-accent/20">
-              {discountPercent}% OFF
-            </div>
+            {discountPercent > 0 && (
+              <div className="absolute top-4 right-4 bg-accent text-accent-foreground font-bold px-4 py-1.5 rounded-full text-sm shadow-lg shadow-accent/20">
+                {discountPercent}% OFF
+              </div>
+            )}
 
             <div className="absolute bottom-6 left-6 right-6">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -483,9 +485,11 @@ export default function BagDetail() {
             {/* Price and Details row */}
             <div className="flex flex-wrap gap-6 justify-between items-start">
               <div>
-                <div className="text-sm text-muted-foreground line-through mb-1">
-                  通常価格 ¥{bag.originalPrice.toLocaleString()}
-                </div>
+                {bag.originalPrice > 0 && (
+                  <div className="text-sm text-muted-foreground line-through mb-1">
+                    通常価格 ¥{bag.originalPrice.toLocaleString()}
+                  </div>
+                )}
                 <div className="text-4xl font-display font-bold text-primary flex items-baseline gap-2">
                   ¥{bag.discountedPrice.toLocaleString()}
                   <span className="text-sm text-muted-foreground font-normal">/個</span>

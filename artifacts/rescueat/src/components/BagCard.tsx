@@ -167,15 +167,17 @@ export function BagCard({ bag }: BagCardProps) {
             </div>
           ) : (
             <>
-              {/* 割引バッジ */}
-              <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
-                ${discountPercent >= 20
-                  ? 'bg-gradient-to-r from-[#F07826] to-[#E85A0C] shadow-[0_2px_10px_rgba(240,120,38,0.45)]'
-                  : 'bg-primary shadow-[0_2px_8px_rgba(255,140,0,0.30)]'
-                }`}>
-                {discountPercent >= 20 && <Sparkles className="w-2.5 h-2.5 shrink-0" />}
-                {discountPercent}% OFF
-              </div>
+              {/* 割引バッジ（原価ありの場合のみ表示） */}
+              {discountPercent > 0 && (
+                <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
+                  ${discountPercent >= 20
+                    ? 'bg-gradient-to-r from-[#F07826] to-[#E85A0C] shadow-[0_2px_10px_rgba(240,120,38,0.45)]'
+                    : 'bg-primary shadow-[0_2px_8px_rgba(255,140,0,0.30)]'
+                  }`}>
+                  {discountPercent >= 20 && <Sparkles className="w-2.5 h-2.5 shrink-0" />}
+                  {discountPercent}% OFF
+                </div>
+              )}
               {/* 残りわずかバッジ */}
               {isLowStock && (
                 <div className="flex items-center gap-0.5 bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] animate-pulse shadow-[0_2px_8px_rgba(239,68,68,0.40)]">
@@ -272,10 +274,16 @@ export function BagCard({ bag }: BagCardProps) {
             <div className="flex items-center justify-between pt-3"
               style={{ borderTop: '1px solid rgba(10,8,6,0.07)' }}>
               <div className="flex flex-col">
-                <span className="text-[10px] text-muted-foreground/70 font-medium mb-0.5">定価</span>
-                <span className="text-sm text-muted-foreground/60 line-through decoration-rose-400/40 font-semibold leading-tight">
-                  ¥{bag.originalPrice.toLocaleString()}
-                </span>
+                {bag.originalPrice > 0 ? (
+                  <>
+                    <span className="text-[10px] text-muted-foreground/70 font-medium mb-0.5">定価</span>
+                    <span className="text-sm text-muted-foreground/60 line-through decoration-rose-400/40 font-semibold leading-tight">
+                      ¥{bag.originalPrice.toLocaleString()}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground/50 font-medium">特別価格</span>
+                )}
               </div>
               <div className="flex flex-col items-end">
                 <span className="text-[10px] text-primary/60 font-semibold tracking-wide mb-0.5">おすそわけ価格</span>
