@@ -29,6 +29,26 @@ function WalkTimeBadge({ storeLat, storeLng }: { storeLat: number; storeLng: num
   );
 }
 
+/* ── compact用 距離バッジ（カード情報エリア内） ── */
+function CompactDistanceBadge({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
+  const { coords } = useUserLocation();
+  if (!coords) return null;
+  const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
+  const label   = formatDistanceLabel(meters);
+  const minutes = Math.round(meters / 67);
+  const color   = minutes <= 5
+    ? 'text-emerald-600 bg-emerald-50'
+    : minutes <= 15
+      ? 'text-amber-600 bg-amber-50'
+      : 'text-sky-600 bg-sky-50';
+  return (
+    <div className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${color}`}>
+      <Navigation className="w-2 h-2 shrink-0" />
+      {label}
+    </div>
+  );
+}
+
 /* ── 吹き出し風「店主の一言」 ── */
 function OwnerComment({ comment }: { comment: string }) {
   return (
@@ -258,8 +278,12 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
         ) : (
           <>
             {compact ? (
-              /* ── compact: 受取時間 ＋ 価格を縦2行でシンプル表示 ── */
+              /* ── compact: 距離 ＋ 受取時間 ＋ 価格をシンプル表示 ── */
               <div className="space-y-1 mt-0.5">
+                {/* 現在地からの距離 */}
+                {!isSoldOut && bag.store.lat && bag.store.lng && (
+                  <CompactDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} />
+                )}
                 {(bag.pickupStart || bag.pickupEnd) && (
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                     <Clock className="w-2.5 h-2.5 text-primary shrink-0" />
