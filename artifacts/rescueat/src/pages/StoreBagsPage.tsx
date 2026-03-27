@@ -201,9 +201,18 @@ export default function StoreBagsPage() {
   const now = new Date();
   const allBags    = bags as Bag[];
   const trulyActive  = allBags.filter(b => getBagStatus(b, now) === 'active');
-  const sortedBags   = [...allBags].sort((a, b) => {
-    const ORDER: Record<BagRealStatus, number> = { active: 0, soldout: 1, expired: 2, inactive: 3 };
-    return (ORDER[getBagStatus(a, now)] ?? 9) - (ORDER[getBagStatus(b, now)] ?? 9);
+  const sortedBags = [...allBags].sort((a, b) => {
+    // ステータス優先順: 公開中(0) → 非公開(1) → 受付終了/完売(2)
+    const ORDER: Record<BagRealStatus, number> = { active: 0, inactive: 1, expired: 2, soldout: 2 };
+    const statusA = getBagStatus(a, now);
+    const statusB = getBagStatus(b, now);
+    const diff = (ORDER[statusA] ?? 9) - (ORDER[statusB] ?? 9);
+    if (diff !== 0) return diff;
+    // 公開中の中は受取開始時間が早い順
+    if (statusA === 'active') {
+      return (a.pickupStart || '').localeCompare(b.pickupStart || '');
+    }
+    return 0;
   });
 
   return (
