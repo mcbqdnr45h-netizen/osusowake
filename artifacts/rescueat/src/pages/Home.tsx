@@ -42,23 +42,33 @@ function formatPickupTime(start?: string | null, end?: string | null): string {
   return `${start} 〜 ${end}`;
 }
 
-// ─── カテゴリーピル（コンパクト横スクロール）─────────────────────────────
+const ITEM_TYPE_OPTS = [
+  { value: 'bag',  label: 'おすそわけ袋', emoji: '🛍' },
+  { value: 'item', label: '単品商品',     emoji: '🥡' },
+] as const;
+
+// ─── カテゴリー＋商品タイプ統合ピル（1行横スクロール）───────────────────
 function CategoryPills({
   activeCategory, onSelect,
+  activeItemType, onSelectItemType,
 }: {
   activeCategory: string;
   onSelect: (val: string) => void;
+  activeItemType: 'all' | 'bag' | 'item';
+  onSelectItemType: (val: 'all' | 'bag' | 'item') => void;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 pb-2 pt-1">
+    <div className="flex gap-1.5 overflow-x-auto hide-scrollbar px-4 pb-2 pt-1 items-center">
+      {/* カテゴリーピル */}
       {SCROLL_CATS.map((cat) => {
         const isActive = activeCategory === cat.value;
         return (
           <motion.button
             key={cat.value}
+            type="button"
             onClick={() => onSelect(isActive && cat.value !== 'all' ? 'all' : cat.value)}
             whileTap={{ scale: 0.92 }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shrink-0 transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shrink-0 transition-all ${
               isActive
                 ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                 : 'bg-card text-foreground border-border hover:border-primary/40'
@@ -66,6 +76,30 @@ function CategoryPills({
           >
             <span className="text-sm leading-none">{cat.emoji}</span>
             <span>{cat.label}</span>
+          </motion.button>
+        );
+      })}
+
+      {/* 区切り線 */}
+      <div className="w-px h-4 bg-border/60 shrink-0 mx-0.5" />
+
+      {/* 商品タイプピル */}
+      {ITEM_TYPE_OPTS.map((opt) => {
+        const isActive = activeItemType === opt.value;
+        return (
+          <motion.button
+            key={opt.value}
+            type="button"
+            onClick={() => onSelectItemType(isActive ? 'all' : opt.value)}
+            whileTap={{ scale: 0.92 }}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shrink-0 transition-all ${
+              isActive
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground border-border hover:border-primary/40'
+            }`}
+          >
+            <span className="text-sm leading-none">{opt.emoji}</span>
+            <span>{opt.label}</span>
           </motion.button>
         );
       })}
@@ -544,32 +578,13 @@ export default function Home() {
             )}
           </div>
 
-          {/* Row 2: カテゴリーピル */}
-          <CategoryPills activeCategory={activeCategory} onSelect={setActiveCategory} />
-
-          {/* Row 2.5: 商品タイプタブ */}
-          <div className="flex gap-1.5 px-4 pb-2">
-            {([
-              { value: 'all',  label: 'すべて',      emoji: '✨' },
-              { value: 'bag',  label: 'おすそわけ袋', emoji: '🛍' },
-              { value: 'item', label: '単品商品',     emoji: '🥡' },
-            ] as const).map(opt => (
-              <motion.button
-                key={opt.value}
-                type="button"
-                onClick={() => setActiveItemType(prev => prev === opt.value && opt.value !== 'all' ? 'all' : opt.value)}
-                whileTap={{ scale: 0.92 }}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border shrink-0 transition-all ${
-                  activeItemType === opt.value
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                    : 'bg-card text-foreground border-border hover:border-primary/40'
-                }`}
-              >
-                <span className="text-sm leading-none">{opt.emoji}</span>
-                <span>{opt.label}</span>
-              </motion.button>
-            ))}
-          </div>
+          {/* Row 2: カテゴリー + 商品タイプ（1行統合） */}
+          <CategoryPills
+            activeCategory={activeCategory}
+            onSelect={setActiveCategory}
+            activeItemType={activeItemType}
+            onSelectItemType={setActiveItemType}
+          />
 
           {/* Row 3: フィルターバー */}
           <div className="flex items-center px-4 pb-2 gap-2">
