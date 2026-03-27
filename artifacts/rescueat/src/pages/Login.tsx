@@ -266,6 +266,18 @@ export default function Login() {
                             {forgotSending ? '送信中...' : '送信する'}
                           </button>
                         </div>
+                        {/* LINE サポートリンク */}
+                        <p className="text-center text-[11px] text-muted-foreground">
+                          メールが届かない場合は{' '}
+                          <a
+                            href="https://lin.ee/V1amrv8"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold text-[#06C755] underline underline-offset-2"
+                          >
+                            LINEでお問い合わせ
+                          </a>
+                        </p>
                       </>
                     )}
                   </div>
