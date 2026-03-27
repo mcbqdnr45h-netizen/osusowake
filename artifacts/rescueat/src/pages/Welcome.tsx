@@ -40,7 +40,7 @@ export default function Welcome() {
       </div>
 
       {/* ─── ヘッダー ─────────────────────────────────────── */}
-      <header className="relative z-10 px-7 pt-14 flex items-center">
+      <header className="relative z-10 px-5 sm:px-7 pt-12 sm:pt-14 flex items-center">
         <motion.div custom={0} variants={rise} initial="hidden" animate="show"
           className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-[11px] bg-white/25 border border-white/40 flex items-center justify-center">
@@ -53,23 +53,23 @@ export default function Welcome() {
       </header>
 
       {/* ─── メインコピー ──────────────────────────────────── */}
-      <div className="relative z-10 flex-1 flex flex-col justify-center px-7 pt-10 pb-4">
+      <div className="relative z-10 flex-1 flex flex-col justify-center px-5 sm:px-7 pt-8 sm:pt-10 pb-4">
 
         {/* 大見出し */}
-        <motion.div custom={1} variants={rise} initial="hidden" animate="show" className="mb-8">
-          <p className="text-white/60 text-xs font-bold uppercase tracking-[0.18em] mb-4">
+        <motion.div custom={1} variants={rise} initial="hidden" animate="show" className="mb-7 sm:mb-8">
+          <p className="text-white/60 text-xs font-bold uppercase tracking-[0.18em] mb-3 sm:mb-4">
             おすそわけ、はじめよう。
           </p>
-          <h1 className="text-[42px] font-black text-white leading-[1.1] tracking-[-0.02em]">
+          <h1 className="text-[32px] sm:text-[42px] font-black text-white leading-[1.1] tracking-[-0.02em]">
             お店の余った<br />
             おいしさを、<br />
             <span className="text-amber-200">あなたへ。</span>
           </h1>
         </motion.div>
 
-        {/* 特徴リスト（ピルではなくラインで） */}
+        {/* 特徴リスト */}
         <motion.ul custom={2} variants={rise} initial="hidden" animate="show"
-          className="space-y-3 mb-10">
+          className="space-y-3 mb-8 sm:mb-10">
           {[
             { icon: '🗺️', text: 'エリア・ジャンルで絞り込み' },
             { icon: '🎁', text: 'おすそわけバッグをお得に購入' },
@@ -85,14 +85,14 @@ export default function Welcome() {
         {/* CTA */}
         <motion.div custom={3} variants={rise} initial="hidden" animate="show" className="space-y-3">
           <Link href={signupHref}>
-            <button className="w-full bg-white text-[#FF8C00] font-black text-[17px] py-[17px] rounded-2xl shadow-lg shadow-black/15 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+            <button className="w-full bg-white text-[#FF8C00] font-black text-[16px] sm:text-[17px] py-[16px] sm:py-[17px] rounded-2xl shadow-lg shadow-black/15 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
               はじめる（無料）
               <ArrowRight className="w-5 h-5" strokeWidth={3} />
             </button>
           </Link>
 
           <Link href={loginHref}>
-            <button className="w-full bg-transparent border border-white/40 text-white font-bold text-[15px] py-[15px] rounded-2xl active:scale-[0.98] transition-transform hover:bg-white/10">
+            <button className="w-full bg-transparent border border-white/40 text-white font-bold text-[15px] py-[14px] sm:py-[15px] rounded-2xl active:scale-[0.98] transition-transform hover:bg-white/10">
               ログイン
             </button>
           </Link>
@@ -101,7 +101,7 @@ export default function Welcome() {
 
       {/* ─── フッター注記 ────────────────────────────────── */}
       <motion.p custom={4} variants={rise} initial="hidden" animate="show"
-        className="relative z-10 text-center text-white/40 text-[11px] px-8 pb-8 leading-relaxed">
+        className="relative z-10 text-center text-white/40 text-[11px] px-6 pb-8 leading-relaxed">
         登録することで利用規約およびプライバシーポリシーに同意したものとみなします
       </motion.p>
     </div>

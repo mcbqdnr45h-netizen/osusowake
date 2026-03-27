@@ -107,6 +107,14 @@ const queryClient = new QueryClient({
   },
 });
 
+// ── ホームルーター: ゲストは Welcome、ログイン済みは Home ──────────────────
+function HomeRouter() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Welcome />;
+  return <Home />;
+}
+
 // ── ページ遷移ローディングオーバーレイ（ロゴグロウ）────────────────────────
 function PageTransitionOverlay() {
   const [location] = useLocation();
@@ -184,7 +192,7 @@ function AnimatedRoutes() {
       >
         <Switch>
           {/* ── パブリックページ ── */}
-          <Route path="/" component={Home} />
+          <Route path="/" component={HomeRouter} />
           <Route path="/welcome" component={Welcome} />
           <Route path="/search" component={SearchPage} />
           <Route path="/map"    component={SearchPage} />
