@@ -297,10 +297,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const origin = window.location.origin;
       const base = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.BASE_URL : '') ?? '';
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${origin}${base.replace(/\/$/, '')}/reset-password`,
+      const redirectTo = `${origin}${base.replace(/\/$/, '')}/reset-password`;
+      const BASE_URL = base.replace(/\/$/, '') || '';
+      const res = await fetch(`${BASE_URL}/api/auth/forgot-password`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: email.trim(), redirectTo }),
       });
-      if (error) return { error: translateError(error.message) };
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return { error: body.message || 'エラーが発生しました' };
+      }
       return { error: null };
     } catch {
       return { error: 'エラーが発生しました。しばらくしてから再試行してください' };
