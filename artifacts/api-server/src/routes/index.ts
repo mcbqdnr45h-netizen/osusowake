@@ -152,7 +152,7 @@ function buildPasswordResetHtml(resetLink: string): string {
           <tr>
             <td style="background:#F8F8F7;padding:20px 40px;text-align:center;border-top:1px solid #EBEBEA;">
               <p style="margin:0 0 4px;font-size:13px;font-weight:900;color:#888;">OsusOwake</p>
-              <p style="margin:0;font-size:11px;color:#bbb;">© 2025 OsusOwake. All rights reserved.</p>
+              <p style="margin:0;font-size:11px;color:#bbb;">© 2026 OsusOwake. All rights reserved.</p>
             </td>
           </tr>
 
