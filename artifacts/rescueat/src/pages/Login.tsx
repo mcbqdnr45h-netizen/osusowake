@@ -197,7 +197,7 @@ export default function Login() {
               <div className="flex justify-end -mt-2">
                 <button
                   type="button"
-                  onClick={() => { setShowForgotPw(v => !v); setForgotEmail(email); setForgotSent(false); setForgotError(''); }}
+                  onClick={() => { setShowForgotPw(true); setForgotEmail(email); setForgotSent(false); setForgotError(''); }}
                   className="text-[12px] text-primary font-bold hover:underline underline-offset-2"
                 >
                   パスワードを忘れた方はこちら
@@ -205,16 +205,19 @@ export default function Login() {
               </div>
             )}
 
-            {/* パスワードリセットパネル */}
-            <AnimatePresence>
-              {showForgotPw && !isStore && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  className="overflow-hidden"
-                >
+            {/* パスワードリセットパネル（常にDOMに存在、高さだけアニメーション）*/}
+            {!isStore && (
+              <motion.div
+                initial={false}
+                animate={{
+                  height:   showForgotPw ? 'auto' : 0,
+                  opacity:  showForgotPw ? 1 : 0,
+                  marginTop: showForgotPw ? undefined : 0,
+                }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden"
+                style={{ pointerEvents: showForgotPw ? 'auto' : 'none' }}
+              >
                   <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
                     {forgotSent ? (
                       <div className="flex flex-col items-center gap-2 py-1">
@@ -282,8 +285,7 @@ export default function Login() {
                     )}
                   </div>
                 </motion.div>
-              )}
-            </AnimatePresence>
+            )}
 
             {/* エラー（シェイク付き） */}
             <AnimatePresence>

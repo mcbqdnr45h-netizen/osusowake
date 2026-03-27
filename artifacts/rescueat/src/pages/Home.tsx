@@ -438,8 +438,8 @@ export default function Home() {
       if (!start) return false;
       // 深夜またぎ（例: 22:00〜01:00）は必ず含める
       if (end && end < start) return true;
-      // 通常: 開始が22:00以前 かつ 終了が17:00以降
-      return start <= '22:00' && (!end || end >= '17:00');
+      // 通常: 開始が24:00以前 かつ 終了が17:00以降
+      return start <= '23:59' && (!end || end >= '17:00');
     })).slice(0, 8),
     [sortedVisibleBags, applySortKey]
   );
@@ -767,7 +767,7 @@ export default function Home() {
                   <div className="pt-1 pb-2">
                     <SectionHeader
                       icon={<Moon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
-                      title="今夜の受け取り（17〜22時）"
+                      title="今夜の受け取り（17〜24時）"
                       count={eveningBags.length}
                     />
                     <HorizScrollRow bags={eveningBags} loading={false} />

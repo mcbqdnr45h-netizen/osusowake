@@ -835,16 +835,14 @@ export default function AdminDashboard() {
                             : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
                         </button>
 
-                        {/* ── 展開詳細パネル ── */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
+                        {/* ── 展開詳細パネル（常にDOMに存在、高さだけアニメーション）── */}
+                        <motion.div
+                          initial={false}
+                          animate={{ height: isExpanded ? 'auto' : 0, opacity: isExpanded ? 1 : 0 }}
+                          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                          className="overflow-hidden"
+                          style={{ pointerEvents: isExpanded ? 'auto' : 'none' }}
+                        >
                               <div className="px-4 pb-4 pt-1 space-y-3 border-t border-black/5">
                                 {/* 店名 */}
                                 <div>
@@ -896,9 +894,7 @@ export default function AdminDashboard() {
                                   </select>
                                 </div>
                               </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                        </motion.div>
                       </div>
                     );
                   })}
