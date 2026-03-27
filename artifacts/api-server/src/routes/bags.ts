@@ -55,24 +55,55 @@ export function isBagExpired(bag: {
 }
 
 // 受取時間が過ぎていないか判定するSQL条件（JST基準）
-// ◎ 「今日作成」制約を撤廃し、isActive=true かつ在庫ありならいつ作成されても表示する。
-//   pickupEnd が設定されている場合のみ時刻チェックを行う。
-// - pickupEnd が NULL           → 常に表示（時間制限なし）
-// - 通常バッグ                  → pickupEnd が JST 現在時刻以降なら表示
-// - 深夜またぎバッグ            → pickupEnd < pickupStart のとき常に表示
-//   （23:00〜01:00 のように翌日にまたぐバッグは時刻が逆転している）
-const notExpiredCondition = sql`(
-  ${surpriseBagsTable.pickupEnd} IS NULL
+//
+// 方針：バッグは「当日（JST）に作成されたもの」だけを表示する。
+//       過去日付の出品は絶対に表示しない。
+//       ただし深夜またぎバッグ（pickupEnd < pickupStart, 例: 22:00〜02:00）は
+//       前日に作成されたものも翌日の pickupEnd まで表示継続する。
+//
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │ CASE 1: pickupEnd IS NULL                                               │
+// │   → 受取時間制限なし。今日作成 (JST) なら常に表示。                         │
+// ├─────────────────────────────────────────────────────────────────────────┤
+// │ CASE 2: 通常バッグ (pickupEnd >= pickupStart, 例: 09:00〜20:00)          │
+// │   → 今日作成 (JST) かつ pickupEnd が現在時刻以降ならば表示。                │
+// ├─────────────────────────────────────────────────────────────────────────┤
+// │ CASE 3: 深夜またぎバッグ (pickupEnd < pickupStart, 例: 22:00〜02:00)     │
+// │   a) 今日作成 (JST): 現在時刻に関わらず表示（pickupEnd になるまで）          │
+// │   b) 昨日作成 (JST): pickupEnd がまだ来ていないなら表示（翌日02:00まで等）   │
+// └─────────────────────────────────────────────────────────────────────────┘
+const TODAY_JST  = sql`DATE(NOW() AT TIME ZONE 'Asia/Tokyo')`;
+const NOW_TIME   = sql`TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')`;
+const CREATED_JST = sql`DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`;
 
-  OR (
-    -- 通常ケース: pickupEnd が現在時刻以降（作成日問わず）
-    ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
-    AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
+const notExpiredCondition = sql`(
+  (
+    -- CASE 1: 受取時間制限なし → 今日作成 (JST) なら表示
+    ${surpriseBagsTable.pickupEnd} IS NULL
+    AND ${CREATED_JST} = ${TODAY_JST}
   )
 
   OR (
-    -- 深夜またぎ: pickupEnd < pickupStart → 時刻が逆転しているバッグは常に表示
-    ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
+    -- CASE 2: 通常バッグ → 今日作成 (JST) かつ pickupEnd が現在時刻以降
+    ${surpriseBagsTable.pickupEnd} IS NOT NULL
+    AND ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
+    AND ${CREATED_JST} = ${TODAY_JST}
+    AND ${surpriseBagsTable.pickupEnd} >= ${NOW_TIME}
+  )
+
+  OR (
+    -- CASE 3a: 深夜またぎ・今日作成 → 常に表示（pickupEnd 到達まで翌日も継続）
+    ${surpriseBagsTable.pickupEnd} IS NOT NULL
+    AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
+    AND ${CREATED_JST} = ${TODAY_JST}
+  )
+
+  OR (
+    -- CASE 3b: 深夜またぎ・昨日作成 → 今日の pickupEnd がまだ来ていないなら表示
+    ${surpriseBagsTable.pickupEnd} IS NOT NULL
+    AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
+    AND ${CREATED_JST} = ${TODAY_JST} - INTERVAL '1 day'
+    AND ${surpriseBagsTable.pickupEnd} >= ${NOW_TIME}
   )
 )`;
 
