@@ -1059,6 +1059,7 @@ export default function StoreDashboard() {
   const [confirmId, setConfirmId]         = useState<number | null>(null);
   const [editingBag, setEditingBag]       = useState<Bag | null>(null);
   const [showPickedUp, setShowPickedUp]   = useState(false);
+  const [showExpiredActive, setShowExpiredActive] = useState(false);
 
   // サマリーカードのスクロール先 ref
   const activeBagsRef   = useRef<HTMLDivElement>(null);
@@ -1111,11 +1112,12 @@ export default function StoreDashboard() {
   );
   const now = new Date();
   const activeBags     = (bags as any[]).filter((b: any) => getBagStatus(b, now) === 'active');
+  // 出品中（active・soldout のみ — expired は除外）
   const nonIdleBags = [...(bags as any[])]
-    .filter((b: any) => b.isActive) // isActive 全件（expired/soldout 含む）
+    .filter((b: any) => b.isActive && getBagStatus(b, now) !== 'expired')
     .sort((a: any, b: any) => {
-      // 公開中(0) → 完売(1) → 受付終了(2)
-      const ORD: Record<string, number> = { active: 0, soldout: 1, expired: 2, inactive: 3 };
+      // 公開中(0) → 完売(1)
+      const ORD: Record<string, number> = { active: 0, soldout: 1 };
       const sa = getBagStatus(a, now);
       const sb = getBagStatus(b, now);
       const diff = (ORD[sa] ?? 9) - (ORD[sb] ?? 9);
@@ -1124,6 +1126,9 @@ export default function StoreDashboard() {
       if (sa === 'active') return (a.pickupStart || '').localeCompare(b.pickupStart || '');
       return 0;
     });
+  // 受付終了（isActive=true のまま時間切れ） → 折りたたみ表示
+  const expiredActiveBags = [...(bags as any[])]
+    .filter((b: any) => b.isActive && getBagStatus(b, now) === 'expired');
 
   // クイック出品用: title で重複排除（最新 id を優先）
   const deduplicatedBags: PastBag[] = React.useMemo(() => {
@@ -1497,7 +1502,7 @@ export default function StoreDashboard() {
           </div>
         )}
 
-        {/* ── 出品中の商品（isActive 全件）── */}
+        {/* ── 出品中の商品（active・soldout のみ）── */}
         {nonIdleBags.length > 0 && (
           <div ref={activeBagsRef}>
             <div className="flex items-center justify-between mb-3">
@@ -1529,6 +1534,51 @@ export default function StoreDashboard() {
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── 受付終了（isActive のまま時間切れ）── 折りたたみ */}
+        {expiredActiveBags.length > 0 && (
+          <div>
+            <button
+              onClick={() => setShowExpiredActive(v => !v)}
+              className="flex items-center gap-2 w-full text-left text-sm font-bold text-muted-foreground select-none bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 hover:bg-slate-100 transition-colors"
+            >
+              <Clock className="w-4 h-4 text-slate-400" />
+              受付終了（本日分・{expiredActiveBags.length}件）
+              <span className="ml-auto text-xs text-muted-foreground/60">
+                {showExpiredActive ? '▲ 閉じる' : '▼ 表示'}
+              </span>
+              {showExpiredActive ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
+            </button>
+            <AnimatePresence>
+              {showExpiredActive && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-3 mt-3 opacity-70">
+                    {expiredActiveBags.map((bag: any) => (
+                      <BagManageCard
+                        key={bag.id}
+                        bag={bag as Bag}
+                        togglingId={togglingId}
+                        deletingId={deletingId}
+                        adjustingId={adjustingId}
+                        confirmId={confirmId}
+                        onToggle={handleToggleActive}
+                        onDelete={handleDeleteBag}
+                        onStockAdjust={handleStockAdjust}
+                        onConfirmChange={setConfirmId}
+                        onEdit={bag => setEditingBag(bag)}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
