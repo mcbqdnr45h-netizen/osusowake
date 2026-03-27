@@ -358,15 +358,17 @@ router.post("/checkout/session", async (req, res) => {
       feeMetadata["storeStripeAccountId"] = destinationAccountId;
     }
 
-    // チャージはプレーンに受け取る（transfer_data / on_behalf_of を一切使わない）
-    const session = await stripe.checkout.sessions.create({
+    // ── ブループリント準拠: application_fee_amount + transfer_data.destination ──
+    // 店舗が Stripe Connect アカウントを持っている場合は直接送金方式
+    // 持っていない場合は Separate Charges & Transfers にフォールバック
+    const baseSessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: "payment",
       line_items: [
         {
           price_data: {
             currency: "jpy",
             product_data: {
-              name: "食べロス レスキュー商品",
+              name: "おすそわけバッグ",
               description: "食品ロスを減らすサプライズバッグ",
               images: ["https://images.unsplash.com/photo-1542838132-92c53300491e?w=400"],
             },
@@ -381,11 +383,53 @@ router.post("/checkout/session", async (req, res) => {
       cancel_url: cancelUrl,
       metadata: { reservationId: String(reservation.id), userId: userId || '' },
       locale: "ja",
-      payment_intent_data: {
-        metadata: feeMetadata, // Transfer用パラメータを PaymentIntent に保存
-      },
-    });
-    const chargeMode = "separate_charges_and_transfers";
+    };
+
+    let session;
+    let chargeMode: string;
+
+    if (destinationAccountId) {
+      // ── 方式 A: 直接送金（ブループリント準拠） ──
+      // application_fee_amount = プラットフォーム手数料（25%固定）
+      // transfer_data.destination = 店舗 Stripe アカウント
+      try {
+        session = await stripe.checkout.sessions.create({
+          ...baseSessionParams,
+          payment_intent_data: {
+            application_fee_amount: platformRevenue,  // 25% をプラットフォームが受け取る
+            transfer_data: {
+              destination: destinationAccountId,       // 残額が店舗へ自動送金される
+            },
+            metadata: feeMetadata,
+          },
+        });
+        chargeMode = "direct_transfer";
+        console.log(
+          `[Checkout] 方式A 直接送金: total=${total}JPY | ` +
+          `platformFee(25%)=${platformRevenue}JPY → OsusOwake | ` +
+          `shopTransfer≈${shopTransferAmount}JPY → ${destinationAccountId}`
+        );
+      } catch (directErr: any) {
+        // Stripe Connect エラー（charges_enabled でないなど）→ 方式 B にフォールバック
+        if (isStripeConnectError(directErr)) {
+          console.warn(`⚠️  方式A 失敗 [${directErr.code ?? directErr.type}] → 方式B へフォールバック`);
+          session = await stripe.checkout.sessions.create({
+            ...baseSessionParams,
+            payment_intent_data: { metadata: feeMetadata },
+          });
+          chargeMode = "separate_charges_and_transfers";
+        } else {
+          throw directErr;
+        }
+      }
+    } else {
+      // ── 方式 B: Separate Charges & Transfers（Connect 未連携時） ──
+      session = await stripe.checkout.sessions.create({
+        ...baseSessionParams,
+        payment_intent_data: { metadata: feeMetadata },
+      });
+      chargeMode = "separate_charges_and_transfers";
+    }
 
     console.log(`Checkout session created: ${session.id} (chargeMode=${chargeMode})`);
 

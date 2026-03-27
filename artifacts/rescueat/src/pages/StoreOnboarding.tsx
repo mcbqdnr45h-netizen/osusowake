@@ -276,9 +276,23 @@ export default function StoreOnboarding() {
           {/* 料金案内 */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex gap-3 text-sm">
             <Leaf className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <div>
+            <div className="flex-1">
               <div className="font-black text-foreground">完全成果報酬型</div>
               <div className="text-muted-foreground">初期費用・月額0円。売れた分だけ手数料25%</div>
+            </div>
+          </div>
+
+          {/* 個人事業主専用バッジ */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3 text-sm">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+              <span className="text-base">🏪</span>
+            </div>
+            <div>
+              <div className="font-black text-blue-800">個人事業主・小規模事業者向け</div>
+              <div className="text-blue-600 text-xs mt-0.5 leading-relaxed">
+                Stripe Connect を使用した個人事業主向けの設定で動作します。
+                口座登録後、売上は毎週月曜日に振り込まれます。
+              </div>
             </div>
           </div>
 

@@ -1,0 +1,180 @@
+## Stripe integration task
+
+### Objective
+Implement this Stripe integration using the blueprint below. The blueprint describes the required API operations, parameters, and sequencing. Adapt the implementation to your architecture, data models, and tech stack.
+
+### How to use the resources
+- Treat the blueprint as the source of truth for required API operations and parameters.
+- Prefer reusing outputs from earlier steps as inputs to later ones (e.g., use the created customer ID when creating a subscription).
+- Persist and retrieve required Stripe resource identifiers in your datastore (e.g., customer_id, subscription_id) and associate them with existing domain models.
+- Do NOT use chapter numbers as names in your code. Name all functions, routes, CLI commands, variables, and files after the domain action they perform (e.g., `create_account`, `/create-checkout-session`, `onboard`) rather than the step they came from (e.g., avoid `chapter1`, `step2`, `/chapter1/create-account`).
+- Template variables like ${node...} represent outputs from earlier steps that should be used as inputs to later ones. For example, ${node.createProduct.createProductRequest:default_price} refers to the default_price field from the response of the createProductRequest fixture within the createProduct node.
+- If connected to the Stripe MCP server, use tool calls as much as possible to create dependent resources (such as products and prices) if they don't exist already.
+- Do not guess as to what the required Stripe API version should be. Leave the API version argument empty when initializing the Stripe client unless the blueprint specifies otherwise.
+- When populating .env files or constructing commands for the CLI, use environment variable placeholders for API keys (STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY) and instruct the user to obtain them from the Stripe Dashboard.
+
+---
+
+### Resources
+
+#### Blueprints (authoritative "what to call")
+<blueprints-json>
+[
+  {
+    "title": "マーケットプレイスとして Accounts V2 を使用して決済を回収してください。",
+    "steps": [
+      {
+        "key": "create-account-chapter",
+        "title": "連結アカウントを作成してアカウント登録します",
+        "description": "貴社のマーケットプレイスの各販売者についてアカウントを作成してください。",
+        "nodes": [
+          {
+            "type": "apiRequests",
+            "key": "create-account",
+            "title": "アカウントを作成します",
+            "description": "貴社のマーケットプレイスの販売者を表す連結アカウントを作成してください。",
+            "requests": [
+              {
+                "key": "create-account-request",
+                "path": "/v2/core/accounts",
+                "method": "post",
+                "params": {
+                  "display_name": "Test account",
+                  "contact_email": "testaccount@example.com",
+                  "configuration": {
+                    "merchant": {
+                      "simulate_accept_tos_obo": true
+                    }
+                  },
+                  "defaults": {
+                    "responsibilities": {
+                      "losses_collector": "application",
+                      "fees_collector": "application"
+                    }
+                  },
+                  "dashboard": "express",
+                  "include": [
+                    "configuration.merchant",
+                    "configuration.recipient",
+                    "identity",
+                    "defaults",
+                    "configuration.customer"
+                  ],
+                  "identity": {
+                    "country": "${env:connectedAccountCountry}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "apiRequests",
+            "key": "create-account-link",
+            "title": "アカウントリンクを作成します",
+            "description": "実際の導入では、連結アカウントから KYC 情報を収集するアカウントリンクを作成します。これにより、<LinkHosted>Stripe がホスト<LinkHosted>するアカウント登録フローが表示されます。また、</LinkHosted>埋め込みアカウント登録</LinkHosted>を使用してアカウント登録コンポーネントをアプリケーションに導入するか、<LinkEmbedded>API アカウント登録<LinkEmbedded>を使用して Stripe の API でカスタマイズされたアカウント登録 UI を作成することもできます。",
+            "requests": [
+              {
+                "key": "create-account-link-request",
+                "path": "/v2/core/account_links",
+                "method": "post",
+                "params": {
+                  "account": "${node.create-account-chapter.create-account.create-account-request:id}",
+                  "use_case": {
+                    "type": "account_onboarding",
+                    "account_onboarding": {
+                      "configurations": [
+                        "recipient",
+                        "merchant"
+                      ],
+                      "refresh_url": "https://dashboard.stripe.com/workbench/blueprints/learn-accounts-v2-marketplace/create-account-chapter?confirmation-redirect=create-account-link",
+                      "return_url": "https://dashboard.stripe.com/workbench/blueprints/learn-accounts-v2-marketplace/create-account-chapter?confirmation-redirect=create-account-link"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "uiComponent",
+            "key": "onboard-account",
+            "title": "KYC データの収集を完了してください",
+            "description": "連結アカウントは、生成されたアカウントリンクを使用して KYC データ収集を完了できます。このステップはこの例では不要ですが、実際の実装では必要になります。"
+          },
+          {
+            "type": "asyncHandler",
+            "key": "wait-for-account-onboard",
+            "title": "アカウントがアカウント登録されるまでお待ちください",
+            "events": [
+              {
+                "eventType": "v2.core.account[configuration.recipient].capability_status_updated",
+                "eventPayloadType": "thin"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "accept-embedded-payments-chapter",
+        "title": "埋め込み型決済を受け付けます",
+        "description": "連結アカウントに代わって決済を作成し、マーケットプレイスの売り手に入金します。",
+        "nodes": [
+          {
+            "type": "apiRequests",
+            "key": "create-checkout-session",
+            "title": "決済インターフェイスを作成します",
+            "description": "Checkout Session を作成して決済を受け付けます。連結アカウントの顧客は、コンバージョンに最適化された <LinkHosted>Stripe がホストする事前構築済みの決済フォーム</LinkHosted>に誘導されます。または、<LinkEmbedded>事前構築済みの決済フォーム</LinkEmbedded>をサイトに埋め込むか、API を使用してさらに<LinkApi>カスタマイズされた決済体験</LinkApi>を構築することもできます。",
+            "requests": [
+              {
+                "key": "create-checkout-session-request",
+                "path": "/v1/checkout/sessions",
+                "method": "post",
+                "params": {
+                  "success_url": "https://dashboard.stripe.com/workbench/blueprints/learn-accounts-v2-marketplace/accept-embedded-payments-chapter?confirmation-redirect=create-checkout-session",
+                  "line_items": [
+                    {
+                      "price_data": {
+                        "currency": "${env:currency}",
+                        "product_data": {
+                          "name": "Cookie"
+                        },
+                        "unit_amount": 100000
+                      },
+                      "quantity": 1
+                    }
+                  ],
+                  "mode": "payment",
+                  "payment_intent_data": {
+                    "application_fee_amount": 123,
+                    "transfer_data": {
+                      "destination": "${node.create-account-chapter.create-account.create-account-request:id}"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "uiComponent",
+            "key": "complete-checkout",
+            "title": "決済を受け付けます",
+            "description": "連結アカウントの顧客は、決済画面で支払いを完了できます。以下のリンクをクリックし、<Link>テストクレジットカード情報</Link>としてカード番号「4000 0000 0000 0077」を入力して決済を実行します。12/31 など将来の日付と任意の 3 桁の CVC を使用してください。",
+            "link": "${node.accept-embedded-payments-chapter.create-checkout-session.create-checkout-session-request:id}"
+          },
+          {
+            "type": "asyncHandler",
+            "key": "wait-for-checkout",
+            "title": "決済が完了していることを確認します",
+            "events": [
+              {
+                "eventType": "checkout.session.completed",
+                "eventPayloadType": "snapshot"
+              }
+            ],
+            "expectedNumberOfEvents": 1
+          }
+        ]
+      }
+    ]
+  }
+]
+</blueprints-json>
