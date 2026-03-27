@@ -50,6 +50,7 @@ import HelpPage from "./pages/HelpPage";
 import TokushoPage from "./pages/TokushoPage";
 import MyTownPage from "./pages/MyTownPage";
 import SalesLeadForm from "./pages/SalesLeadForm";
+import ResetPassword from "./pages/ResetPassword";
 
 // ── ルートガードファクトリ ─────────────────────────────────────────────────────
 // 認証が必要なルート
@@ -198,6 +199,7 @@ function AnimatedRoutes() {
           <Route path="/report-store" component={SalesLeadForm} />
           <Route path="/tokusho" component={TokushoPage} />
           <Route path="/verify-email" component={VerifyEmail} />
+          <Route path="/reset-password" component={ResetPassword} />
           <Route path="/success" component={CheckoutSuccess} />
           <Route path="/cancel" component={CheckoutCancel} />
           <Route path="/supabase-test" component={SupabaseTest} />

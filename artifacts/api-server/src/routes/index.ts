@@ -38,9 +38,20 @@ router.post("/auth/forgot-password", async (req, res) => {
       return;
     }
 
+    // redirectTo を確定: フロントから来た値 → 環境変数 → fallback
+    const appDomain = process.env.APP_DOMAIN ?? process.env.REPLIT_DEV_DOMAIN ?? "";
+    const finalRedirectTo =
+      redirectTo ||
+      (appDomain ? `https://${appDomain}/rescueat/reset-password` : "");
+
+    console.log("[forgot-password] redirectTo:", finalRedirectTo);
+
     // Supabase Admin でリカバリーリンクを生成（メールは送信しない）
-    const linkOpts: Record<string, unknown> = { type: "recovery", email: email.trim() };
-    if (redirectTo) linkOpts.options = { redirectTo };
+    const linkOpts: Record<string, unknown> = {
+      type: "recovery",
+      email: email.trim(),
+      options: { redirectTo: finalRedirectTo },
+    };
     const { data, error: genErr } = await supabaseAdmin.auth.admin.generateLink(
       linkOpts as Parameters<typeof supabaseAdmin.auth.admin.generateLink>[0],
     );
