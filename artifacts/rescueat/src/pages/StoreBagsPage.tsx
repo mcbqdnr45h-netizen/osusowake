@@ -297,6 +297,30 @@ export default function StoreBagsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* 店舗受取予定額プレビュー */}
+                {form.discountedPrice > 0 && (() => {
+                  const price       = form.discountedPrice;
+                  const platFee     = Math.floor(price * 0.25);
+                  const stripeFee   = Math.round(price * 0.036);
+                  const shopAmount  = price - platFee - stripeFee;
+                  return (
+                    <div className="mt-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5 space-y-1">
+                      <div className="flex justify-between text-[11px] text-muted-foreground">
+                        <span>OsusOwake 手数料 (25%)</span>
+                        <span>-¥{platFee.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-muted-foreground">
+                        <span>Stripe 決済手数料 (3.6%)</span>
+                        <span>-¥{stripeFee.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-black text-emerald-700 pt-0.5 border-t border-emerald-200">
+                        <span>店舗受取予定額</span>
+                        <span>¥{shopAmount.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* 在庫数 ── ステッパー（カーソルバグ根絶版） */}

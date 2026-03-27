@@ -148,14 +148,20 @@ router.post("/payment/create-intent", async (req, res) => {
             console.warn(`⚠️  Tier1 失敗 [${t1Err.code ?? t1Err.type}] — Tier2 へ`);
 
             // ── Tier 2: application_fee_amount フォールバック ────────────────
+            // ⚠️ デスティネーションチャージでは application_fee_amount = total - shopTransferAmount
+            //    (= platformRevenue + stripeFee) にしないと店舗送金額がずれる:
+            //    store受取 = total - application_fee_amount = total - (total - shopTransfer)
+            //             = shopTransfer = 250円 ✓
+            //    platform純利 = application_fee (100) - Stripe手数料 (13) = 87円 ✓
+            const applicationFeeAmount = total - shopTransferAmount; // = platformRevenue + stripeFee
             try {
               intent = await stripe.paymentIntents.create({
                 ...baseParams,
-                application_fee_amount: platformRevenue,
+                application_fee_amount: applicationFeeAmount,
                 transfer_data:          { destination: destinationAccountId },
               });
               chargeMode = "application_fee_amount";
-              console.warn(`⚠️  Tier2: total=${total}JPY, dest=${destinationAccountId}`);
+              console.warn(`⚠️  Tier2: total=${total}JPY, appFee=${applicationFeeAmount}JPY, shopTransfer=${shopTransferAmount}JPY, dest=${destinationAccountId}`);
             } catch (t2Err: any) {
               if (!isStripeConnectError(t2Err)) throw t2Err;
               console.warn(`⚠️  Tier2 失敗 — 直接決済へ`);

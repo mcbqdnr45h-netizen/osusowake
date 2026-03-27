@@ -818,9 +818,13 @@ router.get("/stores/:storeId/today-sales", async (req, res) => {
 
     // JPY: amountは円単位
     const net = transfers.data.reduce((sum, t) => sum + t.amount, 0);
-    // 店舗受取は売上の75%なので、元の総売上を逆算
-    const gross = Math.round(net / 0.75);
-    const platformFee = gross - net;
+    // 正確な逆算:
+    //   店舗受取 = 総売上 × (1 - 0.25 - 0.036) = 総売上 × 0.714
+    //   → 総売上 = 店舗受取 / 0.714
+    // ※ 旧実装の / 0.75 は誤り（Stripe手数料3.6%を考慮していなかった）
+    const STORE_RATE = 1 - 0.25 - 0.036; // = 0.714
+    const gross       = net > 0 ? Math.round(net / STORE_RATE) : 0;
+    const platformFee = gross - net; // = プラットフォーム手数料(25%) + Stripe手数料(3.6%)
 
     res.json({
       gross,
