@@ -178,7 +178,7 @@ export default function MyReservations() {
       </AnimatePresence>
 
       <div className="max-w-3xl mx-auto pt-6 pb-24">
-        <h1 className="text-2xl font-display font-bold text-foreground mb-5 px-4">マイ予約</h1>
+        <h1 className="text-2xl font-display font-bold text-foreground mb-5 px-4">マイバック</h1>
 
         {isLoading ? (
           <div className="divide-y divide-border/40 border-t border-border/40">
