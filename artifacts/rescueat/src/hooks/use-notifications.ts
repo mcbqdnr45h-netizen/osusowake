@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+
 export interface AppNotification {
   id: number;
   userId: string;
@@ -21,7 +23,7 @@ export function useNotifications() {
     if (!session?.access_token) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/notifications', {
+      const res = await fetch(`${BASE}/api/notifications`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (!res.ok) return;
@@ -38,7 +40,7 @@ export function useNotifications() {
     if (!session?.access_token) return;
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
-    await fetch(`/api/notifications/${id}/read`, {
+    await fetch(`${BASE}/api/notifications/${id}/read`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
@@ -48,7 +50,7 @@ export function useNotifications() {
     if (!session?.access_token) return;
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
-    await fetch('/api/notifications/read-all', {
+    await fetch(`${BASE}/api/notifications/read-all`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${session.access_token}` },
     });

@@ -80,6 +80,10 @@ export default function AdminDashboard() {
   const [annBody, setAnnBody]   = useState('');
   const [annSending, setAnnSending] = useState(false);
 
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifBody, setNotifBody]   = useState('');
+  const [notifSending, setNotifSending] = useState(false);
+
   // ── アプリ設定 ──
   const [catchphrase,        setCatchphrase]        = useState('あなたの街のおすそわけ');
   const [subCatchphrase,     setSubCatchphrase]     = useState('おいしいものを、もっとみんなへ。');
@@ -213,6 +217,27 @@ export default function AdminDashboard() {
         toast({ title: 'エラー', description: data.error, variant: 'destructive' });
       }
     } finally { setAnnSending(false); }
+  }
+
+  async function sendNotification() {
+    if (!notifTitle.trim()) {
+      toast({ title: 'タイトルを入力してください', variant: 'destructive' }); return;
+    }
+    setNotifSending(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/notifications/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: notifTitle.trim(), body: notifBody.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: `🔔 通知完了！${data.sentTo}人に送信されました` });
+        setNotifTitle(''); setNotifBody('');
+      } else {
+        toast({ title: 'エラー', description: data.error, variant: 'destructive' });
+      }
+    } finally { setNotifSending(false); }
   }
 
   const filteredStores = stores.filter(s => {
@@ -548,6 +573,42 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
+          </div>
+        </motion.div>
+
+        {/* ── 通知ベル一斉送信パネル ── */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
+          className="bg-card border border-border/60 rounded-2xl overflow-hidden">
+          <div className="px-5 pt-5 pb-5">
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
+              <Bell className="w-3.5 h-3.5" />通知ベル一斉送信
+            </h2>
+            <p className="text-[11px] text-muted-foreground mb-3">
+              全ユーザーのアプリ内通知ベルにメッセージを送信します。
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">タイトル <span className="text-destructive">*</span></label>
+                <input
+                  type="text" value={notifTitle} onChange={e => setNotifTitle(e.target.value)}
+                  placeholder="例：新機能のお知らせ"
+                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">本文 <span className="font-normal opacity-60">（任意）</span></label>
+                <textarea
+                  value={notifBody} onChange={e => setNotifBody(e.target.value)} rows={3}
+                  placeholder="詳細メッセージを入力してください"
+                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                />
+              </div>
+              <button onClick={sendNotification} disabled={notifSending || !notifTitle.trim()}
+                className="w-full h-12 bg-primary text-white font-black rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98] shadow-sm shadow-primary/20">
+                {notifSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                全ユーザーに通知する
+              </button>
+            </div>
           </div>
         </motion.div>
 

@@ -403,4 +403,34 @@ router.patch("/admin/settings", requireAdmin, async (req: any, res) => {
   }
 });
 
+// ── POST /admin/notifications/broadcast ────────────────────────────────────────
+// 全ユーザーに通知ベルのお知らせを一斉送信
+router.post("/admin/notifications/broadcast", requireAdmin, async (req: any, res) => {
+  const { title, body } = req.body ?? {};
+  if (!title?.trim()) {
+    res.status(400).json({ error: "title is required" }); return;
+  }
+  try {
+    const { data: userList, error: userErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    if (userErr || !userList) {
+      res.status(500).json({ error: "failed_to_list_users", message: userErr?.message }); return;
+    }
+    if (userList.users.length === 0) {
+      res.json({ ok: true, sentTo: 0 }); return;
+    }
+    const rows = userList.users.map(u => ({
+      userId: u.id,
+      type: "broadcast" as const,
+      title: title.trim(),
+      body: body?.trim() || null,
+      read: false,
+    }));
+    await db.insert(notificationsTable).values(rows);
+    res.json({ ok: true, sentTo: rows.length });
+  } catch (err: any) {
+    console.error("[admin] notification broadcast error:", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 export default router;

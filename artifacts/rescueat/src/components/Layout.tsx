@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotificationsBell } from '@/components/NotificationsBell';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -108,6 +109,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
                   </Link>
                 ))}
               </nav>
+
+              {/* ベルアイコン（ログイン済みのみ）*/}
+              {isLoggedIn && <NotificationsBell />}
 
               {/* Hamburger */}
               <div className="relative" ref={menuRef}>
