@@ -255,7 +255,7 @@ function PostBagModal({
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-        className="w-full max-h-[90dvh] bg-white rounded-t-3xl overflow-hidden flex flex-col"
+        className="w-full max-w-full max-h-[90dvh] bg-white rounded-t-3xl overflow-hidden flex flex-col"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {/* モーダルヘッダー */}
@@ -295,7 +295,7 @@ function PostBagModal({
         </div>
 
         {/* スクロールエリア */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 space-y-4">
 
           {mode === 'quick' && (
             <>
@@ -881,7 +881,7 @@ function EditBagModal({
 
       {/* モーダル本体 */}
       <motion.div
-        className="relative bg-background rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col"
+        className="relative bg-background rounded-t-3xl shadow-2xl max-h-[92dvh] w-full max-w-full overflow-hidden flex flex-col"
         initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
       >
@@ -897,7 +897,7 @@ function EditBagModal({
         </div>
 
         {/* フォーム */}
-        <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 px-5 py-5 space-y-5">
 
           {/* 商品タイプ */}
           <div>

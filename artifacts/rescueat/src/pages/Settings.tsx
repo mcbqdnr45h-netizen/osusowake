@@ -40,7 +40,7 @@ function TokushoModal({ onClose }: { onClose: () => void }) {
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="overflow-y-auto px-6 py-5 space-y-5">
+        <div className="overflow-y-auto overflow-x-hidden px-6 py-5 space-y-5">
           {[
             { label: '販売業者', value: 'OsusOwake 事務局' },
             { label: '運営責任者', value: 'Yuhi' },

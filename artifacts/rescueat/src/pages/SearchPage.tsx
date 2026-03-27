@@ -178,7 +178,7 @@ function StoreBottomSheet({
 
         {/* スクロールコンテンツ */}
         <div
-          className="flex-1 overflow-y-auto overscroll-contain"
+          className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
         >
           {/* 店舗画像バナー */}

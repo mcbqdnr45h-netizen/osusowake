@@ -176,7 +176,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
           ══════════════════════════════════════ */}
           <div
             id="receipt-printable"
-            className="px-6 pb-4 flex-1 overflow-y-auto"
+            className="px-6 pb-4 flex-1 overflow-y-auto overflow-x-hidden"
             style={{ fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif' }}
           >
             {/* ── タイトル ─────────────── */}
