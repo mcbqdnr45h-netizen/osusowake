@@ -39,6 +39,7 @@ interface AdminStore {
   bag_count: number;
   reservation_count: number;
   revenue: number;
+  rejection_reason: string | null;
 }
 
 interface AdminStoreDetail extends AdminStore {
@@ -194,6 +195,9 @@ export default function AdminDashboard() {
   const [storeFilter, setStoreFilter] = useState<'all' | 'pending' | 'approved' | 'suspended'>('pending');
   const [showAllStores, setShowAllStores] = useState(false);
   const [expandedStore, setExpandedStore] = useState<number | null>(null);
+  // 却下モーダル
+  const [rejectDialog, setRejectDialog] = useState<{ storeId: number; storeName: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [expandedLead, setExpandedLead]   = useState<number | null>(null);
   const [storeDetails, setStoreDetails]   = useState<Record<number, AdminStoreDetail>>({});
   const [detailLoading, setDetailLoading] = useState<number | null>(null);
@@ -288,16 +292,24 @@ export default function AdminDashboard() {
     } finally { setActionLoading(null); }
   }
 
-  async function rejectStore(storeId: number) {
-    if (!confirm('この店舗を却下しますか？')) return;
+  function openRejectDialog(storeId: number, storeName: string) {
+    setRejectReason('');
+    setRejectDialog({ storeId, storeName });
+  }
+
+  async function confirmReject() {
+    if (!rejectDialog) return;
+    const { storeId } = rejectDialog;
     setActionLoading(storeId);
+    setRejectDialog(null);
     try {
       const res = await fetch(`${BASE}/api/admin/stores/${storeId}/reject`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rejectionReason: rejectReason.trim() || null }),
       });
-      if (res.ok) { toast({ title: '❌ 却下しました' }); await fetchAll(); }
-      else toast({ title: 'エラー', variant: 'destructive' });
+      if (res.ok) { toast({ title: '❌ 却下しました。オーナーに通知を送信しました。' }); await fetchAll(); }
+      else toast({ title: 'エラー', description: '却下に失敗しました', variant: 'destructive' });
     } finally { setActionLoading(null); }
   }
 
@@ -627,6 +639,14 @@ export default function AdminDashboard() {
                               return (
                                 <div className="space-y-3">
 
+                                  {/* 却下理由バナー */}
+                                  {store.status === 'rejected' && store.rejection_reason && (
+                                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                                      <p className="text-[11px] font-black text-red-600 mb-1">却下理由</p>
+                                      <p className="text-xs text-red-700 leading-relaxed">{store.rejection_reason}</p>
+                                    </div>
+                                  )}
+
                                   {/* オーナー情報 */}
                                   <DetailSection title="👤 オーナー情報">
                                     <DetailRow label="メールアドレス" value={d.owner_email} copyable />
@@ -735,7 +755,7 @@ export default function AdminDashboard() {
                                     {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                                     承認する
                                   </button>
-                                  <button onClick={() => rejectStore(store.id)} disabled={isProcessing}
+                                  <button onClick={() => openRejectDialog(store.id, store.name)} disabled={isProcessing}
                                     className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs py-2.5 rounded-xl transition-colors border border-red-200 disabled:opacity-50">
                                     <XCircle className="w-3.5 h-3.5" />
                                     却下
@@ -1148,6 +1168,64 @@ export default function AdminDashboard() {
               className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center text-xl hover:bg-white/20 transition-colors"
               onClick={() => setLightboxImg(null)}
             >✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 却下理由入力モーダル ── */}
+      <AnimatePresence>
+        {rejectDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+            onClick={() => setRejectDialog(null)}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                  <XCircle className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <p className="font-black text-foreground text-sm">審査を却下しますか？</p>
+                  <p className="text-xs text-muted-foreground truncate max-w-[240px]">{rejectDialog.storeName}</p>
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="block text-xs font-black text-muted-foreground mb-2 uppercase tracking-wider">却下理由（オーナーに通知されます）</label>
+                <textarea
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  rows={4}
+                  placeholder="例：営業許可証の内容が確認できませんでした。再申請の際は、許可証の写真を鮮明なものに差し替えてください。"
+                  className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm border border-border/50 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                  autoFocus
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">※ 空欄の場合は理由なしで却下されます</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setRejectDialog(null)}
+                  className="flex-1 py-3 rounded-xl font-bold text-sm bg-secondary hover:bg-secondary/80 text-foreground transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={confirmReject}
+                  className="flex-1 py-3 rounded-xl font-black text-sm bg-red-500 hover:bg-red-600 text-white transition-colors"
+                >
+                  却下する
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

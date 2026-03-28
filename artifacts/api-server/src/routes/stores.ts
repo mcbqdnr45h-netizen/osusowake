@@ -50,6 +50,7 @@ const storeSelectFields = {
   stripeAccountId: storesTable.stripeAccountId,
   holiday: storesTable.holiday,
   pickupHours: storesTable.pickupHours,
+  rejectionReason: storesTable.rejectionReason,
   totalBagsAvailable: sql<number>`COALESCE(SUM(CASE
     WHEN ${surpriseBagsTable.isActive} = true
       AND (
@@ -486,7 +487,7 @@ router.post("/admin/stores/:storeId/approve", async (req, res) => {
   }
 });
 
-// Admin: reject a store
+// Admin: reject a store (with optional rejection reason)
 router.post("/admin/stores/:storeId/reject", async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);
@@ -494,9 +495,11 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
       res.status(400).json({ error: "bad_request", message: "Invalid store ID" });
       return;
     }
+    const rejectionReason: string | null = req.body?.rejectionReason?.trim() || null;
+
     const [updated] = await db
       .update(storesTable)
-      .set({ status: "rejected" })
+      .set({ status: "rejected", rejectionReason })
       .where(eq(storesTable.id, storeId))
       .returning();
 
@@ -504,10 +507,179 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
       res.status(404).json({ error: "not_found", message: "Store not found" });
       return;
     }
+
+    // ── 店舗オーナーへの通知 & メール ──────────────────────────────
+    try {
+      if (updated.ownerId) {
+        // in-app 通知
+        await db.insert(notificationsTable).values({
+          userId: updated.ownerId,
+          type: "store_rejected",
+          title: "店舗審査の結果をお知らせします",
+          body: rejectionReason
+            ? `申請が却下されました。理由：${rejectionReason}`
+            : "申請が却下されました。再申請フォームより修正のうえ再度お申し込みください。",
+        });
+
+        // メール送信
+        const resendApiKey = process.env.RESEND_API_KEY;
+        if (resendApiKey) {
+          const resend = new Resend(resendApiKey);
+          const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
+          const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
+          const { data: userData } = await supabaseAdmin.auth.admin.getUserById(updated.ownerId);
+          const ownerEmail = userData?.user?.email;
+          if (ownerEmail) {
+            await resend.emails.send({
+              from: `OsusOwake <${fromDomain}>`,
+              to: ownerEmail,
+              subject: `【OsusOwake】店舗審査の結果について：${updated.name}`,
+              html: `
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);padding:40px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">😔</div>
+      <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0;">審査結果のご連絡</h1>
+    </div>
+    <div style="padding:32px;">
+      <p style="font-size:15px;color:#333;line-height:1.7;margin-bottom:20px;">
+        この度は OsusOwake にご申請いただきありがとうございます。<br>
+        誠に申し訳ございませんが、<strong>${updated.name}</strong> の店舗申請について、今回は審査を通過できませんでした。
+      </p>
+      ${rejectionReason ? `
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+        <p style="font-size:12px;font-weight:900;color:#dc2626;margin:0 0 8px;">却下理由</p>
+        <p style="font-size:14px;color:#333;margin:0;line-height:1.6;">${rejectionReason}</p>
+      </div>` : ''}
+      <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:24px;">
+        情報を修正のうえ、アプリより再申請していただくことが可能です。
+      </p>
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${appUrl}/store/reapply" style="display:inline-block;background:linear-gradient(135deg,#F26419,#d44a00);color:#ffffff;font-size:16px;font-weight:900;padding:16px 48px;border-radius:14px;text-decoration:none;">
+          再申請する
+        </a>
+      </div>
+      <p style="color:#999;font-size:12px;text-align:center;margin:0;">ご不明な点は <a href="mailto:hello.osusowake@gmail.com" style="color:#F26419;">hello.osusowake@gmail.com</a> までご連絡ください。</p>
+    </div>
+  </div>
+</body>
+</html>`.trim(),
+            });
+            console.log("[reject] ✅ 却下メール送信 →", ownerEmail);
+          }
+        }
+      }
+    } catch (notifyErr: any) {
+      console.warn("[reject] 通知送信エラー:", notifyErr?.message);
+    }
+
     res.json({ ...updated, totalBagsAvailable: 0 });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error", message: "Failed to reject store" });
+  }
+});
+
+// Store owner: reapply after rejection
+router.post("/stores/:storeId/reapply", async (req, res) => {
+  try {
+    const storeId = Number(req.params.storeId);
+    if (isNaN(storeId)) {
+      res.status(400).json({ error: "bad_request", message: "Invalid store ID" });
+      return;
+    }
+
+    const body = req.body ?? {};
+
+    // 既存店舗を取得してオーナー確認
+    const [store] = await db.select().from(storesTable).where(eq(storesTable.id, storeId)).limit(1);
+    if (!store) {
+      res.status(404).json({ error: "not_found", message: "Store not found" });
+      return;
+    }
+    if (store.status !== "rejected") {
+      res.status(400).json({ error: "invalid_status", message: "Only rejected stores can reapply" });
+      return;
+    }
+
+    // 更新可能なフィールドのみ受け取る
+    const updateData: Record<string, unknown> = {
+      status: "pending_review",
+      rejectionReason: null,
+    };
+    const editableFields = ["name", "description", "address", "city", "category", "phone",
+      "openTime", "closeTime", "holiday", "pickupHours", "imageUrl",
+      "licenseNumber", "pledgeSigned",
+      "legalName", "legalRepresentative", "legalAddress", "legalPhone", "legalEmail", "legalOther"];
+    for (const f of editableFields) {
+      if (body[f] !== undefined) updateData[f] = body[f];
+    }
+
+    const [updated] = await db
+      .update(storesTable)
+      .set(updateData as any)
+      .where(eq(storesTable.id, storeId))
+      .returning();
+
+    // ── 管理者への再審査通知 & メール ──────────────────────────────
+    try {
+      const resendApiKey = process.env.RESEND_API_KEY;
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
+        const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
+        const adminEmail = "yuuhi0125416@icloud.com";
+        const secret = process.env.ADMIN_APPROVAL_SECRET ?? "osusowake-admin-secret";
+        const crypto = await import('node:crypto');
+        const token = crypto.createHmac('sha256', secret).update(String(storeId)).digest('hex');
+        const approveUrl = `${appUrl}/api/admin/approve-store?storeId=${storeId}&token=${token}`;
+
+        await resend.emails.send({
+          from: `OsusOwake <${fromDomain}>`,
+          to: adminEmail,
+          subject: `【OsusOwake】店舗が再申請されました: ${updated.name}`,
+          html: `
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 100%);padding:40px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">🔄</div>
+      <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0;">店舗が再申請されました</h1>
+    </div>
+    <div style="padding:32px;">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;width:100px;">店舗名</td><td style="padding:8px 0;font-weight:bold;font-size:15px;">${updated.name}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;">住所</td><td style="padding:8px 0;font-size:13px;">${updated.address}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;">再申請日時</td><td style="padding:8px 0;font-size:13px;">${new Date().toLocaleString('ja-JP')}</td></tr>
+      </table>
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${approveUrl}" style="display:inline-block;background:linear-gradient(135deg,#F26419,#d44a00);color:#ffffff;font-size:16px;font-weight:900;padding:16px 48px;border-radius:14px;text-decoration:none;">
+          ✅ ワンタップで承認する
+        </a>
+      </div>
+      <p style="color:#999;font-size:12px;text-align:center;margin:0;">
+        管理者ダッシュボード: <a href="${appUrl}/admin" style="color:#F26419;">${appUrl}/admin</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`.trim(),
+        });
+        console.log("[reapply] ✅ 管理者再審査メール送信 →", adminEmail);
+      }
+    } catch (mailErr: any) {
+      console.warn("[reapply] 管理者メール送信エラー:", mailErr?.message);
+    }
+
+    res.json({ ...updated, totalBagsAvailable: 0 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to reapply" });
   }
 });
 

@@ -16,9 +16,12 @@ export type MyStore = {
   openTime: string | null;
   closeTime: string | null;
   address: string | null;
+  city: string | null;
+  phone: string | null;
   category: string | null;
   holiday: string | null;
   pickupHours: string | null;
+  rejectionReason: string | null;
 };
 
 function cacheKey(userId: string) {

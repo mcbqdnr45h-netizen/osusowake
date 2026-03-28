@@ -57,6 +57,8 @@ export const storesTable = pgTable("stores", {
   legalPhone: text("legal_phone"),
   legalEmail: text("legal_email"),
   legalOther: text("legal_other"),
+  // 審査却下理由（管理者が入力）
+  rejectionReason: text("rejection_reason"),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });

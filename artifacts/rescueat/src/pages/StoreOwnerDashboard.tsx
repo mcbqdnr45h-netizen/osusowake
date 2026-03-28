@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { StoreLayout } from '@/components/StoreLayout';
@@ -469,19 +469,25 @@ export default function StoreOwnerDashboard() {
   if (store?.status === 'rejected') {
     return (
       <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 pb-16">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center space-y-5">
-          <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mx-auto">
-            <XCircle className="w-10 h-10 text-red-500" />
-          </div>
-          <div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm space-y-5">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <XCircle className="w-10 h-10 text-red-500" />
+            </div>
             <h2 className="text-2xl font-black text-foreground mb-2">申請が却下されました</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">詳細はメールをご確認ください。再申請も承っています。</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">情報を修正して再申請することができます。</p>
           </div>
-          <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer"
+          {store.rejectionReason && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+              <p className="text-xs font-black text-red-600 mb-1">却下理由</p>
+              <p className="text-sm text-red-700 leading-relaxed">{store.rejectionReason}</p>
+            </div>
+          )}
+          <Link href="/store/reapply"
             className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
           >
-            <ExternalLink className="w-4 h-4" />再申請・お問い合わせ
-          </a>
+            再申請する
+          </Link>
         </motion.div>
       </div>
     );

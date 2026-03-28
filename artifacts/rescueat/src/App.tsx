@@ -17,6 +17,7 @@ import Checkout from "./pages/Checkout";
 import MyReservations from "./pages/MyReservations";
 import StoreDashboard from "./pages/StoreDashboard";
 import StoreOwnerDashboard from "./pages/StoreOwnerDashboard";
+import StoreReapply from "./pages/StoreReapply";
 import StoreBagsPage from "./pages/StoreBagsPage";
 import StoreSalesPage from "./pages/StoreSalesPage";
 import SearchPage from "./pages/SearchPage";
@@ -90,6 +91,7 @@ const GuardedStripeBankSetup = Protected(StripeBankSetup, 'store_owner');
 const GuardedAdminVerify     = Protected(AdminVerifyShops);
 const GuardedStoreProfileEdit = Protected(StoreProfileEdit, 'store_owner');
 const GuardedStoreReviews    = Protected(StoreReviews, 'store_owner');
+const GuardedStoreReapply    = Protected(StoreReapply, 'store_owner');
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -231,6 +233,7 @@ function AnimatedRoutes() {
           <Route path="/store/bank-setup" component={GuardedStripeBankSetup} />
           <Route path="/store/profile-edit" component={GuardedStoreProfileEdit} />
           <Route path="/store/reviews"   component={GuardedStoreReviews} />
+          <Route path="/store/reapply"   component={GuardedStoreReapply} />
 
           {/* ── 公開 店舗詳細 ── */}
           <Route path="/stores/:id" component={StoreDetailPublic} />

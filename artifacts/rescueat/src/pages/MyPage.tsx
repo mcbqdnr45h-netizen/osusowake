@@ -439,7 +439,7 @@ export default function MyPage() {
                 )}
                 {store?.status === 'rejected' && (
                   <Link
-                    href="/store-dashboard"
+                    href="/store/reapply"
                     className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
                   >
                     <div className="w-9 h-9 bg-red-100 text-red-500 rounded-full flex items-center justify-center shrink-0">
@@ -447,9 +447,13 @@ export default function MyPage() {
                     </div>
                     <div className="flex-1">
                       <div className="font-bold text-foreground text-sm">店舗申請が却下されました</div>
-                      <div className="text-xs text-muted-foreground">詳細を確認・再申請する</div>
+                      <div className="text-xs text-muted-foreground">
+                        {store.rejectionReason
+                          ? `理由：${store.rejectionReason.slice(0, 30)}${store.rejectionReason.length > 30 ? '…' : ''}`
+                          : '再申請フォームで修正・再申請する'}
+                      </div>
                     </div>
-                    <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">却下</span>
+                    <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">再申請</span>
                   </Link>
                 )}
                 {isApprovedOwner && (
