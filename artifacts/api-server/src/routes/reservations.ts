@@ -5,9 +5,10 @@ import {
   surpriseBagsTable,
   storesTable,
   cartReservationsTable,
+  reviewsTable,
   insertReservationSchema,
 } from "@workspace/db/schema";
-import { eq, and, sql, lt } from "drizzle-orm";
+import { eq, and, sql, lt, isNotNull } from "drizzle-orm";
 
 const HOLD_MINUTES = 5;
 
@@ -175,13 +176,20 @@ router.get("/reservations", async (req, res) => {
         createdAt: reservationsTable.createdAt,
         bag: surpriseBagsTable,
         store: storesTable,
+        reviewId: reviewsTable.id,
       })
       .from(reservationsTable)
       .innerJoin(surpriseBagsTable, eq(reservationsTable.bagId, surpriseBagsTable.id))
       .innerJoin(storesTable, eq(reservationsTable.storeId, storesTable.id))
+      .leftJoin(reviewsTable, eq(reviewsTable.reservationId, reservationsTable.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    res.json(rows.map((r) => ({ ...r, store: { ...r.store, totalBagsAvailable: 0 } })));
+    res.json(rows.map((r) => ({
+      ...r,
+      hasReview: r.reviewId !== null,
+      reviewId: undefined,
+      store: { ...r.store, totalBagsAvailable: 0 },
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error", message: "Failed to fetch reservations" });

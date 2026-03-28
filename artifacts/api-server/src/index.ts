@@ -311,6 +311,23 @@ async function runMigrations() {
     `);
     console.log('[migration] surprise_bags.item_type ✅');
 
+    // ── reviews テーブル ─────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id            SERIAL PRIMARY KEY,
+        store_id      INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        reservation_id INTEGER NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+        user_id       TEXT NOT NULL,
+        rating        INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        comment       TEXT,
+        reply         TEXT,
+        replied_at    TIMESTAMP,
+        created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS reviews_reservation_unique ON reviews(reservation_id);
+    `);
+    console.log('[migration] reviews table ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

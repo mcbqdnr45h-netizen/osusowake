@@ -225,7 +225,7 @@ export default function MyReservations() {
           const renderCard = (res: typeof sorted[0], i: number) => {
             const expired    = isPickupExpired(res.bag?.pickupEnd, res.createdAt);
             const cfg        = statusConfig(res.status, expired);
-            const alreadyReviewed = reviewedIds.has(res.id);
+            const alreadyReviewed = (res as any).hasReview || reviewedIds.has(res.id);
             const isFaded    = res.status === 'picked_up' || res.status === 'cancelled' || (res.status === 'pending' && expired);
             const showDismiss = res.status === 'pending' && expired;
 
