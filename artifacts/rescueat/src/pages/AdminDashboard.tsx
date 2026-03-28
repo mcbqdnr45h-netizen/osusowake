@@ -375,7 +375,7 @@ export default function AdminDashboard() {
   const filteredStores = stores.filter(s => {
     if (storeFilter === 'pending')   return isPending(s);
     if (storeFilter === 'approved')  return s.status === 'approved' && s.is_active;
-    if (storeFilter === 'suspended') return !s.is_active || s.status === 'suspended' || s.status === 'rejected';
+    if (storeFilter === 'suspended') return s.status === 'suspended' || s.status === 'rejected' || (s.status === 'approved' && !s.is_active);
     return true;
   });
   const displayedStores = showAllStores ? filteredStores : filteredStores.slice(0, 10);
@@ -503,7 +503,7 @@ export default function AdminDashboard() {
               const counts: Record<typeof f, number> = {
                 pending:   stores.filter(isPending).length,
                 approved:  stores.filter(s => s.status === 'approved' && s.is_active).length,
-                suspended: stores.filter(s => !s.is_active || s.status === 'suspended' || s.status === 'rejected').length,
+                suspended: stores.filter(s => s.status === 'suspended' || s.status === 'rejected' || (s.status === 'approved' && !s.is_active)).length,
                 all:       stores.length,
               };
               const labels = { pending: '審査待ち', approved: '承認済み', suspended: '停止/却下', all: 'すべて' };
