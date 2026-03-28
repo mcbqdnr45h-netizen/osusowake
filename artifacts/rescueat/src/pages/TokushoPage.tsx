@@ -25,8 +25,8 @@ export default function TokushoPage() {
       <div className="max-w-md mx-auto pb-24">
 
         {/* ヘッダー */}
-        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border/50 px-4 h-14 flex items-center gap-3"
-          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="sticky z-10 bg-background/90 backdrop-blur-sm border-b border-border/50 px-4 h-14 flex items-center gap-3"
+          style={{ top: 'env(safe-area-inset-top)' }}>
           <button
             onClick={() => window.history.back()}
             className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"

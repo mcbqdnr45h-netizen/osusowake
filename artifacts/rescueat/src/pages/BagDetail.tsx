@@ -387,7 +387,7 @@ export default function BagDetail() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-3xl mx-auto md:py-8 md:px-4">
+      <div className="relative max-w-3xl mx-auto md:py-8 md:px-4">
 
         {/* Mobile Header Back Button */}
         <div className="absolute top-4 left-4 z-50 md:hidden">
@@ -706,7 +706,7 @@ export default function BagDetail() {
 
               {/* Avg rating summary */}
               {reviewData && reviewData.avgRating !== null ? (
-                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl px-6 py-6 mb-5">
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl px-6 py-6 mb-6">
                   <div className="flex items-center gap-6">
                     {/* 左列：スコア＋星＋件数 */}
                     <div className="flex flex-col items-center justify-center shrink-0 min-w-[72px]">

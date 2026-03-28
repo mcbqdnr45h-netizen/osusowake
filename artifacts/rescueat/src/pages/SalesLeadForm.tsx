@@ -45,8 +45,8 @@ export default function SalesLeadForm() {
     <Layout>
       <div className="min-h-screen bg-background pb-24">
         {/* ヘッダー */}
-        <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-border/40"
-          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="sticky z-40 bg-white/90 backdrop-blur-xl border-b border-border/40"
+          style={{ top: 'env(safe-area-inset-top)' }}>
           <div className="max-w-lg mx-auto px-4 h-14 flex items-center gap-3">
             <button
               onClick={() => navigate('/mypage')}

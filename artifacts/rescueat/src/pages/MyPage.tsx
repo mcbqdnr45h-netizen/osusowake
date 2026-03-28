@@ -111,7 +111,7 @@ export default function MyPage() {
   const pageContent = (
     <div
       className="w-full px-4 pb-24"
-      style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top) + 1rem))' }}
+      style={{ paddingTop: '1.5rem' }}
     >
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-lg font-black text-foreground">マイページ</h1>

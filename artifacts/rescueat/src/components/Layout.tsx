@@ -73,6 +73,15 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
       style={!hideFooter ? { paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' } : undefined}
     >
 
+      {/* ── モバイル専用セーフエリアスペーサー（デスクトップ非表示）── */}
+      {!hideHeader && (
+        <div
+          className="block md:hidden shrink-0 bg-background"
+          style={{ height: 'env(safe-area-inset-top)' }}
+          aria-hidden="true"
+        />
+      )}
+
       {/* ── Top Header: デスクトップのみ表示（モバイルはボトムナビを使用） ── */}
       {!hideHeader && <header
         className="hidden md:block sticky top-0 z-50 shrink-0"

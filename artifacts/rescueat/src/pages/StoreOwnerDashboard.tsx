@@ -508,7 +508,8 @@ export default function StoreOwnerDashboard() {
     <StoreLayout showHeader={false}>
 
       {/* ── ヘッダー ── */}
-      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-xl border-b border-border">
+      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-xl border-b border-border"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">

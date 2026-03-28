@@ -257,7 +257,7 @@ export default function Settings() {
 
         {/* Header */}
         <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
-          style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
+          style={{ top: 'calc(var(--layout-header-height, 0px) + env(safe-area-inset-top))' }}>
           <button
             onClick={() => navigate('/mypage')}
             className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
