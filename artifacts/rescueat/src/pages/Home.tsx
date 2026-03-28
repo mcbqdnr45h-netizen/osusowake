@@ -213,7 +213,21 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
             )}
           </div>
           {!isSoldOut && (
-            <span className="text-sm font-black text-primary shrink-0">¥{bag.discountedPrice.toLocaleString()}</span>
+            <div className="flex flex-col items-end gap-0.5 shrink-0">
+              {isLowStock && (
+                <span className="text-[9px] font-black text-rose-500 leading-none">
+                  残りあと{bag.stockCount}個！
+                </span>
+              )}
+              {bag.originalPrice > 0 && (
+                <span className="text-[9px] text-muted-foreground/60 line-through font-medium leading-none">
+                  ¥{bag.originalPrice.toLocaleString()}
+                </span>
+              )}
+              <span className="text-sm font-black text-primary leading-none">
+                ¥{bag.discountedPrice.toLocaleString()}
+              </span>
+            </div>
           )}
         </div>
       </div>

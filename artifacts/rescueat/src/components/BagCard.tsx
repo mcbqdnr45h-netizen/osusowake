@@ -309,17 +309,22 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
                     <Gift className={`w-2.5 h-2.5 shrink-0 ${isLowStock ? 'text-rose-500' : 'text-primary'}`} />
                     <span className={isLowStock ? 'text-rose-600 font-bold' : 'font-medium'}>残り{bag.stockCount}個</span>
                   </div>
-                  <span className="text-base font-black text-primary leading-none whitespace-nowrap">
-                    ¥{bag.discountedPrice.toLocaleString()}
-                  </span>
-                </div>
-                {bag.originalPrice > 0 && (
-                  <div className="flex items-center justify-end">
-                    <span className="text-[10px] text-muted-foreground/60 line-through font-medium">
-                      ¥{bag.originalPrice.toLocaleString()}
+                  <div className="flex flex-col items-end gap-0.5 shrink-0">
+                    {isLowStock && (
+                      <span className="text-[9px] font-black text-rose-500 leading-none">
+                        残りあと{bag.stockCount}個！
+                      </span>
+                    )}
+                    {bag.originalPrice > 0 && (
+                      <span className="text-[9px] text-muted-foreground/60 line-through font-medium leading-none">
+                        ¥{bag.originalPrice.toLocaleString()}
+                      </span>
+                    )}
+                    <span className="text-base font-black text-primary leading-none whitespace-nowrap">
+                      ¥{bag.discountedPrice.toLocaleString()}
                     </span>
                   </div>
-                )}
+                </div>
               </div>
             ) : (
               <>
