@@ -482,26 +482,22 @@ export default function StoreOnboarding() {
             />
           </div>
 
-          {/* 営業許可証番号 */}
-          <div>
-            <label className="block text-sm font-bold text-muted-foreground mb-1.5">
-              営業許可証番号 <span className="text-destructive">*</span>
+          {/* 営業許可証（番号 + 写真を1枠にまとめる） */}
+          <div className="space-y-3">
+            <label className="block text-sm font-bold text-muted-foreground">
+              営業許可証 <span className="text-red-500">★</span>
             </label>
+
+            {/* 許可証番号 */}
             <input
               type="text"
               value={form.licenseNumber}
               onChange={e => setForm(f => ({ ...f, licenseNumber: e.target.value }))}
               className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-              placeholder="例: 第○○号"
+              placeholder="許可証番号（例: 第○○号）"
             />
-            <p className="text-xs text-muted-foreground mt-1.5">食品衛生法に基づく営業許可証に記載の番号を入力してください。</p>
-          </div>
 
-          {/* 営業許可証の写真 */}
-          <div>
-            <label className="block text-sm font-bold text-muted-foreground mb-2">
-              営業許可証の写真 <span className="text-destructive">*</span>
-            </label>
+            {/* 写真アップロード */}
             <label className="block cursor-pointer">
               <input
                 type="file"
@@ -524,13 +520,13 @@ export default function StoreOnboarding() {
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                       <FileText className="w-6 h-6 text-primary/60" />
                     </div>
-                    <span className="text-sm font-bold text-muted-foreground">タップして写真を追加</span>
+                    <span className="text-sm font-bold text-muted-foreground">許可証の写真をタップして追加</span>
                     <span className="text-xs text-muted-foreground/60">JPG・PNG・HEIC対応</span>
                   </>
                 )}
               </div>
             </label>
-            <p className="text-xs text-muted-foreground mt-1.5">書類全体が読み取れる写真をアップロードしてください。</p>
+            <p className="text-xs text-muted-foreground">許可証番号と書類全体が読み取れる写真をアップロードしてください。</p>
           </div>
 
           {/* 誓約チェック */}
