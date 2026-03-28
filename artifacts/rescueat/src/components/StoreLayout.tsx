@@ -21,10 +21,13 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
   const [location] = useLocation();
   const { store } = useMyStore();
 
+  // 店舗登録が完了していない場合はボトムナビを非表示にする
+  const shouldShowNav = showBottomNav && !!store;
+
   return (
     <div
       className="min-h-dvh flex flex-col bg-[#FAFAF8] text-foreground"
-      style={{ paddingBottom: showBottomNav ? 'calc(72px + env(safe-area-inset-bottom))' : undefined }}
+      style={{ paddingBottom: shouldShowNav ? 'calc(72px + env(safe-area-inset-bottom))' : undefined }}
     >
       {/* ── ストアヘッダー ───────────────────────────────────── */}
       {showHeader && (
@@ -69,7 +72,7 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
       </main>
 
       {/* ── 店舗専用ボトムナビ ──────────────────────────────── */}
-      {showBottomNav && (
+      {shouldShowNav && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-orange-100 shadow-[0_-4px_24px_rgba(255,140,0,0.08)]"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
