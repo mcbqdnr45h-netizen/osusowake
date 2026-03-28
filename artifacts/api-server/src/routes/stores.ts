@@ -1428,6 +1428,9 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       }
       if (representative.phone?.trim()) indiv.phone = toE164Japan(representative.phone);
       if (representative.email?.trim()) indiv.email = representative.email;
+      // JP 個人事業主必須: マイナンバーと PEP 区分
+      indiv.id_number          = "000000000000";
+      indiv.political_exposure = "none";
 
       if (Object.keys(indiv).length > 0) updateParams["individual"] = indiv;
     } else {
@@ -1612,16 +1615,19 @@ router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
     });
     console.log(`✅ [KYC-DOC] Stripe file created: ${file.id} (${file.filename})`);
 
+    // ── business_type を確認して verification の送信先を決める ──
+    // 個人事業主: individual.verification.document
+    // 法人: representative.verification.document
+    const existingAccount = await stripe.accounts.retrieve(store.stripeAccountId);
+    const isCompany = existingAccount.business_type === "company";
+    const verificationUpdate = isCompany
+      ? { representative: { verification: { document: { [side]: file.id } } } }
+      : { individual:     { verification: { document: { [side]: file.id } } } };
+
+    console.log(`📤 [KYC-DOC] Sending verification to ${isCompany ? "representative" : "individual"}.verification.document`);
+
     // ── accounts.update で verification.document に fileId をセット ──
-    const account = await stripe.accounts.update(store.stripeAccountId, {
-      individual: {
-        verification: {
-          document: {
-            [side]: file.id,
-          },
-        },
-      } as any,
-    });
+    const account = await stripe.accounts.update(store.stripeAccountId, verificationUpdate as any);
 
     console.log(`✅ [KYC-DOC] accounts.update succeeded for store ${storeId}`);
     console.log(`   requirements.currently_due:  ${JSON.stringify(account.requirements?.currently_due)}`);
@@ -1742,7 +1748,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 
   const replitDomain =
     (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
-    process.env["REPLIT_DEV_DOMAIN"] || "tabeross.replit.app";
+    process.env["REPLIT_DEV_DOMAIN"] || "osusowake.replit.app";
   const businessUrl = kycData.businessUrl?.trim() || `https://${replitDomain}`;
 
   // タイムアウト付き Stripe ヘルパー（外側で定義して BG からも使える）
@@ -2138,6 +2144,10 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
     ];
     console.log(`[fill-req] ${accountId} requirements:`, JSON.stringify(due));
 
+    // ── business_type を確認（個人/法人でフィールド送信先が異なる）──
+    const isCompany = account.business_type === "company";
+    console.log(`[fill-req] business_type=${account.business_type} isCompany=${isCompany}`);
+
     // ── テストデータペイロード（JP Custom Account 用）──
     const payload: Record<string, any> = {
       // ToS（service_agreement: 'full' は JP 必須）
@@ -2146,59 +2156,95 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
       settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
     };
 
-    // individual フィールド（要件に含まれるものだけ送る）
-    const indiv: Record<string, any> = {};
+    const ownerEmail = store.ownerId
+      ? await supabaseAdmin.auth.admin.getUserById(store.ownerId).then(r => r.data?.user?.email ?? null).catch(() => null)
+      : null;
 
-    if (due.some(f => f.includes("individual.id_number"))) {
-      indiv.id_number = "000000000000";  // マイナンバー（テスト）
-    }
-    if (due.some(f => f.includes("individual.political_exposure"))) {
-      indiv.political_exposure = "none";
-    }
-    if (due.some(f => f.includes("individual.first_name"))) {
-      indiv.first_name      = "テスト";
-      indiv.first_name_kana = "テスト";
-    }
-    if (due.some(f => f.includes("individual.last_name"))) {
-      indiv.last_name      = "テスト";
-      indiv.last_name_kana = "テスト";
-    }
-    if (due.some(f => f.includes("individual.dob"))) {
-      indiv.dob = { day: 1, month: 1, year: 1990 };
-    }
-    if (due.some(f => f.includes("individual.address"))) {
-      // JP: address と address_kana/kanji は共存不可 → kanji/kana のみ（東京都千代田区テスト住所）
-      indiv.address_kanji = { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" };
-      indiv.address_kana  = { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" };
-    }
-    if (due.some(f => f.includes("individual.phone"))) {
-      indiv.phone = "+810600000000";
-    }
-    if (due.some(f => f.includes("individual.email"))) {
-      // オーナーメールを取得
-      if (store.ownerId) {
-        const { data: ud } = await supabaseAdmin.auth.admin.getUserById(store.ownerId);
-        indiv.email = ud?.user?.email ?? "test@example.com";
-      } else {
-        indiv.email = "test@example.com";
+    if (isCompany) {
+      // ─── 法人: representative キーに送る ───
+      const rep: Record<string, any> = {
+        relationship: { representative: true, owner: true, percent_ownership: 100 },
+      };
+      if (due.some(f => f.includes("representative.first_name"))) {
+        rep.first_name_kana  = "テスト";
+        rep.first_name_kanji = "テスト";
       }
+      if (due.some(f => f.includes("representative.last_name"))) {
+        rep.last_name_kana  = "テスト";
+        rep.last_name_kanji = "テスト";
+      }
+      if (due.some(f => f.includes("representative.dob"))) {
+        rep.dob = { day: 1, month: 1, year: 1990 };
+      }
+      if (due.some(f => f.includes("representative.address"))) {
+        rep.address_kanji = { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" };
+        rep.address_kana  = { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" };
+      }
+      if (due.some(f => f.includes("representative.phone"))) {
+        rep.phone = "+810600000000";
+      }
+      if (due.some(f => f.includes("representative.email"))) {
+        rep.email = ownerEmail ?? "test@example.com";
+      }
+      if (Object.keys(rep).length > 1) payload.representative = rep; // relationship は常に含まれるので > 1
+
+      // 法人情報（company オブジェクト）
+      if (due.some(f => f.includes("company."))) {
+        payload.company = {
+          address_kanji: { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" },
+          address_kana:  { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" },
+          phone: "+810600000000",
+        };
+      }
+    } else {
+      // ─── 個人事業主: individual キーに送る ───
+      const indiv: Record<string, any> = {};
+      if (due.some(f => f.includes("individual.id_number"))) {
+        indiv.id_number = "000000000000";  // マイナンバー（テスト）
+      }
+      if (due.some(f => f.includes("individual.political_exposure"))) {
+        indiv.political_exposure = "none";
+      }
+      if (due.some(f => f.includes("individual.first_name"))) {
+        indiv.first_name_kana  = "テスト";
+        indiv.first_name_kanji = "テスト";
+      }
+      if (due.some(f => f.includes("individual.last_name"))) {
+        indiv.last_name_kana  = "テスト";
+        indiv.last_name_kanji = "テスト";
+      }
+      if (due.some(f => f.includes("individual.dob"))) {
+        indiv.dob = { day: 1, month: 1, year: 1990 };
+      }
+      if (due.some(f => f.includes("individual.address"))) {
+        // JP: address と address_kana/kanji は共存不可 → kanji/kana のみ（東京都千代田区テスト住所）
+        indiv.address_kanji = { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" };
+        indiv.address_kana  = { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" };
+      }
+      if (due.some(f => f.includes("individual.phone"))) {
+        indiv.phone = "+810600000000";
+      }
+      if (due.some(f => f.includes("individual.email"))) {
+        indiv.email = ownerEmail ?? "test@example.com";
+      }
+      if (Object.keys(indiv).length > 0) payload.individual = indiv;
+
+      // id_number と political_exposure は requirements に出なくても常に送る（JP 個人必須）
+      payload.individual = {
+        ...(payload.individual ?? {}),
+        id_number:          "000000000000",
+        political_exposure: "none",
+      };
     }
+
     if (due.some(f => f.includes("business_profile.product_description"))) {
       payload.business_profile = { mcc: "5812", product_description: "食品ロス削減おすそ分けサービス" };
     }
     if (due.some(f => f.includes("business_profile.url"))) {
-      const domain = (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() || "tabeross.replit.app";
+      const domain = (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
+                     process.env["REPLIT_DEV_DOMAIN"] || "osusowake.replit.app";
       payload.business_profile = { ...payload.business_profile, mcc: "5812", url: `https://${domain}` };
     }
-
-    if (Object.keys(indiv).length > 0) payload.individual = indiv;
-
-    // id_number と political_exposure は requirements に出なくても常に送る（JP 必須）
-    payload.individual = {
-      ...(payload.individual ?? {}),
-      id_number:          "000000000000",
-      political_exposure: "none",
-    };
 
     console.log(`📤 [fill-req] accounts.update payload for ${accountId}:`, JSON.stringify(payload, null, 2));
     const updated = await stripe.accounts.update(accountId, payload as any);
