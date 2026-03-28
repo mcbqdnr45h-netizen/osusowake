@@ -1057,8 +1057,8 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
 
   // ── Info panel ─────────────────────────────────────────────────────────
   const infoPanel = (
-    <div className={fullPage ? 'px-4 pt-4 pb-5' : 'px-4 pt-3 pb-4'}>
-      <div className="flex items-center justify-between mb-2.5 gap-3">
+    <div className={fullPage ? 'px-4 pt-4 pb-5' : 'px-4 pt-2.5 pb-3'}>
+      <div className="flex items-center justify-between mb-2 gap-3">
         <div className="flex-1 min-w-0">
           <motion.div
             key={stage}
@@ -1127,7 +1127,7 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
               </div>
             </div>
           </div>
-          <motion.div className="bg-secondary/60 rounded-2xl px-3 py-2.5" whileTap={{ scale: 0.97 }}>
+          <motion.div className="bg-secondary/60 rounded-2xl px-3 py-2" whileTap={{ scale: 0.97 }}>
             <p className={`text-muted-foreground leading-snug ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
               あと <span className="font-black text-foreground" style={gameFont}>{nextStage!.minCount - purchaseCount}回</span> おすそわけすると「{nextStage!.name}」に進化！🌿
             </p>
@@ -1185,9 +1185,9 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-4"
+        className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3"
       >
-        <div className="relative">
+        <div className="relative overflow-hidden" style={{ maxHeight: '128px' }}>
           <TownScene stage={stage} purchaseCount={purchaseCount} showLevelUp={showParticles} />
           <LevelUpParticles active={showParticles} />
         </div>
