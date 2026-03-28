@@ -118,15 +118,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  function getApiBase() {
+    const base = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.BASE_URL : '') ?? '';
+    return base.replace(/\/$/, '') || '';
+  }
+
+  async function checkPhoneAvailable(normalizedPhone: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/check-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: normalizedPhone }),
+      });
+      if (!res.ok) return true; // エラー時は通過させてDBエラーで捕捉
+      const { taken } = await res.json();
+      return !taken;
+    } catch {
+      return true; // ネットワークエラー時は通過させてDBエラーで捕捉
+    }
+  }
+
+  async function cleanupOrphanedAuthUser(token: string) {
+    try {
+      await fetch(`${getApiBase()}/api/auth/cleanup-user`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch { /* ignore */ }
+  }
+
   async function signUp(email: string, password: string, name: string, phone: string) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
 
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id')
-      .eq('phone_number', normalizedPhone)
-      .maybeSingle();
-    if (existing) {
+    // サーバーサイドでphone重複チェック（RLSをバイパス）
+    const phoneAvailable = await checkPhoneAvailable(normalizedPhone);
+    if (!phoneAvailable) {
       return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
     }
 
@@ -147,7 +173,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }, { onConflict: 'id' });
 
       if (upsertErr?.code === '23505' || upsertErr?.message?.includes('unique')) {
+        // DB登録失敗 → auth.usersに孤立ユーザーが残るため削除
+        const sessionToken = data.session?.access_token;
+        if (sessionToken) await cleanupOrphanedAuthUser(sessionToken);
         return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+      }
+      if (upsertErr) {
+        const sessionToken = data.session?.access_token;
+        if (sessionToken) await cleanupOrphanedAuthUser(sessionToken);
+        return { error: '登録中にエラーが発生しました。もう一度お試しください', needsConfirmation: false };
       }
     }
 
@@ -158,12 +192,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signUpAsStore(email: string, password: string, name: string, phone: string) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
 
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id')
-      .eq('phone_number', normalizedPhone)
-      .maybeSingle();
-    if (existing) {
+    // サーバーサイドでphone重複チェック（RLSをバイパス）
+    const phoneAvailable = await checkPhoneAvailable(normalizedPhone);
+    if (!phoneAvailable) {
       return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
     }
 
@@ -184,7 +215,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }, { onConflict: 'id' });
 
       if (upsertErr?.code === '23505' || upsertErr?.message?.includes('unique')) {
+        const sessionToken = data.session?.access_token;
+        if (sessionToken) await cleanupOrphanedAuthUser(sessionToken);
         return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+      }
+      if (upsertErr) {
+        const sessionToken = data.session?.access_token;
+        if (sessionToken) await cleanupOrphanedAuthUser(sessionToken);
+        return { error: '登録中にエラーが発生しました。もう一度お試しください', needsConfirmation: false };
       }
     }
 

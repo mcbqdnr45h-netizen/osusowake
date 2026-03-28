@@ -10,6 +10,7 @@ import notificationsRouter from "./notifications";
 import classifyRouter from "./classify";
 import favoritesRouter from "./favorites";
 import adminRouter from "./admin";
+import authRouter from "./auth";
 import stripeWebhookRouter from "./stripe-webhook";
 import { supabaseAdmin, supabaseAnon } from "../lib/supabase.js";
 import { Resend } from "resend";
@@ -17,6 +18,7 @@ import { Resend } from "resend";
 const router: IRouter = Router();
 
 router.use(adminRouter);
+router.use(authRouter);
 router.use(stripeWebhookRouter);
 router.use(healthRouter);
 router.use(storesRouter);
