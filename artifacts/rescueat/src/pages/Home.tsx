@@ -7,6 +7,7 @@ import {
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
   Globe, Clock, ArrowLeft, ShoppingBag, Megaphone, Star,
 } from 'lucide-react';
+import { NotificationsBell } from '@/components/NotificationsBell';
 import { StoreReviewSheet } from '@/components/StoreReviewSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
@@ -549,13 +550,14 @@ export default function Home() {
       : geoDenied ? '全国の注目おすそわけ' : (appSettings.catchphrase || 'あなたの街のおすそわけ');
 
   return (
-    <Layout>
-      <div className="flex flex-col h-[calc(100dvh-64px)] overflow-hidden">
+    <Layout hideHeader>
+      <div className="flex flex-col h-dvh overflow-hidden">
 
         {/* ── Sticky ヘッダー ── */}
-        <div className="shrink-0 bg-background border-b border-border/50 z-20 shadow-sm">
+        <div className="shrink-0 bg-background border-b border-border/50 z-20 shadow-sm"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
 
-          {/* Row 1: エリア名 ←→ 検索アイコン */}
+          {/* Row 1: エリア名 ←→ 🔔 + 検索アイコン */}
           <div className="flex items-center gap-2 px-4 h-11">
             <AnimatePresence mode="wait">
               {!showSearch ? (
@@ -591,6 +593,13 @@ export default function Home() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* 通知ベル（ログイン時のみ・検索時は非表示） */}
+            {!showSearch && !!user && (
+              <div className="shrink-0">
+                <NotificationsBell />
+              </div>
+            )}
 
             {!showSearch ? (
               <button onClick={() => setShowSearch(true)}

@@ -14,9 +14,10 @@ interface LayoutProps {
   children: React.ReactNode;
   showBottomNav?: boolean;
   hideFooter?: boolean;
+  hideHeader?: boolean;
 }
 
-export function Layout({ children, showBottomNav = true, hideFooter = false }: LayoutProps) {
+export function Layout({ children, showBottomNav = true, hideFooter = false, hideHeader = false }: LayoutProps) {
   const [location] = useLocation();
   const { isApprovedOwner } = useMyStore();
   const { user, profile } = useAuth();
@@ -67,7 +68,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
     >
 
       {/* ── Top Header ───────────────────────────────────────────────── */}
-      <header
+      {!hideHeader && <header
         className="sticky top-0 z-50 shrink-0"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
@@ -250,7 +251,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false }: L
             </div>
           </div>
         </div>
-      </header>
+      </header>}
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
       <main className="flex-1 min-h-0 w-full relative flex flex-col">
