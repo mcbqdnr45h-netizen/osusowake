@@ -42,9 +42,9 @@ export default function FavoritesPage() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-64 bg-card rounded-2xl animate-pulse border border-border" />
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-52 bg-card rounded-2xl animate-pulse border border-border" />
             ))}
           </div>
         ) : favoriteStores.length === 0 ? (
@@ -117,20 +117,20 @@ export default function FavoritesPage() {
               ) : (
                 <AnimatePresence>
                   <motion.div
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                    className="grid grid-cols-2 gap-3"
                     initial="hidden"
                     animate="show"
                     variants={{
                       hidden: { opacity: 0 },
-                      show: { opacity: 1, transition: { staggerChildren: 0.07 } },
+                      show: { opacity: 1, transition: { staggerChildren: 0.06 } },
                     }}
                   >
                     {favoriteBags.map(bag => (
                       <motion.div
                         key={bag.id}
-                        variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+                        variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
                       >
-                        <BagCard bag={bag} />
+                        <BagCard bag={bag} compact />
                       </motion.div>
                     ))}
                   </motion.div>
