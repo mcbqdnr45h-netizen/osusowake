@@ -515,7 +515,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       {status === 'ready' && (
         <>
           {/* カスタムズームボタン */}
-          <div className="absolute bottom-[140px] right-3 z-10 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
+          <div className="absolute bottom-[124px] right-3 z-10 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
             style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
             <button
               onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) + 1)}
@@ -533,7 +533,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           <button
             onClick={handleLocate}
             aria-label={locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地を表示'}
-            className={`absolute bottom-24 right-3 z-10 w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
+            className={`absolute bottom-20 right-3 z-10 w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
               ${userPos
                 ? 'bg-white border border-primary/25 text-primary'
                 : 'bg-white border border-gray-200/80 text-gray-500'
