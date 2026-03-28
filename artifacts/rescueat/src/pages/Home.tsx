@@ -183,16 +183,6 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
             <Heart className={`w-3 h-3 ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
           </button>
 
-          {/* 距離バッジ（ハートの真下・右揃え） */}
-          {!isSoldOut && distLabel && (
-            <span className="inline-flex items-center gap-0.5 bg-black/45 backdrop-blur-sm text-white/90 font-bold px-1.5 py-[3px] rounded-full text-[9px] leading-none">
-              <Navigation className="w-2 h-2 shrink-0" />
-              {distLabel}
-            </span>
-          )}
-          {!isSoldOut && !distLabel && gpsLoading && (
-            <span className="inline-block w-8 h-3 rounded-full bg-black/30 animate-pulse" />
-          )}
         </div>
 
         {isSoldOut && (
@@ -213,7 +203,30 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
         {(bag as any).itemType === 'item' && (
           <span className="inline-block text-[9px] font-black px-1 py-0.5 rounded-full bg-blue-100 text-blue-700 mb-0.5 leading-none">🥡 単品</span>
         )}
-        <p className="font-black text-[10px] leading-tight line-clamp-2 mb-1 text-foreground">{bag.title}</p>
+        <p className="font-black text-[10px] leading-tight line-clamp-2 text-foreground">{bag.title}</p>
+
+        {/* 距離ピル */}
+        {!isSoldOut && (distLabel || gpsLoading) && (
+          <div className="mt-0.5 mb-1">
+            {distLabel ? (
+              <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[9px] px-1.5 py-[3px]
+                ${(() => {
+                  const min = distM != null ? Math.round(distM / 67) : 99;
+                  return min <= 5
+                    ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
+                    : min <= 15
+                    ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
+                    : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
+                })()}`}>
+                <Navigation className="w-2 h-2 shrink-0" />
+                {distLabel}
+              </span>
+            ) : (
+              <span className="inline-block w-10 h-4 rounded-full bg-muted animate-pulse" />
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-1">
           <div className="flex flex-col gap-0.5 min-w-0">
             {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (

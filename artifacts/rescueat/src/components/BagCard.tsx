@@ -16,24 +16,33 @@ interface BagCardProps {
   compact?: boolean;
 }
 
-/* ── 画像エリア内（ハート下）距離バッジ ── */
-function ImageDistanceBadge({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
+/* ── 白エリア用 距離ピル ── */
+function InfoDistanceBadge({
+  storeLat,
+  storeLng,
+  size = 'md',
+}: {
+  storeLat: number;
+  storeLng: number;
+  size?: 'sm' | 'md';
+}) {
   const { coords, loading } = useUserLocation();
   if (loading) return (
-    <span className="inline-block w-9 h-3.5 rounded-full bg-black/30 animate-pulse" />
+    <span className={`inline-block rounded-full bg-muted animate-pulse ${size === 'sm' ? 'w-12 h-4' : 'w-16 h-5'}`} />
   );
   if (!coords || !storeLat || !storeLng) return null;
   const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
   const minutes = Math.round(meters / 67);
   const label   = formatDistanceLabel(meters);
-  const color   = minutes <= 5
-    ? 'text-emerald-300'
+  const colorClass = minutes <= 5
+    ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
     : minutes <= 15
-    ? 'text-amber-300'
-    : 'text-white/80';
+    ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
+    : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
   return (
-    <span className={`inline-flex items-center gap-0.5 bg-black/45 backdrop-blur-sm px-1.5 py-[3px] rounded-full text-[10px] font-bold leading-none ${color}`}>
-      <Navigation className="w-2 h-2 shrink-0" />
+    <span className={`inline-flex items-center gap-1 ${colorClass} rounded-full font-bold
+      ${size === 'sm' ? 'text-[9px] px-1.5 py-[3px]' : 'text-[11px] px-2.5 py-1'}`}>
+      <Navigation className={size === 'sm' ? 'w-2 h-2 shrink-0' : 'w-3 h-3 shrink-0'} />
       {label}
     </span>
   );
@@ -171,26 +180,20 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
             </button>
           )}
 
-          {/* ハート ＋ 距離：縦並び右揃え */}
-          <div className="flex flex-col items-end gap-1">
-            <button
-              onClick={handleFavorite}
-              className={`w-8 h-8 flex items-center justify-center rounded-full
-                transition-all duration-150 tap-scale-sm
-                ${favorited
-                  ? 'bg-rose-500 shadow-[0_2px_8px_rgba(239,68,68,0.35)]'
-                  : 'bg-white/90 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.12)]'
-                } ${burst ? 'scale-125' : ''}`}
-              aria-label={favorited ? 'お気に入りから削除' : 'お気に入りに追加'}
-            >
-              <Heart className={`w-4 h-4 transition-all duration-150
-                ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
-            </button>
-            {/* 距離バッジ（GPS取得済み・店舗座標ありの場合のみ） */}
-            {!isSoldOut && bag.store.lat && bag.store.lng && (
-              <ImageDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} />
-            )}
-          </div>
+          {/* ハートボタン */}
+          <button
+            onClick={handleFavorite}
+            className={`w-8 h-8 flex items-center justify-center rounded-full
+              transition-all duration-150 tap-scale-sm
+              ${favorited
+                ? 'bg-rose-500 shadow-[0_2px_8px_rgba(239,68,68,0.35)]'
+                : 'bg-white/90 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.12)]'
+              } ${burst ? 'scale-125' : ''}`}
+            aria-label={favorited ? 'お気に入りから削除' : 'お気に入りに追加'}
+          >
+            <Heart className={`w-4 h-4 transition-all duration-150
+              ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
+          </button>
 
           {isSoldOut ? (
             <div className="bg-gray-800/75 text-white/85 font-bold px-2.5 py-0.5 rounded-full text-[10px] backdrop-blur-sm">
@@ -254,6 +257,13 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
           )}
         </div>
 
+        {/* 現在地からの距離（非compact・販売中のみ） */}
+        {!isSoldOut && !compact && bag.store.lat && bag.store.lng && (
+          <div className="mb-2.5">
+            <InfoDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} size="md" />
+          </div>
+        )}
+
         {/* 店主の一言（compactでは非表示） */}
         {trimmedComment && !isSoldOut && !compact && (
           <OwnerComment comment={trimmedComment} />
@@ -300,6 +310,10 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
                         残り{bag.stockCount}個
                       </span>
                     </div>
+                  )}
+                  {/* 距離ピル（compact） */}
+                  {!isSoldOut && bag.store.lat && bag.store.lng && (
+                    <InfoDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} size="sm" />
                   )}
                 </div>
 
