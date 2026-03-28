@@ -5,7 +5,7 @@ import { Scale, ChevronLeft } from 'lucide-react';
 const ROWS: { label: string; value: React.ReactNode }[] = [
   { label: '販売事業者名', value: 'OsusOwake 事務局' },
   { label: '運営責任者', value: '佐藤勇飛' },
-  { label: 'メールアドレス', value: <a href="mailto:support@osusowake.example.com" className="text-primary underline underline-offset-2">support@osusowake.example.com</a> },
+  { label: 'メールアドレス', value: <a href="mailto:hello.osusowake@gmail.com" className="text-primary underline underline-offset-2">hello.osusowake@gmail.com</a> },
   { label: '所在地', value: '請求があった場合は遅滞なく開示いたします' },
   { label: '電話番号', value: '請求があった場合は遅滞なく開示いたします' },
   { label: 'サービス名称', value: 'OsusOwake' },
