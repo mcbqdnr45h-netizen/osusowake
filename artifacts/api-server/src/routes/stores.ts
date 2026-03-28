@@ -1470,7 +1470,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     bizLicenseBase64?: string; bizLicenseMime?: string; bizLicenseNumber?: string;
   };
 
-  const { bankToken, tosTimestamp, businessType = "individual", kycData, docFrontBase64, docFrontMime, docBackBase64, docBackMime, bizLicenseNumber } = body;
+  const { bankToken, tosTimestamp, businessType = "individual", kycData, docFrontBase64, docFrontMime, docBackBase64, docBackMime, bizLicenseBase64, bizLicenseMime, bizLicenseNumber } = body;
 
   if (!bankToken || !tosTimestamp || !kycData || !docFrontBase64 || !docFrontMime) {
     res.status(400).json({ error: "bad_request", message: "bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime は必須です" });
@@ -1655,6 +1655,34 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       else           console.warn(`⚠️  [bank-setup] BG Front doc upload failed`);
       if (backFileId) console.log(`✅ [bank-setup] BG Back doc: ${backFileId}`);
 
+      // 営業許可証を Supabase Storage に保存
+      let licenseImageUrl: string | null = null;
+      if (bizLicenseBase64 && store.ownerId) {
+        try {
+          const licMatch = bizLicenseBase64.match(/^data:(image\/[\w+]+);base64,(.+)$/s);
+          if (licMatch) {
+            const licContentType = licMatch[1];
+            const licExt = licContentType === "image/png" ? "png" : "jpg";
+            const licBuffer = Buffer.from(licMatch[2], "base64");
+            const licPath = `${store.ownerId}/${Date.now()}-license.${licExt}`;
+            const { error: licUpErr } = await supabaseAdmin.storage
+              .from("store-documents")
+              .upload(licPath, licBuffer, { contentType: licContentType, upsert: false });
+            if (!licUpErr) {
+              const { data: licSigned } = await supabaseAdmin.storage
+                .from("store-documents")
+                .createSignedUrl(licPath, 60 * 60 * 24 * 365 * 10);
+              licenseImageUrl = licSigned?.signedUrl ?? null;
+              console.log(`✅ [bank-setup] BG License doc saved: ${licPath}`);
+            } else {
+              console.warn(`⚠️  [bank-setup] BG License doc upload failed: ${licUpErr.message}`);
+            }
+          }
+        } catch (licEx: any) {
+          console.warn(`⚠️  [bank-setup] BG License doc exception: ${licEx?.message}`);
+        }
+      }
+
       // STEP 4: KYC 更新（部分更新 — 空フィールドは除外）
       const k = kycData;
       const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
@@ -1735,7 +1763,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
 
       // STEP 5: DB 更新 + オーナーの role を確実に store_owner に設定
-      await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
+      await db.update(storesTable).set({
+        status: "approved",
+        ...(licenseImageUrl ? { licenseImageUrl } : {}),
+      }).where(eq(storesTable.id, storeId));
       console.log(`✅ [bank-setup] BG Store ${storeId} status → 'approved'`);
 
       if (store.ownerId) {

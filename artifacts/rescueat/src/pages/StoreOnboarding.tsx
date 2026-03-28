@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMyStore } from '@/hooks/use-my-store';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle, FileText, Camera,
+  ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -66,7 +66,6 @@ export default function StoreOnboarding() {
   const [pledgeSigned, setPledgeSigned] = useState(false);
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
   const [imagePreview, setImagePreview] = useState('');
-  const [licenseImagePreview, setLicenseImagePreview] = useState('');
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   const obDraft = loadOnboardingDraft();
@@ -80,8 +79,6 @@ export default function StoreOnboarding() {
     category:      obDraft.category ?? '',
     phone:         obDraft.phone    ?? '',
     imageUrl:      '',
-    licenseNumber: '',
-    licenseImageBase64: '',
   });
 
   // 既存の店舗があれば適切な画面に遷移
@@ -114,12 +111,10 @@ export default function StoreOnboarding() {
     if (!form.city.trim())              updated.push('市区町村が未入力です。');
     if (!form.category)                 updated.push('ジャンルが未選択です。');
     if (!form.phone.trim())             updated.push('電話番号が未入力です。');
-    if (!form.licenseNumber.trim())     updated.push('営業許可証番号が未入力です。');
-    if (!form.licenseImageBase64)       updated.push('営業許可証の写真が未アップロードです。');
     if (!pledgeSigned)                  updated.push('利用規約への同意が未完了です。');
     setValidationWarnings(updated);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.imageUrl, form.name, form.address, form.city, form.category, form.phone, form.licenseNumber, form.licenseImageBase64, pledgeSigned]);
+  }, [form.imageUrl, form.name, form.address, form.city, form.category, form.phone, pledgeSigned]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -135,12 +130,6 @@ export default function StoreOnboarding() {
     const compressed = await compressImage(f);
     setForm(prev => ({ ...prev, imageUrl: compressed }));
     setImagePreview(compressed);
-  };
-
-  const handleLicenseImageFile = async (f: File) => {
-    const compressed = await compressImage(f);
-    setForm(prev => ({ ...prev, licenseImageBase64: compressed }));
-    setLicenseImagePreview(compressed);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,8 +159,6 @@ export default function StoreOnboarding() {
     if (!form.city.trim())              warnings.push('市区町村が未入力です。');
     if (!form.category)                 warnings.push('ジャンルが未選択です。');
     if (!form.phone.trim())             warnings.push('電話番号が未入力です。');
-    if (!form.licenseNumber.trim())     warnings.push('営業許可証番号が未入力です。');
-    if (!form.licenseImageBase64)       warnings.push('営業許可証の写真が未アップロードです。');
     if (!pledgeSigned)                  warnings.push('利用規約への同意が未完了です。');
     setValidationWarnings(warnings);
     if (warnings.length > 0) return; // ハードブロック：すべて入力されるまで送信しない
@@ -202,8 +189,6 @@ export default function StoreOnboarding() {
           lat: pinPos?.lat ?? null,
           lng: pinPos?.lng ?? null,
           pledgeSigned: true,
-          licenseNumber: form.licenseNumber.trim() || null,
-          licenseImageBase64: form.licenseImageBase64 || null,
         }),
       });
 
@@ -480,53 +465,6 @@ export default function StoreOnboarding() {
               placeholder="06-xxxx-xxxx"
               required
             />
-          </div>
-
-          {/* 営業許可証（番号 + 写真を1枠にまとめる） */}
-          <div className="space-y-3">
-            <label className="block text-sm font-bold text-muted-foreground">
-              営業許可証 <span className="text-red-500">★</span>
-            </label>
-
-            {/* 許可証番号 */}
-            <input
-              type="text"
-              value={form.licenseNumber}
-              onChange={e => setForm(f => ({ ...f, licenseNumber: e.target.value }))}
-              className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-              placeholder="許可証番号（例: 第○○号）"
-            />
-
-            {/* 写真アップロード */}
-            <label className="block cursor-pointer">
-              <input
-                type="file"
-                accept="image/*,image/heic,image/heif"
-                className="sr-only"
-                onChange={e => e.target.files?.[0] && handleLicenseImageFile(e.target.files[0])}
-              />
-              <div className={`relative w-full aspect-video rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 overflow-hidden transition-all
-                ${licenseImagePreview ? 'border-primary/40' : 'border-red-300 bg-red-50/40 hover:border-primary/40 hover:bg-primary/5'}`}>
-                {licenseImagePreview ? (
-                  <>
-                    <img src={licenseImagePreview} alt="営業許可証" className="absolute inset-0 w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
-                      <Camera className="w-6 h-6 text-white opacity-80" />
-                      <span className="text-sm text-white font-bold">タップして変更</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-primary/60" />
-                    </div>
-                    <span className="text-sm font-bold text-muted-foreground">許可証の写真をタップして追加</span>
-                    <span className="text-xs text-muted-foreground/60">JPG・PNG・HEIC対応</span>
-                  </>
-                )}
-              </div>
-            </label>
-            <p className="text-xs text-muted-foreground">許可証番号と書類全体が読み取れる写真をアップロードしてください。</p>
           </div>
 
           {/* 誓約チェック */}
