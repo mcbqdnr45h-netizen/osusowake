@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, useListReservations, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
-  Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
+  Search, Store, MapPin, Zap, Flame, Moon, Navigation, Navigation2,
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
   Globe, Clock, ArrowLeft, ShoppingBag, Megaphone, Star,
 } from 'lucide-react';
@@ -148,45 +148,61 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent pointer-events-none" />
 
-        {/* 割引バッジ */}
+        {/* 割引バッジ（左上） */}
         {!isSoldOut && discountPct > 0 && (
           <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-0.5 rounded-md">
             {discountPct}% OFF
           </span>
         )}
-        {/* 評価バッジ（右上）/ 残りわずかバッジ（右上、評価なしの場合のみ） */}
-        {avgRating && !isSoldOut ? (
+
+        {/* 右上縦列: 評価/残りわずか → ハート → 距離 */}
+        <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+          {/* 評価バッジ / 残りわずかバッジ */}
+          {avgRating && !isSoldOut ? (
+            <button
+              type="button"
+              onClick={e => { e.preventDefault(); e.stopPropagation(); setShowReviews(true); }}
+              className="flex items-center gap-0.5 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm"
+            >
+              <Star className="w-2 h-2 fill-white shrink-0" />
+              {Number(avgRating).toFixed(1)}
+            </button>
+          ) : isLowStock ? (
+            <span className="bg-destructive text-destructive-foreground text-[9px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
+              残りわずか
+            </span>
+          ) : null}
+
+          {/* ハートボタン */}
           <button
-            type="button"
-            onClick={e => { e.preventDefault(); e.stopPropagation(); setShowReviews(true); }}
-            className="absolute top-2 right-2 flex items-center gap-0.5 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm"
+            onClick={e => { e.preventDefault(); e.stopPropagation(); if (!user) { setShowNudge(true); return; } toggle(bag.store.id); }}
+            className={`w-6 h-6 rounded-full flex items-center justify-center tap-scale-sm
+              ${favorited ? 'bg-rose-500 shadow-[0_1px_6px_rgba(239,68,68,0.45)]' : 'bg-white/85 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.15)]'}`}
+            aria-label="お気に入り"
           >
-            <Star className="w-2 h-2 fill-white shrink-0" />
-            {Number(avgRating).toFixed(1)}
+            <Heart className={`w-3 h-3 ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
           </button>
-        ) : isLowStock ? (
-          <span className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-[9px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
-            残りわずか
-          </span>
-        ) : null}
+
+          {/* 距離バッジ（ハートの真下・右揃え） */}
+          {!isSoldOut && distLabel && (
+            <span className="inline-flex items-center gap-0.5 bg-black/45 backdrop-blur-sm text-white/90 font-bold px-1.5 py-[3px] rounded-full text-[9px] leading-none">
+              <Navigation className="w-2 h-2 shrink-0" />
+              {distLabel}
+            </span>
+          )}
+          {!isSoldOut && !distLabel && gpsLoading && (
+            <span className="inline-block w-8 h-3 rounded-full bg-black/30 animate-pulse" />
+          )}
+        </div>
+
         {isSoldOut && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
             <span className="bg-white/90 text-foreground text-[10px] font-black px-2 py-1 rounded-lg">完売御礼 🌸</span>
           </div>
         )}
 
-        {/* お気に入りボタン */}
-        <button
-          onClick={e => { e.preventDefault(); e.stopPropagation(); if (!user) { setShowNudge(true); return; } toggle(bag.store.id); }}
-          className={`absolute bottom-2 right-2 w-6 h-6 rounded-full flex items-center justify-center tap-scale-sm
-            ${favorited ? 'bg-rose-500' : 'bg-white/80 backdrop-blur-sm'}`}
-          aria-label="お気に入り"
-        >
-          <Heart className={`w-3 h-3 ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
-        </button>
-
-        {/* 店舗名 */}
-        <div className="absolute bottom-2 left-2 right-10">
+        {/* 店舗名（下段・全幅） */}
+        <div className="absolute bottom-2 left-2 right-2">
           <span className="text-white text-[10px] font-bold drop-shadow leading-tight line-clamp-1">
             {bag.store.name}
           </span>
@@ -214,14 +230,6 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
                   残り{bag.stockCount}個！
                 </span>
               )}
-              {distLabel ? (
-                <span className="inline-flex items-center gap-0.5 text-[9px] text-muted-foreground/60 font-medium leading-none">
-                  <MapPin className="w-2 h-2 shrink-0" />
-                  {distLabel}
-                </span>
-              ) : gpsLoading ? (
-                <span className="inline-block w-8 h-2 rounded bg-muted animate-pulse" />
-              ) : null}
               {bag.originalPrice > bag.discountedPrice && (
                 <span className="text-[9px] text-muted-foreground/45 line-through font-medium leading-none">
                   ¥{bag.originalPrice.toLocaleString()}

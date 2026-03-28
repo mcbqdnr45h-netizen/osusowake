@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles, Star, MapPin } from 'lucide-react';
+import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles, Star } from 'lucide-react';
 import { Link } from 'wouter';
 import { SurpriseBagWithStore } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -16,65 +16,24 @@ interface BagCardProps {
   compact?: boolean;
 }
 
-function WalkTimeBadge({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
-  const { coords, loading } = useUserLocation();
-  // 取得中: 小さなスケルトン
-  if (loading) return (
-    <span className="inline-block w-12 h-3 rounded bg-white/20 animate-pulse" />
-  );
-  // 拒否/非対応 or 未取得: 非表示
-  if (!coords) return null;
-  const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
-  const minutes = Math.round(meters / 67);
-  const label   = formatDistanceLabel(meters);
-  const color   = minutes <= 5 ? 'text-emerald-300' : minutes <= 15 ? 'text-amber-300' : 'text-sky-300';
-  return (
-    <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold ${color}`}>
-      <Navigation className="w-2.5 h-2.5 shrink-0" />
-      {label}
-    </span>
-  );
-}
-
-/* ── compact用 距離バッジ（カード情報エリア内） ── */
-function CompactDistanceBadge({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
+/* ── 画像エリア内（ハート下）距離バッジ ── */
+function ImageDistanceBadge({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
   const { coords, loading } = useUserLocation();
   if (loading) return (
-    <div className="inline-block w-14 h-4 rounded-full bg-muted animate-pulse" />
+    <span className="inline-block w-9 h-3.5 rounded-full bg-black/30 animate-pulse" />
   );
-  if (!coords) return null;
-  const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
-  const label   = formatDistanceLabel(meters);
-  const minutes = Math.round(meters / 67);
-  const color   = minutes <= 5
-    ? 'text-emerald-600 bg-emerald-50'
-    : minutes <= 15
-      ? 'text-amber-600 bg-amber-50'
-      : 'text-sky-600 bg-sky-50';
-  return (
-    <div className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${color}`}>
-      <Navigation className="w-2 h-2 shrink-0" />
-      {label}
-    </div>
-  );
-}
-
-/* ── compact右列用 距離テキスト（右揃えインライン） ── */
-function CompactDistanceInline({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
-  const { coords, loading } = useUserLocation();
-  // 取得中: 横幅固定のスケルトン（右揃えレイアウトを崩さない）
-  if (loading) return (
-    <span className="inline-block w-10 h-2.5 rounded bg-muted animate-pulse" />
-  );
-  // 拒否 or 非対応: 静かに非表示
   if (!coords || !storeLat || !storeLng) return null;
-  const meters = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
-  const label  = meters < 1000
-    ? `${Math.round(meters / 10) * 10}m`
-    : `${(meters / 1000).toFixed(1)}km`;
+  const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
+  const minutes = Math.round(meters / 67);
+  const label   = formatDistanceLabel(meters);
+  const color   = minutes <= 5
+    ? 'text-emerald-300'
+    : minutes <= 15
+    ? 'text-amber-300'
+    : 'text-white/80';
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/60 font-medium leading-none">
-      <MapPin className="w-2.5 h-2.5 shrink-0" />
+    <span className={`inline-flex items-center gap-0.5 bg-black/45 backdrop-blur-sm px-1.5 py-[3px] rounded-full text-[10px] font-bold leading-none ${color}`}>
+      <Navigation className="w-2 h-2 shrink-0" />
       {label}
     </span>
   );
@@ -198,7 +157,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
           </div>
         </div>
 
-        {/* 右上: 評価バッジ・ハート・割引バッジ */}
+        {/* 右上: 評価バッジ・ハート（＋距離）・割引バッジ */}
         <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1.5">
           {/* 星評価バッジ（口コミがある場合のみ）タップで口コミ一覧を表示 */}
           {avgRating && !isSoldOut && (
@@ -211,19 +170,27 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
               {Number(avgRating).toFixed(1)}
             </button>
           )}
-          <button
-            onClick={handleFavorite}
-            className={`w-8 h-8 flex items-center justify-center rounded-full
-              transition-all duration-150 tap-scale-sm
-              ${favorited
-                ? 'bg-rose-500 shadow-[0_2px_8px_rgba(239,68,68,0.35)]'
-                : 'bg-white/90 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.12)]'
-              } ${burst ? 'scale-125' : ''}`}
-            aria-label={favorited ? 'お気に入りから削除' : 'お気に入りに追加'}
-          >
-            <Heart className={`w-4 h-4 transition-all duration-150
-              ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
-          </button>
+
+          {/* ハート ＋ 距離：縦並び右揃え */}
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleFavorite}
+              className={`w-8 h-8 flex items-center justify-center rounded-full
+                transition-all duration-150 tap-scale-sm
+                ${favorited
+                  ? 'bg-rose-500 shadow-[0_2px_8px_rgba(239,68,68,0.35)]'
+                  : 'bg-white/90 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.12)]'
+                } ${burst ? 'scale-125' : ''}`}
+              aria-label={favorited ? 'お気に入りから削除' : 'お気に入りに追加'}
+            >
+              <Heart className={`w-4 h-4 transition-all duration-150
+                ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
+            </button>
+            {/* 距離バッジ（GPS取得済み・店舗座標ありの場合のみ） */}
+            {!isSoldOut && bag.store.lat && bag.store.lng && (
+              <ImageDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} />
+            )}
+          </div>
 
           {isSoldOut ? (
             <div className="bg-gray-800/75 text-white/85 font-bold px-2.5 py-0.5 rounded-full text-[10px] backdrop-blur-sm">
@@ -251,13 +218,6 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
             </>
           )}
         </div>
-
-        {/* 左下: 徒歩時間 */}
-        {!isSoldOut && !compact && bag.store.lat && bag.store.lng && (
-          <div className="absolute bottom-2.5 left-2.5 bg-black/45 backdrop-blur-sm px-2 py-1 rounded-full">
-            <WalkTimeBadge storeLat={bag.store.lat} storeLng={bag.store.lng} />
-          </div>
-        )}
 
         {/* 完売スタンプ */}
         {isSoldOut && (
@@ -343,16 +303,13 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
                   )}
                 </div>
 
-                {/* 右列: ①在庫アピール → ②距離 → ③元値 → ④販売価格 */}
+                {/* 右列: ①在庫アピール → ②元値 → ③販売価格 */}
                 {!isSoldOut ? (
                   <div className="flex flex-col items-end gap-[3px] shrink-0">
                     {isLowStock && (
                       <span className="text-[9px] font-black text-rose-500 leading-none tracking-tight">
                         残りあと{bag.stockCount}個！
                       </span>
-                    )}
-                    {bag.store.lat && bag.store.lng && (
-                      <CompactDistanceInline storeLat={bag.store.lat} storeLng={bag.store.lng} />
                     )}
                     {bag.originalPrice > bag.discountedPrice && (
                       <span className="text-[10px] text-muted-foreground/45 line-through font-medium leading-none">
