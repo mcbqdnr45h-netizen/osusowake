@@ -363,7 +363,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                   </li>
                   <li>
                     <a
-                      href="https://line.me/R/ti/p/@osusowake"
+                      href="https://lin.ee/ZXRknd7"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-primary transition-colors font-medium"
@@ -421,7 +421,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             {/* LINE Support */}
             <div className="flex justify-center mb-4">
               <a
-                href="https://line.me/R/ti/p/@osusowake"
+                href="https://lin.ee/ZXRknd7"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border/60 bg-white text-[12px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/30 transition-all"
