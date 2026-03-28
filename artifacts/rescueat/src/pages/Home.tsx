@@ -203,14 +203,14 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
         {/* バッジエリア固定高（バッジ有無にかかわらず h-4 確保） */}
         <div className="h-4 flex items-center">
           {(bag as any).itemType === 'item' && (
-            <span className="inline-block text-[8px] font-semibold px-1.5 py-px rounded bg-gray-100 text-gray-400 leading-none">
+            <span className="inline-block text-[10px] font-semibold px-1.5 py-px rounded bg-gray-100 text-gray-400 leading-none">
               単品
             </span>
           )}
         </div>
 
         {/* 商品名（全カードで同じY座標から始まる） */}
-        <p className="font-black text-[11px] leading-snug line-clamp-1 text-foreground">
+        <p className="font-black text-[13px] leading-snug line-clamp-1 text-foreground">
           {bag.title}
         </p>
 
@@ -219,8 +219,8 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
           {/* 左: 受取時間 */}
           <div className="min-w-0 flex-1">
             {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
-              <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
-                <Clock className="w-2 h-2 text-primary shrink-0" />
+              <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                <Clock className="w-2.5 h-2.5 text-primary shrink-0" />
                 <span className="truncate">{formatPickupTime(bag.pickupStart, bag.pickupEnd)}</span>
               </div>
             )}
@@ -230,12 +230,12 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
           {!isSoldOut && (
             <div className="flex flex-col items-end gap-[2px] shrink-0">
               {isLowStock && (
-                <span className="text-[8px] font-black text-rose-500 leading-none">
+                <span className="text-[10px] font-black text-rose-500 leading-none">
                   残り{bag.stockCount}個！
                 </span>
               )}
               {distLabel ? (
-                <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[9px] px-1.5 py-[2px]
+                <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[10px] px-1.5 py-[2px]
                   ${(() => {
                     const min = distM != null ? Math.round(distM / 67) : 99;
                     return min <= 5
@@ -244,18 +244,18 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
                       ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
                       : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
                   })()}`}>
-                  <Navigation className="w-2 h-2 shrink-0" />
+                  <Navigation className="w-2.5 h-2.5 shrink-0" />
                   {distLabel}
                 </span>
               ) : gpsLoading ? (
                 <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
               ) : null}
               {bag.originalPrice > bag.discountedPrice && (
-                <span className="text-[9px] text-muted-foreground/40 line-through font-medium leading-none">
+                <span className="text-[10px] text-muted-foreground/40 line-through font-medium leading-none">
                   ¥{bag.originalPrice.toLocaleString()}
                 </span>
               )}
-              <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+              <span className="text-[17px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
                 ¥{bag.discountedPrice.toLocaleString()}
               </span>
             </div>
