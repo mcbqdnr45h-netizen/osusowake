@@ -20,13 +20,12 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
   const [location] = useLocation();
   const { store, loading: storeLoading } = useMyStore();
 
-  // pending_review/pending はナビ非表示。applied/suspended/approved は出品管理・売上確認を表示。
-  // マイページは approved のみ表示。
+  // pending_review/pending はナビ非表示。applied/suspended/approved は全ナビ表示。
   const storeReady = !storeLoading && !!store &&
     (store.status === 'approved' || store.status === 'applied' || store.status === 'suspended');
   const shouldShowNav = showBottomNav && storeReady;
 
-  const navItems = store?.status === 'approved'
+  const navItems = storeReady
     ? [...BASE_NAV_ITEMS, { href: '/mypage', icon: UserCircle, label: 'マイページ' }]
     : BASE_NAV_ITEMS;
 

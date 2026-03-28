@@ -376,6 +376,7 @@ export default function StripeBankSetup() {
   if (!docFrontPreview)                                 missingFields.push('本人確認書類（表面）の写真');
   if (!docBackPreview)                                  missingFields.push('本人確認書類（裏面）の写真');
   if (!bizLicensePreview)                               missingFields.push('営業許可証の画像');
+  if (!bizLicenseNumber.trim())                         missingFields.push('営業許可証番号');
   if (!tosAgreed)                                       missingFields.push('利用規約への同意');
 
   const canSubmit = !loading && missingFields.length === 0;
@@ -987,7 +988,7 @@ export default function StripeBankSetup() {
             {/* 許可証番号 */}
             <div className="mt-3">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                営業許可証番号
+                営業許可証番号 <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -996,7 +997,7 @@ export default function StripeBankSetup() {
                 className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-base font-medium focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 outline-none transition-all"
                 placeholder="例: 第○○号"
               />
-              <p className="text-xs text-gray-400 mt-1.5">許可証に記載の番号を入力してください（任意）</p>
+              <p className="text-xs text-gray-400 mt-1.5">許可証に記載の番号を入力してください（必須）</p>
             </div>
           </FormSection>
 

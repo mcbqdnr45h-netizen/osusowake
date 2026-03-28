@@ -40,7 +40,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   const storeNavItems = [
     { href: '/store/dashboard', icon: Store,     label: '出品管理', isUser: false },
     { href: '/store/sales',     icon: BarChart2, label: '売上確認', isUser: false },
-    ...(isApprovedOwner ? [{ href: '/mypage', icon: User, label: 'マイページ', isUser: true }] : []),
+    ...(isStoreOwner ? [{ href: '/mypage', icon: User, label: 'マイページ', isUser: true }] : []),
   ];
 
   const customerNavItems = [
@@ -58,7 +58,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
     ? [
         { href: '/store/dashboard', label: '出品管理' },
         { href: '/store/sales',     label: '売上確認' },
-        ...(isApprovedOwner ? [{ href: '/mypage', label: 'マイページ' }] : []),
+        { href: '/mypage',          label: 'マイページ' },
       ]
     : [
         { href: '/',                label: '発見'     },
