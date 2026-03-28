@@ -84,6 +84,7 @@ router.get("/admin/stores", requireAdmin, async (_req, res) => {
       SELECT
         s.id, s.name, s.status, s.is_active, s.category, s.address, s.city,
         s.image_url, s.owner_id, s.created_at, s.stripe_account_id,
+        s.stripe_charges_enabled,
         COUNT(DISTINCT b.id)::int AS bag_count,
         COUNT(DISTINCT r.id)::int AS reservation_count,
         COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue
@@ -139,6 +140,46 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
     res.json({ ...store, owner_email: ownerEmail });
   } catch (err: any) {
     console.error("[admin/stores/detail]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── POST /admin/stores/:storeId/refresh-stripe-status ────────────────────────
+// Stripe アカウントの charges_enabled を最新取得して DB に保存する
+router.post("/admin/stores/:storeId/refresh-stripe-status", requireAdmin, async (req, res) => {
+  const storeId = Number(req.params.storeId);
+  if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  try {
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+    if (!store) { res.status(404).json({ error: "not_found" }); return; }
+    if (!store.stripeAccountId) {
+      res.status(400).json({ error: "no_stripe_account", message: "Stripeアカウントが未登録です" });
+      return;
+    }
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) { res.status(503).json({ error: "stripe_not_configured" }); return; }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+    const account = await stripe.accounts.retrieve(store.stripeAccountId);
+
+    await db
+      .update(storesTable)
+      .set({ stripeChargesEnabled: account.charges_enabled })
+      .where(eq(storesTable.id, storeId));
+
+    res.json({
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      detailsSubmitted: account.details_submitted,
+      currentlyDue: account.requirements?.currently_due ?? [],
+      errors: account.requirements?.errors ?? [],
+      disabledReason: account.requirements?.disabled_reason ?? null,
+    });
+  } catch (err: any) {
+    console.error("[admin/refresh-stripe-status]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });

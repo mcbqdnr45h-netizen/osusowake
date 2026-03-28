@@ -1300,8 +1300,10 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
 router.put("/stores/:storeId/connect/kyc", async (req, res) => {
   try {
     const storeId = parseInt(req.params.storeId);
-    const { businessType, representative, businessProfile } = req.body as {
+    const { businessType, companyNameKanji, companyNameKana, representative, businessProfile } = req.body as {
       businessType: "individual" | "company";
+      companyNameKanji?: string;
+      companyNameKana?: string;
       representative: {
         firstNameKanji: string;
         lastNameKanji: string;
@@ -1431,10 +1433,9 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     } else {
       // company: 会社情報 + 代表者情報
       const companyObj: Record<string, any> = {};
-      const fullNameKanji = `${representative.lastNameKanji ?? ''}${representative.firstNameKanji ?? ''}`.trim();
-      const fullNameKana  = `${representative.lastNameKana  ?? ''}${representative.firstNameKana  ?? ''}`.trim();
-      if (fullNameKanji) companyObj.name       = fullNameKanji;
-      if (fullNameKana)  companyObj.name_kana  = fullNameKana;
+      // 法人名は companyNameKanji/companyNameKana から取得（代表者名ではない）
+      if (companyNameKanji?.trim()) companyObj.name      = companyNameKanji.trim();
+      if (companyNameKana?.trim())  companyObj.name_kana = companyNameKana.trim();
       // JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
         companyObj.address_kanji = addressKanji;
@@ -1489,6 +1490,12 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     const eventuallyDue = account.requirements?.eventually_due ?? [];
     const currentlyDue  = account.requirements?.currently_due ?? [];
     const kycComplete   = currentlyDue.length === 0;   // currently_due 空 = 送信完了
+
+    // charges_enabled を DB に保存（有効/制限中の区別を管理画面に反映）
+    await db
+      .update(storesTable)
+      .set({ stripeChargesEnabled: account.charges_enabled })
+      .where(eq(storesTable.id, storeId));
 
     if (kycComplete) {
       await db
@@ -2001,7 +2008,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       };
 
       if (businessType === "company") {
-        // 法人の場合: company オブジェクトに法人名 + 代表者情報を設定
+        // 法人の場合: company オブジェクトに法人名情報を設定
         const companyObj: Record<string, any> = {};
         if (k.companyNameKanji?.trim()) companyObj.name       = k.companyNameKanji;
         if (k.companyNameKana?.trim())  companyObj.name_kana  = k.companyNameKana;
@@ -2011,25 +2018,38 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         }
         if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
         if (Object.keys(companyObj).length > 0) step4Payload.company = companyObj;
-        // 法人の場合も individual に代表者の本人確認情報を付加する（Stripe JP 要件）
-        if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
+        // 法人の場合: 代表者情報は "representative" キーに入れる（"individual" は個人事業主専用）
+        // ※ Stripe は business_type=company で individual を受け取るとリクエスト全体を拒否する
+        if (Object.keys(indiv).length > 0) {
+          step4Payload.representative = {
+            ...indiv,
+            relationship: { representative: true, owner: true, percent_ownership: 100 },
+          };
+        }
       } else {
-        // 個人事業主
+        // 個人事業主: 本人情報は "individual" キー
         if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
       }
 
       console.log(`📤 [bank-setup] BG STEP4 accounts.update for ${accountId}:`);
       console.log(JSON.stringify(step4Payload, null, 2));
 
+      let kycChargesEnabled: boolean | null = null;
       try {
-        await stripeCall(
+        const kycAccount = await stripeCall(
           stripe.accounts.update(accountId!, step4Payload as any),
           "accounts.update(kyc)", 30000
-        );
-        console.log(`✅ [bank-setup] BG STEP4 accounts.update succeeded`);
+        ) as any;
+        kycChargesEnabled = kycAccount?.charges_enabled ?? false;
+        console.log(`✅ [bank-setup] BG STEP4 accounts.update succeeded (charges_enabled=${kycChargesEnabled})`);
+        console.log(`   currently_due: ${JSON.stringify(kycAccount?.requirements?.currently_due)}`);
+        console.log(`   eventually_due: ${JSON.stringify(kycAccount?.requirements?.eventually_due)}`);
+        if ((kycAccount?.requirements?.errors ?? []).length > 0) {
+          console.warn(`⚠️  [bank-setup] BG STEP4 Stripe requirements.errors: ${JSON.stringify(kycAccount.requirements.errors)}`);
+        }
       } catch (kycErr: any) {
-        console.warn(`⚠️  [bank-setup] BG STEP4 accounts.update failed: ${kycErr?.raw?.message ?? kycErr?.message}`);
-        console.warn(`   param: ${kycErr?.raw?.param ?? kycErr?.param}`);
+        console.warn(`⚠️  [bank-setup] BG STEP4 accounts.update FAILED: ${kycErr?.raw?.message ?? kycErr?.message}`);
+        console.warn(`   type: ${kycErr?.type}, code: ${kycErr?.raw?.code ?? kycErr?.code}, param: ${kycErr?.raw?.param ?? kycErr?.param}`);
       }
 
       // STEP 5: DB 更新 + オーナーの role を確実に store_owner に設定
@@ -2037,6 +2057,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       await db.update(storesTable).set({
         status: "applied",
         ...(licenseImageUrl ? { licenseImageUrl } : {}),
+        ...(kycChargesEnabled !== null ? { stripeChargesEnabled: kycChargesEnabled } : {}),
       }).where(eq(storesTable.id, storeId));
       console.log(`✅ [bank-setup] BG Store ${storeId} status → 'applied' (awaiting admin approval)`);
 

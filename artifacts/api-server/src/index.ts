@@ -285,6 +285,20 @@ async function runMigrations() {
     `);
     console.log('[migration] stores.stripe_kyc_admin_email_sent ✅');
 
+    // ── stores.stripe_charges_enabled 列 ──────────────────────────────────────
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='stores'
+            AND column_name='stripe_charges_enabled'
+        ) THEN
+          ALTER TABLE stores ADD COLUMN stripe_charges_enabled BOOLEAN;
+        END IF;
+      END $$;
+    `);
+    console.log('[migration] stores.stripe_charges_enabled ✅');
+
     // ── sales_leads テーブル ─────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS sales_leads (

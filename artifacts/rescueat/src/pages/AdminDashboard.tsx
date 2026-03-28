@@ -90,6 +90,7 @@ interface AdminStoreDetail extends AdminStore {
   legal_email: string | null;
   legal_other: string | null;
   owner_email: string | null;
+  stripe_charges_enabled: boolean | null;
 }
 
 interface Announcement {
@@ -631,6 +632,13 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-black text-foreground">{store.name}</h3>
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                              {store.stripe_account_id && (
+                                store.stripe_charges_enabled === true
+                                  ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Stripe有効</span>
+                                  : store.stripe_charges_enabled === false
+                                    ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Stripe制限中</span>
+                                    : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Stripe未確認</span>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5 truncate">{store.address}</p>
                             <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">

@@ -41,7 +41,7 @@ async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<
 }
 
 const ONBOARDING_DRAFT_KEY = 'store-onboarding-draft-v1';
-type OnboardingDraft = { name: string; address: string; city: string; category: string; phone: string };
+type OnboardingDraft = { name: string; address: string; city: string; category: string };
 function saveOnboardingDraft(d: OnboardingDraft) {
   try { localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
 }
@@ -70,7 +70,6 @@ export default function StoreOnboarding() {
     address:       obDraft.address  ?? '',
     city:          obDraft.city     ?? '',
     category:      obDraft.category ?? '',
-    phone:         obDraft.phone    ?? '',
     imageUrl:      '',
   });
 
@@ -88,10 +87,10 @@ export default function StoreOnboarding() {
   // 入力内容を自動保存（フォーム変化から1秒後）
   useEffect(() => {
     const t = setTimeout(() => {
-      saveOnboardingDraft({ name: form.name, address: form.address, city: form.city, category: form.category, phone: form.phone });
+      saveOnboardingDraft({ name: form.name, address: form.address, city: form.city, category: form.category });
     }, 1000);
     return () => clearTimeout(t);
-  }, [form.name, form.address, form.city, form.category, form.phone]);
+  }, [form.name, form.address, form.city, form.category]);
 
   // 警告が表示中のとき、フィールドが埋まったら警告をリアルタイム更新
   useEffect(() => {
@@ -102,11 +101,10 @@ export default function StoreOnboarding() {
     if (!form.address.trim())           updated.push('住所が未入力です。');
     if (!form.city.trim())              updated.push('市区町村が未入力です。');
     if (!form.category)                 updated.push('ジャンルが未選択です。');
-    if (!form.phone.trim())             updated.push('電話番号が未入力です。');
     if (!pledgeSigned)                  updated.push('利用規約への同意が未完了です。');
     setValidationWarnings(updated);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.imageUrl, form.name, form.address, form.city, form.category, form.phone, pledgeSigned]);
+  }, [form.imageUrl, form.name, form.address, form.city, form.category, pledgeSigned]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -150,7 +148,6 @@ export default function StoreOnboarding() {
     if (!form.address.trim())           warnings.push('住所が未入力です。');
     if (!form.city.trim())              warnings.push('市区町村が未入力です。');
     if (!form.category)                 warnings.push('ジャンルが未選択です。');
-    if (!form.phone.trim())             warnings.push('電話番号が未入力です。');
     if (!pledgeSigned)                  warnings.push('利用規約への同意が未完了です。');
     setValidationWarnings(warnings);
     if (warnings.length > 0) return; // ハードブロック：すべて入力されるまで送信しない
@@ -176,7 +173,7 @@ export default function StoreOnboarding() {
           address: form.address.trim(),
           city: form.city.trim(),
           category: form.category,
-          phone: form.phone.trim() || null,
+          phone: (user as any).phone_number ?? null,
           imageUrl: form.imageUrl || null,
           lat: pinPos?.lat ?? null,
           lng: pinPos?.lng ?? null,
@@ -399,21 +396,6 @@ export default function StoreOnboarding() {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* 電話番号 */}
-          <div>
-            <label className="block text-sm font-bold text-muted-foreground mb-1.5">
-              電話番号 <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-              className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-              placeholder="06-xxxx-xxxx"
-              required
-            />
           </div>
 
           {/* 誓約チェック */}

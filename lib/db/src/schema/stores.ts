@@ -59,6 +59,9 @@ export const storesTable = pgTable("stores", {
   legalOther: text("legal_other"),
   // 審査却下理由（管理者が入力）
   rejectionReason: text("rejection_reason"),
+  // Stripe アカウントの決済可否（bank-setup / KYC完了後に更新）
+  stripeChargesEnabled: boolean("stripe_charges_enabled"),
+  stripeKycAdminEmailSent: boolean("stripe_kyc_admin_email_sent").notNull().default(false),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });

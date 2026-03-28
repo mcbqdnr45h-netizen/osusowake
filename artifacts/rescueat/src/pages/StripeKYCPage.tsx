@@ -195,6 +195,8 @@ export default function StripeKYCPage() {
   const [cityKana, setCityKana]               = useState('');
   const [townKana, setTownKana]               = useState('');
   const [line1Kana, setLine1Kana]             = useState('');
+  const [companyNameKanji, setCompanyNameKanji] = useState('');
+  const [companyNameKana, setCompanyNameKana]   = useState('');
   const [productDescription, setProductDescription] = useState('');
   const [businessUrl, setBusinessUrl]         = useState('');
 
@@ -314,6 +316,10 @@ export default function StripeKYCPage() {
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({
           businessType,
+          ...(businessType === 'company' ? {
+            companyNameKanji: companyNameKanji.trim() || undefined,
+            companyNameKana:  companyNameKana.trim()  || undefined,
+          } : {}),
           representative: {
             firstNameKanji: firstNameKanji.trim(),
             lastNameKanji:  lastNameKanji.trim(),
@@ -722,7 +728,21 @@ export default function StripeKYCPage() {
             )}
           </Section>
 
-          {/* ② 代表者氏名 */}
+          {/* ② 法人名（法人選択時のみ） */}
+          {businessType === 'company' && (
+            <Section title="法人情報" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
+              <FieldWrap label="法人名（漢字）" required error={fieldErrors.companyNameKanji}>
+                <input type="text" value={companyNameKanji} onChange={e => setCompanyNameKanji(e.target.value)}
+                  placeholder="株式会社〇〇フード" required className={fieldClass('companyNameKanji')} />
+              </FieldWrap>
+              <FieldWrap label="法人名（カナ）" required hint="全角カタカナ" error={fieldErrors.companyNameKana}>
+                <input type="text" value={companyNameKana} onChange={e => setCompanyNameKana(e.target.value)}
+                  placeholder="カブシキガイシャ〇〇フード" required className={fieldClass('companyNameKana')} />
+              </FieldWrap>
+            </Section>
+          )}
+
+          {/* ③ 代表者氏名 */}
           <Section title="代表者氏名" icon={<User className="w-5 h-5 text-orange-500" />}>
             <div className="grid grid-cols-2 gap-3">
               <FieldWrap label="姓（漢字）" required error={fieldErrors.lastNameKanji}>
