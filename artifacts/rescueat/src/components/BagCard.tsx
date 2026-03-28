@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles, Star } from 'lucide-react';
 import { Link } from 'wouter';
 import { SurpriseBagWithStore } from '@workspace/api-client-react';
@@ -8,6 +9,7 @@ import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
 import { useToast } from '@/hooks/use-toast';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
+import { StoreReviewSheet } from '@/components/StoreReviewSheet';
 
 interface BagCardProps {
   bag: SurpriseBagWithStore;
@@ -84,6 +86,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
   const [imgLoaded, setImgLoaded]       = useState(false);
   const [fanBurst, setFanBurst]         = useState(false);
   const [showLoginNudge, setShowLoginNudge] = useState(false);
+  const [showReviews, setShowReviews]   = useState(false);
 
   function handleFavorite(e: React.MouseEvent) {
     e.preventDefault();
@@ -168,12 +171,16 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
 
         {/* 右上: 評価バッジ・ハート・割引バッジ */}
         <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1.5">
-          {/* 星評価バッジ（口コミがある場合のみ） */}
+          {/* 星評価バッジ（口コミがある場合のみ）タップで口コミ一覧を表示 */}
           {avgRating && !isSoldOut && (
-            <div className="flex items-center gap-0.5 bg-emerald-500 text-white font-black px-2 py-0.5 rounded-full text-[11px] shadow-[0_2px_8px_rgba(16,185,129,0.45)] backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={e => { e.preventDefault(); e.stopPropagation(); setShowReviews(true); }}
+              className="flex items-center gap-0.5 bg-emerald-500 active:bg-emerald-600 text-white font-black px-2 py-0.5 rounded-full text-[11px] shadow-[0_2px_8px_rgba(16,185,129,0.45)] backdrop-blur-sm transition-transform active:scale-95 tap-scale-sm"
+            >
               <Star className="w-2.5 h-2.5 fill-white shrink-0" />
               {Number(avgRating).toFixed(1)}
-            </div>
+            </button>
           )}
           <button
             onClick={handleFavorite}
@@ -365,6 +372,19 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
       onClose={() => setShowLoginNudge(false)}
       reason="favorite"
     />
+
+    {/* 口コミシート */}
+    <AnimatePresence>
+      {showReviews && avgRating && (
+        <StoreReviewSheet
+          storeId={storeId}
+          storeName={bag.store.name}
+          avgRating={avgRating}
+          reviewCount={reviewCount ?? 0}
+          onClose={() => setShowReviews(false)}
+        />
+      )}
+    </AnimatePresence>
   </>);
 }
 
