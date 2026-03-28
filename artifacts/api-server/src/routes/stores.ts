@@ -1401,12 +1401,19 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     if (businessProfile.url) {
       businessProfileUpdate["url"] = businessProfile.url;
     }
+    // 法人の場合は business_profile.name（ビジネス名）を設定する
+    if (businessType === "company" && companyNameKanji?.trim()) {
+      businessProfileUpdate["name"] = companyNameKanji.trim();
+    }
 
     // ── Stripe Account Update パラメータを構築（部分更新 — 空フィールドは完全に除外）──
     const updateParams: Record<string, any> = {
       business_type:    businessType,
       business_profile: businessProfileUpdate,
     };
+
+    // 法人代表者用: スコープを if-else の外に宣言して後続の Persons API で使えるようにする
+    let repPersonPayload: Record<string, any> | null = null;
 
     if (businessType === "individual") {
       const indiv: Record<string, any> = {};
@@ -1451,16 +1458,15 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       if (representative.phone?.trim()) companyObj.phone = toE164Japan(representative.phone);
       if (Object.keys(companyObj).length > 0) updateParams["company"] = companyObj;
 
-      const rep: Record<string, any> = {
-        relationship: { representative: true, owner: true, percent_ownership: 100 },
-      };
+      // 代表者データを repPersonPayload に構築（スコープを外に出す）
+      const repData: Record<string, any> = {};
       // JP では rep.first_name/last_name（Latin）は不要。kana/kanji のみ
-      if (representative.firstNameKana?.trim())  rep.first_name_kana  = representative.firstNameKana;
-      if (representative.lastNameKana?.trim())   rep.last_name_kana   = representative.lastNameKana;
-      if (representative.firstNameKanji?.trim()) rep.first_name_kanji = representative.firstNameKanji;
-      if (representative.lastNameKanji?.trim())  rep.last_name_kanji  = representative.lastNameKanji;
+      if (representative.firstNameKana?.trim())  repData.first_name_kana  = representative.firstNameKana;
+      if (representative.lastNameKana?.trim())   repData.last_name_kana   = representative.lastNameKana;
+      if (representative.firstNameKanji?.trim()) repData.first_name_kanji = representative.firstNameKanji;
+      if (representative.lastNameKanji?.trim())  repData.last_name_kanji  = representative.lastNameKanji;
       if (representative.dobDay && representative.dobMonth && representative.dobYear) {
-        rep.dob = {
+        repData.dob = {
           day:   Number(representative.dobDay),
           month: Number(representative.dobMonth),
           year:  Number(representative.dobYear),
@@ -1468,14 +1474,23 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       }
       // JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
-        rep.address_kanji = addressKanji;
-        rep.address_kana  = addressKana;
+        repData.address_kanji = addressKanji;
+        repData.address_kana  = addressKana;
       }
-      if (representative.phone?.trim()) rep.phone = toE164Japan(representative.phone);
-      if (representative.email?.trim()) rep.email = representative.email;
+      if (representative.phone?.trim()) repData.phone = toE164Japan(representative.phone);
+      if (representative.email?.trim()) repData.email = representative.email;
+      // ⚠️ title は relationship の中に入れる（Stripe JP 仕様）
+      repData.relationship = {
+        representative: true,
+        director: true,      // JP 法人では director: true が必須
+        executive: true,
+        owner: true,
+        percent_ownership: 100,
+        title: (representative as any).title?.trim() || "代表取締役",
+      };
       // ⚠️ accounts.update は "representative" パラメータを受け付けない（Stripe JP）
       // → accounts.update の後に Persons API で登録する
-      // updateParams["representative"] = rep;  ← NG
+      repPersonPayload = repData;
     }
 
     // ── Stripe 送信直前のペイロードをフルログ（null/空がないか確認）──
@@ -1485,17 +1500,15 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     const account = await stripe.accounts.update(store.stripeAccountId, updateParams as any);
 
     // ── 法人代表者を Persons API で登録/更新（accounts.update では設定不可）──
-    if (businessType === 'company' && Object.keys(rep ?? {}).length > 0) {
+    if (businessType === 'company' && repPersonPayload !== null) {
       try {
         const kyc_existingPersons = await stripe.accounts.persons.list(store.stripeAccountId, { limit: 10 });
         const kyc_existing = kyc_existingPersons.data.find(p => p.relationship?.representative);
-        rep.title = (representative as any).title?.trim() || "代表取締役";
-        rep.relationship = { representative: true, executive: true, owner: true, percent_ownership: 100 };
         if (kyc_existing) {
-          await stripe.accounts.persons.update(store.stripeAccountId, kyc_existing.id, rep as any);
+          await stripe.accounts.persons.update(store.stripeAccountId, kyc_existing.id, repPersonPayload as any);
           console.log(`[KYC] Persons.update done — ${kyc_existing.id}`);
         } else {
-          const np = await stripe.accounts.persons.create(store.stripeAccountId, rep as any);
+          const np = await stripe.accounts.persons.create(store.stripeAccountId, repPersonPayload as any);
           console.log(`[KYC] Persons.create done — ${np.id}`);
         }
       } catch (perr: any) {
@@ -1873,6 +1886,9 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
                 mcc: "5812",
                 url: businessUrl,
                 product_description: kycData.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
+                ...(businessType === "company"
+                  ? { name: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト" }
+                  : {}),
               },
               // JP では service_agreement: 'full' が必須
               tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
@@ -1904,6 +1920,9 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
           mcc: "5812",
           url: businessUrl,
           product_description: kycData.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
+          ...(businessType === "company"
+            ? { name: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト" }
+            : {}),
         },
         tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
         settings:       { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
@@ -2061,6 +2080,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       const bizProfile: Record<string, string> = { mcc: "5812", url: businessUrl };
       // product_description は必須。未入力の場合はデフォルト文言を使う
       bizProfile.product_description = k.productDescription?.trim() || "食品ロス削減おすそ分けサービス";
+      // 法人の場合は business_profile.name（ビジネス名）も設定する
+      if (businessType === "company") {
+        bizProfile.name = k.companyNameKanji?.trim() || store.name || "株式会社テスト";
+      }
 
       const step4Payload: Record<string, any> = {
         business_type:    businessType,
@@ -2133,10 +2156,17 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         const { id_number: _idNum, political_exposure: _polExp, verification: _verify, ...repData } = indiv;
         const personPayload = {
           ...repData,
-          title: k.representativeTitle?.trim() || "代表取締役",
-          relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
+          // ⚠️ title はトップレベルではなく relationship の中に入れる（Stripe JP 仕様）
+          relationship: {
+            representative: true,
+            director: true,      // JP 法人では director: true が必須
+            executive: true,
+            owner: true,
+            percent_ownership: 100,
+            title: k.representativeTitle?.trim() || "代表取締役",
+          },
         };
-        console.log(`[bank-setup] BG STEP4b Persons API — keys: ${Object.keys(repData).join(", ")} title="${personPayload.title}"`);
+        console.log(`[bank-setup] BG STEP4b Persons API — keys: ${Object.keys(repData).join(", ")} title="${personPayload.relationship.title}"`);
         try {
           // 既存の代表者 Person があれば update、なければ create
           const existingPersons = await stripeCall(
@@ -2293,9 +2323,7 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
       // ─── 法人: representative は Persons API で別途設定 ───
       const hasRepDue = due.some(f => f.startsWith("representative.") || f.startsWith("person."));
       if (hasRepDue) {
-        const rep: Record<string, any> = {
-          relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
-        };
+        const rep: Record<string, any> = {};
         if (due.some(f => f.includes("representative.first_name"))) {
           rep.first_name_kana  = "テスト";
           rep.first_name_kanji = "テスト";
@@ -2317,8 +2345,15 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
         if (due.some(f => f.includes("representative.email"))) {
           rep.email = ownerEmail ?? "test@example.com";
         }
-        // 役職は JP 法人で必須
-        rep.title = "代表取締役";
+        // ⚠️ title は relationship の中に入れる（Stripe JP 仕様）。director: true も JP 法人では必須
+        rep.relationship = {
+          representative: true,
+          director: true,
+          executive: true,
+          owner: true,
+          percent_ownership: 100,
+          title: "代表取締役",
+        };
         personRepPayload = rep;
       }
 
