@@ -499,13 +499,16 @@ export default function Home() {
   const { nearbyBags, distMap } = useMemo(() => {
     if (!userCoords) return { nearbyBags: [], distMap: new Map<string, number>() };
     const map = new Map<string, number>();
+    // 全バッグの距離を計算（座標あるものすべて）
+    for (const b of visibleBags) {
+      if (b.store.lat != null && b.store.lng != null) {
+        map.set(b.id, haversineMeters(userCoords.lat, userCoords.lng, b.store.lat!, b.store.lng!));
+      }
+    }
+    // nearbyBags: 在庫あり・近い順TOP8
     const withDist = visibleBags
       .filter(b => b.stockCount > 0 && b.store.lat != null && b.store.lng != null)
-      .map(b => {
-        const d = haversineMeters(userCoords.lat, userCoords.lng, b.store.lat!, b.store.lng!);
-        map.set(b.id, d);
-        return { bag: b, d };
-      })
+      .map(b => ({ bag: b, d: map.get(b.id)! }))
       .sort((a, b) => a.d - b.d)
       .slice(0, 8)
       .map(x => x.bag);
@@ -833,7 +836,7 @@ export default function Home() {
                       title="もうすぐ終わるおすそわけ"
                       count={!isLoadingBags ? urgentBags.length : undefined}
                     />
-                    <HorizScrollRow bags={urgentBags} loading={isLoadingBags} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={urgentBags} loading={isLoadingBags} distMap={distMap} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -845,7 +848,7 @@ export default function Home() {
                       title="今日のおすすめ"
                       count={!isLoadingBags ? recommendedBags.length : undefined}
                     />
-                    <HorizScrollRow bags={recommendedBags} loading={isLoadingBags} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={recommendedBags} loading={isLoadingBags} distMap={distMap} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -869,7 +872,7 @@ export default function Home() {
                       title="今夜の受け取り（17〜24時）"
                       count={eveningBags.length}
                     />
-                    <HorizScrollRow bags={eveningBags} loading={false} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={eveningBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -881,7 +884,7 @@ export default function Home() {
                       title="料理・お惣菜"
                       count={mealsBags.length}
                     />
-                    <HorizScrollRow bags={mealsBags} loading={false} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={mealsBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -893,7 +896,7 @@ export default function Home() {
                       title="パン・スイーツ"
                       count={bakeryBags.length}
                     />
-                    <HorizScrollRow bags={bakeryBags} loading={false} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={bakeryBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -905,7 +908,7 @@ export default function Home() {
                       title="食材・その他"
                       count={ingredientBags.length}
                     />
-                    <HorizScrollRow bags={ingredientBags} loading={false} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={ingredientBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
