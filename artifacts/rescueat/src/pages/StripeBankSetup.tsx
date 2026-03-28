@@ -184,7 +184,8 @@ export default function StripeBankSetup() {
 
   // ── URL パラム or localStorage から事業形態を復元 ──
   const urlType = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('type');
-  const initialBusinessType: 'individual' | 'company' = urlType === 'company' ? 'company' : urlType === 'individual' ? 'individual' : loadSavedBusinessType();
+  // URLパラムが明示的に指定された場合のみ引き継ぐ。それ以外は常に個人事業主スタート
+  const initialBusinessType: 'individual' | 'company' = urlType === 'company' ? 'company' : 'individual';
 
   // ── 銀行口座情報 ──（draft は store.id 確定後に useEffect で復元）
   const [bankName, setBankName]           = useState('');

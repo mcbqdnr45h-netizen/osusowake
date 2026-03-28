@@ -327,12 +327,18 @@ router.post("/admin/stores/:storeId/suspend", requireAdmin, async (req, res) => 
 router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
   const storeId = Number(req.params.storeId);
   if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  const { rejectionReason } = req.body as { rejectionReason?: string };
   try {
     const [updated] = await db
       .update(storesTable)
-      .set({ status: "rejected", isActive: false })
-      .where(eq(storesTable.id, storesTable.id))
+      .set({
+        status: "rejected",
+        isActive: false,
+        ...(rejectionReason?.trim() ? { rejectionReason: rejectionReason.trim() } : {}),
+      })
+      .where(eq(storesTable.id, storeId))
       .returning();
+    if (!updated) { res.status(404).json({ error: "not_found" }); return; }
     res.json({ ok: true, store: updated });
   } catch (err: any) {
     res.status(500).json({ error: "internal_error", message: err?.message });
