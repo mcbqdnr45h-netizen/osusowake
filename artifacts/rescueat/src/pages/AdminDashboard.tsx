@@ -64,6 +64,7 @@ interface AdminStore {
   owner_id: string;
   created_at: string;
   stripe_account_id: string | null;
+  stripe_charges_enabled: boolean | null;
   bag_count: number;
   reservation_count: number;
   revenue: number;
@@ -261,7 +262,26 @@ export default function AdminDashboard() {
         fetch(`${BASE}/api/admin/sales-leads`,   { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (mRes.ok) setMetrics(await mRes.json());
-      if (sRes.ok) setStores(await sRes.json());
+      if (sRes.ok) {
+        const storeData: AdminStore[] = await sRes.json();
+        setStores(storeData);
+        // Stripe アカウントを持つ店舗のステータスをバックグラウンドで自動更新
+        if (storeData.some(s => s.stripe_account_id)) {
+          fetch(`${BASE}/api/admin/stores/batch-refresh-stripe`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (!data?.updated) return;
+              setStores(prev => prev.map(s => {
+                const updated = data.updated[s.id];
+                return updated !== undefined ? { ...s, stripe_charges_enabled: updated } : s;
+              }));
+            })
+            .catch(() => {});
+        }
+      }
       if (aRes.ok) setAnnouncements(await aRes.json());
       if (lRes.ok) setSalesLeads(await lRes.json());
       // 設定の読み込み（グローバルキャッシュ経由）

@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { storesTable, announcementsTable, webPushSubscriptionsTable, notificationsTable, salesLeadsTable } from "@workspace/db/schema";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, isNotNull } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import { Resend } from "resend";
 import crypto from "node:crypto";
@@ -180,6 +180,42 @@ router.post("/admin/stores/:storeId/refresh-stripe-status", requireAdmin, async 
     });
   } catch (err: any) {
     console.error("[admin/refresh-stripe-status]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── POST /admin/stores/batch-refresh-stripe ───────────────────────────────────
+// stripeAccountId を持つ全店舗の charges_enabled をまとめて更新して返す
+router.post("/admin/stores/batch-refresh-stripe", requireAdmin, async (req, res) => {
+  const stripeKey = process.env["STRIPE_SECRET_KEY"];
+  if (!stripeKey) { res.status(503).json({ error: "stripe_not_configured" }); return; }
+  try {
+    const rows = await db
+      .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(isNotNull(storesTable.stripeAccountId));
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    const results = await Promise.allSettled(
+      rows.map(async (row) => {
+        const account = await stripe.accounts.retrieve(row.stripeAccountId!);
+        await db
+          .update(storesTable)
+          .set({ stripeChargesEnabled: account.charges_enabled })
+          .where(eq(storesTable.id, row.id));
+        return { id: row.id, chargesEnabled: account.charges_enabled };
+      })
+    );
+
+    const updated: Record<number, boolean> = {};
+    for (const r of results) {
+      if (r.status === "fulfilled") updated[r.value.id] = r.value.chargesEnabled;
+    }
+
+    res.json({ updated });
+  } catch (err: any) {
+    console.error("[admin/batch-refresh-stripe]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });
