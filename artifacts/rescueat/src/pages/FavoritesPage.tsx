@@ -24,7 +24,10 @@ export default function FavoritesPage() {
   const favoriteBags = bags?.filter(b => isFavorite(b.store.id)) ?? [];
 
   const content = (
-    <div className="w-full pb-24 pt-5">
+    <div
+      className="w-full pb-24"
+      style={{ paddingTop: isStoreOwner ? 'calc(env(safe-area-inset-top) + 1.25rem)' : '1.25rem' }}
+    >
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-5 px-4">

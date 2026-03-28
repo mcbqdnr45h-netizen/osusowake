@@ -180,7 +180,10 @@ export default function MyReservations() {
       </AnimatePresence>
 
       {/* ── ページ本体 ── */}
-      <div className="w-full pt-5 pb-28 overflow-x-hidden">
+      <div
+        className="w-full pb-28 overflow-x-hidden"
+        style={{ paddingTop: isStoreOwner ? 'calc(env(safe-area-inset-top) + 1.25rem)' : '1.25rem' }}
+      >
         <h1 className="text-xl font-display font-bold text-foreground mb-4 px-4">マイバック</h1>
 
         {isLoading ? (

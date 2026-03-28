@@ -96,8 +96,8 @@ export default function StoreReviews() {
     <StoreLayout showHeader={false}>
       <div className="pb-10">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
-          style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
+        <div className="flex items-center gap-3 px-4 pb-4 sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border/50"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
           <button
             onClick={() => navigate('/mypage')}
             className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
@@ -113,12 +113,12 @@ export default function StoreReviews() {
         <div className="px-4 py-6 space-y-4">
           {/* 集計サマリー */}
           {reviews.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-5">
-              <div className="text-center">
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-4 overflow-hidden">
+              <div className="text-center shrink-0">
                 <div className="text-4xl font-black text-amber-500">{avgRating}</div>
                 <StarRow rating={Math.round(parseFloat(avgRating!))} />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 {[5, 4, 3, 2, 1].map(s => {
                   const cnt = reviews.filter(r => r.rating === s).length;
                   const pct = reviews.length > 0 ? (cnt / reviews.length) * 100 : 0;
