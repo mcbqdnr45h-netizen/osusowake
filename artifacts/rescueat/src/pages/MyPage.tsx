@@ -95,7 +95,10 @@ export default function MyPage() {
   }
 
   const pageContent = (
-    <div className="max-w-md mx-auto py-8 px-4 pb-24">
+    <div
+      className="max-w-md mx-auto px-4 pb-24"
+      style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top) + 1rem))' }}
+    >
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-black text-foreground">マイページ</h1>
           {userId && (

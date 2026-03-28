@@ -60,8 +60,8 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   ];
 
   const isLoggedIn = !!user;
-  // ヘッダーはマイページ（/mypage）のみ表示、他ページは非表示
-  const showHeader = !hideHeader && (location === '/mypage' || location.startsWith('/mypage/'));
+  // 共通トップヘッダーは全ページ非表示（マイページは独自のインラインヘッダーを使用）
+  const showHeader = false;
 
   return (
     <div
