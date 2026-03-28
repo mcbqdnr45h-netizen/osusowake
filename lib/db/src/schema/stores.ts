@@ -61,6 +61,8 @@ export const storesTable = pgTable("stores", {
   rejectionReason: text("rejection_reason"),
   // Stripe アカウントの決済可否（bank-setup / KYC完了後に更新）
   stripeChargesEnabled: boolean("stripe_charges_enabled"),
+  // Stripe アカウントの入金可否（bank-setup / KYC完了後に更新）
+  stripePayoutsEnabled: boolean("stripe_payouts_enabled"),
   stripeKycAdminEmailSent: boolean("stripe_kyc_admin_email_sent").notNull().default(false),
 });
 

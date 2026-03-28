@@ -65,6 +65,7 @@ interface AdminStore {
   created_at: string;
   stripe_account_id: string | null;
   stripe_charges_enabled: boolean | null;
+  stripe_payouts_enabled: boolean | null;
   bag_count: number;
   reservation_count: number;
   revenue: number;
@@ -670,9 +671,13 @@ export default function AdminDashboard() {
                               )}
                               {store.stripe_account_id && (
                                 store.stripe_charges_enabled === true
-                                  ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Stripe有効</span>
+                                  ? (
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${store.stripe_payouts_enabled === true ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                      {store.stripe_payouts_enabled === true ? '✅ Stripe有効・入金可' : '⚠️ Stripe有効・入金停止'}
+                                    </span>
+                                  )
                                   : store.stripe_charges_enabled === false
-                                    ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Stripe制限中</span>
+                                    ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">❌ Stripe制限中</span>
                                     : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Stripe未確認</span>
                               )}
                             </div>
@@ -778,6 +783,14 @@ export default function AdminDashboard() {
                                       value={d.stripe_account_id ? `✅ ${d.stripe_account_id}` : '❌ 未連携'}
                                       mono={!!d.stripe_account_id}
                                     />
+                                    {d.stripe_account_id && (
+                                      <DetailRow
+                                        label="決済 / 入金"
+                                        value={
+                                          `決済: ${d.stripe_charges_enabled === true ? '✅ 有効' : d.stripe_charges_enabled === false ? '❌ 制限中' : '未確認'}　入金: ${d.stripe_payouts_enabled === true ? '✅ 有効' : d.stripe_payouts_enabled === false ? '❌ 停止中' : '未確認'}`
+                                        }
+                                      />
+                                    )}
                                     {/* 書類画像 */}
                                     <div className="mt-2 space-y-2">
                                       {d.license_image_url && (
@@ -811,7 +824,9 @@ export default function AdminDashboard() {
                                         </div>
                                       )}
                                       {!d.license_image_url && !d.id_image_url && (
-                                        <p className="text-[11px] text-muted-foreground italic">書類未アップロード</p>
+                                        d.stripe_account_id
+                                          ? <p className="text-[11px] text-emerald-600 font-semibold">✅ オーナー認証済み（Stripe共有）</p>
+                                          : <p className="text-[11px] text-muted-foreground italic">書類未アップロード</p>
                                       )}
                                     </div>
                                   </DetailSection>

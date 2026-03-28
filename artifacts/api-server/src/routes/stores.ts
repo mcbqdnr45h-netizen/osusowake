@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { storesTable, surpriseBagsTable, reportsTable, reviewsTable, reservationsTable, notificationsTable } from "@workspace/db/schema";
-import { eq, sql, and, gte, count, desc } from "drizzle-orm";
+import { eq, sql, and, ne, gte, count, desc } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import {
   ListStoresQueryParams,
@@ -1776,8 +1776,15 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
           "accounts.create"
         );
         accountId = account.id;
-        await db.update(storesTable).set({ stripeAccountId: accountId }).where(eq(storesTable.id, storeId));
-        console.log(`✅ [bank-setup] Stripe Account created: ${accountId} (business_type=${businessType})`);
+        // 同一オーナーの全店舗に stripe_account_id を伝播
+        await db.update(storesTable)
+          .set({ stripeAccountId: accountId })
+          .where(
+            store.ownerId
+              ? eq(storesTable.ownerId, store.ownerId)
+              : eq(storesTable.id, storeId)
+          );
+        console.log(`✅ [bank-setup] Stripe Account created: ${accountId} — propagated to all stores of owner ${store.ownerId} (business_type=${businessType})`);
       } catch (createErr: any) {
         const [latest] = await db.select({ stripeAccountId: storesTable.stripeAccountId }).from(storesTable).where(eq(storesTable.id, storeId));
         if (latest?.stripeAccountId) {
@@ -2140,14 +2147,16 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         }
       }
 
-      // 書類添付後の charges_enabled を確認
+      // 書類添付後の charges_enabled / payouts_enabled を確認
+      let kycPayoutsEnabled: boolean | null = null;
       try {
         const refreshed = await stripeCall(
           stripe.accounts.retrieve(accountId!),
           "accounts.retrieve(post-docs)", 10000
         ) as any;
         kycChargesEnabled = refreshed?.charges_enabled ?? false;
-        console.log(`   post-docs charges_enabled=${refreshed?.charges_enabled}`);
+        kycPayoutsEnabled = refreshed?.payouts_enabled ?? false;
+        console.log(`   post-docs charges_enabled=${refreshed?.charges_enabled} payouts_enabled=${refreshed?.payouts_enabled}`);
         console.log(`   post-docs currently_due: ${JSON.stringify(refreshed?.requirements?.currently_due)}`);
         console.log(`   post-docs eventually_due: ${JSON.stringify(refreshed?.requirements?.eventually_due)}`);
       } catch (_) {}
@@ -2164,12 +2173,36 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
 
       const newStatus = autoApproved ? "approved" : "applied";
+      // 現在の store を更新
       await db.update(storesTable).set({
         status: newStatus,
         isActive: autoApproved ? true : undefined,
         ...(licenseImageUrl ? { licenseImageUrl } : {}),
         ...(kycChargesEnabled !== null ? { stripeChargesEnabled: kycChargesEnabled } : {}),
+        ...(kycPayoutsEnabled !== null ? { stripePayoutsEnabled: kycPayoutsEnabled } : {}),
       }).where(eq(storesTable.id, storeId));
+
+      // 同一オーナーの他店舗にも stripe_account_id / charges / payouts を伝播
+      if (store.ownerId && accountId) {
+        try {
+          await db.update(storesTable)
+            .set({
+              stripeAccountId: accountId,
+              ...(kycChargesEnabled !== null ? { stripeChargesEnabled: kycChargesEnabled } : {}),
+              ...(kycPayoutsEnabled !== null ? { stripePayoutsEnabled: kycPayoutsEnabled } : {}),
+            })
+            .where(
+              and(
+                eq(storesTable.ownerId, store.ownerId),
+                ne(storesTable.id, storeId)
+              )
+            );
+          console.log(`✅ [bank-setup] BG Propagated stripe_account_id=${accountId} (charges=${kycChargesEnabled}) to all other stores of owner ${store.ownerId}`);
+        } catch (propErr: any) {
+          console.warn(`⚠️ [bank-setup] BG propagation to other stores failed: ${propErr?.message}`);
+        }
+      }
+
       if (autoApproved) {
         console.log(`✅ [bank-setup] BG Store ${storeId} → auto-approved (charges_enabled=true, auto_approve=on)`);
       } else {

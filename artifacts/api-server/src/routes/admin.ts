@@ -85,6 +85,7 @@ router.get("/admin/stores", requireAdmin, async (_req, res) => {
         s.id, s.name, s.status, s.is_active, s.category, s.address, s.city,
         s.image_url, s.owner_id, s.created_at, s.stripe_account_id,
         s.stripe_charges_enabled,
+        s.stripe_payouts_enabled,
         COUNT(DISTINCT b.id)::int AS bag_count,
         COUNT(DISTINCT r.id)::int AS reservation_count,
         COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue,
@@ -119,6 +120,7 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
         s.address, s.city, s.lat, s.lng, s.image_url, s.phone,
         s.open_time, s.close_time, s.holiday, s.pickup_hours,
         s.owner_id, s.created_at, s.stripe_account_id,
+        s.stripe_charges_enabled, s.stripe_payouts_enabled,
         s.license_number, s.license_image_url, s.id_image_url, s.pledge_signed,
         s.legal_name, s.legal_representative, s.legal_address,
         s.legal_phone, s.legal_email, s.legal_other,
@@ -173,7 +175,10 @@ router.post("/admin/stores/:storeId/refresh-stripe-status", requireAdmin, async 
 
     await db
       .update(storesTable)
-      .set({ stripeChargesEnabled: account.charges_enabled })
+      .set({
+        stripeChargesEnabled: account.charges_enabled,
+        stripePayoutsEnabled: account.payouts_enabled,
+      })
       .where(eq(storesTable.id, storeId));
 
     res.json({
@@ -208,9 +213,12 @@ router.post("/admin/stores/batch-refresh-stripe", requireAdmin, async (req, res)
         const account = await stripe.accounts.retrieve(row.stripeAccountId!);
         await db
           .update(storesTable)
-          .set({ stripeChargesEnabled: account.charges_enabled })
+          .set({
+            stripeChargesEnabled: account.charges_enabled,
+            stripePayoutsEnabled: account.payouts_enabled,
+          })
           .where(eq(storesTable.id, row.id));
-        return { id: row.id, chargesEnabled: account.charges_enabled };
+        return { id: row.id, chargesEnabled: account.charges_enabled, payoutsEnabled: account.payouts_enabled };
       })
     );
 
