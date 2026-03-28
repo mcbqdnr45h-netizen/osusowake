@@ -99,8 +99,8 @@ export default function MyPage() {
       className="max-w-md mx-auto px-4 pb-24"
       style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top) + 1rem))' }}
     >
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-black text-foreground">マイページ</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-lg font-black text-foreground">マイページ</h1>
           {userId && (
             <button
               onClick={() => setShowNotifications(v => !v)}
@@ -161,7 +161,7 @@ export default function MyPage() {
         )}
 
         {/* Profile Card */}
-        <div className="bg-card rounded-2xl p-4 mb-3"
+        <div className="bg-card rounded-2xl p-3 mb-2"
           style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)' }}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0 border border-primary/30">
@@ -214,23 +214,23 @@ export default function MyPage() {
         </div>
 
         {/* ── おすそわけスコア（カスタマーのみ） ── */}
-        {!isStoreOwner && <div className="mb-3">
+        {!isStoreOwner && <div className="mb-2">
 
           {/* ヒーローカード：スコア全体 */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="relative rounded-2xl overflow-hidden mb-3 shadow-md"
+            className="relative rounded-2xl overflow-hidden mb-2 shadow-md"
             style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)' }}
           >
             {/* 背景装飾円 */}
             <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full" />
             <div className="absolute -bottom-3 -left-3 w-16 h-16 bg-white/5 rounded-full" />
 
-            <div className="relative px-4 pt-3.5 pb-3">
+            <div className="relative px-4 pt-2.5 pb-2">
               {/* 達成回数バッジ */}
-              <div className="flex items-center justify-end mb-1.5">
+              <div className="flex items-center justify-end mb-1">
                 <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full">
                   <Star className="w-3 h-3 text-yellow-200 fill-yellow-200" />
                   <span className="text-white text-[11px] font-black">{pickedUpCount}回</span>
@@ -238,20 +238,20 @@ export default function MyPage() {
               </div>
 
               {/* メインメッセージ */}
-              <div className="mb-0.5">
-                <p className="text-white/80 text-[11px] font-medium mb-0.5">
+              <div className="mb-0">
+                <p className="text-white/80 text-[10px] font-medium mb-0">
                   あなたはこれまでに
                 </p>
                 <div className="flex items-end gap-1.5">
-                  <span className="text-4xl font-black text-white leading-none">{foodSavedKg}</span>
-                  <span className="text-white text-base font-bold mb-0.5">kg</span>
-                  <span className="text-white/80 text-xs font-bold mb-1">の食品ロスを防ぎました</span>
+                  <span className="text-3xl font-black text-white leading-none">{foodSavedKg}</span>
+                  <span className="text-white text-sm font-bold mb-0.5">kg</span>
+                  <span className="text-white/80 text-[11px] font-bold mb-0.5">の食品ロスを防ぎました</span>
                 </div>
               </div>
 
               {/* 称賛メッセージ */}
-              <div className="bg-white/15 backdrop-blur-sm rounded-xl px-3 py-2 mt-2">
-                <p className="text-white font-black text-xs text-center">
+              <div className="bg-white/15 backdrop-blur-sm rounded-xl px-3 py-1.5 mt-1.5">
+                <p className="text-white font-black text-[11px] text-center">
                   {pickedUpCount === 0
                     ? '🌟 最初のおすそわけで街が変わりはじめる！'
                     : pickedUpCount < 5
@@ -265,23 +265,23 @@ export default function MyPage() {
             </div>
 
             {/* 3統計バー */}
-            <div className="bg-black/10 px-4 py-2 flex items-center justify-around border-t border-white/10">
+            <div className="bg-black/10 px-4 py-1.5 flex items-center justify-around border-t border-white/10">
               <div className="text-center">
-                <div className="text-white font-black text-base leading-none">{pickedUpCount}</div>
+                <div className="text-white font-black text-sm leading-none">{pickedUpCount}</div>
                 <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
                   <ShoppingBag className="w-3 h-3" />おすそわけ回数
                 </div>
               </div>
-              <div className="w-px h-6 bg-white/20" />
+              <div className="w-px h-5 bg-white/20" />
               <div className="text-center">
-                <div className="text-white font-black text-base leading-none">{foodSavedKg}</div>
+                <div className="text-white font-black text-sm leading-none">{foodSavedKg}</div>
                 <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
                   <Scale className="w-3 h-3" />削減食品量 (kg)
                 </div>
               </div>
-              <div className="w-px h-6 bg-white/20" />
+              <div className="w-px h-5 bg-white/20" />
               <div className="text-center">
-                <div className="text-white font-black text-base leading-none">{co2Saved}</div>
+                <div className="text-white font-black text-sm leading-none">{co2Saved}</div>
                 <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
                   <Leaf className="w-3 h-3" />CO2削減 (kg)
                 </div>
@@ -385,7 +385,7 @@ export default function MyPage() {
           {!isStoreOwner && (
             <Link
               href="/orders"
-              className="flex items-center gap-3 py-2.5 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+              className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
             >
               <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
                 <Receipt className="w-4 h-4" />
@@ -399,7 +399,7 @@ export default function MyPage() {
           {profile?.role === 'store_owner' && (store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') && (
             <Link
               href="/store-dashboard"
-              className="flex items-center gap-3 py-2.5 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+              className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
             >
               <div className="w-9 h-9 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
                 <Clock className="w-4 h-4" />
@@ -415,7 +415,7 @@ export default function MyPage() {
           {profile?.role === 'store_owner' && store?.status === 'rejected' && (
             <Link
               href="/store-dashboard"
-              className="flex items-center gap-3 py-2.5 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+              className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
             >
               <div className="w-9 h-9 bg-red-100 text-red-500 rounded-full flex items-center justify-center shrink-0">
                 <XCircle className="w-4 h-4" />
@@ -431,7 +431,7 @@ export default function MyPage() {
           {profile?.role === 'store_owner' && isApprovedOwner && (
             <Link
               href="/store/profile-edit"
-              className="flex items-center gap-3 py-2.5 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+              className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
             >
               <div className="w-9 h-9 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center shrink-0">
                 <Camera className="w-4 h-4" />
@@ -447,7 +447,7 @@ export default function MyPage() {
           {profile?.role === 'store_owner' && isApprovedOwner && (
             <Link
               href="/store/reviews"
-              className="flex items-center gap-3 py-2.5 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+              className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
             >
               <div className="w-9 h-9 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center shrink-0">
                 <MessageSquare className="w-4 h-4" />
@@ -463,7 +463,7 @@ export default function MyPage() {
           {!isStoreOwner && (
             <Link
               href="/settings"
-              className="flex items-center gap-3 py-2.5 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+              className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
             >
               <div className="w-9 h-9 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
                 <Settings className="w-4 h-4" />
@@ -475,7 +475,7 @@ export default function MyPage() {
 
           <Link
             href="/report-store"
-            className="flex items-center gap-3 py-2.5 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
           >
             <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shrink-0">
               <Flag className="w-4 h-4" />
@@ -489,7 +489,7 @@ export default function MyPage() {
 
           <Link
             href="/help"
-            className="flex items-center gap-3 py-2.5 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+            className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
           >
             <div className="w-9 h-9 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
               <HelpCircle className="w-4 h-4" />
@@ -500,7 +500,7 @@ export default function MyPage() {
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 py-2.5 px-4 hover:bg-destructive/5 transition-colors text-left text-destructive"
+            className="w-full flex items-center gap-3 py-2 px-4 hover:bg-destructive/5 transition-colors text-left text-destructive"
           >
             <div className="w-9 h-9 bg-destructive/10 text-destructive rounded-full flex items-center justify-center shrink-0">
               <LogOut className="w-4 h-4" />

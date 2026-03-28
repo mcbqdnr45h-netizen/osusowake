@@ -1057,61 +1057,61 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
 
   // ── Info panel ─────────────────────────────────────────────────────────
   const infoPanel = (
-    <div className={fullPage ? 'px-4 pt-4 pb-5' : 'px-4 pt-2.5 pb-3'}>
-      <div className="flex items-center justify-between mb-2 gap-3">
+    <div className={fullPage ? 'px-4 pt-4 pb-5' : 'px-3 pt-1.5 pb-2'}>
+      <div className="flex items-center justify-between mb-1.5 gap-2">
         <div className="flex-1 min-w-0">
           <motion.div
             key={stage}
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4 }}
-            className="flex items-center gap-1.5 mb-1 flex-wrap"
+            className="flex items-center gap-1 mb-0.5 flex-wrap"
           >
-            <span className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-0.5 rounded-full tracking-wide"
+            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wide"
               style={gameFont}>
               Lv.{stage}
             </span>
-            <span className={`font-black text-primary ${fullPage ? 'text-sm' : 'text-xs'}`} style={gameFont}>
+            <span className={`font-black text-primary ${fullPage ? 'text-sm' : 'text-[11px]'}`} style={gameFont}>
               {title}
             </span>
           </motion.div>
-          <h3 className={`font-black text-foreground flex items-center gap-1.5 ${fullPage ? 'text-lg' : 'text-[15px]'}`}
+          <h3 className={`font-black text-foreground flex items-center gap-1 ${fullPage ? 'text-lg' : 'text-[13px]'}`}
             style={gameFont}>
             🏘️ マイタウン
           </h3>
-          <p className={`text-muted-foreground mt-0.5 leading-snug ${fullPage ? 'text-sm' : 'text-xs'}`}>
+          <p className={`text-muted-foreground mt-0 leading-snug ${fullPage ? 'text-sm' : 'text-[10px]'}`}>
             {stageInfo.description}
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide">STAGE</div>
+          <div className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide">STAGE</div>
           <motion.div
             key={stage}
             initial={{ scale: 1.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className={`font-black text-primary leading-none ${fullPage ? 'text-5xl' : 'text-4xl'}`}
+            className={`font-black text-primary leading-none ${fullPage ? 'text-5xl' : 'text-3xl'}`}
             style={gameFont}
           >
             {stage}
           </motion.div>
-          <div className="text-[9px] text-muted-foreground">/ {MAX_STAGE}</div>
+          <div className="text-[8px] text-muted-foreground">/ {MAX_STAGE}</div>
         </div>
       </div>
 
       {!isMax ? (
         <>
-          <div className="mb-2">
-            <div className="flex items-center justify-between mb-1">
-              <span className={`text-muted-foreground font-medium ${fullPage ? 'text-xs' : 'text-[11px]'}`}>
+          <div className="mb-1.5">
+            <div className="flex items-center justify-between mb-0.5">
+              <span className={`text-muted-foreground font-medium ${fullPage ? 'text-xs' : 'text-[10px]'}`}>
                 次: {nextStage!.icon} {nextStage!.name}
               </span>
-              <span className={`font-black text-foreground ${fullPage ? 'text-xs' : 'text-[11px]'}`}>
+              <span className={`font-black text-foreground ${fullPage ? 'text-xs' : 'text-[10px]'}`}>
                 あと {nextStage!.minCount - purchaseCount}回
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`flex-1 relative bg-secondary rounded-full overflow-hidden ${fullPage ? 'h-4' : 'h-3'}`}>
+              <div className={`flex-1 relative bg-secondary rounded-full overflow-hidden ${fullPage ? 'h-4' : 'h-2.5'}`}>
                 <motion.div
                   className="h-full rounded-full"
                   style={{ background: 'linear-gradient(90deg, #4ade80, #22c55e, #16a34a)' }}
@@ -1122,16 +1122,16 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
                 <div className="absolute inset-y-0 left-0 right-0 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none" />
               </div>
               <div className="flex flex-col items-center shrink-0 opacity-35">
-                <span className="text-sm leading-none">{finalStage.icon[0]}</span>
+                <span className="text-xs leading-none">{finalStage.icon[0]}</span>
                 <span className="text-[8px] font-black text-muted-foreground whitespace-nowrap">Lv.{MAX_STAGE}</span>
               </div>
             </div>
           </div>
-          <motion.div className="bg-secondary/60 rounded-2xl px-3 py-2" whileTap={{ scale: 0.97 }}>
-            <p className={`text-muted-foreground leading-snug ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
+          <motion.div className="bg-secondary/60 rounded-xl px-2.5 py-1.5" whileTap={{ scale: 0.97 }}>
+            <p className={`text-muted-foreground leading-snug ${fullPage ? 'text-sm' : 'text-[10px]'}`}>
               あと <span className="font-black text-foreground" style={gameFont}>{nextStage!.minCount - purchaseCount}回</span> おすそわけすると「{nextStage!.name}」に進化！🌿
             </p>
-            <p className={`text-primary font-bold mt-1 flex items-center gap-1 ${fullPage ? 'text-sm' : 'text-[11px]'}`}>
+            <p className={`text-primary font-bold mt-0.5 flex items-center gap-1 ${fullPage ? 'text-sm' : 'text-[10px]'}`}>
               <span>✨</span>
               <span className="text-foreground font-semibold">{nextStage!.benefit}</span>
             </p>
@@ -1187,7 +1187,7 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
         transition={{ duration: 0.5 }}
         className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3"
       >
-        <div className="relative overflow-hidden" style={{ maxHeight: '128px' }}>
+        <div className="relative overflow-hidden" style={{ maxHeight: '88px' }}>
           <TownScene stage={stage} purchaseCount={purchaseCount} showLevelUp={showParticles} />
           <LevelUpParticles active={showParticles} />
         </div>
