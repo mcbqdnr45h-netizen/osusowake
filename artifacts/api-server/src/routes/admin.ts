@@ -100,6 +100,49 @@ router.get("/admin/stores", requireAdmin, async (_req, res) => {
   }
 });
 
+// ── GET /admin/stores/:storeId/detail ─────────────────────────────────────────
+// 店舗詳細（全フィールド＋オーナーメール）
+router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
+  const storeId = Number(req.params.storeId);
+  if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  try {
+    const result = await db.execute(sql`
+      SELECT
+        s.id, s.name, s.description, s.status, s.is_active, s.category,
+        s.address, s.city, s.lat, s.lng, s.image_url, s.phone,
+        s.open_time, s.close_time, s.holiday, s.pickup_hours,
+        s.owner_id, s.created_at, s.stripe_account_id,
+        s.license_number, s.license_image_url, s.id_image_url, s.pledge_signed,
+        s.legal_name, s.legal_representative, s.legal_address,
+        s.legal_phone, s.legal_email, s.legal_other,
+        COUNT(DISTINCT b.id)::int AS bag_count,
+        COUNT(DISTINCT r.id)::int AS reservation_count,
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue
+      FROM stores s
+      LEFT JOIN surprise_bags b ON b.store_id = s.id
+      LEFT JOIN reservations r  ON r.store_id = s.id
+      WHERE s.id = ${storeId}
+      GROUP BY s.id
+    `);
+    if (!result.rows[0]) { res.status(404).json({ error: "not_found" }); return; }
+    const store = result.rows[0] as any;
+
+    // オーナーのメールアドレスを Supabase から取得
+    let ownerEmail: string | null = null;
+    if (store.owner_id) {
+      try {
+        const { data } = await supabaseAdmin.auth.admin.getUserById(store.owner_id);
+        ownerEmail = data?.user?.email ?? null;
+      } catch { /* ignore */ }
+    }
+
+    res.json({ ...store, owner_email: ownerEmail });
+  } catch (err: any) {
+    console.error("[admin/stores/detail]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 // ── POST /admin/stores/:storeId/approve ───────────────────────────────────────
 router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => {
   const storeId = Number(req.params.storeId);

@@ -41,6 +41,28 @@ interface AdminStore {
   revenue: number;
 }
 
+interface AdminStoreDetail extends AdminStore {
+  description: string | null;
+  phone: string | null;
+  lat: number | null;
+  lng: number | null;
+  open_time: string | null;
+  close_time: string | null;
+  holiday: string | null;
+  pickup_hours: string | null;
+  license_number: string | null;
+  license_image_url: string | null;
+  id_image_url: string | null;
+  pledge_signed: boolean;
+  legal_name: string | null;
+  legal_representative: string | null;
+  legal_address: string | null;
+  legal_phone: string | null;
+  legal_email: string | null;
+  legal_other: string | null;
+  owner_email: string | null;
+}
+
 interface Announcement {
   id: number;
   title: string;
@@ -74,6 +96,63 @@ function statusBadge(store: AdminStore) {
     case 'suspended':     return { label: '停止中',    cls: 'bg-red-100 text-red-700' };
     default:              return { label: store.status, cls: 'bg-secondary text-muted-foreground' };
   }
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-secondary/30 rounded-xl overflow-hidden">
+      <div className="px-3 py-2 bg-secondary/50 border-b border-border/30">
+        <p className="text-[11px] font-black text-foreground/70 uppercase tracking-wide">{title}</p>
+      </div>
+      <div className="px-3 py-2 space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function DetailRow({
+  label, value, mono = false, multiline = false, copyable = false, link,
+}: {
+  label: string;
+  value: string | null | undefined;
+  mono?: boolean;
+  multiline?: boolean;
+  copyable?: boolean;
+  link?: string;
+}) {
+  const [copied, setCopied] = React.useState(false);
+  if (!value) {
+    return (
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5">{label}</span>
+        <span className="text-[11px] text-muted-foreground/40 italic">未入力</span>
+      </div>
+    );
+  }
+  async function copy() {
+    await navigator.clipboard.writeText(value!);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  const textEl = multiline
+    ? <p className={`text-[11px] text-foreground leading-relaxed ${mono ? 'font-mono break-all' : ''}`}>{value}</p>
+    : <span className={`text-[11px] text-foreground break-all ${mono ? 'font-mono' : 'font-medium'}`}>{value}</span>;
+  return (
+    <div className="flex items-start justify-between gap-2 min-w-0">
+      <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5 min-w-[72px]">{label}</span>
+      <div className="flex items-start gap-1 min-w-0 flex-1">
+        {link ? (
+          <a href={link} target="_blank" rel="noopener noreferrer"
+            className="text-[11px] text-blue-600 underline break-all">{value}</a>
+        ) : textEl}
+        {copyable && (
+          <button onClick={copy}
+            className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary text-muted-foreground hover:bg-border transition-colors">
+            {copied ? '✓' : 'コピー'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function AdminDashboard() {
@@ -116,6 +195,9 @@ export default function AdminDashboard() {
   const [showAllStores, setShowAllStores] = useState(false);
   const [expandedStore, setExpandedStore] = useState<number | null>(null);
   const [expandedLead, setExpandedLead]   = useState<number | null>(null);
+  const [storeDetails, setStoreDetails]   = useState<Record<number, AdminStoreDetail>>({});
+  const [detailLoading, setDetailLoading] = useState<number | null>(null);
+  const [lightboxImg, setLightboxImg]     = useState<string | null>(null);
 
   const token = session?.access_token;
 
@@ -260,6 +342,31 @@ export default function AdminDashboard() {
         toast({ title: 'エラー', description: data.error, variant: 'destructive' });
       }
     } finally { setNotifSending(false); }
+  }
+
+  async function fetchStoreDetail(storeId: number) {
+    if (storeDetails[storeId] || detailLoading === storeId) return;
+    setDetailLoading(storeId);
+    try {
+      const res = await fetch(`${BASE}/api/admin/stores/${storeId}/detail`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStoreDetails(prev => ({ ...prev, [storeId]: data }));
+      }
+    } finally {
+      setDetailLoading(null);
+    }
+  }
+
+  function toggleExpand(storeId: number) {
+    if (expandedStore === storeId) {
+      setExpandedStore(null);
+    } else {
+      setExpandedStore(storeId);
+      fetchStoreDetail(storeId);
+    }
   }
 
   const isPending = (s: AdminStore) =>
@@ -436,7 +543,7 @@ export default function AdminDashboard() {
                     {/* タップで展開 */}
                     <button
                       type="button"
-                      onClick={() => setExpandedStore(expandedStore === store.id ? null : store.id)}
+                      onClick={() => toggleExpand(store.id)}
                       className="w-full text-left"
                     >
                       <div className="p-4">
@@ -475,29 +582,128 @@ export default function AdminDashboard() {
                           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                           className="overflow-hidden"
                         >
-                          <div className="px-4 pb-4 space-y-3 border-t border-border/40 pt-3">
-                            {/* 売上詳細カード */}
+                          <div className="px-4 pb-4 space-y-4 border-t border-border/40 pt-3">
+
+                            {/* 売上サマリー */}
                             <div className="grid grid-cols-3 gap-2">
                               <div className="bg-emerald-50 rounded-xl p-3 text-center">
-                                <p className="text-lg font-black text-emerald-700">¥{fmt(Number(store.revenue ?? 0))}</p>
+                                <p className="text-base font-black text-emerald-700">¥{fmt(Number(store.revenue ?? 0))}</p>
                                 <p className="text-[10px] text-emerald-600/70 mt-0.5">累計売上</p>
                               </div>
                               <div className="bg-sky-50 rounded-xl p-3 text-center">
-                                <p className="text-lg font-black text-sky-700">{store.reservation_count}</p>
+                                <p className="text-base font-black text-sky-700">{store.reservation_count}</p>
                                 <p className="text-[10px] text-sky-600/70 mt-0.5">総予約数</p>
                               </div>
                               <div className="bg-purple-50 rounded-xl p-3 text-center">
-                                <p className="text-lg font-black text-purple-700">{store.bag_count}</p>
+                                <p className="text-base font-black text-purple-700">{store.bag_count}</p>
                                 <p className="text-[10px] text-purple-600/70 mt-0.5">バッグ数</p>
                               </div>
                             </div>
 
-                            <div className="text-[11px] text-muted-foreground flex items-center gap-4">
-                              <span>登録日: {new Date(store.created_at).toLocaleDateString('ja-JP')}</span>
-                              {store.stripe_account_id && (
-                                <span className="text-emerald-600 font-bold">Stripe連携済み</span>
-                              )}
-                            </div>
+                            {/* 詳細ロード中スピナー */}
+                            {detailLoading === store.id && (
+                              <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+                                <RefreshCw className="w-4 h-4 animate-spin" />詳細を取得中...
+                              </div>
+                            )}
+
+                            {/* 詳細データ */}
+                            {(() => {
+                              const d = storeDetails[store.id];
+                              if (!d) return null;
+                              return (
+                                <div className="space-y-3">
+
+                                  {/* オーナー情報 */}
+                                  <DetailSection title="👤 オーナー情報">
+                                    <DetailRow label="メールアドレス" value={d.owner_email} copyable />
+                                    <DetailRow label="オーナーID" value={d.owner_id} mono />
+                                    <DetailRow label="登録日" value={new Date(d.created_at).toLocaleString('ja-JP')} />
+                                  </DetailSection>
+
+                                  {/* 基本情報 */}
+                                  <DetailSection title="🏪 店舗基本情報">
+                                    {d.description && <DetailRow label="説明" value={d.description} multiline />}
+                                    <DetailRow label="住所" value={`${d.address}${d.city ? '（' + d.city + '）' : ''}`} />
+                                    {d.phone && <DetailRow label="電話番号" value={d.phone} />}
+                                    {(d.lat || d.lng) && (
+                                      <DetailRow label="座標" value={`${d.lat}, ${d.lng}`}
+                                        link={`https://maps.google.com/?q=${d.lat},${d.lng}`} />
+                                    )}
+                                    <DetailRow label="カテゴリ" value={d.category} />
+                                  </DetailSection>
+
+                                  {/* 営業時間 */}
+                                  {(d.open_time || d.close_time || d.holiday || d.pickup_hours) && (
+                                    <DetailSection title="🕐 営業時間">
+                                      {d.open_time && <DetailRow label="開店" value={d.open_time} />}
+                                      {d.close_time && <DetailRow label="閉店" value={d.close_time} />}
+                                      {d.pickup_hours && <DetailRow label="受取時間" value={d.pickup_hours} />}
+                                      {d.holiday && <DetailRow label="定休日" value={d.holiday} />}
+                                    </DetailSection>
+                                  )}
+
+                                  {/* コンプライアンス書類 */}
+                                  <DetailSection title="📋 コンプライアンス書類">
+                                    <DetailRow label="許可証番号" value={d.license_number} />
+                                    <DetailRow label="誓約書署名" value={d.pledge_signed ? '✅ 署名済み' : '❌ 未署名'} />
+                                    <DetailRow
+                                      label="Stripe口座"
+                                      value={d.stripe_account_id ? `✅ ${d.stripe_account_id}` : '❌ 未連携'}
+                                      mono={!!d.stripe_account_id}
+                                    />
+                                    {/* 書類画像 */}
+                                    <div className="mt-2 space-y-2">
+                                      {d.license_image_url && (
+                                        <div>
+                                          <p className="text-[10px] font-bold text-muted-foreground mb-1">営業許可証</p>
+                                          <button
+                                            onClick={() => setLightboxImg(d.license_image_url!)}
+                                            className="block w-full"
+                                          >
+                                            <img
+                                              src={d.license_image_url}
+                                              alt="営業許可証"
+                                              className="w-full max-h-40 object-contain rounded-xl border border-border bg-secondary/30 cursor-zoom-in hover:opacity-90 transition-opacity"
+                                            />
+                                          </button>
+                                        </div>
+                                      )}
+                                      {d.id_image_url && (
+                                        <div>
+                                          <p className="text-[10px] font-bold text-muted-foreground mb-1">本人確認書類</p>
+                                          <button
+                                            onClick={() => setLightboxImg(d.id_image_url!)}
+                                            className="block w-full"
+                                          >
+                                            <img
+                                              src={d.id_image_url}
+                                              alt="本人確認書類"
+                                              className="w-full max-h-40 object-contain rounded-xl border border-border bg-secondary/30 cursor-zoom-in hover:opacity-90 transition-opacity"
+                                            />
+                                          </button>
+                                        </div>
+                                      )}
+                                      {!d.license_image_url && !d.id_image_url && (
+                                        <p className="text-[11px] text-muted-foreground italic">書類未アップロード</p>
+                                      )}
+                                    </div>
+                                  </DetailSection>
+
+                                  {/* 特定商取引法 */}
+                                  {(d.legal_name || d.legal_representative || d.legal_address || d.legal_phone || d.legal_email || d.legal_other) && (
+                                    <DetailSection title="⚖️ 特定商取引法情報">
+                                      {d.legal_name && <DetailRow label="屋号・法人名" value={d.legal_name} />}
+                                      {d.legal_representative && <DetailRow label="代表者名" value={d.legal_representative} />}
+                                      {d.legal_address && <DetailRow label="住所" value={d.legal_address} />}
+                                      {d.legal_phone && <DetailRow label="電話番号" value={d.legal_phone} />}
+                                      {d.legal_email && <DetailRow label="メール" value={d.legal_email} copyable />}
+                                      {d.legal_other && <DetailRow label="その他" value={d.legal_other} multiline />}
+                                    </DetailSection>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {/* 店舗ページリンク */}
                             <Link href={`/stores/${store.id}`}>
@@ -897,6 +1103,33 @@ export default function AdminDashboard() {
         </motion.div>
 
       </div>
+
+      {/* ── 画像ライトボックス ── */}
+      <AnimatePresence>
+        {lightboxImg && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setLightboxImg(null)}
+          >
+            <motion.img
+              initial={{ scale: 0.85 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.85 }}
+              src={lightboxImg}
+              alt="書類確認"
+              className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain cursor-zoom-out"
+              onClick={e => e.stopPropagation()}
+            />
+            <button
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center text-xl hover:bg-white/20 transition-colors"
+              onClick={() => setLightboxImg(null)}
+            >✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
