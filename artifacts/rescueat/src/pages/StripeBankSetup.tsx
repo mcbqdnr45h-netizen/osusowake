@@ -33,8 +33,9 @@ async function compressIdImage(dataUrl: string, maxPx = 1280, quality = 0.82): P
   });
 }
 
-// ── localStorage 下書き保存（アプリ終了後も復元）────────────────────────────────
-const DRAFT_KEY = 'bank-setup-draft-v1';
+// ── localStorage 下書き保存（ストアIDごとに分離）────────────────────────────────
+// v2: storeId 単位のキーにすることで別ストアのデータが混入しないようにした
+const DRAFT_KEY_PREFIX = 'bank-setup-draft-v2-';
 const BUSINESS_TYPE_KEY = 'store-business-type';
 function loadSavedBusinessType(): 'individual' | 'company' {
   try { const v = localStorage.getItem(BUSINESS_TYPE_KEY); return v === 'company' ? 'company' : 'individual'; } catch (_) { return 'individual'; }
@@ -52,17 +53,19 @@ type DraftState = {
   accountNumber: string; holderName: string;
   companyNameKanji?: string; companyNameKana?: string;
   companyNameLatin?: string; companyTaxId?: string;
-  companyStructure?: string;
   representativeTitle?: string;
 };
-function saveDraft(d: DraftState) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
+function draftKey(storeId: number) { return `${DRAFT_KEY_PREFIX}${storeId}`; }
+function saveDraft(storeId: number, d: DraftState) {
+  try { localStorage.setItem(draftKey(storeId), JSON.stringify(d)); } catch (_) {}
 }
-function loadDraft(): Partial<DraftState> {
-  try { const r = localStorage.getItem(DRAFT_KEY); return r ? JSON.parse(r) : {}; } catch (_) { return {}; }
+function loadDraft(storeId: number): Partial<DraftState> {
+  // 旧 v1 キーを削除してクリーンアップ
+  try { localStorage.removeItem('bank-setup-draft-v1'); } catch (_) {}
+  try { const r = localStorage.getItem(draftKey(storeId)); return r ? JSON.parse(r) : {}; } catch (_) { return {}; }
 }
-function clearDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+function clearDraft(storeId: number) {
+  try { localStorage.removeItem(draftKey(storeId)); } catch (_) {}
 }
 
 // ── 全角カタカナ → 半角カタカナ変換（Stripe JP 口座名義に必要）──────────────────
@@ -183,15 +186,12 @@ export default function StripeBankSetup() {
   const urlType = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('type');
   const initialBusinessType: 'individual' | 'company' = urlType === 'company' ? 'company' : urlType === 'individual' ? 'individual' : loadSavedBusinessType();
 
-  // ── localStorage から下書きを復元（useState より先に宣言）──
-  const draft = loadDraft();
-
-  // ── 銀行口座情報 ──
-  const [bankName, setBankName]           = useState(draft.bankName      ?? '');
-  const [bankCode, setBankCode]           = useState(draft.bankCode      ?? '');
-  const [branchCode, setBranchCode]       = useState(draft.branchCode    ?? '');
-  const [accountNumber, setAccountNumber] = useState(draft.accountNumber ?? '');
-  const [holderName, setHolderName]       = useState(draft.holderName    ?? '');
+  // ── 銀行口座情報 ──（draft は store.id 確定後に useEffect で復元）
+  const [bankName, setBankName]           = useState('');
+  const [bankCode, setBankCode]           = useState('');
+  const [branchCode, setBranchCode]       = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [holderName, setHolderName]       = useState('');
   const [tosAgreed, setTosAgreed]         = useState(false);
   const [tosTime, setTosTime]             = useState<number | null>(null);
 
@@ -199,40 +199,78 @@ export default function StripeBankSetup() {
   const [businessType, setBusinessType] = useState<'individual' | 'company'>(initialBusinessType);
 
   // ── KYC: 法人情報（法人の場合のみ） ──
-  const [companyNameKanji, setCompanyNameKanji]     = useState(draft.companyNameKanji   ?? '');
-  const [companyNameKana, setCompanyNameKana]       = useState(draft.companyNameKana    ?? '');
-  const [companyNameLatin, setCompanyNameLatin]     = useState(draft.companyNameLatin   ?? '');
-  const [companyTaxId, setCompanyTaxId]             = useState(draft.companyTaxId       ?? '');
-  const [companyStructure, setCompanyStructure]     = useState(draft.companyStructure   ?? '');
-  const [representativeTitle, setRepresentativeTitle] = useState(draft.representativeTitle ?? '代表取締役');
+  const [companyNameKanji, setCompanyNameKanji]         = useState('');
+  const [companyNameKana, setCompanyNameKana]           = useState('');
+  const [companyNameLatin, setCompanyNameLatin]         = useState('');
+  const [companyTaxId, setCompanyTaxId]                 = useState('');
+  const [companyStructure, setCompanyStructure]         = useState('');
+  const [representativeTitle, setRepresentativeTitle]   = useState('代表取締役');
 
   // ── KYC: 代表者氏名 ──
-  const [lastNameKanji, setLastNameKanji]   = useState(draft.lastNameKanji   ?? '');
-  const [firstNameKanji, setFirstNameKanji] = useState(draft.firstNameKanji  ?? '');
-  const [lastNameKana, setLastNameKana]     = useState(draft.lastNameKana    ?? '');
-  const [firstNameKana, setFirstNameKana]   = useState(draft.firstNameKana   ?? '');
-  const [phone, setPhone]                   = useState(draft.phone           ?? '');
-  const [email, setEmail]                   = useState(draft.email           ?? '');
+  const [lastNameKanji, setLastNameKanji]   = useState('');
+  const [firstNameKanji, setFirstNameKanji] = useState('');
+  const [lastNameKana, setLastNameKana]     = useState('');
+  const [firstNameKana, setFirstNameKana]   = useState('');
+  const [phone, setPhone]                   = useState('');
+  const [email, setEmail]                   = useState('');
 
   // ── KYC: 生年月日 ──
-  const [dobYear, setDobYear]   = useState(draft.dobYear  ?? '');
-  const [dobMonth, setDobMonth] = useState(draft.dobMonth ?? '');
-  const [dobDay, setDobDay]     = useState(draft.dobDay   ?? '');
+  const [dobYear, setDobYear]   = useState('');
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobDay, setDobDay]     = useState('');
 
   // ── KYC: 住所 ──
-  const [postalCode, setPostalCode] = useState(draft.postalCode ?? '');
-  const [stateKanji, setStateKanji] = useState(draft.stateKanji ?? '');
-  const [cityKanji, setCityKanji]   = useState(draft.cityKanji  ?? '');
-  const [townKanji, setTownKanji]   = useState(draft.townKanji  ?? '');
-  const [line1Kanji, setLine1Kanji] = useState(draft.line1Kanji ?? '');
-  const [stateKana, setStateKana]   = useState(draft.stateKana  ?? '');
-  const [cityKana, setCityKana]     = useState(draft.cityKana   ?? '');
-  const [townKana, setTownKana]     = useState(draft.townKana   ?? '');
-  const [line1Kana, setLine1Kana]   = useState(draft.line1Kana  ?? '');
+  const [postalCode, setPostalCode] = useState('');
+  const [stateKanji, setStateKanji] = useState('');
+  const [cityKanji, setCityKanji]   = useState('');
+  const [townKanji, setTownKanji]   = useState('');
+  const [line1Kanji, setLine1Kanji] = useState('');
+  const [stateKana, setStateKana]   = useState('');
+  const [cityKana, setCityKana]     = useState('');
+  const [townKana, setTownKana]     = useState('');
+  const [line1Kana, setLine1Kana]   = useState('');
 
   // ── KYC: 事業内容 ──
-  const [productDescription, setProductDescription] = useState(draft.productDescription ?? '');
-  const [businessUrl, setBusinessUrl]               = useState(draft.businessUrl        ?? '');
+  const [productDescription, setProductDescription] = useState('');
+  const [businessUrl, setBusinessUrl]               = useState('');
+
+  // ── store.id が確定したら、そのストア専用ドラフトを読み込んで復元 ──
+  const draftLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!store?.id || draftLoadedRef.current) return;
+    draftLoadedRef.current = true;
+    const d = loadDraft(store.id);
+    if (d.bankName)           setBankName(d.bankName);
+    if (d.bankCode)           setBankCode(d.bankCode);
+    if (d.branchCode)         setBranchCode(d.branchCode);
+    if (d.accountNumber)      setAccountNumber(d.accountNumber);
+    if (d.holderName)         setHolderName(d.holderName);
+    if (d.companyNameKanji)   setCompanyNameKanji(d.companyNameKanji);
+    if (d.companyNameKana)    setCompanyNameKana(d.companyNameKana);
+    if (d.companyNameLatin)   setCompanyNameLatin(d.companyNameLatin);
+    if (d.companyTaxId)       setCompanyTaxId(d.companyTaxId);
+    if (d.representativeTitle) setRepresentativeTitle(d.representativeTitle);
+    if (d.lastNameKanji)      setLastNameKanji(d.lastNameKanji);
+    if (d.firstNameKanji)     setFirstNameKanji(d.firstNameKanji);
+    if (d.lastNameKana)       setLastNameKana(d.lastNameKana);
+    if (d.firstNameKana)      setFirstNameKana(d.firstNameKana);
+    if (d.phone)              setPhone(d.phone);
+    if (d.email)              setEmail(d.email);
+    if (d.dobYear)            setDobYear(d.dobYear);
+    if (d.dobMonth)           setDobMonth(d.dobMonth);
+    if (d.dobDay)             setDobDay(d.dobDay);
+    if (d.postalCode)         setPostalCode(d.postalCode);
+    if (d.stateKanji)         setStateKanji(d.stateKanji);
+    if (d.cityKanji)          setCityKanji(d.cityKanji);
+    if (d.townKanji)          setTownKanji(d.townKanji);
+    if (d.line1Kanji)         setLine1Kanji(d.line1Kanji);
+    if (d.stateKana)          setStateKana(d.stateKana);
+    if (d.cityKana)           setCityKana(d.cityKana);
+    if (d.townKana)           setTownKana(d.townKana);
+    if (d.line1Kana)          setLine1Kana(d.line1Kana);
+    if (d.productDescription) setProductDescription(d.productDescription);
+    if (d.businessUrl)        setBusinessUrl(d.businessUrl);
+  }, [store?.id]);
 
   // ── 本人確認書類 ──
   const [docFrontFile, setDocFrontFile]       = useState<File | null>(null);
@@ -265,7 +303,7 @@ export default function StripeBankSetup() {
     stateKana, cityKana, townKana, line1Kana,
     productDescription, businessUrl,
     bankName, bankCode, branchCode, accountNumber, holderName,
-    companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, companyStructure, representativeTitle,
+    companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle,
   });
   useEffect(() => {
     draftStateRef.current = {
@@ -275,23 +313,27 @@ export default function StripeBankSetup() {
       stateKana, cityKana, townKana, line1Kana,
       productDescription, businessUrl,
       bankName, bankCode, branchCode, accountNumber, holderName,
-      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, companyStructure, representativeTitle,
+      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle,
     };
-    const t = setTimeout(() => saveDraft(draftStateRef.current), 2000);
-    return () => clearTimeout(t);
-  }, [lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
+    if (store?.id) {
+      const t = setTimeout(() => saveDraft(store.id, draftStateRef.current), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [store?.id, lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
       phone, email, dobYear, dobMonth, dobDay,
       postalCode, stateKanji, cityKanji, townKanji, line1Kanji,
       stateKana, cityKana, townKana, line1Kana,
       productDescription, businessUrl,
       bankName, bankCode, branchCode, accountNumber, holderName,
-      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, companyStructure, representativeTitle]);
+      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle]);
 
   // 30秒おきにも保存
   useEffect(() => {
-    const interval = setInterval(() => saveDraft(draftStateRef.current), 30_000);
+    const interval = setInterval(() => {
+      if (store?.id) saveDraft(store.id, draftStateRef.current);
+    }, 30_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [store?.id]);
 
   // ── 郵便番号自動補完 ──
   const lookupZip = useCallback(async (zip: string) => {
@@ -494,7 +536,7 @@ export default function StripeBankSetup() {
       // ③ 完了 → 下書き削除・プロフィール更新・マイページへ
       setSubmitStatus('登録完了！');
       console.log('[StripeBankSetup] ✅ 登録成功 → /mypage へ遷移');
-      clearDraft();
+      if (store?.id) clearDraft(store.id);
       try { await refreshProfile(); } catch (_) {}
       try { await refetch(); } catch (_) {}
       navigate('/mypage');
@@ -504,7 +546,7 @@ export default function StripeBankSetup() {
         // タイムアウト → ステータスは applied 更新済みなのでマイページへ
         console.log('[StripeBankSetup] AbortError (タイムアウト) → /mypage へ遷移');
         setSubmitStatus('処理完了！');
-        clearDraft();
+        if (store?.id) clearDraft(store.id);
         try { await refreshProfile(); } catch (_) {}
         try { await refetch(); } catch (_) {}
         navigate('/mypage');
