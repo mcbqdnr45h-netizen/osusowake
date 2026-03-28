@@ -249,6 +249,22 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
   }
 });
 
+// ── DELETE /admin/stores/:storeId (店舗削除) ──────────────────────────────────
+router.delete("/admin/stores/:storeId", requireAdmin, async (req, res) => {
+  const storeId = Number(req.params.storeId);
+  if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  try {
+    const [deleted] = await db
+      .delete(storesTable)
+      .where(eq(storesTable.id, storeId))
+      .returning();
+    if (!deleted) { res.status(404).json({ error: "not_found" }); return; }
+    res.json({ ok: true, store: deleted });
+  } catch (err: any) {
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 // ── GET /admin/approve-store (ワンタップ承認 — メールリンク用) ─────────────────
 router.get("/admin/approve-store", async (req, res) => {
   const { storeId: storeIdStr, token } = req.query as { storeId?: string; token?: string };

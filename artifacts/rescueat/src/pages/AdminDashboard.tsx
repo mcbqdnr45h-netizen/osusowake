@@ -7,7 +7,7 @@ import {
   ShieldCheck, TrendingUp, Users, Store, Clock, CheckCircle, XCircle,
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench, CreditCard,
-  LogOut, ExternalLink, Package, Receipt, Flag, MapPin,
+  LogOut, ExternalLink, Package, Receipt, Flag, MapPin, Trash2,
 } from 'lucide-react';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 
@@ -298,6 +298,19 @@ export default function AdminDashboard() {
       });
       if (res.ok) { toast({ title: '❌ 却下しました' }); await fetchAll(); }
       else toast({ title: 'エラー', variant: 'destructive' });
+    } finally { setActionLoading(null); }
+  }
+
+  async function deleteStore(storeId: number, storeName: string) {
+    if (!confirm(`「${storeName}」を完全に削除しますか？\nこの操作は取り消せません。`)) return;
+    setActionLoading(storeId);
+    try {
+      const res = await fetch(`${BASE}/api/admin/stores/${storeId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) { toast({ title: '🗑 店舗を削除しました' }); await fetchAll(); }
+      else toast({ title: 'エラー', description: '削除に失敗しました', variant: 'destructive' });
     } finally { setActionLoading(null); }
   }
 
@@ -741,6 +754,14 @@ export default function AdminDashboard() {
                                   className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-emerald-200 disabled:opacity-50">
                                   <CheckCircle className="w-3.5 h-3.5" />
                                   再承認する
+                                </button>
+                              )}
+                              {/* 削除ボタン — 審査待ち・却下済みのみ表示 */}
+                              {(isStorePending || store.status === 'rejected') && (
+                                <button onClick={() => deleteStore(store.id, store.name)} disabled={isProcessing}
+                                  className="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-500 font-bold text-xs py-2.5 px-3 rounded-xl transition-colors border border-red-200 disabled:opacity-50">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  削除
                                 </button>
                               )}
                             </div>
