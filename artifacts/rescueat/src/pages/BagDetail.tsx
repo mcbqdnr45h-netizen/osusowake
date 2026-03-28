@@ -706,20 +706,28 @@ export default function BagDetail() {
 
               {/* Avg rating summary */}
               {reviewData && reviewData.avgRating !== null ? (
-                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 mb-5">
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <div className="text-5xl font-black text-amber-500 leading-none">{reviewData.avgRating.toFixed(1)}</div>
-                      <div className="mt-1.5"><StarsDisplay rating={reviewData.avgRating} size="md" /></div>
-                      <div className="text-xs text-muted-foreground mt-1">{reviewData.count}件の口コミ</div>
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl px-6 py-6 mb-5">
+                  <div className="flex items-center gap-6">
+                    {/* 左列：スコア＋星＋件数 */}
+                    <div className="flex flex-col items-center justify-center shrink-0 min-w-[72px]">
+                      <div
+                        className="font-black text-amber-500 leading-tight"
+                        style={{ fontSize: '3rem', lineHeight: 1.1 }}
+                      >
+                        {reviewData.avgRating.toFixed(1)}
+                      </div>
+                      <div className="mt-2"><StarsDisplay rating={reviewData.avgRating} size="md" /></div>
+                      <div className="text-xs text-muted-foreground mt-1.5">{reviewData.count}件の口コミ</div>
                     </div>
-                    <div className="flex-1 space-y-1.5">
+
+                    {/* 右列：棒グラフ */}
+                    <div className="flex-1 flex flex-col justify-center gap-2">
                       {[5, 4, 3, 2, 1].map(star => {
                         const starCount = reviewData.reviews.filter(r => r.rating === star).length;
                         const pct = reviewData.count > 0 ? (starCount / reviewData.count) * 100 : 0;
                         return (
                           <div key={star} className="flex items-center gap-2 text-xs">
-                            <span className="w-3 text-right font-bold text-muted-foreground">{star}</span>
+                            <span className="w-3 text-right font-bold text-muted-foreground shrink-0">{star}</span>
                             <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
                             <div className="flex-1 h-2 bg-amber-100 dark:bg-amber-900/40 rounded-full overflow-hidden">
                               <div
@@ -727,7 +735,7 @@ export default function BagDetail() {
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
-                            <span className="w-4 text-muted-foreground">{starCount}</span>
+                            <span className="w-4 text-right text-muted-foreground shrink-0">{starCount}</span>
                           </div>
                         );
                       })}
