@@ -314,17 +314,36 @@ async function runMigrations() {
     // ── reviews テーブル ─────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS reviews (
-        id            SERIAL PRIMARY KEY,
-        store_id      INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+        id             SERIAL PRIMARY KEY,
+        store_id       INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
         reservation_id INTEGER NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
-        user_id       TEXT NOT NULL,
-        rating        INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-        comment       TEXT,
-        reply         TEXT,
-        replied_at    TIMESTAMP,
-        created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+        user_id        TEXT NOT NULL,
+        rating         INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        comment        TEXT,
+        created_at     TIMESTAMP NOT NULL DEFAULT NOW()
       );
       CREATE UNIQUE INDEX IF NOT EXISTS reviews_reservation_unique ON reviews(reservation_id);
+    `);
+    // reply / replied_at カラムは後から追加された可能性があるため個別に追加
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='reviews' AND column_name='reply'
+        ) THEN
+          ALTER TABLE reviews ADD COLUMN reply TEXT;
+        END IF;
+      END $$;
+    `);
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='reviews' AND column_name='replied_at'
+        ) THEN
+          ALTER TABLE reviews ADD COLUMN replied_at TIMESTAMP;
+        END IF;
+      END $$;
     `);
     console.log('[migration] reviews table ✅');
 
