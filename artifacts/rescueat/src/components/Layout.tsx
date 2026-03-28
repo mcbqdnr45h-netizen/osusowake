@@ -53,16 +53,14 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   ];
 
   const navItems = isStoreOwner ? storeNavItems : customerNavItems;
+  const isLoggedIn = !!user;
 
   const desktopNavItems = [
     { href: '/',    label: '発見'  },
     { href: '/map', label: 'マップ' },
     { href: '/my-reservations', label: 'マイバック' },
+    ...(isLoggedIn ? [{ href: '/mypage', label: 'マイページ' }] : []),
   ];
-
-  const isLoggedIn = !!user;
-  // 共通トップヘッダーは全ページ非表示（マイページは独自のインラインヘッダーを使用）
-  const showHeader = false;
 
   return (
     <div
@@ -70,9 +68,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
       style={!hideFooter ? { paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' } : undefined}
     >
 
-      {/* ── Top Header: マイページのみ表示 ─────────────────────────────── */}
-      {showHeader && <header
-        className="sticky top-0 z-50 shrink-0"
+      {/* ── Top Header: デスクトップのみ表示（モバイルはボトムナビを使用） ── */}
+      <header
+        className="hidden md:block sticky top-0 z-50 shrink-0"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="bg-white/85 backdrop-blur-xl border-b border-border/40"
@@ -254,7 +252,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             </div>
           </div>
         </div>
-      </header>}
+      </header>
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
       <main className="flex-1 min-h-0 w-full relative flex flex-col overflow-x-hidden">
