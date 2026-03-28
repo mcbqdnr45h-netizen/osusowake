@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
-import { useMyStore } from '@/hooks/use-my-store';
+import { useMyStores } from '@/hooks/use-my-stores';
+import { StoreSelector } from '@/components/StoreSelector';
 import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
 import {
   Plus, Minus, Package2, AlertCircle, Loader2,
@@ -20,7 +21,7 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 export default function StoreBagsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { store, loading: storeLoading } = useMyStore();
+  const { currentStore: store, loading: storeLoading, stores } = useMyStores();
   const storeId = store?.id ?? null;
 
   const { data: bags = [], isLoading } = useListStoreBags(storeId ?? 0, {
@@ -218,6 +219,9 @@ export default function StoreBagsPage() {
   return (
     <StoreLayout>
       <div className="max-w-2xl mx-auto w-full px-4 py-5 space-y-5">
+
+        {/* ── 複数店舗セレクター ── */}
+        {stores.length > 1 && <StoreSelector />}
 
         {/* ── ヘッダー ── */}
         <div className="flex items-center justify-between">

@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useMyStore } from '@/hooks/use-my-store';
+import { useMyStores } from '@/hooks/use-my-stores';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
@@ -56,7 +56,12 @@ export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { store: existingStore, loading: storeLoading } = useMyStore();
+  const { currentStore: existingStore, stores, loading: storeLoading, hasExistingStripeAccount } = useMyStores();
+
+  // ?add=1 が付いている場合は「追加登録モード」→ 既存店舗リダイレクトをスキップ
+  const isAddMode = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('add') === '1'
+    : false;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pledgeSigned, setPledgeSigned] = useState(false);
@@ -73,8 +78,9 @@ export default function StoreOnboarding() {
     imageUrl:      '',
   });
 
-  // 既存の店舗があれば適切な画面に遷移
+  // 追加モードでない場合のみ、既存店舗があればダッシュボードへリダイレクト
   useEffect(() => {
+    if (isAddMode) return;
     if (storeLoading) return;
     if (!existingStore) return;
     if (existingStore.stripeAccountId) {
@@ -82,7 +88,7 @@ export default function StoreOnboarding() {
     } else {
       navigate('/store/bank-setup');
     }
-  }, [existingStore, storeLoading, navigate]);
+  }, [existingStore, storeLoading, navigate, isAddMode]);
 
   // 入力内容を自動保存（フォーム変化から1秒後）
   useEffect(() => {
@@ -130,8 +136,8 @@ export default function StoreOnboarding() {
       return;
     }
 
-    // ─ 既存店舗がある場合は適切なページへ転送（再送信ガード）─
-    if (existingStore && !storeLoading) {
+    // 追加モードでない場合のみ、既存店舗があればリダイレクト（再送信ガード）
+    if (!isAddMode && existingStore && !storeLoading) {
       console.log('[StoreOnboarding] existing store detected before submit → redirect');
       if (existingStore.stripeAccountId) {
         navigate('/store/dashboard');
@@ -185,18 +191,6 @@ export default function StoreOnboarding() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        if (body?.error === 'already_exists') {
-          // 既に登録済み → 状態に応じて適切なページへ
-          const stored = body?.store;
-          console.log('[StoreOnboarding] already_exists stripeAccountId=', stored?.stripeAccountId);
-          clearOnboardingDraft();
-          if (stored?.stripeAccountId) {
-            navigate('/store/dashboard');
-          } else {
-            navigate('/store/bank-setup');
-          }
-          return;
-        }
         if (res.status === 404 || res.status === 503 || res.status === 502) {
           throw new Error('サーバーに接続できませんでした。少し時間をおいて再度お試しください。');
         }

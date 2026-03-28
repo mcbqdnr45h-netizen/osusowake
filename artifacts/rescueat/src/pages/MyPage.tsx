@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
-import { useMyStore } from '@/hooks/use-my-store';
+import { useMyStores } from '@/hooks/use-my-stores';
 import { useListReservations } from '@workspace/api-client-react';
 import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { MyTown } from '@/components/MyTown';
@@ -13,7 +13,7 @@ const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
 
 export default function MyPage() {
   const userId = useUserId();
-  const { store, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStore();
+  const { currentStore: store, stores, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStores();
   const [, navigate] = useLocation();
   const { user, profile, session, isLoading: authLoading, signOut, refreshProfile } = useAuth();
 
@@ -429,6 +429,51 @@ export default function MyPage() {
         {/* ── 店舗オーナー：設定コンテンツをインライン表示 ── */}
         {isStoreOwner && (
           <div className="mt-4 space-y-3">
+
+            {/* ── 所有店舗一覧（多店舗対応） ── */}
+            {stores.length > 0 && (
+              <div>
+                <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">所有店舗</p>
+                <div className="space-y-2">
+                  {stores.map(s => {
+                    const statusMap: Record<string, { label: string; cls: string }> = {
+                      approved:      { label: '公開中',       cls: 'bg-emerald-100 text-emerald-700' },
+                      pending_review:{ label: '審査待ち',     cls: 'bg-amber-100 text-amber-700' },
+                      applied:       { label: '口座登録済み', cls: 'bg-blue-100 text-blue-700' },
+                      rejected:      { label: '却下',         cls: 'bg-red-100 text-red-700' },
+                      pending:       { label: '審査待ち',     cls: 'bg-amber-100 text-amber-700' },
+                    };
+                    const st = statusMap[s.status] ?? { label: s.status, cls: 'bg-gray-100 text-gray-600' };
+                    return (
+                      <div key={s.id} className="bg-card rounded-2xl overflow-hidden flex items-center gap-3 px-4 py-3"
+                        style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
+                          {s.imageUrl
+                            ? <img src={s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full bg-orange-100 flex items-center justify-center">
+                                <StoreIcon className="w-5 h-5 text-orange-400" />
+                              </div>
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-foreground truncate">{s.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{s.address}</p>
+                        </div>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${st.cls}`}>{st.label}</span>
+                      </div>
+                    );
+                  })}
+                  {/* 追加ボタン */}
+                  <button
+                    onClick={() => navigate('/store-onboarding?add=1')}
+                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-orange-300 text-orange-500 font-bold text-sm py-3 rounded-2xl hover:bg-orange-50 active:scale-98 transition-all"
+                  >
+                    <StoreIcon className="w-4 h-4" />
+                    新しい店舗を追加登録する
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* 店舗管理 */}
             <div>

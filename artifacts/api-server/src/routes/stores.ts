@@ -132,18 +132,15 @@ router.post("/stores/apply", async (req, res) => {
       return res.status(400).json({ error: "bad_request", message: "ログインが必要です" });
     }
 
-    // 既存店舗チェック — 重複登録防止
-    const [existing] = await db
-      .select({ id: storesTable.id })
+    // 既存店舗のStripeアカウントIDを取得（2店舗目以降で流用するため）
+    const existingStores = await db
+      .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId })
       .from(storesTable)
       .where(eq(storesTable.ownerId, body.ownerId))
-      .limit(1);
+      .orderBy(desc(storesTable.id));
 
-    if (existing) {
-      console.log("[/stores/apply] 既存店舗あり id=", existing.id, "→ already_exists を返す");
-      const [store] = await db.select().from(storesTable).where(eq(storesTable.id, existing.id)).limit(1);
-      return res.status(409).json({ error: "already_exists", store: { ...store, totalBagsAvailable: 0 } });
-    }
+    // 既存店舗のStripeアカウントIDを流用（最初にStripeが設定されている店舗を使用）
+    const existingStripeAccountId = existingStores.find(s => s.stripeAccountId)?.stripeAccountId ?? null;
 
     // 営業許可証写真を Supabase Storage にアップロード（base64 が届いた場合）
     let licenseImageUrl: string | null = null;
@@ -187,6 +184,8 @@ router.post("/stores/apply", async (req, res) => {
       isActive: false,
       status: "pending_review",
       ownerId: body.ownerId,
+      // 2店舗目以降は既存のStripeアカウントIDを流用（bank-setup不要）
+      stripeAccountId: existingStripeAccountId,
       licenseNumber: body.licenseNumber?.trim() || null,
       licenseImageUrl,
       idImageUrl: null,
@@ -373,6 +372,28 @@ router.get("/stores/by-owner", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error", message: "Failed to fetch store by owner" });
+  }
+});
+
+// GET /api/stores/all-by-owner — オーナーの全店舗一覧（多店舗対応）
+router.get("/stores/all-by-owner", async (req, res) => {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      return res.status(400).json({ error: "bad_request", message: "userId is required" });
+    }
+    const stores = await db
+      .select(storeSelectFields)
+      .from(storesTable)
+      .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
+      .where(eq(storesTable.ownerId, userId))
+      .groupBy(storesTable.id)
+      .orderBy(desc(storesTable.id));
+
+    res.json(stores);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to fetch stores by owner" });
   }
 });
 

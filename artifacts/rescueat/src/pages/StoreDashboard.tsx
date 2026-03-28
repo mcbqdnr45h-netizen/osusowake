@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
 import { Layout } from '@/components/Layout';
-import { useMyStore } from '@/hooks/use-my-store';
+import { useMyStores } from '@/hooks/use-my-stores';
+import { StoreSelector } from '@/components/StoreSelector';
 import {
   useListReservations,
   useListStoreBags,
@@ -1127,7 +1128,7 @@ function ReservationCard({
 export default function StoreDashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { store, loading: storeLoading, fetchError: storeFetchError } = useMyStore();
+  const { currentStore: store, loading: storeLoading, fetchError: storeFetchError, refetch: refetchStore, stores } = useMyStores();
   const [, navigate] = useLocation();
   const storeId = store?.id ?? null;
 
@@ -1391,6 +1392,11 @@ export default function StoreDashboard() {
   return (
     <StoreLayout>
       <div className="max-w-2xl mx-auto w-full space-y-5">
+
+        {/* ── 複数店舗セレクター（2店舗以上のオーナー向け） ── */}
+        {stores.length > 1 && (
+          <StoreSelector className="px-0" />
+        )}
 
         {/* ── カバー写真バナー ── */}
         <div className="relative w-full overflow-hidden" style={{ aspectRatio: '2/1', maxHeight: 220 }}>
