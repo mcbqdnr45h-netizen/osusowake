@@ -139,8 +139,8 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
       }}
       onClick={(e) => isSoldOut && e.preventDefault()}
     >
-      {/* ── 4:3 画像エリア ── */}
-      <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted">
+      {/* ── 画像エリア ── */}
+      <div className={`relative w-full overflow-hidden bg-muted ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
 
         {!imgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
 
@@ -236,16 +236,21 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
       </div>
 
       {/* ── カード情報エリア ── */}
-      <div className={compact ? 'p-2.5 pb-2' : 'p-4 pb-3.5'}>
+      <div className={compact ? 'p-2 pb-1.5' : 'p-4 pb-3.5'}>
 
-        {/* 商品タイトル + 評価 */}
-        <div className={compact ? 'mb-1.5' : 'mb-2'}>
+        {/* 商品タイトル ＋ 距離（compact:右端） */}
+        <div className={compact ? 'flex items-start justify-between gap-1.5 mb-1' : 'mb-2'}>
           <h3 className={`font-bold leading-snug tracking-tight
-            ${compact ? 'text-[11px] line-clamp-2' : 'line-clamp-2'}
+            ${compact ? 'text-[11px] line-clamp-2 flex-1 min-w-0' : 'line-clamp-2'}
             ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}
             ${!compact && !isSoldOut ? 'text-[15px]' : ''}`}>
             {bag.title}
           </h3>
+          {compact && !isSoldOut && bag.store.lat && bag.store.lng && (
+            <div className="shrink-0 mt-0.5">
+              <InfoDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} size="sm" />
+            </div>
+          )}
           {avgRating && !isSoldOut && !compact && (
             <div className="flex items-center gap-1 mt-1">
               <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
@@ -292,9 +297,9 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
           <>
             {compact ? (
               /* ── compact: 受取時間(左) ＋ 価格情報縦列(右) ── */
-              <div className="mt-1.5 flex items-start justify-between gap-2">
+              <div className="mt-1 flex items-end justify-between gap-2">
                 {/* 左列: 受取時間 + 残り個数 */}
-                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                   {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Clock className="w-2.5 h-2.5 text-primary/70 shrink-0" />
@@ -310,10 +315,6 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
                         残り{bag.stockCount}個
                       </span>
                     </div>
-                  )}
-                  {/* 距離ピル（compact） */}
-                  {!isSoldOut && bag.store.lat && bag.store.lng && (
-                    <InfoDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} size="sm" />
                   )}
                 </div>
 
@@ -403,30 +404,46 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
   </>);
 }
 
-export function BagCardSkeleton() {
+export function BagCardSkeleton({ compact = false }: { compact?: boolean }) {
   return (
     <div className="rounded-2xl overflow-hidden bg-card"
       style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.06), 0 1px 3px -1px rgba(10,8,6,0.03)' }}>
-      <div className="w-full aspect-[4/3] skeleton-shimmer" />
-      <div className="p-4 space-y-3">
-        <div className="h-4.5 skeleton-shimmer rounded-full w-3/4" />
-        <div className="flex items-start gap-2">
-          <div className="w-6 h-6 shrink-0 skeleton-shimmer rounded-full" />
-          <div className="flex-1 h-8 skeleton-shimmer rounded-xl" />
-        </div>
-        <div className="flex gap-2">
-          <div className="h-7 skeleton-shimmer rounded-lg w-24" />
-          <div className="h-7 skeleton-shimmer rounded-lg w-20" />
-        </div>
-        <div className="flex justify-between items-end pt-1"
-          style={{ borderTop: '1px solid rgba(10,8,6,0.07)' }}>
-          <div className="space-y-1.5">
-            <div className="h-2.5 skeleton-shimmer rounded-full w-8" />
-            <div className="h-3.5 skeleton-shimmer rounded-full w-16" />
+      <div className={`w-full skeleton-shimmer ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`} />
+      {compact ? (
+        <div className="p-2 pb-1.5 space-y-1.5">
+          <div className="flex items-start justify-between gap-1.5">
+            <div className="h-3 skeleton-shimmer rounded-full flex-1" />
+            <div className="h-4 skeleton-shimmer rounded-full w-12 shrink-0" />
           </div>
-          <div className="h-8 skeleton-shimmer rounded-full w-24" />
+          <div className="flex items-end justify-between gap-2">
+            <div className="space-y-1 flex-1">
+              <div className="h-2.5 skeleton-shimmer rounded-full w-16" />
+              <div className="h-2.5 skeleton-shimmer rounded-full w-12" />
+            </div>
+            <div className="h-5 skeleton-shimmer rounded-full w-14" />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-4 space-y-3">
+          <div className="h-4.5 skeleton-shimmer rounded-full w-3/4" />
+          <div className="flex items-start gap-2">
+            <div className="w-6 h-6 shrink-0 skeleton-shimmer rounded-full" />
+            <div className="flex-1 h-8 skeleton-shimmer rounded-xl" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-7 skeleton-shimmer rounded-lg w-24" />
+            <div className="h-7 skeleton-shimmer rounded-lg w-20" />
+          </div>
+          <div className="flex justify-between items-end pt-1"
+            style={{ borderTop: '1px solid rgba(10,8,6,0.07)' }}>
+            <div className="space-y-1.5">
+              <div className="h-2.5 skeleton-shimmer rounded-full w-8" />
+              <div className="h-3.5 skeleton-shimmer rounded-full w-16" />
+            </div>
+            <div className="h-8 skeleton-shimmer rounded-full w-24" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

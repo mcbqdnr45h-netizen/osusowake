@@ -793,7 +793,7 @@ export default function Home() {
               >
                 {isLoadingBags ? (
                   <div className="grid grid-cols-2 gap-2">
-                    {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
+                    {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} compact />)}
                   </div>
                 ) : filteredBags.length > 0 ? (
                   <motion.div
@@ -962,7 +962,7 @@ export default function Home() {
                 <div className="px-4">
                   {isLoadingBags ? (
                     <div className="grid grid-cols-2 gap-2">
-                      {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} />)}
+                      {[1, 2, 3, 4].map(i => <BagCardSkeleton key={i} compact />)}
                     </div>
                   ) : sortedVisibleBags.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
