@@ -855,7 +855,7 @@ export default function BagDetail() {
               ) : isSoldOut ? (
                 '完売しました'
               ) : (
-                `おすそわけを予約する (¥${(bag.discountedPrice * quantity).toLocaleString()})`
+                `購入する (¥${(bag.discountedPrice * quantity).toLocaleString()})`
               )}
             </button>
           </div>
