@@ -561,7 +561,9 @@ export default function StripeBankSetup() {
 
   // ────────── 口座登録済み（Stripeアカウント連携済み、または申請中）──────────
   // ※ rejected ステータスの店舗は再設定のため通過させる
-  if ((store.status === 'applied' || !!store.stripeAccountId) && store.status !== 'rejected') {
+  // ※ stripeChargesEnabled === false の場合は Stripe 情報が不完全 → 再送信を許可する
+  const stripeIncomplete = store.stripeAccountId && store.stripeChargesEnabled === false;
+  if ((store.status === 'applied' || !!store.stripeAccountId) && store.status !== 'rejected' && !stripeIncomplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
@@ -584,6 +586,19 @@ export default function StripeBankSetup() {
       </div>
     );
   }
+
+  // ────────── Stripe 情報不完全（chargesEnabled=false）── 再送信バナーを表示 ──
+  const incompleteWarning = stripeIncomplete ? (
+    <div className="mx-4 mt-4 mb-0 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
+      <span className="text-amber-500 text-xl mt-0.5">⚠️</span>
+      <div>
+        <p className="text-sm font-bold text-amber-800">Stripe 情報が不完全です</p>
+        <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+          前回の登録で一部の情報が送信されませんでした。フォームを再入力して再送信してください。
+        </p>
+      </div>
+    </div>
+  ) : null;
 
   // ────────── 完了後：成功画面 ──────────
   if (done) {
@@ -686,7 +701,10 @@ export default function StripeBankSetup() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+
+          {/* Stripe 不完全バナー（chargesEnabled=false の再送信時） */}
+          {incompleteWarning}
 
           {/* ── ① 事業形態 ── */}
           <FormSection title="事業形態" icon={<Building2 className="w-5 h-5 text-orange-500" />}>

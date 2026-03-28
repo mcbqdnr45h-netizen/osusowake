@@ -11,6 +11,7 @@ export type MyStore = {
   status: 'pending' | 'approved' | 'rejected' | 'pending_review' | 'applied';
   ownerId: string | null;
   stripeAccountId: string | null;
+  stripeChargesEnabled: boolean | null;
   imageUrl: string | null;
   description: string | null;
   openTime: string | null;

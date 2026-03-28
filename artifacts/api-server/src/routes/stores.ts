@@ -48,6 +48,7 @@ const storeSelectFields = {
   pledgeSigned: storesTable.pledgeSigned,
   createdAt: storesTable.createdAt,
   stripeAccountId: storesTable.stripeAccountId,
+  stripeChargesEnabled: storesTable.stripeChargesEnabled,
   holiday: storesTable.holiday,
   pickupHours: storesTable.pickupHours,
   rejectionReason: storesTable.rejectionReason,
@@ -1853,19 +1854,32 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 
     // STEP 1: アカウント作成 or 更新
     if (!accountId) {
-      console.log(`[bank-setup] STEP1 Creating Stripe Custom Account for store ${storeId}…`);
+      console.log(`[bank-setup] STEP1 Creating Stripe Custom Account for store ${storeId}… businessType=${businessType}`);
+      // ⚠️ business_type は accounts.create 時に設定しないと後から変更できない
+      // 法人の場合は company 基本情報（name_kanji/kana/structure）も一緒に渡す
+      const step1CompanyPayload: Record<string, any> = businessType === "company" ? {
+        name_kanji: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト",
+        name_kana:  kycData.companyNameKana?.trim()  || "テスト",
+        structure:  kycData.companyStructure          || "private_corporation",
+      } : {};
       try {
         const account = await stripeCall(
           stripe.accounts.create(
             {
               type: "custom", country: "JP",
+              business_type: businessType,
               ...(ownerEmail ? { email: ownerEmail } : {}),
               capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
-              business_profile: { mcc: "5812", url: businessUrl },
+              business_profile: {
+                mcc: "5812",
+                url: businessUrl,
+                product_description: kycData.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
+              },
               // JP では service_agreement: 'full' が必須
               tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
               // 送金スケジュール: 毎週月曜日
               settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
+              ...(businessType === "company" ? { company: step1CompanyPayload } : {}),
             },
             { idempotencyKey: `store-${storeId}-account-create` }
           ),
@@ -1873,7 +1887,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         );
         accountId = account.id;
         await db.update(storesTable).set({ stripeAccountId: accountId }).where(eq(storesTable.id, storeId));
-        console.log(`✅ [bank-setup] Stripe Account created: ${accountId}`);
+        console.log(`✅ [bank-setup] Stripe Account created: ${accountId} (business_type=${businessType})`);
       } catch (createErr: any) {
         const [latest] = await db.select({ stripeAccountId: storesTable.stripeAccountId }).from(storesTable).where(eq(storesTable.id, storeId));
         if (latest?.stripeAccountId) {
@@ -1884,18 +1898,32 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         }
       }
     } else {
-      console.log(`[bank-setup] STEP1 Updating existing Stripe Account ${accountId}…`);
+      console.log(`[bank-setup] STEP1 Updating existing Stripe Account ${accountId}… businessType=${businessType}`);
+      const step1UpdPayload: Record<string, any> = {
+        business_type:    businessType,
+        business_profile: {
+          mcc: "5812",
+          url: businessUrl,
+          product_description: kycData.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
+        },
+        tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
+        settings:       { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
+      };
+      if (businessType === "company") {
+        step1UpdPayload.company = {
+          name_kanji: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト",
+          name_kana:  kycData.companyNameKana?.trim()  || "テスト",
+          structure:  kycData.companyStructure          || "private_corporation",
+        };
+      }
       try {
         await stripeCall(
-          stripe.accounts.update(accountId, {
-            business_profile: { mcc: "5812", url: businessUrl },
-            tos_acceptance:   { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
-            settings:         { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
-          }),
-          "accounts.update(tos)"
+          stripe.accounts.update(accountId, step1UpdPayload as any),
+          "accounts.update(tos+businessType)"
         );
+        console.log(`✅ [bank-setup] STEP1 accounts.update(tos+businessType) succeeded`);
       } catch (updErr: any) {
-        console.warn(`⚠️  [bank-setup] accounts.update(tos) failed: ${updErr.message} — continuing`);
+        console.warn(`⚠️  [bank-setup] accounts.update(tos+businessType) failed: ${updErr.message} — continuing`);
       }
     }
 
@@ -2060,15 +2088,15 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         };
         // ローマ字法人名はユーザーが入力した場合のみ送る（日本語は Stripe が拒否）
         if (k.companyNameLatin?.trim()) companyObj.name = k.companyNameLatin.trim();
-        // 法人番号（13桁）
-        if (k.companyTaxId?.trim()) companyObj.tax_id = k.companyTaxId.replace(/-/g, '').trim();
+        // ⚠️ tax_id はバリデーションで弾かれる可能性があるため別リクエストに分離する
+        // → STEP4 では住所・電話のみ。tax_id は STEP4c で個別 try-catch で送る
         if (k.postalCode?.trim()) {
           companyObj.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
           companyObj.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
         }
         if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
         step4Payload.company = companyObj;
-        console.log(`[bank-setup] BG company obj: name_kanji="${companyObj.name_kanji}" name_kana="${companyObj.name_kana}" tax_id="${companyObj.tax_id}"`);
+        console.log(`[bank-setup] BG company obj: name_kanji="${companyObj.name_kanji}" name_kana="${companyObj.name_kana}" structure="${companyObj.structure}"`);
         // ⚠️ 法人の代表者は accounts.update の "representative" キーでは設定できない（Stripe が拒否する）
         // → Persons API で accounts.update の後に別途登録する
       } else {
@@ -2143,6 +2171,24 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         } catch (personErr: any) {
           console.warn(`⚠️  [bank-setup] BG STEP4b Persons API FAILED: ${personErr?.raw?.message ?? personErr?.message}`);
           console.warn(`   type: ${personErr?.type}, code: ${personErr?.raw?.code ?? personErr?.code}, param: ${personErr?.raw?.param ?? personErr?.param}`);
+        }
+      }
+
+      // STEP 4c: 法人番号（tax_id）を別途送信 — バリデーションエラーでも他フィールドに影響しない
+      if (businessType === "company" && kycData.companyTaxId?.trim()) {
+        const taxId = kycData.companyTaxId.replace(/-/g, '').trim();
+        if (taxId.length === 13) {
+          try {
+            await stripeCall(
+              stripe.accounts.update(accountId!, { company: { tax_id: taxId } } as any),
+              "accounts.update(tax_id)", 15000
+            );
+            console.log(`✅ [bank-setup] BG STEP4c company.tax_id submitted`);
+          } catch (taxErr: any) {
+            console.warn(`⚠️  [bank-setup] BG STEP4c company.tax_id FAILED (non-fatal): ${taxErr?.raw?.message ?? taxErr?.message}`);
+          }
+        } else {
+          console.warn(`⚠️  [bank-setup] BG STEP4c company.tax_id skipped — length=${taxId.length} (expected 13)`);
         }
       }
 
