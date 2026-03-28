@@ -195,8 +195,9 @@ export default function StripeKYCPage() {
   const [cityKana, setCityKana]               = useState('');
   const [townKana, setTownKana]               = useState('');
   const [line1Kana, setLine1Kana]             = useState('');
-  const [companyNameKanji, setCompanyNameKanji] = useState('');
-  const [companyNameKana, setCompanyNameKana]   = useState('');
+  const [companyNameKanji, setCompanyNameKanji]     = useState('');
+  const [companyNameKana, setCompanyNameKana]       = useState('');
+  const [companyStructure, setCompanyStructure]     = useState('private_corporation');
   const [productDescription, setProductDescription] = useState('');
   const [businessUrl, setBusinessUrl]         = useState('');
 
@@ -319,6 +320,7 @@ export default function StripeKYCPage() {
           ...(businessType === 'company' ? {
             companyNameKanji: companyNameKanji.trim() || undefined,
             companyNameKana:  companyNameKana.trim()  || undefined,
+            companyStructure: companyStructure        || 'private_corporation',
           } : {}),
           representative: {
             firstNameKanji: firstNameKanji.trim(),
@@ -738,6 +740,16 @@ export default function StripeKYCPage() {
               <FieldWrap label="法人名（カナ）" required hint="全角カタカナ" error={fieldErrors.companyNameKana}>
                 <input type="text" value={companyNameKana} onChange={e => setCompanyNameKana(e.target.value)}
                   placeholder="カブシキガイシャ〇〇フード" required className={fieldClass('companyNameKana')} />
+              </FieldWrap>
+              <FieldWrap label="会社組織" required hint="法人の種類を選択してください">
+                <select value={companyStructure} onChange={e => setCompanyStructure(e.target.value)} required
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                  <option value="private_corporation">株式会社 / 合同会社 / 合資会社 / 合名会社</option>
+                  <option value="incorporated_non_profit">NPO法人 / 一般社団法人 / 公益法人</option>
+                  <option value="government_instrumentality">国・地方公共団体・行政機関</option>
+                  <option value="public_corporation">上場企業（公開会社）</option>
+                  <option value="unincorporated_association">任意団体（非法人）</option>
+                </select>
               </FieldWrap>
             </Section>
           )}

@@ -52,6 +52,7 @@ type DraftState = {
   accountNumber: string; holderName: string;
   companyNameKanji?: string; companyNameKana?: string;
   companyNameLatin?: string; companyTaxId?: string;
+  companyStructure?: string;
   representativeTitle?: string;
 };
 function saveDraft(d: DraftState) {
@@ -202,6 +203,7 @@ export default function StripeBankSetup() {
   const [companyNameKana, setCompanyNameKana]       = useState(draft.companyNameKana    ?? '');
   const [companyNameLatin, setCompanyNameLatin]     = useState(draft.companyNameLatin   ?? '');
   const [companyTaxId, setCompanyTaxId]             = useState(draft.companyTaxId       ?? '');
+  const [companyStructure, setCompanyStructure]     = useState(draft.companyStructure   ?? 'private_corporation');
   const [representativeTitle, setRepresentativeTitle] = useState(draft.representativeTitle ?? '代表取締役');
 
   // ── KYC: 代表者氏名 ──
@@ -263,7 +265,7 @@ export default function StripeBankSetup() {
     stateKana, cityKana, townKana, line1Kana,
     productDescription, businessUrl,
     bankName, bankCode, branchCode, accountNumber, holderName,
-    companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle,
+    companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, companyStructure, representativeTitle,
   });
   useEffect(() => {
     draftStateRef.current = {
@@ -273,7 +275,7 @@ export default function StripeBankSetup() {
       stateKana, cityKana, townKana, line1Kana,
       productDescription, businessUrl,
       bankName, bankCode, branchCode, accountNumber, holderName,
-      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle,
+      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, companyStructure, representativeTitle,
     };
     const t = setTimeout(() => saveDraft(draftStateRef.current), 2000);
     return () => clearTimeout(t);
@@ -283,7 +285,7 @@ export default function StripeBankSetup() {
       stateKana, cityKana, townKana, line1Kana,
       productDescription, businessUrl,
       bankName, bankCode, branchCode, accountNumber, holderName,
-      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle]);
+      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, companyStructure, representativeTitle]);
 
   // 30秒おきにも保存
   useEffect(() => {
@@ -366,6 +368,7 @@ export default function StripeBankSetup() {
   if (businessType === 'company' && !companyNameKanji.trim()) missingFields.push('法人名（漢字）');
   if (businessType === 'company' && !companyNameKana.trim())  missingFields.push('法人名（カナ）');
   if (businessType === 'company' && companyTaxId.replace(/-/g, '').length !== 13) missingFields.push(`法人番号（13桁で入力 — 現在${companyTaxId.replace(/-/g, '').length}桁）`);
+  if (businessType === 'company' && !companyStructure) missingFields.push('会社組織（株式会社・合同会社など）');
   if (!lastNameKanji.trim() || !firstNameKanji.trim()) missingFields.push('代表者氏名（漢字）');
   if (!lastNameKana.trim()   || !firstNameKana.trim())  missingFields.push('代表者氏名（カタカナ）');
   if (phone.trim().length < 10)  missingFields.push(`電話番号（現在${phone.trim().length}桁 / 10桁以上）`);
@@ -460,11 +463,12 @@ export default function StripeBankSetup() {
             productDescription: productDescription.trim() || undefined,
             businessUrl:        businessUrl.trim() || undefined,
             ...(businessType === 'company' ? {
-              companyNameKanji:     companyNameKanji.trim()     || undefined,
-              companyNameKana:      companyNameKana.trim()      || undefined,
-              companyNameLatin:     companyNameLatin.trim()     || undefined,
+              companyNameKanji:     companyNameKanji.trim()              || undefined,
+              companyNameKana:      companyNameKana.trim()               || undefined,
+              companyNameLatin:     companyNameLatin.trim()              || undefined,
               companyTaxId:         companyTaxId.replace(/-/g, '').trim() || undefined,
-              representativeTitle:  representativeTitle.trim()  || '代表取締役',
+              companyStructure:     companyStructure                     || 'private_corporation',
+              representativeTitle:  representativeTitle.trim()           || '代表取締役',
             } : {}),
           },
           // 本人確認書類（base64 data URL のまま送信）
@@ -735,6 +739,15 @@ export default function StripeBankSetup() {
                 <input type="text" value={companyTaxId} onChange={e => setCompanyTaxId(e.target.value.replace(/[^\d-]/g, ''))}
                   placeholder="0000000000000" maxLength={13} inputMode="numeric" className={inputClass} />
                 <p className="text-xs text-gray-400 mt-1">{companyTaxId.replace(/-/g, '').length} / 13 桁</p>
+              </Field>
+              <Field label="会社組織" required hint="Stripeに登録する法人の種類を選択してください">
+                <select value={companyStructure} onChange={e => setCompanyStructure(e.target.value)} required className={selectClass}>
+                  <option value="private_corporation">株式会社 / 合同会社 / 合資会社 / 合名会社</option>
+                  <option value="incorporated_non_profit">NPO法人 / 一般社団法人 / 公益法人</option>
+                  <option value="government_instrumentality">国・地方公共団体・行政機関</option>
+                  <option value="public_corporation">上場企業（公開会社）</option>
+                  <option value="unincorporated_association">任意団体（非法人）</option>
+                </select>
               </Field>
             </FormSection>
           )}

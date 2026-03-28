@@ -1300,10 +1300,11 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
 router.put("/stores/:storeId/connect/kyc", async (req, res) => {
   try {
     const storeId = parseInt(req.params.storeId);
-    const { businessType, companyNameKanji, companyNameKana, representative, businessProfile } = req.body as {
+    const { businessType, companyNameKanji, companyNameKana, companyStructure, representative, businessProfile } = req.body as {
       businessType: "individual" | "company";
       companyNameKanji?: string;
       companyNameKana?: string;
+      companyStructure?: string;
       representative: {
         firstNameKanji: string;
         lastNameKanji: string;
@@ -1440,6 +1441,8 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       //   name_kanji = 漢字法人名（必須）  /  name_kana = カナ（必須）  /  name = ローマ字（任意）
       if (companyNameKanji?.trim()) companyObj.name_kanji = companyNameKanji.trim();
       if (companyNameKana?.trim())  companyObj.name_kana  = companyNameKana.trim();
+      // 会社組織（Stripe JP 必須）
+      companyObj.structure = companyStructure?.trim() || "private_corporation";
       // JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
         companyObj.address_kanji = addressKanji;
@@ -1725,6 +1728,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       productDescription?: string; businessUrl?: string;
       companyNameKanji?: string; companyNameKana?: string;
       companyNameLatin?: string; companyTaxId?: string;
+      companyStructure?: string;
       representativeTitle?: string;
     };
     docFrontBase64: string; docFrontMime: string;
@@ -2028,7 +2032,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
 
       const bizProfile: Record<string, string> = { mcc: "5812", url: businessUrl };
-      if (k.productDescription?.trim()) bizProfile.product_description = k.productDescription;
+      // product_description は必須。未入力の場合はデフォルト文言を使う
+      bizProfile.product_description = k.productDescription?.trim() || "食品ロス削減おすそ分けサービス";
 
       const step4Payload: Record<string, any> = {
         business_type:    businessType,
@@ -2050,6 +2055,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         const companyObj: Record<string, any> = {
           name_kanji: (k.companyNameKanji?.trim() || companyNameFallback),
           name_kana:  (k.companyNameKana?.trim()  || companyNameFallback),
+          // 会社組織（Stripe JP 必須）: private_corporation が最もよく使われる
+          structure:  (k.companyStructure?.trim()  || "private_corporation"),
         };
         // ローマ字法人名はユーザーが入力した場合のみ送る（日本語は Stripe が拒否）
         if (k.companyNameLatin?.trim()) companyObj.name = k.companyNameLatin.trim();
@@ -2096,7 +2103,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       // STEP 4b: 法人の場合 — 代表者を Persons API で登録/更新
       // accounts.update は "representative" パラメータを受け付けないため必ずこちらで設定する
       if (businessType === "company" && Object.keys(indiv).length > 0) {
-        const { id_number: _idNum, political_exposure: _polExp, ...repData } = indiv;
+        // verification（本人確認書類）と id_number / political_exposure は Persons API に送らない
+        const { id_number: _idNum, political_exposure: _polExp, verification: _verify, ...repData } = indiv;
         const personPayload = {
           ...repData,
           title: k.representativeTitle?.trim() || "代表取締役",
@@ -2276,6 +2284,7 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
         payload.company = {
           name_kanji: storeNameForFallback,
           name_kana:  "テスト",
+          structure:  "private_corporation",
           // tax_id は 13 桁法人番号。ダミー値を送るとエラーになるため due に tax_id が含まれる場合はスキップ
           address_kanji: { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" },
           address_kana:  { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" },
