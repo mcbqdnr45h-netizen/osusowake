@@ -358,6 +358,8 @@ export default function StripeBankSetup() {
 
   // ── バリデーション：不足項目リスト ──
   const missingFields: string[] = [];
+  if (businessType === 'company' && !companyNameKanji.trim()) missingFields.push('法人名（漢字）');
+  if (businessType === 'company' && !companyNameKana.trim())  missingFields.push('法人名（カナ）');
   if (!lastNameKanji.trim() || !firstNameKanji.trim()) missingFields.push('代表者氏名（漢字）');
   if (!lastNameKana.trim()   || !firstNameKana.trim())  missingFields.push('代表者氏名（カタカナ）');
   if (phone.trim().length < 10)  missingFields.push(`電話番号（現在${phone.trim().length}桁 / 10桁以上）`);

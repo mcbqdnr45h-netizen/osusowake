@@ -2017,24 +2017,30 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 
       if (businessType === "company") {
         // 法人の場合: company オブジェクトに法人名情報を設定
-        const companyObj: Record<string, any> = {};
-        if (k.companyNameKanji?.trim()) companyObj.name       = k.companyNameKanji;
-        if (k.companyNameKana?.trim())  companyObj.name_kana  = k.companyNameKana;
+        // ⚠️ company.name は Stripe JP 法人で必須。未入力ならストア名をフォールバックに使う
+        const companyNameFallback = store.name ?? "株式会社テスト";
+        const companyObj: Record<string, any> = {
+          name:      (k.companyNameKanji?.trim() || companyNameFallback),
+          name_kana: (k.companyNameKana?.trim()  || companyNameFallback),
+        };
         if (k.postalCode?.trim()) {
           companyObj.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
           companyObj.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
         }
         if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
-        if (Object.keys(companyObj).length > 0) step4Payload.company = companyObj;
+        step4Payload.company = companyObj;
+        console.log(`[bank-setup] BG company obj: name="${companyObj.name}" name_kana="${companyObj.name_kana}"`);
 
         // 法人: 代表者情報は "representative" キー（"individual" は個人事業主専用）
         // ⚠️ id_number・political_exposure は representative に含めてはいけない — Stripe がリクエスト全体を拒否する
+        // ⚠️ executive: true は Stripe JP 法人の代表者に必須
         if (Object.keys(indiv).length > 0) {
           const { id_number: _idNum, political_exposure: _polExp, ...repData } = indiv;
           step4Payload.representative = {
             ...repData,
-            relationship: { representative: true, owner: true, percent_ownership: 100 },
+            relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
           };
+          console.log(`[bank-setup] BG representative keys: ${Object.keys(repData).join(", ")}`);
         }
       } else {
         // 個人事業主: id_number（マイナンバー12桁）と political_exposure を追加してから individual キーに設定
@@ -2163,7 +2169,7 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
     if (isCompany) {
       // ─── 法人: representative キーに送る ───
       const rep: Record<string, any> = {
-        relationship: { representative: true, owner: true, percent_ownership: 100 },
+        relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
       };
       if (due.some(f => f.includes("representative.first_name"))) {
         rep.first_name_kana  = "テスト";
