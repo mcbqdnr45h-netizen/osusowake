@@ -479,27 +479,31 @@ export default function BagDetail() {
             {/* ── 価格ブロック ──────────────────────────────────── */}
             <div>
               {/* 価格行 */}
-              <div className="flex items-end gap-3 flex-wrap">
-                <span className="text-5xl font-black text-primary leading-none tracking-tight">
-                  ¥{bag.discountedPrice.toLocaleString()}
-                </span>
+              <div className="flex items-baseline gap-3 flex-wrap">
+                {/* メイン価格：¥ を小さく、数字を大きく */}
+                <div className="flex items-baseline gap-0.5">
+                  <span className="text-2xl font-semibold text-slate-400 dark:text-slate-500 leading-none">¥</span>
+                  <span className="text-5xl font-black text-slate-800 dark:text-slate-100 leading-none tracking-tight tabular-nums">
+                    {bag.discountedPrice.toLocaleString()}
+                  </span>
+                </div>
                 {bag.originalPrice > bag.discountedPrice && (
-                  <div className="flex flex-col gap-0.5 mb-0.5">
-                    <span className="text-xs text-muted-foreground/70 font-medium">通常価格</span>
-                    <span className="text-base text-muted-foreground line-through font-medium">
+                  <div className="flex flex-col gap-0.5 pb-1">
+                    <span className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wide">通常価格</span>
+                    <span className="text-sm text-muted-foreground/70 line-through font-medium">
                       ¥{bag.originalPrice.toLocaleString()}
                     </span>
                   </div>
                 )}
                 {discountPercent > 0 && (
-                  <span className="mb-1 bg-accent text-accent-foreground font-black text-sm px-3 py-1 rounded-full shadow-sm shadow-accent/20">
+                  <span className="pb-1 bg-primary/10 text-primary font-black text-sm px-3 py-1 rounded-full border border-primary/20">
                     {discountPercent}% OFF
                   </span>
                 )}
               </div>
 
               {/* ステータスバー */}
-              <div className="flex items-center gap-2 mt-3 flex-wrap">
+              <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                 {isSoldOut ? (
                   <span className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground font-bold text-xs px-3 py-1.5 rounded-full">
                     完売しました
