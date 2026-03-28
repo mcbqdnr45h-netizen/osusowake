@@ -268,48 +268,40 @@ export default function MyReservations() {
                             animate={{ opacity: isFaded ? 0.55 : 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
                             transition={{ delay: i * 0.04 }}
-                            className="relative bg-card"
+                            className="relative bg-card overflow-hidden"
                           >
                             {/* 左アクセントバー */}
-                            <div className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full ${cfg.bar}`} />
+                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${cfg.bar}`} />
 
-                            {/* カード全体のパディング（左はバーの分だけオフセット） */}
-                            <div className="pl-4 pr-4 py-3 flex items-start gap-3">
+                            {/* カード本体 */}
+                            <div className="pl-5 pr-4 py-3.5 flex items-start gap-3">
 
-                              {/* ① 店舗画像（正方形・左揃え） */}
-                              <Link href={`/stores/${storeId}`} className="shrink-0 mt-0.5">
+                              {/* 店舗画像 */}
+                              <Link href={`/stores/${storeId}`} className="shrink-0">
                                 {res.store?.imageUrl ? (
                                   <img
                                     src={res.store.imageUrl}
                                     alt={res.store?.name ?? ''}
                                     loading="lazy"
                                     decoding="async"
-                                    className={`w-12 h-12 rounded-xl object-cover active:scale-95 transition-transform ${isFaded ? 'grayscale opacity-60' : ''}`}
+                                    className={`w-11 h-11 rounded-xl object-cover active:scale-95 transition-transform ${isFaded ? 'grayscale opacity-60' : ''}`}
                                   />
                                 ) : (
-                                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${isFaded ? 'bg-slate-100' : 'bg-primary/10'}`}>
+                                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${isFaded ? 'bg-slate-100' : 'bg-primary/10'}`}>
                                     🛍️
                                   </div>
                                 )}
                               </Link>
 
-                              {/* ② メインテキストブロック（flex-1 + min-w-0 で絶対に溢れない） */}
-                              <div className="flex-1 min-w-0">
+                              {/* 左カラム：テキスト情報（flex-1 + min-w-0 で絶対に溢れない） */}
+                              <div className="flex-1 min-w-0 overflow-hidden">
 
-                                {/* 行1：店舗名（左） ＋ ステータスバッジ（右） */}
-                                <div className="flex items-center justify-between gap-2 mb-0.5">
-                                  <Link href={`/stores/${storeId}`} className="min-w-0">
-                                    <p className={`text-[12px] font-semibold truncate leading-tight active:opacity-70 ${isFaded ? 'text-muted-foreground' : 'text-foreground/80'}`}>
-                                      {res.store?.name ?? '—'}
-                                    </p>
-                                  </Link>
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold leading-none whitespace-nowrap shrink-0 ${cfg.badge}`}>
-                                    {cfg.icon}
-                                    {cfg.label}
-                                  </span>
-                                </div>
+                                {/* 店舗名 */}
+                                <p className={`text-[11px] font-semibold truncate leading-tight mb-0.5 ${isFaded ? 'text-muted-foreground/60' : 'text-foreground/60'}`}>
+                                  {res.store?.name ?? '—'}
+                                </p>
 
-                                {/* 行2：商品名（太字） */}
+                                {/* 商品名＋数量 */}
                                 <p className={`text-[13px] font-black leading-snug truncate ${isFaded ? 'text-muted-foreground' : 'text-foreground'}`}>
                                   {res.bag?.title ?? '—'}
                                   <span className={`text-[11px] font-semibold ml-1 ${isFaded ? 'text-muted-foreground/60' : 'text-foreground/50'}`}>
@@ -317,83 +309,83 @@ export default function MyReservations() {
                                   </span>
                                 </p>
 
-                                {/* 行3：受取時間帯（小） */}
+                                {/* 受取時間帯 */}
                                 {(res.bag?.pickupStart || res.bag?.pickupEnd) && (
-                                  <p className="text-[10px] text-muted-foreground/70 mt-0.5 flex items-center gap-0.5">
+                                  <p className="text-[10px] text-muted-foreground/60 mt-0.5 flex items-center gap-0.5">
                                     <Clock className="w-2.5 h-2.5 shrink-0" />
-                                    受取 {res.bag.pickupStart}–{res.bag.pickupEnd}
+                                    <span className="truncate">受取 {res.bag.pickupStart}–{res.bag.pickupEnd}</span>
                                   </p>
                                 )}
 
-                                {/* 行4：購入時刻（左） ＋ 金額（右） */}
-                                <div className="flex items-center justify-between mt-1.5 gap-2">
-                                  <span className="text-[10px] text-muted-foreground/60 tabular-nums">
-                                    {format(parseISO(res.createdAt), 'HH:mm')}
-                                  </span>
-                                  <span className={`text-[15px] font-black tabular-nums leading-none ${isFaded ? 'text-muted-foreground' : 'text-primary'}`}>
-                                    ¥{res.totalPrice.toLocaleString()}
-                                  </span>
-                                </div>
+                                {/* 購入時刻 */}
+                                <p className="text-[10px] text-muted-foreground/50 mt-0.5 tabular-nums">
+                                  {format(parseISO(res.createdAt), 'HH:mm')}
+                                </p>
 
-                                {/* 行5：アクションボタン（右揃え、必要なときのみ表示） */}
-                                <div className="flex items-center justify-end mt-1.5 gap-2">
-
-                                  {/* confirmed → 電子チケット */}
-                                  {res.status === 'confirmed' && (
-                                    <Link href={`/orders/${res.id}`}>
-                                      <span className="inline-flex items-center gap-1.5 bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-primary/20 active:scale-95 transition-transform">
-                                        <Ticket className="w-3 h-3" />
-                                        チケットを表示
-                                      </span>
-                                    </Link>
-                                  )}
-
-                                  {/* pending 未決済 → 決済ボタン */}
-                                  {res.status === 'pending' && !expired && (
-                                    <button
-                                      type="button"
-                                      onClick={() => navigate(`/checkout/${res.id}`, { state: { from: '/my-reservations' } })}
-                                      className="inline-flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-amber-300/30 active:scale-95 transition-transform"
-                                    >
-                                      <CreditCard className="w-3 h-3" />
-                                      決済する
-                                    </button>
-                                  )}
-
-                                  {/* picked_up → 口コミ */}
-                                  {res.status === 'picked_up' && (
-                                    alreadyReviewed ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500">
-                                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                                        口コミ投稿済
-                                      </span>
-                                    ) : (
+                                {/* アクションボタン */}
+                                {(res.status === 'confirmed' || (res.status === 'pending' && !expired) || res.status === 'picked_up' || showDismiss) && (
+                                  <div className="flex items-center flex-wrap gap-2 mt-2">
+                                    {res.status === 'confirmed' && (
+                                      <Link href={`/orders/${res.id}`}>
+                                        <span className="inline-flex items-center gap-1.5 bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-primary/20 active:scale-95 transition-transform">
+                                          <Ticket className="w-3 h-3" />
+                                          チケットを表示
+                                        </span>
+                                      </Link>
+                                    )}
+                                    {res.status === 'pending' && !expired && (
                                       <button
                                         type="button"
-                                        onClick={() => setReviewTarget({ id: res.id, storeId: storeId ?? 0, store: res.store })}
-                                        className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-300 text-amber-700 text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap active:scale-95 transition-transform"
+                                        onClick={() => navigate(`/checkout/${res.id}`, { state: { from: '/my-reservations' } })}
+                                        className="inline-flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-amber-300/30 active:scale-95 transition-transform"
                                       >
-                                        <PenLine className="w-3 h-3" />
-                                        口コミを書く
+                                        <CreditCard className="w-3 h-3" />
+                                        決済する
                                       </button>
-                                    )
-                                  )}
+                                    )}
+                                    {res.status === 'picked_up' && (
+                                      alreadyReviewed ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500">
+                                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                          口コミ投稿済
+                                        </span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => setReviewTarget({ id: res.id, storeId: storeId ?? 0, store: res.store })}
+                                          className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-300 text-amber-700 text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap active:scale-95 transition-transform"
+                                        >
+                                          <PenLine className="w-3 h-3" />
+                                          口コミを書く
+                                        </button>
+                                      )
+                                    )}
+                                    {showDismiss && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmingId(res.id)}
+                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                                      >
+                                        <X className="w-3 h-3" />
+                                        削除
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
 
-                                  {/* 期限切れ pending → 削除ボタン */}
-                                  {showDismiss && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmingId(res.id)}
-                                      className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
-                                    >
-                                      <X className="w-3 h-3" />
-                                      削除
-                                    </button>
-                                  )}
-                                </div>
+                              {/* 右カラム：ステータス＋価格（shrink-0 で圧縮されない） */}
+                              <div className="shrink-0 flex flex-col items-end gap-1.5 ml-1">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold leading-none whitespace-nowrap ${cfg.badge}`}>
+                                  {cfg.icon}
+                                  {cfg.label}
+                                </span>
+                                <span className={`text-[14px] font-black tabular-nums leading-none ${isFaded ? 'text-muted-foreground' : 'text-primary'}`}>
+                                  ¥{res.totalPrice.toLocaleString()}
+                                </span>
+                              </div>
 
-                              </div>{/* end メインテキストブロック */}
-                            </div>{/* end パディングラッパー */}
+                            </div>
                           </motion.div>
                         );
                       })}
