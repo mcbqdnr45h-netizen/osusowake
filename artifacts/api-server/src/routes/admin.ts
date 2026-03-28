@@ -87,7 +87,13 @@ router.get("/admin/stores", requireAdmin, async (_req, res) => {
         s.stripe_charges_enabled,
         COUNT(DISTINCT b.id)::int AS bag_count,
         COUNT(DISTINCT r.id)::int AS reservation_count,
-        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue,
+        CASE WHEN s.owner_id IS NOT NULL THEN
+          (SELECT COUNT(*)::int FROM stores s2 WHERE s2.owner_id = s.owner_id)
+        ELSE 1 END AS owner_store_count,
+        CASE WHEN s.owner_id IS NOT NULL THEN
+          (SELECT COUNT(*)::int FROM stores s2 WHERE s2.owner_id = s.owner_id AND s2.id <= s.id)
+        ELSE 1 END AS owner_store_rank
       FROM stores s
       LEFT JOIN surprise_bags b ON b.store_id = s.id
       LEFT JOIN reservations r  ON r.store_id = s.id

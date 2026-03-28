@@ -69,6 +69,8 @@ interface AdminStore {
   reservation_count: number;
   revenue: number;
   rejection_reason: string | null;
+  owner_store_count: number;
+  owner_store_rank: number;
 }
 
 interface AdminStoreDetail extends AdminStore {
@@ -661,6 +663,11 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-black text-foreground">{store.name}</h3>
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                              {(store.owner_store_count ?? 1) >= 2 && (
+                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-300 flex items-center gap-0.5">
+                                  🏪 {store.owner_store_rank ?? '?'}店舗目 / 計{store.owner_store_count}店
+                                </span>
+                              )}
                               {store.stripe_account_id && (
                                 store.stripe_charges_enabled === true
                                   ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Stripe有効</span>
