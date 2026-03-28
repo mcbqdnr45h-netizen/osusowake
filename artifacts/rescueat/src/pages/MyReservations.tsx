@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useListReservations, useCancelReservation } from '@workspace/api-client-react';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Ticket, Clock, ExternalLink, Star, PenLine, X, CheckCircle2, CreditCard, Ban, Trash2, Package } from 'lucide-react';
+import { Ticket, Clock, Star, PenLine, X, CheckCircle2, CreditCard, Ban, Trash2, Package, AlertCircle } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -67,10 +67,17 @@ export default function MyReservations() {
   const PageWrapper   = isStoreOwner ? StoreLayout : Layout;
   const wrapperProps  = isStoreOwner ? { showHeader: false } : {};
 
-  const statusConfig = (status: string, expired = false) => {
+  type StatusCfg = {
+    label: string;
+    icon: React.ReactNode;
+    badge: string;
+    bar: string;
+  };
+
+  const statusConfig = (status: string, expired = false): StatusCfg => {
     if (status === 'pending' && expired) return {
-      label: '期限切れ', icon: <Clock className="w-3 h-3" />,
-      badge: 'bg-slate-100 text-slate-400 border border-slate-200',
+      label: '期限切れ', icon: <AlertCircle className="w-3 h-3" />,
+      badge: 'bg-slate-100 text-slate-500 border border-slate-200',
       bar: 'bg-slate-300',
     };
     switch (status) {
@@ -80,13 +87,13 @@ export default function MyReservations() {
         bar: 'bg-primary',
       };
       case 'picked_up': return {
-        label: '受取済み', icon: <CheckCircle2 className="w-3 h-3" />,
-        badge: 'bg-slate-100 text-slate-400 border border-slate-200',
-        bar: 'bg-slate-300',
+        label: '受取完了', icon: <CheckCircle2 className="w-3 h-3" />,
+        badge: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+        bar: 'bg-emerald-400',
       };
       case 'cancelled': return {
         label: 'キャンセル', icon: <Ban className="w-3 h-3" />,
-        badge: 'bg-red-50 text-red-400 border border-red-200',
+        badge: 'bg-red-50 text-red-500 border border-red-200',
         bar: 'bg-red-300',
       };
       default: return {
@@ -173,19 +180,20 @@ export default function MyReservations() {
       </AnimatePresence>
 
       {/* ── ページ本体 ── */}
-      <div className="max-w-2xl mx-auto pt-5 pb-28 overflow-x-hidden w-full">
+      <div className="w-full pt-5 pb-28 overflow-x-hidden">
         <h1 className="text-xl font-display font-bold text-foreground mb-4 px-4">マイバック</h1>
 
         {isLoading ? (
           <div className="divide-y divide-border/40">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="px-4 py-3.5 flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-muted animate-pulse shrink-0" />
-                <div className="flex-1 space-y-2">
+                <div className="w-12 h-12 rounded-xl bg-muted animate-pulse shrink-0" />
+                <div className="flex-1 min-w-0 space-y-2">
                   <div className="h-3 bg-muted rounded animate-pulse w-3/4" />
                   <div className="h-2.5 bg-muted rounded animate-pulse w-1/2" />
+                  <div className="h-2 bg-muted rounded animate-pulse w-1/3" />
                 </div>
-                <div className="w-14 h-5 bg-muted rounded animate-pulse shrink-0" />
+                <div className="w-12 h-5 bg-muted rounded animate-pulse shrink-0" />
               </div>
             ))}
           </div>
@@ -197,7 +205,7 @@ export default function MyReservations() {
               if (r.status === 'pending' && isHoldExpired(r.createdAt)) return false;
               return true;
             })
-            // ★ 購入日時の新しい順（降順）
+            // 新しい順（降順）
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
           if (sorted.length === 0) {
@@ -247,85 +255,90 @@ export default function MyReservations() {
                         const alreadyReviewed = (res as any).hasReview || reviewedIds.has(res.id);
                         const isFaded         = res.status === 'picked_up' || (res.status === 'pending' && expired);
                         const showDismiss     = res.status === 'pending' && expired;
+                        const storeId         = res.storeId ?? res.store?.id;
 
                         return (
                           <motion.div
                             key={res.id}
                             layout
                             initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: isFaded ? 0.6 : 1, y: 0 }}
+                            animate={{ opacity: isFaded ? 0.55 : 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
                             transition={{ delay: i * 0.04 }}
                             className="relative bg-card"
                           >
                             {/* 左アクセントバー */}
-                            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${cfg.bar}`} />
+                            <div className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full ${cfg.bar}`} />
 
-                            <div className="pl-4 pr-3 py-3">
-                              {/* ── 1行目：ステータス + 日時 ── */}
-                              <div className="flex items-center justify-between mb-2">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold leading-none ${cfg.badge}`}>
-                                  {cfg.icon}
-                                  {cfg.label}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground tabular-nums">
-                                  {format(parseISO(res.createdAt), 'HH:mm')}
-                                </span>
-                              </div>
+                            {/* カード全体のパディング（左はバーの分だけオフセット） */}
+                            <div className="pl-4 pr-4 py-3 flex items-start gap-3">
 
-                              {/* ── 2行目：画像 | テキスト | 価格+ボタン ── */}
-                              <div className="flex items-start gap-2.5">
+                              {/* ① 店舗画像（正方形・左揃え） */}
+                              <Link href={`/stores/${storeId}`} className="shrink-0 mt-0.5">
+                                {res.store?.imageUrl ? (
+                                  <img
+                                    src={res.store.imageUrl}
+                                    alt={res.store?.name ?? ''}
+                                    className={`w-12 h-12 rounded-xl object-cover active:scale-95 transition-transform ${isFaded ? 'grayscale opacity-60' : ''}`}
+                                  />
+                                ) : (
+                                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${isFaded ? 'bg-slate-100' : 'bg-primary/10'}`}>
+                                    🛍️
+                                  </div>
+                                )}
+                              </Link>
 
-                                {/* 店舗画像 */}
-                                <Link href={`/stores/${res.storeId ?? res.store?.id}`} className="shrink-0">
-                                  {res.store?.imageUrl ? (
-                                    <img
-                                      src={res.store.imageUrl}
-                                      alt={res.store.name}
-                                      className={`w-11 h-11 rounded-xl object-cover active:scale-95 transition-transform ${isFaded ? 'grayscale' : ''}`}
-                                    />
-                                  ) : (
-                                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg active:scale-95 transition-transform ${isFaded ? 'bg-slate-100' : 'bg-primary/10'}`}>
-                                      🛍️
-                                    </div>
-                                  )}
-                                </Link>
+                              {/* ② メインテキストブロック（flex-1 + min-w-0 で絶対に溢れない） */}
+                              <div className="flex-1 min-w-0">
 
-                                {/* 中央テキスト */}
-                                <div className="flex-1 min-w-0">
-                                  {/* 店名（最大の文字） */}
-                                  <Link href={`/stores/${res.storeId ?? res.store?.id}`}>
-                                    <p className={`font-bold text-[13px] leading-tight truncate active:opacity-70 ${isFaded ? 'text-muted-foreground' : 'text-foreground'}`}>
-                                      {res.store?.name}
+                                {/* 行1：店舗名（左） ＋ ステータスバッジ（右） */}
+                                <div className="flex items-center justify-between gap-2 mb-0.5">
+                                  <Link href={`/stores/${storeId}`} className="min-w-0">
+                                    <p className={`text-[12px] font-semibold truncate leading-tight active:opacity-70 ${isFaded ? 'text-muted-foreground' : 'text-foreground/80'}`}>
+                                      {res.store?.name ?? '—'}
                                     </p>
                                   </Link>
-                                  {/* 商品名 × 個数 */}
-                                  <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 truncate">
-                                    {res.bag?.title}
-                                    <span className="font-semibold ml-1 text-foreground/60">×{res.quantity}</span>
-                                  </p>
-                                  {/* 受取時間 */}
-                                  {(res.bag?.pickupStart || res.bag?.pickupEnd) && (
-                                    <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/60 mt-0.5">
-                                      <Clock className="w-2.5 h-2.5 shrink-0" />
-                                      {res.bag?.pickupStart}–{res.bag?.pickupEnd}
-                                    </span>
-                                  )}
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold leading-none whitespace-nowrap shrink-0 ${cfg.badge}`}>
+                                    {cfg.icon}
+                                    {cfg.label}
+                                  </span>
                                 </div>
 
-                                {/* 右カラム：価格 + アクションボタン（幅固定で絶対に切れない） */}
-                                <div className="shrink-0 flex flex-col items-end gap-1.5 w-[76px]">
-                                  {/* 価格（最大フォント） */}
-                                  <p className={`text-[15px] font-black leading-none tabular-nums ${isFaded ? 'text-muted-foreground' : 'text-primary'}`}>
-                                    ¥{res.totalPrice.toLocaleString()}
+                                {/* 行2：商品名（太字） */}
+                                <p className={`text-[13px] font-black leading-snug truncate ${isFaded ? 'text-muted-foreground' : 'text-foreground'}`}>
+                                  {res.bag?.title ?? '—'}
+                                  <span className={`text-[11px] font-semibold ml-1 ${isFaded ? 'text-muted-foreground/60' : 'text-foreground/50'}`}>
+                                    ×{res.quantity}
+                                  </span>
+                                </p>
+
+                                {/* 行3：受取時間帯（小） */}
+                                {(res.bag?.pickupStart || res.bag?.pickupEnd) && (
+                                  <p className="text-[10px] text-muted-foreground/70 mt-0.5 flex items-center gap-0.5">
+                                    <Clock className="w-2.5 h-2.5 shrink-0" />
+                                    受取 {res.bag.pickupStart}–{res.bag.pickupEnd}
                                   </p>
+                                )}
+
+                                {/* 行4：購入時刻（左） ＋ 金額（右） */}
+                                <div className="flex items-center justify-between mt-1.5 gap-2">
+                                  <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+                                    {format(parseISO(res.createdAt), 'HH:mm')}
+                                  </span>
+                                  <span className={`text-[15px] font-black tabular-nums leading-none ${isFaded ? 'text-muted-foreground' : 'text-primary'}`}>
+                                    ¥{res.totalPrice.toLocaleString()}
+                                  </span>
+                                </div>
+
+                                {/* 行5：アクションボタン（右揃え、必要なときのみ表示） */}
+                                <div className="flex items-center justify-end mt-1.5 gap-2">
 
                                   {/* confirmed → 電子チケット */}
                                   {res.status === 'confirmed' && (
                                     <Link href={`/orders/${res.id}`}>
-                                      <span className="inline-flex items-center gap-1 bg-primary text-white text-[10px] font-bold px-2 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-primary/20">
-                                        <Ticket className="w-2.5 h-2.5" />
-                                        チケット
+                                      <span className="inline-flex items-center gap-1.5 bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-primary/20 active:scale-95 transition-transform">
+                                        <Ticket className="w-3 h-3" />
+                                        チケットを表示
                                       </span>
                                     </Link>
                                   )}
@@ -335,45 +348,47 @@ export default function MyReservations() {
                                     <button
                                       type="button"
                                       onClick={() => navigate(`/checkout/${res.id}`, { state: { from: '/my-reservations' } })}
-                                      className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-amber-300/30"
+                                      className="inline-flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-amber-300/30 active:scale-95 transition-transform"
                                     >
-                                      <CreditCard className="w-2.5 h-2.5" />
+                                      <CreditCard className="w-3 h-3" />
                                       決済する
                                     </button>
                                   )}
 
-                                  {/* picked_up → 口コミ（コンパクト） */}
+                                  {/* picked_up → 口コミ */}
                                   {res.status === 'picked_up' && (
                                     alreadyReviewed ? (
-                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-500">
-                                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                                        投稿済
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-500">
+                                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                        口コミ投稿済
                                       </span>
                                     ) : (
                                       <button
                                         type="button"
-                                        onClick={() => setReviewTarget({ id: res.id, storeId: res.storeId ?? res.store?.id ?? 0, store: res.store })}
-                                        className="inline-flex items-center gap-1 bg-amber-50 border border-amber-300 text-amber-700 text-[10px] font-bold px-2 py-1.5 rounded-lg whitespace-nowrap"
+                                        onClick={() => setReviewTarget({ id: res.id, storeId: storeId ?? 0, store: res.store })}
+                                        className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-300 text-amber-700 text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap active:scale-95 transition-transform"
                                       >
-                                        <PenLine className="w-2.5 h-2.5" />
-                                        口コミ
+                                        <PenLine className="w-3 h-3" />
+                                        口コミを書く
                                       </button>
                                     )
                                   )}
-                                </div>
-                              </div>
 
-                              {/* 削除ボタン（期限切れpendingのみ・右上） */}
-                              {showDismiss && (
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmingId(res.id)}
-                                  className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-slate-100 hover:bg-red-100 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
+                                  {/* 期限切れ pending → 削除ボタン */}
+                                  {showDismiss && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmingId(res.id)}
+                                      className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                                    >
+                                      <X className="w-3 h-3" />
+                                      削除
+                                    </button>
+                                  )}
+                                </div>
+
+                              </div>{/* end メインテキストブロック */}
+                            </div>{/* end パディングラッパー */}
                           </motion.div>
                         );
                       })}
