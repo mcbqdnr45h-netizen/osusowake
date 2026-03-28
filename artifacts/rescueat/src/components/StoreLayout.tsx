@@ -21,9 +21,12 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
   const [location] = useLocation();
   const { store, loading: storeLoading } = useMyStore();
 
-  // ロード中・店舗未登録の場合はボトムナビを非表示にする
-  // （キャッシュ値で一瞬 store が非null になるフラッシュを防ぐため loading も確認）
-  const shouldShowNav = showBottomNav && !storeLoading && !!store;
+  // ロード中・店舗未登録・審査中（pending_review/pending）の場合はボトムナビを非表示にする
+  // - storeLoading: キャッシュ値で一瞬 store が非null になるフラッシュを防ぐ
+  // - store.status: pending_review/pending は管理者未承認のためナビを出さない
+  const storeReady = !storeLoading && !!store &&
+    (store.status === 'approved' || store.status === 'applied' || store.status === 'suspended');
+  const shouldShowNav = showBottomNav && storeReady;
 
   return (
     <div
