@@ -11,22 +11,24 @@ interface StoreLayoutProps {
   showHeader?: boolean;
 }
 
-const NAV_ITEMS = [
-  { href: '/store/dashboard', icon: LayoutGrid, label: '出品管理'   },
-  { href: '/store/sales',     icon: BarChart2,  label: '売上確認'   },
-  { href: '/mypage',          icon: UserCircle, label: 'マイページ' },
+const BASE_NAV_ITEMS = [
+  { href: '/store/dashboard', icon: LayoutGrid, label: '出品管理' },
+  { href: '/store/sales',     icon: BarChart2,  label: '売上確認' },
 ];
 
 export function StoreLayout({ children, showBottomNav = true, showHeader = true }: StoreLayoutProps) {
   const [location] = useLocation();
   const { store, loading: storeLoading } = useMyStore();
 
-  // ロード中・店舗未登録・審査中（pending_review/pending）の場合はボトムナビを非表示にする
-  // - storeLoading: キャッシュ値で一瞬 store が非null になるフラッシュを防ぐ
-  // - store.status: pending_review/pending は管理者未承認のためナビを出さない
+  // pending_review/pending はナビ非表示。applied/suspended/approved は出品管理・売上確認を表示。
+  // マイページは approved のみ表示。
   const storeReady = !storeLoading && !!store &&
     (store.status === 'approved' || store.status === 'applied' || store.status === 'suspended');
   const shouldShowNav = showBottomNav && storeReady;
+
+  const navItems = store?.status === 'approved'
+    ? [...BASE_NAV_ITEMS, { href: '/mypage', icon: UserCircle, label: 'マイページ' }]
+    : BASE_NAV_ITEMS;
 
   return (
     <div
@@ -82,7 +84,7 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="flex items-stretch h-[62px] px-1">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const isActive =
                 item.href === '/store/dashboard'
                   ? location === '/store/dashboard'
