@@ -143,6 +143,34 @@ router.post("/stores/apply", async (req, res) => {
       return res.status(409).json({ error: "already_exists", store: { ...store, totalBagsAvailable: 0 } });
     }
 
+    // 営業許可証写真を Supabase Storage にアップロード（base64 が届いた場合）
+    let licenseImageUrl: string | null = null;
+    if (body.licenseImageBase64) {
+      try {
+        const match = (body.licenseImageBase64 as string).match(/^data:(image\/[\w+]+);base64,(.+)$/s);
+        if (match) {
+          const contentType = match[1];
+          const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+          const buffer = Buffer.from(match[2], "base64");
+          const filePath = `${body.ownerId}/${Date.now()}-license.${ext}`;
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from("store-documents")
+            .upload(filePath, buffer, { contentType, upsert: false });
+          if (!uploadError) {
+            const { data: signedData } = await supabaseAdmin.storage
+              .from("store-documents")
+              .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
+            licenseImageUrl = signedData?.signedUrl ?? null;
+            console.log("[/stores/apply] ✅ 営業許可証アップロード完了:", filePath);
+          } else {
+            console.warn("[/stores/apply] 営業許可証アップロード失敗:", uploadError.message);
+          }
+        }
+      } catch (uploadEx: any) {
+        console.warn("[/stores/apply] 営業許可証アップロード例外:", uploadEx?.message);
+      }
+    }
+
     // 基本情報のみ保存 — 審査待ち（pending_review）で登録
     const inserted = await db.insert(storesTable).values({
       name: body.name,
@@ -157,8 +185,8 @@ router.post("/stores/apply", async (req, res) => {
       isActive: false,
       status: "pending_review",
       ownerId: body.ownerId,
-      licenseNumber: null,
-      licenseImageUrl: null,
+      licenseNumber: body.licenseNumber?.trim() || null,
+      licenseImageUrl,
       idImageUrl: null,
       pledgeSigned: body.pledgeSigned === true,
     }).returning();
