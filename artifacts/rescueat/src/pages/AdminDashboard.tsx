@@ -69,6 +69,7 @@ function statusBadge(store: AdminStore) {
     case 'approved':      return { label: '承認済み',  cls: 'bg-emerald-100 text-emerald-700' };
     case 'pending_review':
     case 'pending':       return { label: '審査待ち',  cls: 'bg-amber-100 text-amber-700' };
+    case 'applied':       return { label: '口座申請済', cls: 'bg-blue-100 text-blue-700' };
     case 'rejected':      return { label: '却下',      cls: 'bg-red-100 text-red-700' };
     case 'suspended':     return { label: '停止中',    cls: 'bg-red-100 text-red-700' };
     default:              return { label: store.status, cls: 'bg-secondary text-muted-foreground' };
@@ -261,8 +262,11 @@ export default function AdminDashboard() {
     } finally { setNotifSending(false); }
   }
 
+  const isPending = (s: AdminStore) =>
+    s.status === 'pending_review' || s.status === 'pending' || s.status === 'applied';
+
   const filteredStores = stores.filter(s => {
-    if (storeFilter === 'pending')   return s.status === 'pending_review' || s.status === 'pending';
+    if (storeFilter === 'pending')   return isPending(s);
     if (storeFilter === 'approved')  return s.status === 'approved' && s.is_active;
     if (storeFilter === 'suspended') return !s.is_active || s.status === 'suspended' || s.status === 'rejected';
     return true;
@@ -390,7 +394,7 @@ export default function AdminDashboard() {
           <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
             {(['pending', 'approved', 'suspended', 'all'] as const).map(f => {
               const counts: Record<typeof f, number> = {
-                pending:   stores.filter(s => s.status === 'pending_review' || s.status === 'pending').length,
+                pending:   stores.filter(isPending).length,
                 approved:  stores.filter(s => s.status === 'approved' && s.is_active).length,
                 suspended: stores.filter(s => !s.is_active || s.status === 'suspended' || s.status === 'rejected').length,
                 all:       stores.length,
@@ -421,7 +425,7 @@ export default function AdminDashboard() {
               {displayedStores.map(store => {
                 const badge = statusBadge(store);
                 const isProcessing = actionLoading === store.id;
-                const isPending = store.status === 'pending_review' || store.status === 'pending';
+                const isStorePending = isPending(store);
                 const isApprovedActive = store.status === 'approved' && store.is_active;
                 const isSuspended = !store.is_active || store.status === 'suspended' || store.status === 'rejected';
                 return (
@@ -505,7 +509,7 @@ export default function AdminDashboard() {
 
                             {/* アクションボタン */}
                             <div className="flex gap-2 flex-wrap">
-                              {isPending && (
+                              {isStorePending && (
                                 <>
                                   <button onClick={() => approveStore(store.id)} disabled={isProcessing}
                                     className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl transition-colors disabled:opacity-50">
@@ -526,7 +530,7 @@ export default function AdminDashboard() {
                                   一時停止
                                 </button>
                               )}
-                              {isSuspended && !isPending && (
+                              {isSuspended && !isStorePending && (
                                 <button onClick={() => approveStore(store.id)} disabled={isProcessing}
                                   className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-emerald-200 disabled:opacity-50">
                                   <CheckCircle className="w-3.5 h-3.5" />

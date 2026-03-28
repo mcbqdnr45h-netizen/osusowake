@@ -56,7 +56,7 @@ router.get("/admin/metrics", requireAdmin, async (_req, res) => {
       SELECT
         COUNT(*)::int                                                     AS total_stores,
         COUNT(*) FILTER (WHERE status = 'approved' AND is_active = true)::int AS approved_stores,
-        COUNT(*) FILTER (WHERE status = 'pending_review')::int            AS pending_stores,
+        COUNT(*) FILTER (WHERE status IN ('pending_review', 'pending', 'applied'))::int AS pending_stores,
         COUNT(*) FILTER (WHERE status = 'suspended' OR (status = 'approved' AND is_active = false))::int AS suspended_stores
       FROM stores
     `);
