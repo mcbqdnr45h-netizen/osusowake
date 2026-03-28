@@ -69,6 +69,7 @@ interface PastBag {
   discountedPrice: number;
   imageUrl: string | null;
   category?: string | null;
+  itemType?: string;
 }
 
 
@@ -148,10 +149,12 @@ function PostBagModal({
     }
   }, []);
 
-  // 過去の出品を選択したとき、画像とカテゴリーを引き継ぐ
+  // 過去の出品を選択したとき、画像・カテゴリを引き継ぐ
+  // pastBag が変わるたびに両方を更新（category がない場合はリセット）
   React.useEffect(() => {
-    if (pastBag?.imageUrl)  setImageUrl(pastBag.imageUrl);
-    if (pastBag?.category)  setBagCategory(pastBag.category);
+    if (!pastBag) return;
+    if (pastBag.imageUrl) setImageUrl(pastBag.imageUrl);
+    setBagCategory(pastBag.category ?? '');
   }, [pastBag]);
 
   async function handleQuickSubmit() {
@@ -186,7 +189,7 @@ function PostBagModal({
           category: bagCategory || undefined,
           allergyInfo: quickAllergyInfo.trim() || undefined,
           pickupNote: quickPickupNote.trim() || undefined,
-          itemType: (pastBag as any).itemType ?? 'bag',
+          itemType: (pastBag.itemType as 'bag' | 'item') ?? 'bag',
         },
       });
       toast({ title: '出品しました！', description: `${pastBag.title} × ${qty}個` });
@@ -1241,6 +1244,8 @@ export default function StoreDashboard() {
             originalPrice: b.originalPrice,
             discountedPrice: b.discountedPrice,
             imageUrl: b.imageUrl ?? null,
+            category: b.category ?? null,
+            itemType: b.itemType ?? 'bag',
           });
         }
       });
