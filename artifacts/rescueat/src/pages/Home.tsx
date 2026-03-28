@@ -580,8 +580,8 @@ export default function Home() {
       : geoDenied ? '全国の注目おすそわけ' : (appSettings.catchphrase || 'あなたの街のおすそわけ');
 
   return (
-    <Layout hideHeader>
-      <div className="flex flex-col h-dvh overflow-hidden">
+    <Layout>
+      <div className="flex flex-col h-dvh md:h-auto md:flex-1 md:min-h-0 overflow-hidden">
 
         {/* ── Sticky ヘッダー ── */}
         <div className="shrink-0 bg-background border-b border-border/50 z-20 shadow-sm"
