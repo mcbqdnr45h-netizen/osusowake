@@ -344,7 +344,16 @@ export default function AdminDashboard() {
           toast({ title: '✅ 承認しました' });
         }
       } else {
-        toast({ title: 'エラー', description: '承認に失敗しました', variant: 'destructive' });
+        const errData = await res.json().catch(() => ({}));
+        if (errData?.error === 'stripe_restricted') {
+          toast({
+            title: '⛔ Stripe制限中のため承認できません',
+            description: 'Stripeダッシュボードで書類不備を解消してから再度承認してください。',
+            variant: 'destructive',
+          });
+        } else {
+          toast({ title: 'エラー', description: errData?.message ?? '承認に失敗しました', variant: 'destructive' });
+        }
       }
     } finally { setActionLoading(null); }
   }
@@ -824,11 +833,19 @@ export default function AdminDashboard() {
                             </Link>
 
                             {/* アクションボタン */}
+                            {/* Stripe制限中の警告 */}
+                            {store.stripe_account_id && store.stripe_charges_enabled === false && (
+                              <div className="mb-2 flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-[11px] font-bold text-red-600">
+                                <XCircle className="w-3.5 h-3.5 shrink-0" />
+                                Stripe制限中のため承認できません。書類不備を解消してください。
+                              </div>
+                            )}
                             <div className="flex gap-2 flex-wrap">
                               {isStorePending && (
                                 <>
-                                  <button onClick={() => approveStore(store.id)} disabled={isProcessing}
-                                    className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl transition-colors disabled:opacity-50">
+                                  <button onClick={() => approveStore(store.id)}
+                                    disabled={isProcessing || (store.stripe_account_id != null && store.stripe_charges_enabled === false)}
+                                    className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                                     {isProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                                     承認する
                                   </button>
@@ -847,8 +864,9 @@ export default function AdminDashboard() {
                                 </button>
                               )}
                               {isSuspended && !isStorePending && (
-                                <button onClick={() => approveStore(store.id)} disabled={isProcessing}
-                                  className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-emerald-200 disabled:opacity-50">
+                                <button onClick={() => approveStore(store.id)}
+                                  disabled={isProcessing || (store.stripe_account_id != null && store.stripe_charges_enabled === false)}
+                                  className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold text-xs py-2.5 px-4 rounded-xl transition-colors border border-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed">
                                   <CheckCircle className="w-3.5 h-3.5" />
                                   再承認する
                                 </button>

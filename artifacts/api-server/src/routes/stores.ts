@@ -1498,15 +1498,23 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       .where(eq(storesTable.id, storeId));
 
     if (kycComplete) {
+      // auto_approve_stripe_verified が true かつ charges_enabled なら即時承認
+      let kycAutoApproved = false;
+      if (account.charges_enabled) {
+        try {
+          const settingRows = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'auto_approve_stripe_verified'`);
+          const settingVal = (settingRows.rows[0] as any)?.value;
+          if (settingVal === 'true') kycAutoApproved = true;
+        } catch (_) {}
+      }
+
       await db
         .update(storesTable)
-        .set({ status: "applied" })
+        .set({ status: kycAutoApproved ? "approved" : "applied", isActive: kycAutoApproved ? true : undefined })
         .where(eq(storesTable.id, storeId));
       console.log(
-        `✅ Store ${storeId} status → 'applied' (KYC complete — awaiting admin approval)` +
-        (eventuallyDue.length > 0
-          ? ` (eventually_due ${eventuallyDue.length} 件残: ${JSON.stringify(eventuallyDue)})`
-          : "")
+        `✅ Store ${storeId} status → '${kycAutoApproved ? "approved (auto)" : "applied"}' (KYC complete)` +
+        (eventuallyDue.length > 0 ? ` (eventually_due ${eventuallyDue.length} 件残)` : "")
       );
     }
 
@@ -2053,13 +2061,28 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
 
       // STEP 5: DB 更新 + オーナーの role を確実に store_owner に設定
-      // status は 'applied'（口座登録済み）にする。承認は管理者が手動で行う
+      // auto_approve_stripe_verified が true かつ charges_enabled ならそのまま approved にする
+      let autoApproved = false;
+      if (kycChargesEnabled === true) {
+        try {
+          const settingRows = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'auto_approve_stripe_verified'`);
+          const settingVal = (settingRows.rows[0] as any)?.value;
+          if (settingVal === 'true') autoApproved = true;
+        } catch (_) {}
+      }
+
+      const newStatus = autoApproved ? "approved" : "applied";
       await db.update(storesTable).set({
-        status: "applied",
+        status: newStatus,
+        isActive: autoApproved ? true : undefined,
         ...(licenseImageUrl ? { licenseImageUrl } : {}),
         ...(kycChargesEnabled !== null ? { stripeChargesEnabled: kycChargesEnabled } : {}),
       }).where(eq(storesTable.id, storeId));
-      console.log(`✅ [bank-setup] BG Store ${storeId} status → 'applied' (awaiting admin approval)`);
+      if (autoApproved) {
+        console.log(`✅ [bank-setup] BG Store ${storeId} → auto-approved (charges_enabled=true, auto_approve=on)`);
+      } else {
+        console.log(`✅ [bank-setup] BG Store ${storeId} status → '${newStatus}' (awaiting admin approval)`);
+      }
 
       if (store.ownerId) {
         try {

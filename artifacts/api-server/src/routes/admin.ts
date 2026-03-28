@@ -225,6 +225,19 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
   const storeId = Number(req.params.storeId);
   if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
   try {
+    // Stripe口座があって charges_enabled === false なら承認をブロック
+    const [storeCheck] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId, stripeChargesEnabled: storesTable.stripeChargesEnabled })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+    if (storeCheck?.stripeAccountId && storeCheck.stripeChargesEnabled === false) {
+      res.status(400).json({
+        error: "stripe_restricted",
+        message: "このアカウントはStripeで制限中のため承認できません。Stripeダッシュボードで書類不備を解消してください。",
+      });
+      return;
+    }
+
     const [updated] = await db
       .update(storesTable)
       .set({ status: "approved", isActive: true })
