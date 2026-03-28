@@ -2151,41 +2151,76 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 
       // STEP 4b: 法人の場合 — 代表者を Persons API で登録/更新
       // accounts.update は "representative" パラメータを受け付けないため必ずこちらで設定する
-      if (businessType === "company" && Object.keys(indiv).length > 0) {
-        // verification（本人確認書類）と id_number / political_exposure は Persons API に送らない
-        const { id_number: _idNum, political_exposure: _polExp, verification: _verify, ...repData } = indiv;
-        const personPayload = {
-          ...repData,
-          // ⚠️ title はトップレベルではなく relationship の中に入れる（Stripe JP 仕様）
-          relationship: {
-            representative: true,
-            director: true,      // JP 法人では director: true が必須
-            executive: true,
-            owner: true,
-            percent_ownership: 100,
-            title: k.representativeTitle?.trim() || "代表取締役",
-          },
+      // ⚠️ indiv 経由ではなく kycData から直接ペイロードを構築する（indiv が空の場合でも動作する）
+      if (businessType === "company") {
+        console.log(`[bank-setup] BG STEP4b 開始 — accountId=${accountId}`);
+        console.log(`[bank-setup] BG STEP4b kycData keys: ${Object.keys(k).join(", ")}`);
+        console.log(`[bank-setup] BG STEP4b kycData: firstName="${k.firstNameKanji}" lastName="${k.lastNameKanji}" phone="${k.phone}" dob=${k.dobYear}/${k.dobMonth}/${k.dobDay} postal="${k.postalCode}"`);
+
+        // kycData から直接ペイロードを構築
+        const repPayload: Record<string, any> = {};
+
+        if (k.firstNameKana?.trim())  repPayload.first_name_kana  = k.firstNameKana.trim();
+        if (k.lastNameKana?.trim())   repPayload.last_name_kana   = k.lastNameKana.trim();
+        if (k.firstNameKanji?.trim()) repPayload.first_name_kanji = k.firstNameKanji.trim();
+        if (k.lastNameKanji?.trim())  repPayload.last_name_kanji  = k.lastNameKanji.trim();
+
+        const dobOK = k.dobDay && k.dobMonth && k.dobYear && !isNaN(Number(k.dobDay));
+        if (dobOK) repPayload.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
+
+        if (k.postalCode?.trim()) {
+          repPayload.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
+          repPayload.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+        }
+
+        if (k.phone?.trim())  repPayload.phone = toE164Japan(k.phone);
+        if (ownerEmail)       repPayload.email = ownerEmail;
+
+        // 本人確認書類（会社代表者の本人確認）
+        if (frontFile) {
+          repPayload.verification = {
+            document: {
+              front: (frontFile as any).id,
+              ...(backFileId ? { back: backFileId } : {}),
+            },
+          };
+        }
+
+        // ⚠️ title は relationship の中に入れる（Stripe JP 仕様）。director: true も JP 法人では必須
+        repPayload.relationship = {
+          representative:    true,
+          director:          true,
+          executive:         true,
+          owner:             true,
+          percent_ownership: 100,
+          title:             k.representativeTitle?.trim() || "代表取締役",
         };
-        console.log(`[bank-setup] BG STEP4b Persons API — keys: ${Object.keys(repData).join(", ")} title="${personPayload.relationship.title}"`);
+
+        console.log(`[bank-setup] BG STEP4b person payload keys: ${Object.keys(repPayload).join(", ")}`);
+        console.log(`[bank-setup] BG STEP4b person payload: ${JSON.stringify(repPayload, null, 2)}`);
+
         try {
           // 既存の代表者 Person があれば update、なければ create
           const existingPersons = await stripeCall(
             stripe.accounts.persons.list(accountId!, { limit: 10 }),
             "persons.list", 10000
           ) as any;
+          console.log(`[bank-setup] BG STEP4b existing persons count: ${existingPersons?.data?.length ?? 0}`);
           const existingRep = (existingPersons?.data ?? []).find((p: any) => p.relationship?.representative === true);
           if (existingRep) {
+            console.log(`[bank-setup] BG STEP4b 既存 representative 発見: ${existingRep.id} — update します`);
             await stripeCall(
-              stripe.accounts.persons.update(accountId!, existingRep.id, personPayload as any),
+              stripe.accounts.persons.update(accountId!, existingRep.id, repPayload as any),
               "persons.update(representative)", 30000
             );
-            console.log(`✅ [bank-setup] BG STEP4b Persons.update representative id=${existingRep.id}`);
+            console.log(`✅ [bank-setup] BG STEP4b Persons.update OK id=${existingRep.id}`);
           } else {
+            console.log(`[bank-setup] BG STEP4b representative なし — create します`);
             const created = await stripeCall(
-              stripe.accounts.persons.create(accountId!, personPayload as any),
+              stripe.accounts.persons.create(accountId!, repPayload as any),
               "persons.create(representative)", 30000
             ) as any;
-            console.log(`✅ [bank-setup] BG STEP4b Persons.create representative id=${created?.id}`);
+            console.log(`✅ [bank-setup] BG STEP4b Persons.create OK id=${created?.id}`);
           }
           // 最新の charges_enabled を取得
           const refreshed = await stripeCall(
@@ -2198,7 +2233,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
           console.log(`   post-persons eventually_due: ${JSON.stringify(refreshed?.requirements?.eventually_due)}`);
         } catch (personErr: any) {
           console.warn(`⚠️  [bank-setup] BG STEP4b Persons API FAILED: ${personErr?.raw?.message ?? personErr?.message}`);
-          console.warn(`   type: ${personErr?.type}, code: ${personErr?.raw?.code ?? personErr?.code}, param: ${personErr?.raw?.param ?? personErr?.param}`);
+          console.warn(`   raw:`, JSON.stringify(personErr?.raw ?? { message: personErr?.message }));
         }
       }
 
