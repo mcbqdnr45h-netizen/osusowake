@@ -21,7 +21,8 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
   const { store, loading: storeLoading } = useMyStore();
 
   // pending_review/pending はナビ非表示。applied/suspended/approved は全ナビ表示。
-  const storeReady = !storeLoading && !!store &&
+  // ローディング中でもキャッシュに店舗データがあれば即座にナビを表示する。
+  const storeReady = !!store &&
     (store.status === 'approved' || store.status === 'applied' || store.status === 'suspended');
   const shouldShowNav = showBottomNav && storeReady;
 
