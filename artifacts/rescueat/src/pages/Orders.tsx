@@ -380,8 +380,10 @@ export default function Orders() {
     <PageWrapper {...wrapperProps as any}>
       <div className="max-w-md mx-auto pb-16">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
-          style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
+        <div
+          className="flex items-center gap-3 px-4 pb-4 sticky top-0 bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
+          style={{ paddingTop: isStoreOwner ? 'calc(env(safe-area-inset-top) + 1rem)' : '1rem' }}
+        >
           <button
             onClick={() => navigate('/mypage')}
             className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
@@ -467,11 +469,11 @@ export default function Orders() {
                       {/* Main info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
+                          <div className="min-w-0 overflow-hidden">
                             <p className="font-black text-sm text-foreground truncate">{r.store?.name || '店舗不明'}</p>
                             <p className="text-xs text-muted-foreground truncate mt-0.5">{r.bag?.title || 'おすそわけバッグ'}</p>
                           </div>
-                          <div className={`flex items-center gap-1 ${meta.bg} ${meta.color} px-2 py-1 rounded-full text-[10px] font-black shrink-0`}>
+                          <div className={`flex items-center gap-1 ${meta.bg} ${meta.color} px-2 py-1 rounded-full text-[10px] font-black shrink-0 whitespace-nowrap`}>
                             {meta.icon}
                             {meta.label}
                           </div>
