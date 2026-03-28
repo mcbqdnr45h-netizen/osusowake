@@ -1,7 +1,6 @@
 import React from 'react';
 import { Layout } from '@/components/Layout';
 import { Scale, ChevronLeft } from 'lucide-react';
-import { useLocation } from 'wouter';
 
 const ROWS: { label: string; value: React.ReactNode }[] = [
   { label: '販売事業者名', value: 'OsusOwake 事務局' },
@@ -21,7 +20,6 @@ const ROWS: { label: string; value: React.ReactNode }[] = [
 ];
 
 export default function TokushoPage() {
-  const [, navigate] = useLocation();
   return (
     <Layout showBottomNav={false}>
       <div className="max-w-md mx-auto pb-24">
@@ -30,7 +28,7 @@ export default function TokushoPage() {
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border/50 px-4 h-14 flex items-center gap-3"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <button
-            onClick={() => navigate(-1 as any)}
+            onClick={() => window.history.back()}
             className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
