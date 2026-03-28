@@ -5,8 +5,9 @@ import { useListAllBags, useListReservations, SurpriseBagWithStore } from '@work
 import {
   Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
-  Globe, Clock, ArrowLeft, ShoppingBag, Megaphone,
+  Globe, Clock, ArrowLeft, ShoppingBag, Megaphone, Star,
 } from 'lucide-react';
+import { StoreReviewSheet } from '@/components/StoreReviewSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -119,7 +120,10 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
   const favorited   = isFavorite(bag.store.id);
   const [loaded, setLoaded] = useState(false);
   const [showNudge, setShowNudge] = useState(false);
+  const [showReviews, setShowReviews] = useState(false);
   const imgSrc = bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category);
+  const avgRating = (bag.store as any).avgRating as string | number | null | undefined;
+  const reviewCount = (bag.store as any).reviewCount as number | undefined;
 
   const distLabel = distM != null
     ? distM < 50 ? 'すぐそこ' : distM < 1000 ? `${Math.round(distM / 10) * 10}m` : `${(distM / 1000).toFixed(1)}km`
@@ -149,11 +153,21 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
             {discountPct}% OFF
           </span>
         )}
-        {isLowStock && (
+        {/* 評価バッジ（右上）/ 残りわずかバッジ（右上、評価なしの場合のみ） */}
+        {avgRating && !isSoldOut ? (
+          <button
+            type="button"
+            onClick={e => { e.preventDefault(); e.stopPropagation(); setShowReviews(true); }}
+            className="absolute top-2 right-2 flex items-center gap-0.5 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm"
+          >
+            <Star className="w-2 h-2 fill-white shrink-0" />
+            {Number(avgRating).toFixed(1)}
+          </button>
+        ) : isLowStock ? (
           <span className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-[9px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
             残りわずか
           </span>
-        )}
+        ) : null}
         {isSoldOut && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
             <span className="bg-white/90 text-foreground text-[10px] font-black px-2 py-1 rounded-lg">完売御礼 🌸</span>
@@ -205,6 +219,15 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
       </div>
     </Link>
     <LoginNudgeSheet isOpen={showNudge} onClose={() => setShowNudge(false)} reason="favorite" />
+    {showReviews && avgRating && (
+      <StoreReviewSheet
+        storeId={bag.store.id}
+        storeName={bag.store.name}
+        avgRating={Number(avgRating)}
+        reviewCount={reviewCount ?? 0}
+        onClose={() => setShowReviews(false)}
+      />
+    )}
   </>);
 }
 
