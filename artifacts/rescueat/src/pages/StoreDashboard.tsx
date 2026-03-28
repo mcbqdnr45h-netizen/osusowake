@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
+import { Layout } from '@/components/Layout';
 import { useMyStore } from '@/hooks/use-my-store';
 import {
   useListReservations,
@@ -1140,13 +1141,7 @@ export default function StoreDashboard() {
       return;
     }
     if (store) {
-      if (store.status === 'pending' || store.status === 'pending_review') {
-        // 管理者未承認 → オンボーディングの審査待ち画面へ
-        console.log('[StoreDashboard] store is pending → /store-onboarding (waiting screen)');
-        navigate('/store-onboarding', { replace: true });
-        return;
-      }
-      // applied または approved → ダッシュボードを表示
+      // applied / approved / pending_review すべてダッシュボード内で処理する
       // ※ 口座未登録の場合でも自動リダイレクトはしない（ループの原因になるため）
       //   マイページのバナーから手動で /store/bank-setup に遷移してもらう
     }
@@ -1368,19 +1363,15 @@ export default function StoreDashboard() {
   // ─── 未承認（管理者審査待ち）────────────────────────────────────────────
   if (store.status === 'pending' || store.status === 'pending_review') {
     return (
-      <StoreLayout>
-        <div className="flex-1 flex items-center justify-center px-6">
+      <Layout>
+        <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
           <div className="text-center max-w-sm">
             <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <Eye className="w-10 h-10 text-amber-500" />
             </div>
-            <h2 className="text-xl font-black mb-2">
-              {store.status === 'applied' ? '申請受付完了 — 審査中' : '審査中'}
-            </h2>
+            <h2 className="text-xl font-black mb-2">審査中</h2>
             <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
-              {store.status === 'applied'
-                ? '銀行口座の登録が完了しました。管理者が内容を確認しています。'
-                : '店舗情報を確認しています。'}
+              店舗情報を確認しています。
             </p>
             <p className="text-xs text-muted-foreground mb-6">審査完了後にダッシュボードがご利用いただけます。</p>
             <a
@@ -1391,7 +1382,7 @@ export default function StoreDashboard() {
             </a>
           </div>
         </div>
-      </StoreLayout>
+      </Layout>
     );
   }
 
