@@ -215,6 +215,20 @@ router.get("/stores/:storeId/bags", async (req, res) => {
 router.post("/stores/:storeId/bags", async (req, res) => {
   try {
     const { storeId } = CreateBagParams.parse(req.params);
+
+    // 店舗が approved でない場合はバッグ作成をブロック
+    const [storeCheck] = await db
+      .select({ status: storesTable.status })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId))
+      .limit(1);
+    if (!storeCheck) {
+      return res.status(404).json({ error: "not_found", message: "店舗が見つかりません" });
+    }
+    if (storeCheck.status !== "approved") {
+      return res.status(403).json({ error: "store_not_approved", message: "店舗が承認されていないためバッグを出品できません" });
+    }
+
     const body = CreateBagBody.parse(req.body);
     if (!body.pickupEnd || body.pickupEnd.trim() === '') {
       return res.status(400).json({ error: "bad_request", message: "受取終了時間（pickupEnd）は必須です" });
@@ -360,6 +374,19 @@ router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
     }
 
     const body = UpdateBagBody.parse(req.body);
+
+    // 公開ON操作の場合：店舗が approved でないとブロック
+    if (body.isActive === true) {
+      const [storeCheck] = await db
+        .select({ status: storesTable.status })
+        .from(storesTable)
+        .where(eq(storesTable.id, storeId))
+        .limit(1);
+      if (!storeCheck || storeCheck.status !== "approved") {
+        res.status(403).json({ error: "store_not_approved", message: "店舗が承認されていないためバッグを公開できません" });
+        return;
+      }
+    }
 
     const [updated] = await db
       .update(surpriseBagsTable)

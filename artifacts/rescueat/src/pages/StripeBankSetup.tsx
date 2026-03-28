@@ -545,8 +545,8 @@ export default function StripeBankSetup() {
   }
 
   // ────────── 口座登録済み（Stripeアカウント連携済み、または申請中）──────────
-  // ※ store.status === 'approved' のみでは判定しない（登録直後も 'approved' になるため）
-  if (store.status === 'applied' || !!store.stripeAccountId) {
+  // ※ rejected ステータスの店舗は再設定のため通過させる
+  if ((store.status === 'applied' || !!store.stripeAccountId) && store.status !== 'rejected') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
@@ -616,30 +616,52 @@ export default function StripeBankSetup() {
           </div>
         </div>
 
-        {/* 🎉 審査通過バナー */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, type: 'spring', stiffness: 200, damping: 20 }}
-          className="relative overflow-hidden rounded-2xl mb-5 shadow-md"
-          style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)' }}
-        >
-          <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full pointer-events-none" />
-          <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/5 rounded-full pointer-events-none" />
-          <div className="relative px-5 py-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-11 h-11 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shrink-0">
-                <PartyPopper className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-white/80 text-[11px] font-bold tracking-widest uppercase leading-none mb-0.5">CONGRATULATIONS</p>
-                <p className="text-white font-black text-lg leading-tight">審査が通過しました！</p>
-              </div>
+        {/* トップバナー：却下時は赤い却下理由バナー、通常時は審査通過バナー */}
+        {store.status === 'rejected' ? (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, type: 'spring', stiffness: 200, damping: 20 }}
+            className="rounded-2xl mb-5 border border-red-200 bg-red-50 overflow-hidden"
+          >
+            <div className="bg-red-500 px-5 py-3 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-white shrink-0" />
+              <p className="text-white font-black text-sm">申請が却下されました — 修正が必要です</p>
             </div>
-            <p className="text-white/90 text-sm leading-relaxed">
-              おめでとうございます🎊 以下の情報を登録して、<strong className="text-white">おすそわけ袋の出品</strong>を始めましょう。
-            </p>
-          </div>
-        </motion.div>
+            <div className="px-5 py-4">
+              <p className="text-xs font-black text-red-600 mb-1.5">却下理由</p>
+              <p className="text-sm text-red-700 leading-relaxed">
+                {store.rejectionReason ?? '口座情報または本人確認情報に不備があります。下記フォームで修正して再申請してください。'}
+              </p>
+              <p className="text-xs text-red-400 mt-3 leading-relaxed">
+                下記フォームで<strong className="text-red-500">Stripe口座情報を再入力</strong>して送信してください。送信後、管理者が再審査します。
+              </p>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, type: 'spring', stiffness: 200, damping: 20 }}
+            className="relative overflow-hidden rounded-2xl mb-5 shadow-md"
+            style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)' }}
+          >
+            <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full pointer-events-none" />
+            <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/5 rounded-full pointer-events-none" />
+            <div className="relative px-5 py-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-11 h-11 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shrink-0">
+                  <PartyPopper className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-white/80 text-[11px] font-bold tracking-widest uppercase leading-none mb-0.5">CONGRATULATIONS</p>
+                  <p className="text-white font-black text-lg leading-tight">審査が通過しました！</p>
+                </div>
+              </div>
+              <p className="text-white/90 text-sm leading-relaxed">
+                おめでとうございます🎊 以下の情報を登録して、<strong className="text-white">おすそわけ袋の出品</strong>を始めましょう。
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* セキュリティ説明 */}
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-5 flex gap-3">

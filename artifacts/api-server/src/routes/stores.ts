@@ -1650,7 +1650,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
   }
 
   const [store] = await db
-    .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
+    .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId, status: storesTable.status, name: storesTable.name })
     .from(storesTable)
     .where(eq(storesTable.id, storeId));
 
@@ -1658,6 +1658,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     res.status(404).json({ error: "not_found", message: "店舗が見つかりません" });
     return;
   }
+
+  const wasRejected = store.status === "rejected";
 
   // オーナーメール取得
   let ownerEmail: string | undefined;
@@ -1692,12 +1694,62 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 
   // ── STEP 1-2: Stripe アカウント作成＋口座登録（同期） ──
   try {
-    // ── 即座に "applied" を書いてループを防止 ──
+    // ── 即座にステータスを書いてループを防止 ──
+    // 却下済み店舗の再申請の場合は pending_review に戻す（管理者再審査待ち）
+    const newStatus = wasRejected ? "pending_review" : "applied";
     await db.update(storesTable).set({
-      status: "applied",
+      status: newStatus,
+      ...(wasRejected ? { rejectionReason: null } : {}),
       ...(bizLicenseNumber?.trim() ? { licenseNumber: bizLicenseNumber.trim() } : {}),
     }).where(eq(storesTable.id, storeId));
-    console.log(`[bank-setup] ✅ Store ${storeId} status → 'applied'`);
+    console.log(`[bank-setup] ✅ Store ${storeId} status → '${newStatus}' (wasRejected=${wasRejected})`);
+
+    // 却下→再申請の場合：管理者へ再審査通知メール
+    if (wasRejected) {
+      setImmediate(async () => {
+        try {
+          const resendApiKey = process.env.RESEND_API_KEY;
+          if (!resendApiKey) return;
+          const { Resend } = await import("resend");
+          const resend = new Resend(resendApiKey);
+          const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
+          const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
+          const adminEmail = "yuuhi0125416@icloud.com";
+          const secret = process.env.ADMIN_APPROVAL_SECRET ?? "osusowake-admin-secret";
+          const crypto = await import('node:crypto');
+          const token = crypto.createHmac('sha256', secret).update(String(storeId)).digest('hex');
+          const approveUrl = `${appUrl}/api/admin/approve-store?storeId=${storeId}&token=${token}`;
+          await resend.emails.send({
+            from: `OsusOwake <${fromDomain}>`,
+            to: adminEmail,
+            subject: `【OsusOwake】店舗がStripe口座を再設定しました（再審査）: ${store.name}`,
+            html: `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);padding:40px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">🔄</div>
+      <h1 style="color:#ffffff;font-size:22px;font-weight:900;margin:0;">Stripe口座が再設定されました</h1>
+      <p style="color:#fca5a5;font-size:14px;margin:8px 0 0;">却下後の再申請 — 管理者審査が必要です</p>
+    </div>
+    <div style="padding:32px;">
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;width:100px;">店舗名</td><td style="padding:8px 0;font-weight:bold;font-size:15px;">${store.name}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;">店舗ID</td><td style="padding:8px 0;font-size:13px;">${storeId}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;font-size:13px;">再申請日時</td><td style="padding:8px 0;font-size:13px;">${new Date().toLocaleString('ja-JP')}</td></tr>
+      </table>
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${approveUrl}" style="display:inline-block;background:linear-gradient(135deg,#F26419,#d44a00);color:#ffffff;font-size:16px;font-weight:900;padding:16px 48px;border-radius:14px;text-decoration:none;">✅ ワンタップで承認する</a>
+      </div>
+      <p style="color:#999;font-size:12px;text-align:center;margin:0;">管理者ダッシュボード: <a href="${appUrl}/admin" style="color:#F26419;">${appUrl}/admin</a></p>
+    </div>
+  </div>
+</body></html>`,
+          });
+          console.log(`[bank-setup] ✅ 管理者再審査メール送信 → ${adminEmail}`);
+        } catch (e: any) {
+          console.warn("[bank-setup] 管理者メール送信エラー:", e?.message);
+        }
+      });
+    }
 
     // STEP 1: アカウント作成 or 更新
     if (!accountId) {

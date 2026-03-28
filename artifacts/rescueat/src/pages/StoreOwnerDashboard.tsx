@@ -483,10 +483,10 @@ export default function StoreOwnerDashboard() {
               <p className="text-sm text-red-700 leading-relaxed">{store.rejectionReason}</p>
             </div>
           )}
-          <Link href="/store/reapply"
+          <Link href="/store/bank-setup"
             className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
           >
-            再申請する
+            Stripe口座を再設定する
           </Link>
         </motion.div>
       </div>
