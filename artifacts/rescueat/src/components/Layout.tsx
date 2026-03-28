@@ -64,7 +64,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
         { href: '/',                label: '発見'     },
         { href: '/map',             label: 'マップ'   },
         { href: '/my-reservations', label: 'マイバック' },
-        ...(isLoggedIn ? [{ href: '/mypage', label: 'マイページ' }] : []),
+        { href: '/mypage',          label: 'マイページ' },
       ];
 
   return (
