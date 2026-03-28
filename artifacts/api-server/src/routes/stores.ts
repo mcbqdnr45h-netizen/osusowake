@@ -2203,20 +2203,24 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
 
       // STEP 4c: 法人番号（tax_id）を別途送信 — バリデーションエラーでも他フィールドに影響しない
-      if (businessType === "company" && kycData.companyTaxId?.trim()) {
-        const taxId = kycData.companyTaxId.replace(/-/g, '').trim();
-        if (taxId.length === 13) {
+      if (businessType === "company") {
+        const isTestKey = stripeKey.startsWith("sk_test_");
+        const rawTaxId  = (kycData.companyTaxId ?? "").replace(/-/g, '').trim();
+        // テストキーの場合: 13桁でなければ "0000000000000" にフォールバック（Stripe テスト有効値）
+        // 本番キーの場合: ユーザー入力が正確に13桁のときのみ送る
+        const taxId = rawTaxId.length === 13 ? rawTaxId : (isTestKey ? "0000000000000" : null);
+        if (taxId) {
           try {
             await stripeCall(
               stripe.accounts.update(accountId!, { company: { tax_id: taxId } } as any),
               "accounts.update(tax_id)", 15000
             );
-            console.log(`✅ [bank-setup] BG STEP4c company.tax_id submitted`);
+            console.log(`✅ [bank-setup] BG STEP4c company.tax_id submitted (test=${isTestKey})`);
           } catch (taxErr: any) {
             console.warn(`⚠️  [bank-setup] BG STEP4c company.tax_id FAILED (non-fatal): ${taxErr?.raw?.message ?? taxErr?.message}`);
           }
         } else {
-          console.warn(`⚠️  [bank-setup] BG STEP4c company.tax_id skipped — length=${taxId.length} (expected 13)`);
+          console.warn(`⚠️  [bank-setup] BG STEP4c company.tax_id skipped — length=${rawTaxId.length} (expected 13, prod key)`);
         }
       }
 
@@ -2279,7 +2283,7 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
   if (!stripeKey) return res.status(503).json({ error: "stripe_not_configured" });
 
   const [store] = await db
-    .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
+    .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId, name: storesTable.name })
     .from(storesTable)
     .where(eq(storesTable.id, storeId));
 
@@ -2361,14 +2365,18 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
       if (due.some(f => f.includes("company."))) {
         const storeNameForFallback = store.name ?? "株式会社テスト";
         // ⚠️ JP では company.structure を送ると全値エラーになるため省略
-        payload.company = {
+        const fillCompany: Record<string, any> = {
           name_kanji: storeNameForFallback,
           name_kana:  "テスト",
-          // tax_id は 13 桁法人番号。ダミー値を送るとエラーになるため due に tax_id が含まれる場合はスキップ
           address_kanji: { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" },
           address_kana:  { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" },
           phone: "+810600000000",
         };
+        // テストキーの場合: 法人番号を有効なテスト値で送る（本番は実際の13桁番号が必要）
+        if (stripeKey.startsWith("sk_test_")) {
+          fillCompany.tax_id = "0000000000000";
+        }
+        payload.company = fillCompany;
       }
     } else {
       // ─── 個人事業主: individual キーに送る ───
@@ -2418,6 +2426,9 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
       const domain = (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
                      process.env["REPLIT_DEV_DOMAIN"] || "osusowake.replit.app";
       payload.business_profile = { ...payload.business_profile, mcc: "5812", url: `https://${domain}` };
+    }
+    if (due.some(f => f.includes("business_profile.name")) && isCompany) {
+      payload.business_profile = { ...payload.business_profile, mcc: "5812", name: store.name ?? "株式会社テスト" };
     }
 
     console.log(`📤 [fill-req] accounts.update payload for ${accountId}:`, JSON.stringify(payload, null, 2));
