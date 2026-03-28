@@ -5,66 +5,103 @@ export interface UserCoords {
   lng: number;
 }
 
-// デフォルト位置：高槻駅（GPS 取得失敗時のフォールバック）
+// デフォルト位置：高槻駅
 export const TAKATSUKI_STATION: UserCoords = { lat: 34.8456, lng: 135.6174 };
 
+// ── モジュールレベルのシングルトン状態 ──────────────────────────────────────
 let cachedCoords: UserCoords | null = null;
 
-/** Map の GPS ボタンなど、ユーザー操作の中から呼び出して共有キャッシュを更新する */
-export function updateCachedCoords(coords: UserCoords | null) {
-  cachedCoords = coords;
+export type GpsStatus = 'loading' | 'ok' | 'denied';
+
+// GPS がすでにキャッシュされていれば 'ok'、まだなら 'loading' からスタート
+let gpsStatus: GpsStatus = cachedCoords ? 'ok' : 'loading';
+let autoGpsRequested = false;
+
+type GpsListener    = (coords: UserCoords) => void;
+type StatusListener = (status: GpsStatus)  => void;
+
+const gpsListeners:    Set<GpsListener>    = new Set();
+const statusListeners: Set<StatusListener> = new Set();
+
+function setGpsStatus(s: GpsStatus) {
+  gpsStatus = s;
+  statusListeners.forEach(fn => fn(s));
 }
 
-// ページ読み込み時に一度だけ GPS を試みる（非 iOS 向け）
-// iOS Safari はユーザー操作なしでも permission ダイアログは出るが、
-// enableHighAccuracy: false + timeout: 8000 で軽量に取得する
-let autoGpsRequested = false;
+export function updateCachedCoords(coords: UserCoords | null) {
+  cachedCoords = coords;
+  if (coords) {
+    setGpsStatus('ok');
+    gpsListeners.forEach(fn => fn(coords));
+  }
+}
+
 function tryAutoGps(): void {
-  if (autoGpsRequested || !navigator.geolocation) return;
+  if (autoGpsRequested) return;
   autoGpsRequested = true;
+
+  if (!navigator.geolocation) {
+    // ブラウザが位置情報API非対応 → 即時 denied
+    setGpsStatus('denied');
+    return;
+  }
+
+  // 8秒タイムアウト付きで GPS 取得を試みる
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       cachedCoords = ll;
-      // リスナーへ通知
+      setGpsStatus('ok');
       gpsListeners.forEach(fn => fn(ll));
     },
-    () => { /* 拒否またはタイムアウト → 無視（フォールバックは高槻駅） */ },
-    { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 }
+    () => {
+      // 拒否 or タイムアウト → denied に確定
+      setGpsStatus('denied');
+    },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 },
   );
 }
 
-type GpsListener = (coords: UserCoords) => void;
-const gpsListeners = new Set<GpsListener>();
-
 /**
- * ユーザーの現在地を返すフック。
- * - マウント時に自動で GPS を要求（初回のみ）
- * - 取得できなければ coords は null（Map 側で高槻駅フォールバックを使用）
- * - GPS ボタン等でキャッシュが更新されたら自動で再レンダリング
+ * ユーザーの現在地フック。
+ *
+ * 返り値:
+ *   coords  - GPS 座標（未取得・拒否時は null）
+ *   loading - GPS 取得中（true の間は距離スケルトンを表示）
+ *   denied  - 許可拒否 or タイムアウト（距離表示を非表示にしてよい）
+ *   refresh - キャッシュを再反映
  */
 export function useUserLocation() {
-  const [coords, setCoords] = useState<UserCoords | null>(cachedCoords);
+  const [coords, setCoords]   = useState<UserCoords | null>(cachedCoords);
+  const [status, setStatus]   = useState<GpsStatus>(gpsStatus);
   const mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
 
-    // すでにキャッシュがあれば即反映
+    // すでに確定済みの状態があれば即反映
     if (cachedCoords) {
       setCoords(cachedCoords);
+      setStatus('ok');
+    } else if (gpsStatus !== 'loading') {
+      // denied が確定済み
+      setStatus(gpsStatus);
     } else {
-      // GPS 取得完了時に setState を呼ぶリスナーを登録
-      const listener: GpsListener = (ll) => {
+      // GPS 取得待ち → リスナー登録
+      const coordListener: GpsListener = (ll) => {
         if (mounted.current) setCoords(ll);
       };
-      gpsListeners.add(listener);
-      // 自動 GPS 要求（未実行なら）
+      const statusListener: StatusListener = (s) => {
+        if (mounted.current) setStatus(s);
+      };
+      gpsListeners.add(coordListener);
+      statusListeners.add(statusListener);
       tryAutoGps();
 
       return () => {
         mounted.current = false;
-        gpsListeners.delete(listener);
+        gpsListeners.delete(coordListener);
+        statusListeners.delete(statusListener);
       };
     }
 
@@ -75,12 +112,19 @@ export function useUserLocation() {
     if (cachedCoords && mounted.current) setCoords(cachedCoords);
   };
 
-  return { coords, loading: false, refresh };
+  return {
+    coords,
+    loading: status === 'loading',
+    denied:  status === 'denied',
+    refresh,
+  };
 }
+
+// ── 距離・時間ユーティリティ ─────────────────────────────────────────────────
 
 export function haversineMeters(
   lat1: number, lng1: number,
-  lat2: number, lng2: number
+  lat2: number, lng2: number,
 ): number {
   const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -98,19 +142,13 @@ export function metersToWalkMinutes(meters: number): number {
 }
 
 export function formatWalkTime(minutes: number): string {
-  if (minutes < 1)  return '1分未満';
+  if (minutes < 1)   return '1分未満';
   if (minutes <= 60) return `徒歩${minutes}分`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m > 0 ? `${h}時間${m}分` : `${h}時間`;
 }
 
-/**
- * メートルから表示ラベルを生成する統合関数。
- * - 1分未満    → 「すぐそこ」
- * - 60分以内   → 「徒歩X分」
- * - 60分超     → km 距離表示（非現実的な徒歩時間を防止）
- */
 export function formatDistanceLabel(meters: number): string {
   const minutes = metersToWalkMinutes(meters);
   if (minutes < 1)   return 'すぐそこ';

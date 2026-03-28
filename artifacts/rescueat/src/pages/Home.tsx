@@ -110,7 +110,7 @@ function CategoryPills({
 }
 
 // ─── 横スクロールカード ────────────────────────────────────────────────────
-function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: number }) {
+function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; distM?: number; gpsLoading?: boolean }) {
   const { isFavorite, toggle } = useFavorites();
   const { user } = useAuth();
   const isSoldOut   = bag.stockCount <= 0;
@@ -214,12 +214,14 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
                   残りあと{bag.stockCount}個！
                 </span>
               )}
-              {distLabel && (
+              {distLabel ? (
                 <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/60 font-medium leading-none">
                   <MapPin className="w-2.5 h-2.5 shrink-0" />
                   {distLabel}
                 </span>
-              )}
+              ) : gpsLoading ? (
+                <span className="inline-block w-10 h-2.5 rounded bg-muted animate-pulse" />
+              ) : null}
               {bag.originalPrice > 0 && (
                 <span className="text-[10px] text-muted-foreground/45 line-through font-medium leading-none">
                   ¥{bag.originalPrice.toLocaleString()}
@@ -276,11 +278,12 @@ function SectionHeader({ icon, title, count }: {
 }
 
 // ─── 横スクロールラッパー ─────────────────────────────────────────────────
-function HorizScrollRow({ bags, loading, skeletonCount = 3, distMap }: {
+function HorizScrollRow({ bags, loading, skeletonCount = 3, distMap, gpsLoading }: {
   bags: SurpriseBagWithStore[];
   loading: boolean;
   skeletonCount?: number;
   distMap?: Map<string, number>;
+  gpsLoading?: boolean;
 }) {
   if (!loading && bags.length === 0) return null;
   return (
@@ -288,7 +291,7 @@ function HorizScrollRow({ bags, loading, skeletonCount = 3, distMap }: {
       {loading
         ? Array.from({ length: skeletonCount }, (_, i) => <HorizBagCardSkeleton key={i} />)
         : bags.map(bag => (
-            <HorizBagCard key={bag.id} bag={bag} distM={distMap?.get(bag.id)} />
+            <HorizBagCard key={bag.id} bag={bag} distM={distMap?.get(bag.id)} gpsLoading={gpsLoading} />
           ))
       }
       <div className="w-1 shrink-0" />
@@ -430,7 +433,7 @@ export default function Home() {
     }) ?? null;
   }, [reservations]);
   const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
-  const { coords: userCoords } = useUserLocation();
+  const { coords: userCoords, loading: gpsLoading } = useUserLocation();
 
   useEffect(() => {
     if (authLoading) return;
@@ -830,7 +833,7 @@ export default function Home() {
                       title="もうすぐ終わるおすそわけ"
                       count={!isLoadingBags ? urgentBags.length : undefined}
                     />
-                    <HorizScrollRow bags={urgentBags} loading={isLoadingBags} />
+                    <HorizScrollRow bags={urgentBags} loading={isLoadingBags} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -842,7 +845,7 @@ export default function Home() {
                       title="今日のおすすめ"
                       count={!isLoadingBags ? recommendedBags.length : undefined}
                     />
-                    <HorizScrollRow bags={recommendedBags} loading={isLoadingBags} />
+                    <HorizScrollRow bags={recommendedBags} loading={isLoadingBags} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -854,7 +857,7 @@ export default function Home() {
                       title="現在地から近いお店"
                       count={nearbyBags.length}
                     />
-                    <HorizScrollRow bags={nearbyBags} loading={false} distMap={distMap} />
+                    <HorizScrollRow bags={nearbyBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -866,7 +869,7 @@ export default function Home() {
                       title="今夜の受け取り（17〜24時）"
                       count={eveningBags.length}
                     />
-                    <HorizScrollRow bags={eveningBags} loading={false} />
+                    <HorizScrollRow bags={eveningBags} loading={false} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -878,7 +881,7 @@ export default function Home() {
                       title="料理・お惣菜"
                       count={mealsBags.length}
                     />
-                    <HorizScrollRow bags={mealsBags} loading={false} />
+                    <HorizScrollRow bags={mealsBags} loading={false} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -890,7 +893,7 @@ export default function Home() {
                       title="パン・スイーツ"
                       count={bakeryBags.length}
                     />
-                    <HorizScrollRow bags={bakeryBags} loading={false} />
+                    <HorizScrollRow bags={bakeryBags} loading={false} gpsLoading={gpsLoading} />
                   </div>
                 )}
 
@@ -902,7 +905,7 @@ export default function Home() {
                       title="食材・その他"
                       count={ingredientBags.length}
                     />
-                    <HorizScrollRow bags={ingredientBags} loading={false} />
+                    <HorizScrollRow bags={ingredientBags} loading={false} gpsLoading={gpsLoading} />
                   </div>
                 )}
 

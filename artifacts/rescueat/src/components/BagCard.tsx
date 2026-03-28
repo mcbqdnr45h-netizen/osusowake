@@ -17,7 +17,12 @@ interface BagCardProps {
 }
 
 function WalkTimeBadge({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
-  const { coords } = useUserLocation();
+  const { coords, loading } = useUserLocation();
+  // 取得中: 小さなスケルトン
+  if (loading) return (
+    <span className="inline-block w-12 h-3 rounded bg-white/20 animate-pulse" />
+  );
+  // 拒否/非対応 or 未取得: 非表示
   if (!coords) return null;
   const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
   const minutes = Math.round(meters / 67);
@@ -33,7 +38,10 @@ function WalkTimeBadge({ storeLat, storeLng }: { storeLat: number; storeLng: num
 
 /* ── compact用 距離バッジ（カード情報エリア内） ── */
 function CompactDistanceBadge({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
-  const { coords } = useUserLocation();
+  const { coords, loading } = useUserLocation();
+  if (loading) return (
+    <div className="inline-block w-14 h-4 rounded-full bg-muted animate-pulse" />
+  );
   if (!coords) return null;
   const meters  = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
   const label   = formatDistanceLabel(meters);
@@ -53,7 +61,12 @@ function CompactDistanceBadge({ storeLat, storeLng }: { storeLat: number; storeL
 
 /* ── compact右列用 距離テキスト（右揃えインライン） ── */
 function CompactDistanceInline({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
-  const { coords } = useUserLocation();
+  const { coords, loading } = useUserLocation();
+  // 取得中: 横幅固定のスケルトン（右揃えレイアウトを崩さない）
+  if (loading) return (
+    <span className="inline-block w-10 h-2.5 rounded bg-muted animate-pulse" />
+  );
+  // 拒否 or 非対応: 静かに非表示
   if (!coords || !storeLat || !storeLng) return null;
   const meters = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
   const label  = meters < 1000
