@@ -1,11 +1,11 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useRef } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { MyStoresProvider } from "@/contexts/MyStoresContext";
+import { MyStoresProvider, useMyStoresContext } from "@/contexts/MyStoresContext";
 import { ProtectedRoute, GuestRoute, GuestWallRoute } from "@/components/ProtectedRoute";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
@@ -286,6 +286,63 @@ function HomeRouter() {
 
 const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
 
+// ── ロール整合チェック：store があるのに customer のままになるバグを防ぐ ──────────
+// MyPage だけでなくアプリ全体で動作し、ページ問わず確実に store_owner ロールへ修正する
+function RoleReconciler() {
+  const { user, profile, isLoading: authLoading, refreshProfile } = useAuth();
+  const { stores, loading: storesLoading } = useMyStoresContext();
+  const fixedRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
+
+  useEffect(() => {
+    // 両方の読み込みが完了するまで待つ
+    if (authLoading || storesLoading) return;
+    // ユーザーが存在し、かつ店舗を1つ以上持っているのに customer になっている場合のみ修正
+    if (!user) return;
+    if (stores.length === 0) return;
+    if (profile?.role === 'store_owner') return;
+    if (fixedRef.current) return;
+
+    fixedRef.current = true;
+    console.log('[RoleReconciler] 🔧 store あり・role=customer → fix-owner-role 実行 userId=', user.id);
+
+    const doFix = async () => {
+      try {
+        const res = await fetch(`${BASE}/api/stores/fix-owner-role`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ownerId: user.id }),
+        });
+        if (res.ok) {
+          console.log('[RoleReconciler] ✅ fix-owner-role 成功 → プロフィール再取得');
+          await refreshProfile();
+        } else {
+          console.warn('[RoleReconciler] fix-owner-role HTTP error:', res.status);
+          // リトライ（最大2回）
+          if (retryCountRef.current < 2) {
+            retryCountRef.current += 1;
+            fixedRef.current = false;
+            setTimeout(doFix, 3000);
+          }
+        }
+      } catch (err) {
+        console.warn('[RoleReconciler] fix-owner-role 例外:', err);
+        if (retryCountRef.current < 2) {
+          retryCountRef.current += 1;
+          fixedRef.current = false;
+          setTimeout(doFix, 3000);
+        }
+      }
+    };
+
+    doFix();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, storesLoading, user?.id, profile?.role, stores.length]);
+
+  return null;
+}
+
 function MaintenanceGate({ children }: { children: React.ReactNode }) {
   const { settings, isMaintenanceMode } = useAppSettings();
   const { user } = useAuth();
@@ -308,6 +365,7 @@ function App() {
           <FavoritesProvider>
             <TooltipProvider>
               <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <RoleReconciler />
                 <MaintenanceGate>
                   <AnimatedRoutes />
                 </MaintenanceGate>

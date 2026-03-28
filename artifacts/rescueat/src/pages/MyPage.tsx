@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
@@ -15,24 +15,9 @@ export default function MyPage() {
   const userId = useUserId();
   const { currentStore: store, stores, selectedStoreId, setSelectedStoreId, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStores();
   const [, navigate] = useLocation();
-  const { user, profile, session, isLoading: authLoading, signOut, refreshProfile } = useAuth();
+  const { user, profile, session, isLoading: authLoading, signOut } = useAuth();
 
-  const roleFixedRef = useRef(false);
-
-  // ── ストアがあるのに customer 表示の場合 → role を修正してプロフィールを再取得 ──
-  useEffect(() => {
-    if (!loadingStore && !authLoading && store && user && profile?.role !== 'store_owner' && !roleFixedRef.current) {
-      roleFixedRef.current = true;
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
-      fetch(`${base}/api/stores/fix-owner-role`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ownerId: user.id }),
-      })
-        .then(() => refreshProfile())
-        .catch(() => {});
-    }
-  }, [loadingStore, authLoading, store, user, profile?.role]);
+  // ── ロール修正は App.tsx の RoleReconciler が全ページで自動実行するため不要 ──
 
   const { data: reservations } = useListReservations({ userId: userId || '' }, {
     query: { enabled: !!userId }

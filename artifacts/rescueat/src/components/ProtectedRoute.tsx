@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMyStoresContext } from '@/contexts/MyStoresContext';
 import { Loader2, Package, Heart, User, ShoppingBag } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 
@@ -95,7 +96,16 @@ export function ProtectedRoute({
   requireRole?: 'customer' | 'store_owner';
 }) {
   const { user, profile, isLoading } = useAuth();
+  const { stores, loading: storesLoading } = useMyStoresContext();
   const [location, navigate] = useLocation();
+
+  // store_owner ルートかつ profile.role が customer の場合でも
+  // stores をロード中 OR stores がある = 整合修正待ちの可能性 → 待機
+  const hasStores = stores.length > 0;
+  const isStoreRoleReconciling =
+    requireRole === 'store_owner' &&
+    profile?.role !== 'store_owner' &&
+    (storesLoading || hasStores);
 
   const [profileWaitExpired, setProfileWaitExpired] = useState(false);
   useEffect(() => {
@@ -119,8 +129,10 @@ export function ProtectedRoute({
       return;
     }
 
-    if (requireRole && profile) {
+    if (requireRole && profile && !storesLoading) {
       if (profile.role !== requireRole) {
+        // store_owner ルートで store を持っているなら整合修正待ち → リダイレクトしない
+        if (requireRole === 'store_owner' && hasStores) return;
         if (requireRole === 'store_owner') {
           navigate('/', { replace: true });
         } else {
@@ -128,12 +140,14 @@ export function ProtectedRoute({
         }
       }
     }
-  }, [isLoading, user, profile, requireRole, location, navigate]);
+  }, [isLoading, user, profile, requireRole, location, navigate, storesLoading, hasStores]);
 
   if (isLoading) return <AuthLoadingScreen />;
   if (!user) return null;
   if (requireRole && !profile && !profileWaitExpired) return <AuthLoadingScreen />;
-  if (requireRole && profile && profile.role !== requireRole) return null;
+  // store_owner ルートで整合修正待ちの間はローディング表示（誤リダイレクト防止）
+  if (isStoreRoleReconciling) return <AuthLoadingScreen />;
+  if (requireRole && profile && profile.role !== requireRole && !hasStores) return null;
 
   return <Component />;
 }
