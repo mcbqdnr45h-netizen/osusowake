@@ -212,10 +212,10 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
           {bag.title}
         </p>
 
-        {/* 下段: 左=受取時間 ／ 右=残り個数+距離（中央）+価格 */}
-        <div className="flex items-stretch justify-between gap-1">
-          {/* 左: 受取時間（下揃え） */}
-          <div className="flex items-end min-w-0 flex-1">
+        {/* 下段: 左=受取時間（下揃え） ／ 右=下揃え積み上げ */}
+        <div className="flex items-end justify-between gap-1">
+          {/* 左: 受取時間 */}
+          <div className="min-w-0 flex-1">
             {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
               <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
                 <Clock className="w-2 h-2 text-primary shrink-0" />
@@ -224,45 +224,38 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
             )}
           </div>
 
-          {/* 右: 3段構成（右揃え縦列・stretch） */}
+          {/* 右: 上→下＝①残り個数→②距離→③元値→④販売価格（全部下揃え） */}
           {!isSoldOut && (
-            <div className="flex flex-col items-end shrink-0">
-              {/* ①残り個数（上） */}
+            <div className="flex flex-col items-end gap-[2px] shrink-0">
               {isLowStock && (
-                <span className="text-[8px] font-black text-rose-500 leading-none mb-0.5">
+                <span className="text-[8px] font-black text-rose-500 leading-none">
                   残り{bag.stockCount}個！
                 </span>
               )}
-              {/* ②距離（中央に浮く） */}
-              <div className="flex-1 flex items-center justify-end">
-                {distLabel ? (
-                  <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[9px] px-1.5 py-[2px]
-                    ${(() => {
-                      const min = distM != null ? Math.round(distM / 67) : 99;
-                      return min <= 5
-                        ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
-                        : min <= 15
-                        ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
-                        : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
-                    })()}`}>
-                    <Navigation className="w-2 h-2 shrink-0" />
-                    {distLabel}
-                  </span>
-                ) : gpsLoading ? (
-                  <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
-                ) : null}
-              </div>
-              {/* ③元値＋販売価格（下） */}
-              <div className="flex flex-col items-end gap-[1px]">
-                {bag.originalPrice > bag.discountedPrice && (
-                  <span className="text-[9px] text-muted-foreground/40 line-through font-medium leading-none">
-                    ¥{bag.originalPrice.toLocaleString()}
-                  </span>
-                )}
-                <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
-                  ¥{bag.discountedPrice.toLocaleString()}
+              {distLabel ? (
+                <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[9px] px-1.5 py-[2px]
+                  ${(() => {
+                    const min = distM != null ? Math.round(distM / 67) : 99;
+                    return min <= 5
+                      ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
+                      : min <= 15
+                      ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
+                      : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
+                  })()}`}>
+                  <Navigation className="w-2 h-2 shrink-0" />
+                  {distLabel}
                 </span>
-              </div>
+              ) : gpsLoading ? (
+                <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
+              ) : null}
+              {bag.originalPrice > bag.discountedPrice && (
+                <span className="text-[9px] text-muted-foreground/40 line-through font-medium leading-none">
+                  ¥{bag.originalPrice.toLocaleString()}
+                </span>
+              )}
+              <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+                ¥{bag.discountedPrice.toLocaleString()}
+              </span>
             </div>
           )}
         </div>
