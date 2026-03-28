@@ -1349,15 +1349,15 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
 
     // ── Stripe Account Update パラメータを構築（部分更新 — 空フィールドは完全に除外）──
     const updateParams: Record<string, any> = {
-      business_type:    "individual",
+      business_type:    businessType,
       business_profile: businessProfileUpdate,
     };
 
     if (businessType === "individual") {
       const indiv: Record<string, any> = {};
-      // 氏名（カナ/漢字）— それぞれ独立して設定
-      if (representative.firstNameKana?.trim())  { indiv.first_name = representative.firstNameKana; indiv.first_name_kana = representative.firstNameKana; }
-      if (representative.lastNameKana?.trim())   { indiv.last_name  = representative.lastNameKana;  indiv.last_name_kana  = representative.lastNameKana;  }
+      // JP では first_name/last_name（Latin）は不要。kana/kanji のみ送る
+      if (representative.firstNameKana?.trim())  indiv.first_name_kana  = representative.firstNameKana;
+      if (representative.lastNameKana?.trim())   indiv.last_name_kana   = representative.lastNameKana;
       if (representative.firstNameKanji?.trim()) indiv.first_name_kanji = representative.firstNameKanji;
       if (representative.lastNameKanji?.trim())  indiv.last_name_kanji  = representative.lastNameKanji;
       // 生年月日（全フィールド揃っている場合のみ）
@@ -1368,9 +1368,8 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
           year:  Number(representative.dobYear),
         };
       }
-      // 住所（郵便番号が入力されている場合のみ）
+      // 住所: JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
-        indiv.address       = addressStandard;
         indiv.address_kanji = addressKanji;
         indiv.address_kana  = addressKana;
       }
@@ -1383,10 +1382,10 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       const companyObj: Record<string, any> = {};
       const fullNameKanji = `${representative.lastNameKanji ?? ''}${representative.firstNameKanji ?? ''}`.trim();
       const fullNameKana  = `${representative.lastNameKana  ?? ''}${representative.firstNameKana  ?? ''}`.trim();
-      if (fullNameKanji) companyObj.name      = fullNameKanji;
-      if (fullNameKana)  companyObj.name_kana = fullNameKana;
+      if (fullNameKanji) companyObj.name       = fullNameKanji;
+      if (fullNameKana)  companyObj.name_kana  = fullNameKana;
+      // JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
-        companyObj.address       = addressStandard;
         companyObj.address_kanji = addressKanji;
         companyObj.address_kana  = addressKana;
       }
@@ -1396,10 +1395,11 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       const rep: Record<string, any> = {
         relationship: { representative: true, owner: true, percent_ownership: 100 },
       };
-      if (representative.firstNameKanji?.trim()) rep.first_name = representative.firstNameKanji;
-      if (representative.lastNameKanji?.trim())  rep.last_name  = representative.lastNameKanji;
-      if (representative.firstNameKana?.trim())  rep.first_name_kana = representative.firstNameKana;
-      if (representative.lastNameKana?.trim())   rep.last_name_kana  = representative.lastNameKana;
+      // JP では rep.first_name/last_name（Latin）は不要。kana/kanji のみ
+      if (representative.firstNameKana?.trim())  rep.first_name_kana  = representative.firstNameKana;
+      if (representative.lastNameKana?.trim())   rep.last_name_kana   = representative.lastNameKana;
+      if (representative.firstNameKanji?.trim()) rep.first_name_kanji = representative.firstNameKanji;
+      if (representative.lastNameKanji?.trim())  rep.last_name_kanji  = representative.lastNameKanji;
       if (representative.dobDay && representative.dobMonth && representative.dobYear) {
         rep.dob = {
           day:   Number(representative.dobDay),
@@ -1407,8 +1407,8 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
           year:  Number(representative.dobYear),
         };
       }
+      // JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
-        rep.address       = addressStandard;
         rep.address_kanji = addressKanji;
         rep.address_kana  = addressKana;
       }
@@ -1907,8 +1907,9 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana ].filter(Boolean).join(" ");
 
       const indiv: Record<string, any> = {};
-      if (k.firstNameKana?.trim())  { indiv.first_name = k.firstNameKana;  indiv.first_name_kana = k.firstNameKana; }
-      if (k.lastNameKana?.trim())   { indiv.last_name  = k.lastNameKana;   indiv.last_name_kana  = k.lastNameKana;  }
+      // JP では first_name/last_name（Latin）は不要。kana/kanji のみ送る
+      if (k.firstNameKana?.trim())  indiv.first_name_kana  = k.firstNameKana;
+      if (k.lastNameKana?.trim())   indiv.last_name_kana   = k.lastNameKana;
       if (k.firstNameKanji?.trim()) indiv.first_name_kanji = k.firstNameKanji;
       if (k.lastNameKanji?.trim())  indiv.last_name_kanji  = k.lastNameKanji;
       if (k.dobDay && k.dobMonth && k.dobYear) {
