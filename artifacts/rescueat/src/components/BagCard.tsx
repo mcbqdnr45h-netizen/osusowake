@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles, Star } from 'lucide-react';
+import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles, Star, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
 import { SurpriseBagWithStore } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -48,6 +48,22 @@ function CompactDistanceBadge({ storeLat, storeLng }: { storeLat: number; storeL
       <Navigation className="w-2 h-2 shrink-0" />
       {label}
     </div>
+  );
+}
+
+/* ── compact右列用 距離テキスト（右揃えインライン） ── */
+function CompactDistanceInline({ storeLat, storeLng }: { storeLat: number; storeLng: number }) {
+  const { coords } = useUserLocation();
+  if (!coords || !storeLat || !storeLng) return null;
+  const meters = haversineMeters(coords.lat, coords.lng, storeLat, storeLng);
+  const label  = meters < 1000
+    ? `${Math.round(meters / 10) * 10}m`
+    : `${(meters / 1000).toFixed(1)}km`;
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/60 font-medium leading-none">
+      <MapPin className="w-2.5 h-2.5 shrink-0" />
+      {label}
+    </span>
   );
 }
 
@@ -292,39 +308,49 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
         ) : (
           <>
             {compact ? (
-              /* ── compact: 距離 ＋ 受取時間 ＋ 価格をシンプル表示 ── */
-              <div className="space-y-1 mt-0.5">
-                {/* 現在地からの距離 */}
-                {!isSoldOut && bag.store.lat && bag.store.lng && (
-                  <CompactDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} />
-                )}
-                {(bag.pickupStart || bag.pickupEnd) && (
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Clock className="w-2.5 h-2.5 text-primary shrink-0" />
-                    <span className="font-medium truncate">{bag.pickupStart}{bag.pickupEnd ? `〜${bag.pickupEnd}` : '〜'}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                    <Gift className={`w-2.5 h-2.5 shrink-0 ${isLowStock ? 'text-rose-500' : 'text-primary'}`} />
-                    <span className={isLowStock ? 'text-rose-600 font-bold' : 'font-medium'}>残り{bag.stockCount}個</span>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5 shrink-0">
+              /* ── compact: 受取時間(左) ＋ 価格情報縦列(右) ── */
+              <div className="mt-1.5 flex items-start justify-between gap-2">
+                {/* 左列: 受取時間 + 残り個数 */}
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Clock className="w-2.5 h-2.5 text-primary/70 shrink-0" />
+                      <span className="font-medium truncate">
+                        {bag.pickupStart}{bag.pickupEnd ? `〜${bag.pickupEnd}` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {!isSoldOut && (
+                    <div className="flex items-center gap-0.5 text-[10px]">
+                      <Gift className={`w-2.5 h-2.5 shrink-0 ${isLowStock ? 'text-rose-400' : 'text-primary/50'}`} />
+                      <span className={isLowStock ? 'text-rose-500 font-semibold' : 'text-muted-foreground'}>
+                        残り{bag.stockCount}個
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 右列: ①在庫アピール → ②距離 → ③元値 → ④販売価格 */}
+                {!isSoldOut ? (
+                  <div className="flex flex-col items-end gap-[3px] shrink-0">
                     {isLowStock && (
-                      <span className="text-[9px] font-black text-rose-500 leading-none">
+                      <span className="text-[9px] font-black text-rose-500 leading-none tracking-tight">
                         残りあと{bag.stockCount}個！
                       </span>
                     )}
+                    {bag.store.lat && bag.store.lng && (
+                      <CompactDistanceInline storeLat={bag.store.lat} storeLng={bag.store.lng} />
+                    )}
                     {bag.originalPrice > 0 && (
-                      <span className="text-[9px] text-muted-foreground/60 line-through font-medium leading-none">
+                      <span className="text-[10px] text-muted-foreground/45 line-through font-medium leading-none">
                         ¥{bag.originalPrice.toLocaleString()}
                       </span>
                     )}
-                    <span className="text-base font-black text-primary leading-none whitespace-nowrap">
+                    <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
                       ¥{bag.discountedPrice.toLocaleString()}
                     </span>
                   </div>
-                </div>
+                ) : null}
               </div>
             ) : (
               <>

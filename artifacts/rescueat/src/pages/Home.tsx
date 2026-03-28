@@ -205,26 +205,26 @@ function HorizBagCard({ bag, distM }: { bag: SurpriseBagWithStore; distM?: numbe
                 <span className="truncate">{formatPickupTime(bag.pickupStart, bag.pickupEnd)}</span>
               </div>
             )}
-            {distLabel && (
-              <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
-                <Navigation2 className="w-2 h-2 shrink-0" />
-                <span>{distLabel}</span>
-              </div>
-            )}
           </div>
           {!isSoldOut && (
-            <div className="flex flex-col items-end gap-0.5 shrink-0">
+            <div className="flex flex-col items-end gap-[3px] shrink-0">
               {isLowStock && (
-                <span className="text-[9px] font-black text-rose-500 leading-none">
+                <span className="text-[9px] font-black text-rose-500 leading-none tracking-tight">
                   残りあと{bag.stockCount}個！
                 </span>
               )}
+              {distLabel && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/60 font-medium leading-none">
+                  <MapPin className="w-2.5 h-2.5 shrink-0" />
+                  {distLabel}
+                </span>
+              )}
               {bag.originalPrice > 0 && (
-                <span className="text-[9px] text-muted-foreground/60 line-through font-medium leading-none">
+                <span className="text-[10px] text-muted-foreground/45 line-through font-medium leading-none">
                   ¥{bag.originalPrice.toLocaleString()}
                 </span>
               )}
-              <span className="text-sm font-black text-primary leading-none">
+              <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
                 ¥{bag.discountedPrice.toLocaleString()}
               </span>
             </div>
