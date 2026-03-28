@@ -86,7 +86,9 @@ function useLocalSettings(userId: string) {
     avatarColor: '#2D5A51',
     notifNewListing: true,
     notifFavoriteUpdate: true,
-    notifPoints: false,
+    notifNewOrder: true,
+    notifPickup: true,
+    notifAdmin: true,
   };
   const saved = raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
   function save(patch: Partial<typeof defaults>) {
@@ -177,7 +179,9 @@ export default function Settings() {
   const [favoriteGenres, setFavoriteGenres] = useState<string[]>(saved.favoriteGenres);
   const [notifNewListing, setNotifNewListing] = useState(saved.notifNewListing);
   const [notifFavoriteUpdate, setNotifFavoriteUpdate] = useState(saved.notifFavoriteUpdate);
-  const [notifPoints, setNotifPoints] = useState(saved.notifPoints);
+  const [notifNewOrder, setNotifNewOrder] = useState(saved.notifNewOrder);
+  const [notifPickup, setNotifPickup] = useState(saved.notifPickup);
+  const [notifAdmin, setNotifAdmin] = useState(saved.notifAdmin);
   const [editingProfile, setEditingProfile] = useState(false);
   const [saved_, setSaved_] = useState(false);
   const [savingName, setSavingName] = useState(false);
@@ -235,10 +239,12 @@ export default function Settings() {
     }
   }
 
-  function handleToggle(key: 'notifNewListing' | 'notifFavoriteUpdate' | 'notifPoints', val: boolean) {
-    if (key === 'notifNewListing') setNotifNewListing(val);
+  function handleToggle(key: 'notifNewListing' | 'notifFavoriteUpdate' | 'notifNewOrder' | 'notifPickup' | 'notifAdmin', val: boolean) {
+    if (key === 'notifNewListing')     setNotifNewListing(val);
     if (key === 'notifFavoriteUpdate') setNotifFavoriteUpdate(val);
-    if (key === 'notifPoints') setNotifPoints(val);
+    if (key === 'notifNewOrder')       setNotifNewOrder(val);
+    if (key === 'notifPickup')         setNotifPickup(val);
+    if (key === 'notifAdmin')          setNotifAdmin(val);
     save({ [key]: val });
   }
 
@@ -383,39 +389,66 @@ export default function Settings() {
           {/* ── NOTIFICATIONS ── */}
           <SectionLabel>通知設定</SectionLabel>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-1">
+            {isStoreOwner ? (
+              <>
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px] border-b border-border/60">
+                  <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">新規注文の通知</p>
+                    <p className="text-xs text-muted-foreground">お客様が購入した直後に通知</p>
+                  </div>
+                  <Toggle value={notifNewOrder} onChange={v => handleToggle('notifNewOrder', v)} />
+                </div>
 
-            <div className="flex items-center gap-3.5 px-4 min-h-[56px] border-b border-border/60">
-              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                <Bell className="w-4 h-4 text-blue-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm text-foreground">近隣店舗の新規出品</p>
-                <p className="text-xs text-muted-foreground">周辺に新しいバッグが出たとき</p>
-              </div>
-              <Toggle value={notifNewListing} onChange={v => handleToggle('notifNewListing', v)} />
-            </div>
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px] border-b border-border/60">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">受取完了の通知</p>
+                    <p className="text-xs text-muted-foreground">商品の受け渡しが完了したとき</p>
+                  </div>
+                  <Toggle value={notifPickup} onChange={v => handleToggle('notifPickup', v)} />
+                </div>
 
-            <div className="flex items-center gap-3.5 px-4 min-h-[56px] border-b border-border/60">
-              <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <Bell className="w-4 h-4 text-rose-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm text-foreground">お気に入り店舗の更新</p>
-                <p className="text-xs text-muted-foreground">フォロー中の店舗が出品したとき</p>
-              </div>
-              <Toggle value={notifFavoriteUpdate} onChange={v => handleToggle('notifFavoriteUpdate', v)} />
-            </div>
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px]">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">審査・重要なお知らせ</p>
+                    <p className="text-xs text-muted-foreground">審査結果・Stripe関連の重要通知</p>
+                  </div>
+                  <Toggle value={notifAdmin} onChange={v => handleToggle('notifAdmin', v)} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px] border-b border-border/60">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">近隣店舗の新規出品</p>
+                    <p className="text-xs text-muted-foreground">周辺に新しいバッグが出たとき</p>
+                  </div>
+                  <Toggle value={notifNewListing} onChange={v => handleToggle('notifNewListing', v)} />
+                </div>
 
-            <div className="flex items-center gap-3.5 px-4 min-h-[56px]">
-              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                <Bell className="w-4 h-4 text-amber-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm text-foreground">ポイント・キャンペーン通知</p>
-                <p className="text-xs text-muted-foreground">ポイント失効やお得情報</p>
-              </div>
-              <Toggle value={notifPoints} onChange={v => handleToggle('notifPoints', v)} />
-            </div>
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px]">
+                  <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4 text-rose-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">お気に入り店舗の更新</p>
+                    <p className="text-xs text-muted-foreground">フォロー中の店舗が出品したとき</p>
+                  </div>
+                  <Toggle value={notifFavoriteUpdate} onChange={v => handleToggle('notifFavoriteUpdate', v)} />
+                </div>
+              </>
+            )}
           </div>
 
           {/* ── LOGOUT ── */}

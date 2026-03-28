@@ -24,7 +24,7 @@ function GuestPlaceholderScreen() {
   const features = [
     { icon: Package, label: 'お届け', desc: '購入した商品の受取チケットを確認' },
     { icon: Heart,   label: 'お気に入り', desc: 'お気に入りの店舗をリスト管理' },
-    { icon: User,    label: 'マイページ', desc: 'プロフィール・ポイント・設定' },
+    { icon: User,    label: 'マイページ', desc: 'プロフィール・ご利用設定' },
   ];
 
   return (

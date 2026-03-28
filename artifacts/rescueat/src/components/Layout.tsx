@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   Map, MapPin, Package, Heart, User, Menu, X,
-  FileText, Shield, Store, Settings, ChevronRight, Coins, BarChart2,
+  FileText, Shield, Store, Settings, ChevronRight, BarChart2,
   MessageCircle, HelpCircle, ExternalLink, ShieldCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -186,12 +186,6 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                                 }`}>
                                   {profile?.role === 'store_owner' ? '🏪 店舗オーナー' : '👤 お客様'}
                                 </span>
-                                {profile && (
-                                  <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-600">
-                                    <Coins className="w-3 h-3" />
-                                    {profile.points_balance.toLocaleString()} pt
-                                  </span>
-                                )}
                               </div>
                             </div>
                             <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />

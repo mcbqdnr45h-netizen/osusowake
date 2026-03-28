@@ -167,7 +167,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: data.user.id,
         email: data.user.email!,
         role: 'customer',
-        points_balance: 0,
         full_name: name.trim(),
         phone_number: normalizedPhone,
       }, { onConflict: 'id' });
@@ -209,7 +208,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: data.user.id,
         email: data.user.email!,
         role: 'store_owner',
-        points_balance: 0,
         full_name: name.trim(),
         phone_number: normalizedPhone,
       }, { onConflict: 'id' });
@@ -253,14 +251,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               id: data.user.id,
               email: data.user.email!,
               role: forceRole,
-              points_balance: 0,
             });
           }
         }
 
         // プロフィール取得（5秒タイムアウト）
         const profResult = await raceTimeout(
-          supabase.from('users').select('role, points_balance, email, full_name, phone_number, display_name')
+          supabase.from('users').select('role, email, full_name, phone_number, display_name')
             .eq('id', data.user.id).single().then(r => r),
           5000
         );
@@ -277,7 +274,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: data.user.id,
             email: prof.email,
             role: sessionRole,
-            points_balance: prof.points_balance,
             full_name: prof.full_name ?? null,
             phone_number: prof.phone_number ?? null,
             display_name: prof.display_name ?? null,
@@ -291,7 +287,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: data.user.id,
             email: data.user.email!,
             role: forceRole ?? 'customer',
-            points_balance: 0,
             full_name: null,
             phone_number: null,
             display_name: null,
@@ -309,7 +304,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: data.user.id,
           email: data.user.email!,
           role: forceRole ?? 'customer',
-          points_balance: 0,
           full_name: null,
           phone_number: null,
           display_name: null,
