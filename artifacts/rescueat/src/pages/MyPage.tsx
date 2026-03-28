@@ -465,45 +465,20 @@ export default function MyPage() {
             {/* スクロール可能なコンテンツ */}
             <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 py-4 space-y-3">
 
-              {/* ── アクティビティ ── */}
-              <div>
-                <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アクティビティ</p>
-                <div className="bg-card rounded-2xl overflow-hidden"
-                  style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
-                  <Link
-                    href="/orders"
-                    onClick={() => setShowSettings(false)}
-                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
-                  >
-                    <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
-                      <Receipt className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 font-bold text-foreground text-sm">購入履歴・領収書</div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </Link>
-                  <Link
-                    href="/my-reservations"
-                    onClick={() => setShowSettings(false)}
-                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
-                  >
-                    <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
-                      <ShoppingBag className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 font-bold text-foreground text-sm">マイバック</div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </Link>
-                  <Link
-                    href="/favorites"
-                    onClick={() => setShowSettings(false)}
-                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors"
-                  >
-                    <div className="w-9 h-9 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shrink-0">
-                      <Heart className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 font-bold text-foreground text-sm">お気に入り店舗</div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </Link>
-                </div>
+              {/* ── 購入履歴 ── */}
+              <div className="bg-card rounded-2xl overflow-hidden"
+                style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                <Link
+                  href="/orders"
+                  onClick={() => setShowSettings(false)}
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors"
+                >
+                  <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 font-bold text-foreground text-sm">購入履歴・領収書</div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
               </div>
 
               {/* ── 店舗管理（店舗オーナーのみ） ── */}
