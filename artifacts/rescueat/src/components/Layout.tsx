@@ -278,7 +278,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
       {/* ── Footer ───────────────────────────────────────────────────── */}
       {!hideFooter && (
         <footer
-          className="bg-white border-t border-border/40 mt-auto"
+          className={`bg-white border-t border-border/40 mt-auto ${showBottomNav ? 'hidden md:block' : ''}`}
           style={{ boxShadow: '0 -1px 0 rgba(0,0,0,0.04)' }}
         >
           {/* ─── Desktop Full Footer ─── */}

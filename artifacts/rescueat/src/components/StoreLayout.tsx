@@ -32,7 +32,6 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
   return (
     <div
       className="min-h-dvh flex flex-col bg-[#FAFAF8] text-foreground"
-      style={{ paddingBottom: shouldShowNav ? 'calc(72px + env(safe-area-inset-bottom))' : undefined }}
     >
       {/* ── ストアヘッダー ───────────────────────────────────── */}
       {showHeader && (
@@ -72,8 +71,16 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
       )}
 
       {/* ── メインコンテンツ ─────────────────────────────────── */}
-      <main className="flex-1 min-h-0 w-full flex flex-col">
+      <main className="flex-1 w-full flex flex-col">
         {children}
+        {/* ボトムナビ分のスペーサー（固定ナビによるコンテンツ隠れ防止） */}
+        {shouldShowNav && (
+          <div
+            className="shrink-0"
+            style={{ height: 'calc(62px + env(safe-area-inset-bottom))' }}
+            aria-hidden="true"
+          />
+        )}
       </main>
 
       {/* ── 店舗専用ボトムナビ ──────────────────────────────── */}
