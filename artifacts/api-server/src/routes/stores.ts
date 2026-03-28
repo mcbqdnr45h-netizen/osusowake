@@ -2030,18 +2030,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
         step4Payload.company = companyObj;
         console.log(`[bank-setup] BG company obj: name="${companyObj.name}" name_kana="${companyObj.name_kana}"`);
-
-        // 法人: 代表者情報は "representative" キー（"individual" は個人事業主専用）
-        // ⚠️ id_number・political_exposure は representative に含めてはいけない — Stripe がリクエスト全体を拒否する
-        // ⚠️ executive: true は Stripe JP 法人の代表者に必須
-        if (Object.keys(indiv).length > 0) {
-          const { id_number: _idNum, political_exposure: _polExp, ...repData } = indiv;
-          step4Payload.representative = {
-            ...repData,
-            relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
-          };
-          console.log(`[bank-setup] BG representative keys: ${Object.keys(repData).join(", ")}`);
-        }
+        // ⚠️ 法人の代表者は accounts.update の "representative" キーでは設定できない（Stripe が拒否する）
+        // → Persons API で accounts.update の後に別途登録する
       } else {
         // 個人事業主: id_number（マイナンバー12桁）と political_exposure を追加してから individual キーに設定
         // テスト環境では "000000000000" が受け入れられる
@@ -2069,6 +2059,50 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       } catch (kycErr: any) {
         console.warn(`⚠️  [bank-setup] BG STEP4 accounts.update FAILED: ${kycErr?.raw?.message ?? kycErr?.message}`);
         console.warn(`   type: ${kycErr?.type}, code: ${kycErr?.raw?.code ?? kycErr?.code}, param: ${kycErr?.raw?.param ?? kycErr?.param}`);
+      }
+
+      // STEP 4b: 法人の場合 — 代表者を Persons API で登録/更新
+      // accounts.update は "representative" パラメータを受け付けないため必ずこちらで設定する
+      if (businessType === "company" && Object.keys(indiv).length > 0) {
+        const { id_number: _idNum, political_exposure: _polExp, ...repData } = indiv;
+        const personPayload = {
+          ...repData,
+          relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
+        };
+        console.log(`[bank-setup] BG STEP4b Persons API — keys: ${Object.keys(repData).join(", ")}`);
+        try {
+          // 既存の代表者 Person があれば update、なければ create
+          const existingPersons = await stripeCall(
+            stripe.accounts.persons.list(accountId!, { limit: 10 }),
+            "persons.list", 10000
+          ) as any;
+          const existingRep = (existingPersons?.data ?? []).find((p: any) => p.relationship?.representative === true);
+          if (existingRep) {
+            await stripeCall(
+              stripe.accounts.persons.update(accountId!, existingRep.id, personPayload as any),
+              "persons.update(representative)", 30000
+            );
+            console.log(`✅ [bank-setup] BG STEP4b Persons.update representative id=${existingRep.id}`);
+          } else {
+            const created = await stripeCall(
+              stripe.accounts.persons.create(accountId!, personPayload as any),
+              "persons.create(representative)", 30000
+            ) as any;
+            console.log(`✅ [bank-setup] BG STEP4b Persons.create representative id=${created?.id}`);
+          }
+          // 最新の charges_enabled を取得
+          const refreshed = await stripeCall(
+            stripe.accounts.retrieve(accountId!),
+            "accounts.retrieve(post-persons)", 10000
+          ) as any;
+          if (refreshed?.charges_enabled === true) kycChargesEnabled = true;
+          console.log(`   post-persons charges_enabled=${refreshed?.charges_enabled}`);
+          console.log(`   post-persons currently_due: ${JSON.stringify(refreshed?.requirements?.currently_due)}`);
+          console.log(`   post-persons eventually_due: ${JSON.stringify(refreshed?.requirements?.eventually_due)}`);
+        } catch (personErr: any) {
+          console.warn(`⚠️  [bank-setup] BG STEP4b Persons API FAILED: ${personErr?.raw?.message ?? personErr?.message}`);
+          console.warn(`   type: ${personErr?.type}, code: ${personErr?.raw?.code ?? personErr?.code}, param: ${personErr?.raw?.param ?? personErr?.param}`);
+        }
       }
 
       // STEP 5: DB 更新 + オーナーの role を確実に store_owner に設定
@@ -2166,35 +2200,42 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
       ? await supabaseAdmin.auth.admin.getUserById(store.ownerId).then(r => r.data?.user?.email ?? null).catch(() => null)
       : null;
 
-    if (isCompany) {
-      // ─── 法人: representative キーに送る ───
-      const rep: Record<string, any> = {
-        relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
-      };
-      if (due.some(f => f.includes("representative.first_name"))) {
-        rep.first_name_kana  = "テスト";
-        rep.first_name_kanji = "テスト";
-      }
-      if (due.some(f => f.includes("representative.last_name"))) {
-        rep.last_name_kana  = "テスト";
-        rep.last_name_kanji = "テスト";
-      }
-      if (due.some(f => f.includes("representative.dob"))) {
-        rep.dob = { day: 1, month: 1, year: 1990 };
-      }
-      if (due.some(f => f.includes("representative.address"))) {
-        rep.address_kanji = { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" };
-        rep.address_kana  = { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" };
-      }
-      if (due.some(f => f.includes("representative.phone"))) {
-        rep.phone = "+810600000000";
-      }
-      if (due.some(f => f.includes("representative.email"))) {
-        rep.email = ownerEmail ?? "test@example.com";
-      }
-      if (Object.keys(rep).length > 1) payload.representative = rep; // relationship は常に含まれるので > 1
+    // ⚠️ 法人の representative は accounts.update に含めると "parameter_unknown" エラーになる
+    // → personRepPayload に分離し、accounts.update 後に Persons API で登録する
+    let personRepPayload: Record<string, any> | null = null;
 
-      // 法人情報（company オブジェクト）
+    if (isCompany) {
+      // ─── 法人: representative は Persons API で別途設定 ───
+      const hasRepDue = due.some(f => f.startsWith("representative.") || f.startsWith("person."));
+      if (hasRepDue) {
+        const rep: Record<string, any> = {
+          relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
+        };
+        if (due.some(f => f.includes("representative.first_name"))) {
+          rep.first_name_kana  = "テスト";
+          rep.first_name_kanji = "テスト";
+        }
+        if (due.some(f => f.includes("representative.last_name"))) {
+          rep.last_name_kana  = "テスト";
+          rep.last_name_kanji = "テスト";
+        }
+        if (due.some(f => f.includes("representative.dob"))) {
+          rep.dob = { day: 1, month: 1, year: 1990 };
+        }
+        if (due.some(f => f.includes("representative.address"))) {
+          rep.address_kanji = { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" };
+          rep.address_kana  = { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" };
+        }
+        if (due.some(f => f.includes("representative.phone"))) {
+          rep.phone = "+810600000000";
+        }
+        if (due.some(f => f.includes("representative.email"))) {
+          rep.email = ownerEmail ?? "test@example.com";
+        }
+        personRepPayload = rep;
+      }
+
+      // 法人情報（company オブジェクト）は accounts.update で送れる
       if (due.some(f => f.includes("company."))) {
         payload.company = {
           address_kanji: { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" },
@@ -2254,20 +2295,42 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
 
     console.log(`📤 [fill-req] accounts.update payload for ${accountId}:`, JSON.stringify(payload, null, 2));
     const updated = await stripe.accounts.update(accountId, payload as any);
+    console.log(`✅ [fill-req] accounts.update done. charges_enabled=${updated.charges_enabled}`);
 
+    // 法人の場合: representative を Persons API で登録/更新
+    if (personRepPayload) {
+      console.log(`📤 [fill-req] Persons API for representative:`, JSON.stringify(personRepPayload, null, 2));
+      try {
+        const existingPersons = await stripe.accounts.persons.list(accountId, { limit: 10 });
+        const existingRep = (existingPersons.data ?? []).find((p: any) => p.relationship?.representative === true);
+        if (existingRep) {
+          await stripe.accounts.persons.update(accountId, existingRep.id, personRepPayload as any);
+          console.log(`✅ [fill-req] Persons.update representative id=${existingRep.id}`);
+        } else {
+          const created = await stripe.accounts.persons.create(accountId, personRepPayload as any) as any;
+          console.log(`✅ [fill-req] Persons.create representative id=${created?.id}`);
+        }
+      } catch (personErr: any) {
+        console.warn(`⚠️  [fill-req] Persons API FAILED: ${personErr?.raw?.message ?? personErr?.message}`);
+        console.warn(`   param: ${personErr?.raw?.param ?? personErr?.param}`);
+      }
+    }
+
+    // 最新の状態を取得（Persons API 後に requirements が変わる可能性がある）
+    const finalAccount = await stripe.accounts.retrieve(accountId);
     const remaining = [
-      ...(updated.requirements?.currently_due  ?? []),
-      ...(updated.requirements?.eventually_due ?? []),
+      ...(finalAccount.requirements?.currently_due  ?? []),
+      ...(finalAccount.requirements?.eventually_due ?? []),
     ];
     console.log(`✅ [fill-req] Done. Remaining requirements:`, JSON.stringify(remaining));
 
     res.json({
       success:              true,
       accountId,
-      charges_enabled:      updated.charges_enabled,
-      payouts_enabled:      updated.payouts_enabled,
+      charges_enabled:      finalAccount.charges_enabled,
+      payouts_enabled:      finalAccount.payouts_enabled,
       remaining_due:        remaining,
-      payout_schedule:      (updated.settings as any)?.payouts?.schedule,
+      payout_schedule:      (finalAccount.settings as any)?.payouts?.schedule,
     });
   } catch (err: any) {
     console.error(`❌ [fill-req] Error:`, err?.raw?.message ?? err?.message);
