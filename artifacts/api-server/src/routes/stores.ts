@@ -359,7 +359,8 @@ router.post("/stores/upload-document", async (req, res) => {
   }
 });
 
-// Public: auto-review a store application — runs validation and approves if all checks pass
+// Public: review readiness check — validates required fields but does NOT auto-approve
+// Approval is manual, performed by an admin in the admin dashboard
 router.post("/stores/:storeId/auto-review", async (req, res) => {
   try {
     const storeId = parseInt(req.params.storeId);
@@ -383,21 +384,16 @@ router.post("/stores/:storeId/auto-review", async (req, res) => {
 
     const allPassed = checks.every(c => c.passed);
 
-    if (allPassed) {
-      // 全チェック通過 → 自動承認
-      const [approved] = await db
-        .update(storesTable)
-        .set({ status: "approved", isActive: true })
-        .where(eq(storesTable.id, storeId))
-        .returning();
-
-      console.log(`✅ Auto-approved store ${storeId}: ${store.name}`);
-      return res.json({ approved: true, checks, store: approved });
-    }
-
-    // 未通過がある場合は pending のまま
+    // ステータスは変更しない — 承認は管理者が手動で行う
+    console.log(`[auto-review] store ${storeId} allPassed=${allPassed} (no auto-approval)`);
     const failed = checks.filter(c => !c.passed).map(c => c.label);
-    return res.json({ approved: false, checks, reason: `未記入の項目があります: ${failed.join(', ')}` });
+    return res.json({
+      approved: false,
+      ready: allPassed,
+      checks,
+      reason: allPassed ? null : `未記入の項目があります: ${failed.join(', ')}`,
+      store,
+    });
   } catch (err) {
     console.error("Auto-review error:", err);
     res.status(500).json({ error: "internal_error", message: "Review failed" });
@@ -1266,30 +1262,28 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     console.log(`   requirements.disabled_reason: ${account.requirements?.disabled_reason}`);
 
     // currently_due が空 = Stripe への必須送信フィールドがすべて揃った
-    // → 即座に DBステータスを 'approved' に更新してマイページの読み込みを終了させる
+    // → DB ステータスを 'applied'（口座登録済み・審査待ち）に更新。承認は管理者が手動で行う
     const eventuallyDue = account.requirements?.eventually_due ?? [];
     const currentlyDue  = account.requirements?.currently_due ?? [];
     const kycComplete   = currentlyDue.length === 0;   // currently_due 空 = 送信完了
 
-    let newStatus: string | null = null;
     if (kycComplete) {
       await db
         .update(storesTable)
-        .set({ status: "approved" })
+        .set({ status: "applied" })
         .where(eq(storesTable.id, storeId));
-      newStatus = "approved";
       console.log(
-        `✅ Store ${storeId} status → 'approved'` +
+        `✅ Store ${storeId} status → 'applied' (KYC complete — awaiting admin approval)` +
         (eventuallyDue.length > 0
-          ? ` (currently_due 空 / eventually_due ${eventuallyDue.length} 件残: ${JSON.stringify(eventuallyDue)})`
-          : " (KYC 完全完了)")
+          ? ` (eventually_due ${eventuallyDue.length} 件残: ${JSON.stringify(eventuallyDue)})`
+          : "")
       );
     }
 
     res.json({
       success: true,
       kycComplete,
-      storeStatus: newStatus ?? "applied",
+      storeStatus: kycComplete ? "applied" : "applied",
       chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled,
       detailsSubmitted: account.details_submitted,
@@ -1396,7 +1390,7 @@ router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
     console.log(`   requirements.eventually_due: ${JSON.stringify(account.requirements?.eventually_due)}`);
     console.log(`   requirements.pending_verification: ${JSON.stringify(account.requirements?.pending_verification)}`);
 
-    // ── currently_due が空になれば DB を 'approved' に ──
+    // ── currently_due が空になっても 'applied' のまま。承認は管理者が手動で行う ──
     const currentlyDue  = account.requirements?.currently_due  ?? [];
     const eventuallyDue = account.requirements?.eventually_due ?? [];
     const pendingVer    = account.requirements?.pending_verification ?? [];
@@ -1405,9 +1399,9 @@ router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
     if (kycComplete) {
       await db
         .update(storesTable)
-        .set({ status: "approved" })
+        .set({ status: "applied" })
         .where(eq(storesTable.id, storeId));
-      console.log(`✅ Store ${storeId} status → 'approved' (doc upload cleared currently_due)`);
+      console.log(`✅ Store ${storeId} status → 'applied' (doc upload cleared currently_due — awaiting admin approval)`);
     }
 
     res.json({
@@ -1415,7 +1409,7 @@ router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
       fileId:     file.id,
       side,
       kycComplete,
-      storeStatus: kycComplete ? "approved" : "applied",
+      storeStatus: "applied",
       requirements: {
         currentlyDue,
         eventuallyDue,
@@ -1763,11 +1757,12 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
 
       // STEP 5: DB 更新 + オーナーの role を確実に store_owner に設定
+      // status は 'applied'（口座登録済み）にする。承認は管理者が手動で行う
       await db.update(storesTable).set({
-        status: "approved",
+        status: "applied",
         ...(licenseImageUrl ? { licenseImageUrl } : {}),
       }).where(eq(storesTable.id, storeId));
-      console.log(`✅ [bank-setup] BG Store ${storeId} status → 'approved'`);
+      console.log(`✅ [bank-setup] BG Store ${storeId} status → 'applied' (awaiting admin approval)`);
 
       if (store.ownerId) {
         try {
@@ -1781,7 +1776,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     } catch (bgErr: any) {
       console.error(`❌ [bank-setup] BG error:`, bgErr?.message ?? bgErr);
       try {
-        await db.update(storesTable).set({ status: "approved" }).where(eq(storesTable.id, storeId));
+        await db.update(storesTable).set({ status: "applied" }).where(eq(storesTable.id, storeId));
       } catch (_) {}
       // フォールバック: role 更新を試みる
       if (store.ownerId) {
