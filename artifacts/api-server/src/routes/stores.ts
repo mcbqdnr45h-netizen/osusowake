@@ -470,6 +470,13 @@ router.post("/admin/stores/:storeId/approve", async (req, res) => {
       res.status(400).json({ error: "bad_request", message: "Invalid store ID" });
       return;
     }
+
+    // 承認前に既存 stripeAccountId を取得
+    const [storeRow] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
     const [updated] = await db
       .update(storesTable)
       .set({ status: "approved" })
@@ -480,7 +487,51 @@ router.post("/admin/stores/:storeId/approve", async (req, res) => {
       res.status(404).json({ error: "not_found", message: "Store not found" });
       return;
     }
-    res.json({ ...updated, totalBagsAvailable: 0 });
+
+    // ── Stripe 連携状態をチェック（承認とは独立して確認）──
+    let stripeStatus: {
+      ok: boolean;
+      chargesEnabled: boolean;
+      payoutsEnabled: boolean;
+      hasAccount: boolean;
+      currentlyDue: string[];
+      errors: { code: string; reason: string; requirement: string }[];
+    } = {
+      ok: false,
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      hasAccount: !!storeRow?.stripeAccountId,
+      currentlyDue: [],
+      errors: [],
+    };
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (stripeKey && storeRow?.stripeAccountId) {
+      try {
+        const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+        const account = await stripe.accounts.retrieve(storeRow.stripeAccountId);
+        const due    = account.requirements?.currently_due ?? [];
+        const errors = (account.requirements?.errors ?? []).map((e: any) => ({
+          code:        e.code        ?? "",
+          reason:      e.reason      ?? "",
+          requirement: e.requirement ?? "",
+        }));
+        stripeStatus = {
+          ok:             account.charges_enabled === true,
+          chargesEnabled: account.charges_enabled === true,
+          payoutsEnabled: account.payouts_enabled === true,
+          hasAccount:     true,
+          currentlyDue:   due,
+          errors,
+        };
+        console.log(`[approve] Stripe check for ${storeRow.stripeAccountId}: charges=${account.charges_enabled} payouts=${account.payouts_enabled} due=${due.length}`);
+      } catch (stripeErr: any) {
+        console.warn(`[approve] Stripe status check failed: ${stripeErr?.message}`);
+        stripeStatus.hasAccount = true;
+      }
+    }
+
+    res.json({ ...updated, totalBagsAvailable: 0, stripeStatus });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error", message: "Failed to approve store" });

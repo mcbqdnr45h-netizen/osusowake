@@ -14,6 +14,34 @@ import { fetchAppSettings } from '@/hooks/use-app-settings';
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
 
+const STRIPE_FIELD_JA: Record<string, string> = {
+  'individual.first_name_kana':          '代表者の名前（カナ）',
+  'individual.last_name_kana':           '代表者の名前（カナ）',
+  'individual.first_name_kanji':         '代表者の名前（漢字）',
+  'individual.last_name_kanji':          '代表者の名前（漢字）',
+  'individual.dob.day':                  '代表者の生年月日',
+  'individual.dob.month':                '代表者の生年月日',
+  'individual.dob.year':                 '代表者の生年月日',
+  'individual.address_kana.postal_code': '代表者の住所（カナ）郵便番号',
+  'individual.address_kana.city':        '代表者の住所（カナ）市区町村',
+  'individual.address_kana.town':        '代表者の住所（カナ）町名',
+  'individual.address_kana.line1':       '代表者の住所（カナ）番地',
+  'individual.address_kanji.postal_code':'代表者の住所（漢字）郵便番号',
+  'individual.address_kanji.city':       '代表者の住所（漢字）市区町村',
+  'individual.address_kanji.town':       '代表者の住所（漢字）町名',
+  'individual.address_kanji.line1':      '代表者の住所（漢字）番地',
+  'individual.email':                    '代表者のメールアドレス',
+  'individual.phone':                    '代表者の電話番号',
+  'individual.id_number':                'マイナンバー（個人番号）',
+  'individual.verification.document':    '本人確認書類',
+  'business_profile.product_description':'商品・サービスの説明',
+  'external_account':                    '振込先銀行口座',
+  'tos_acceptance.date':                 '利用規約の同意',
+  'tos_acceptance.service_agreement':    '利用規約（サービス契約）',
+  'company.name':                        '法人名（漢字）',
+  'company.name_kana':                   '法人名（カナ）',
+};
+
 interface Metrics {
   gmv: number;
   platformFee: number;
@@ -198,6 +226,17 @@ export default function AdminDashboard() {
   // 却下モーダル
   const [rejectDialog, setRejectDialog] = useState<{ storeId: number; storeName: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  // Stripe警告モーダル（承認後にStripe未連携が発覚した場合）
+  const [stripeWarnModal, setStripeWarnModal] = useState<{
+    storeName: string;
+    status: {
+      chargesEnabled: boolean;
+      payoutsEnabled: boolean;
+      hasAccount: boolean;
+      currentlyDue: string[];
+      errors: { code: string; reason: string; requirement: string }[];
+    };
+  } | null>(null);
   const [expandedLead, setExpandedLead]   = useState<number | null>(null);
   const [storeDetails, setStoreDetails]   = useState<Record<number, AdminStoreDetail>>({});
   const [detailLoading, setDetailLoading] = useState<number | null>(null);
@@ -274,8 +313,18 @@ export default function AdminDashboard() {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) { toast({ title: '✅ 承認しました' }); await fetchAll(); }
-      else toast({ title: 'エラー', description: '承認に失敗しました', variant: 'destructive' });
+      if (res.ok) {
+        const data = await res.json();
+        await fetchAll();
+        if (data.stripeStatus && !data.stripeStatus.ok) {
+          const storeName = stores.find(st => st.id === storeId)?.name ?? '店舗';
+          setStripeWarnModal({ storeName, status: data.stripeStatus });
+        } else {
+          toast({ title: '✅ 承認しました' });
+        }
+      } else {
+        toast({ title: 'エラー', description: '承認に失敗しました', variant: 'destructive' });
+      }
     } finally { setActionLoading(null); }
   }
 
@@ -1228,6 +1277,104 @@ export default function AdminDashboard() {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* ── Stripe 未連携 警告モーダル ── */}
+      <AnimatePresence>
+        {stripeWarnModal && (() => {
+          const s = stripeWarnModal.status;
+          // currently_due を日本語に変換して重複排除
+          const dueJa = [...new Set(
+            s.currentlyDue.map(f => STRIPE_FIELD_JA[f] ?? f)
+          )];
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+              onClick={() => setStripeWarnModal(null)}
+            >
+              <motion.div
+                initial={{ y: 60, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 60, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* ヘッダー */}
+                <div className="bg-amber-50 border-b border-amber-200 px-5 py-4 flex items-start gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-black text-amber-900 text-sm">承認完了 — Stripe未連携を検出</p>
+                    <p className="text-xs text-amber-700 truncate mt-0.5">{stripeWarnModal.storeName}</p>
+                  </div>
+                </div>
+
+                <div className="px-5 py-4 space-y-4">
+                  {/* Stripe ステータスバッジ */}
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${s.chargesEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      {s.chargesEnabled ? '✅' : '❌'} 支払受取
+                    </span>
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${s.payoutsEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      {s.payoutsEnabled ? '✅' : '❌'} 銀行振込
+                    </span>
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${s.hasAccount ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                      {s.hasAccount ? '✅' : '❌'} Stripe口座
+                    </span>
+                  </div>
+
+                  {/* 未送信フィールド一覧 */}
+                  {dueJa.length > 0 && (
+                    <div>
+                      <p className="text-xs font-black text-foreground mb-2 uppercase tracking-wider">Stripeへ未送信の必須項目</p>
+                      <ul className="space-y-1">
+                        {dueJa.map((label, i) => (
+                          <li key={i} className="flex items-center gap-2 text-xs text-red-700 bg-red-50 rounded-lg px-3 py-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                            {label}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Stripe エラー詳細 */}
+                  {s.errors.length > 0 && (
+                    <div>
+                      <p className="text-xs font-black text-foreground mb-2 uppercase tracking-wider">Stripeエラー詳細</p>
+                      <ul className="space-y-1.5">
+                        {s.errors.map((e, i) => (
+                          <li key={i} className="text-[11px] text-foreground/70 bg-secondary/50 rounded-lg px-3 py-2">
+                            <span className="font-bold text-red-600">{STRIPE_FIELD_JA[e.requirement] ?? e.requirement}</span>
+                            {e.reason && <span className="block text-muted-foreground mt-0.5">{e.reason}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-muted-foreground bg-secondary/50 rounded-xl px-3 py-2.5">
+                    店舗の承認はDB上では完了しています。オーナーにStripe KYCの再送信を依頼するか、StripeダッシュボードでAccount IDを確認してください。
+                  </p>
+                </div>
+
+                <div className="px-5 pb-5">
+                  <button
+                    onClick={() => setStripeWarnModal(null)}
+                    className="w-full py-3 rounded-xl font-black text-sm bg-amber-500 hover:bg-amber-600 text-white transition-colors active:scale-95"
+                  >
+                    確認しました
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );
