@@ -197,6 +197,7 @@ export default function StripeKYCPage() {
   const [line1Kana, setLine1Kana]             = useState('');
   const [companyNameKanji, setCompanyNameKanji]     = useState('');
   const [companyNameKana, setCompanyNameKana]       = useState('');
+  const [companyNameLatin, setCompanyNameLatin]     = useState('');
   const [companyStructure, setCompanyStructure]     = useState('');
   const [productDescription, setProductDescription] = useState('');
   const [businessUrl, setBusinessUrl]         = useState('');
@@ -294,7 +295,8 @@ export default function StripeKYCPage() {
     stateKanji && cityKanji && townKanji &&
     stateKana && cityKana && townKana &&
     productDescription.trim().length >= 10 &&
-    !!docFrontPreview;
+    !!docFrontPreview &&
+    (businessType !== 'company' || companyNameLatin.trim().length > 0);
 
   // ── 送信（テキスト情報 + 書類画像を一括並行送信） ──
   const handleSubmit = async (e: React.FormEvent) => {
@@ -320,6 +322,7 @@ export default function StripeKYCPage() {
           ...(businessType === 'company' ? {
             companyNameKanji: companyNameKanji.trim() || undefined,
             companyNameKana:  companyNameKana.trim()  || undefined,
+            companyNameLatin: companyNameLatin.trim() || undefined,
             companyStructure: companyStructure        || undefined,
           } : {}),
           representative: {
@@ -740,6 +743,10 @@ export default function StripeKYCPage() {
               <FieldWrap label="法人名（カナ）" required hint="全角カタカナ" error={fieldErrors.companyNameKana}>
                 <input type="text" value={companyNameKana} onChange={e => setCompanyNameKana(e.target.value)}
                   placeholder="カブシキガイシャ〇〇フード" required className={fieldClass('companyNameKana')} />
+              </FieldWrap>
+              <FieldWrap label="法人名（英語/ローマ字）" required hint="ラテン文字で入力（例: Kabushiki Gaisha OO Food）" error={fieldErrors.companyNameLatin}>
+                <input type="text" value={companyNameLatin} onChange={e => setCompanyNameLatin(e.target.value)}
+                  placeholder="Kabushiki Gaisha OO Food" required className={fieldClass('companyNameLatin')} />
               </FieldWrap>
             </Section>
           )}

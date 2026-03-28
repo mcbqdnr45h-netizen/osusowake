@@ -1502,13 +1502,13 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     // ── 法人代表者を Persons API で登録/更新（accounts.update では設定不可）──
     if (businessType === 'company' && repPersonPayload !== null) {
       try {
-        const kyc_existingPersons = await stripe.accounts.persons.list(store.stripeAccountId, { limit: 10 });
+        const kyc_existingPersons = await stripe.accounts.listPersons(store.stripeAccountId, { limit: 10 });
         const kyc_existing = kyc_existingPersons.data.find(p => p.relationship?.representative);
         if (kyc_existing) {
-          await stripe.accounts.persons.update(store.stripeAccountId, kyc_existing.id, repPersonPayload as any);
+          await stripe.accounts.updatePerson(store.stripeAccountId, kyc_existing.id, repPersonPayload as any);
           console.log(`[KYC] Persons.update done — ${kyc_existing.id}`);
         } else {
-          const np = await stripe.accounts.persons.create(store.stripeAccountId, repPersonPayload as any);
+          const np = await stripe.accounts.createPerson(store.stripeAccountId, repPersonPayload as any);
           console.log(`[KYC] Persons.create done — ${np.id}`);
         }
       } catch (perr: any) {
@@ -1966,12 +1966,174 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
     }
 
-    // STEP1-2 完了 → クライアントにレスポンスを返す（BG は次に開始）
-    console.log(`✅ [bank-setup] STEP1-2 complete — responding to client`);
+    // ── STEP 4: KYC 更新（同期 — 代表者データを確実に Stripe に届けるため BG から移動）──
+    const k = kycData;
+    const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
+    const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana ].filter(Boolean).join(" ");
+
+    const indiv: Record<string, any> = {};
+    if (k.firstNameKana?.trim())  indiv.first_name_kana  = k.firstNameKana.trim();
+    if (k.lastNameKana?.trim())   indiv.last_name_kana   = k.lastNameKana.trim();
+    if (k.firstNameKanji?.trim()) indiv.first_name_kanji = k.firstNameKanji.trim();
+    if (k.lastNameKanji?.trim())  indiv.last_name_kanji  = k.lastNameKanji.trim();
+    if (k.dobDay && k.dobMonth && k.dobYear && !isNaN(Number(k.dobDay))) {
+      indiv.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
+    }
+    if (k.postalCode?.trim()) {
+      indiv.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
+      indiv.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+    }
+    if (k.phone?.trim()) indiv.phone = toE164Japan(k.phone);
+    if (ownerEmail)      indiv.email = ownerEmail;
+
+    const bizProfile: Record<string, string> = {
+      mcc: "5812",
+      url: businessUrl,
+      product_description: k.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
+    };
+    if (businessType === "company") {
+      bizProfile.name = k.companyNameKanji?.trim() || store.name || "株式会社テスト";
+    }
+
+    const step4Payload: Record<string, any> = {
+      business_type:  businessType,
+      business_profile: bizProfile,
+      tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
+      settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
+    };
+
+    if (businessType === "company") {
+      const companyNameFallback = store.name ?? "株式会社テスト";
+      const companyObj: Record<string, any> = {
+        name_kanji: k.companyNameKanji?.trim() || companyNameFallback,
+        name_kana:  k.companyNameKana?.trim()  || companyNameFallback,
+      };
+      if (k.companyNameLatin?.trim()) companyObj.name = k.companyNameLatin.trim();
+      if (k.postalCode?.trim()) {
+        companyObj.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
+        companyObj.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+      }
+      if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
+      step4Payload.company = companyObj;
+    } else {
+      indiv.id_number          = "000000000000";
+      indiv.political_exposure = "none";
+      if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
+    }
+
+    console.log(`📤 [bank-setup] STEP4 accounts.update (sync): ${JSON.stringify(step4Payload, null, 2)}`);
+    try {
+      const kycAcc = await stripeCall(
+        stripe.accounts.update(accountId!, step4Payload as any),
+        "accounts.update(kyc-sync)", 30000
+      ) as any;
+      console.log(`✅ [bank-setup] STEP4 accounts.update OK (charges_enabled=${kycAcc?.charges_enabled})`);
+      console.log(`   currently_due: ${JSON.stringify(kycAcc?.requirements?.currently_due)}`);
+      if ((kycAcc?.requirements?.errors ?? []).length > 0) {
+        console.warn(`⚠️  [bank-setup] STEP4 errors: ${JSON.stringify(kycAcc.requirements.errors)}`);
+      }
+    } catch (kycErr: any) {
+      console.warn(`⚠️  [bank-setup] STEP4 accounts.update FAILED (non-fatal): ${kycErr?.raw?.message ?? kycErr?.message}`);
+    }
+
+    // ── STEP 4b: 法人代表者を Persons API で同期登録/更新 ──
+    // BG ではなく同期で実行することでエラーを即座に検知できる
+    let syncPersonId: string | null = null;
+    if (businessType === "company") {
+      console.log(`[bank-setup] STEP4b (sync) — kycData: firstName="${k.firstNameKanji}" lastName="${k.lastNameKanji}" phone="${k.phone}" dob=${k.dobYear}/${k.dobMonth}/${k.dobDay} postal="${k.postalCode}"`);
+
+      const repPayload: Record<string, any> = {};
+      if (k.firstNameKana?.trim())  repPayload.first_name_kana  = k.firstNameKana.trim();
+      if (k.lastNameKana?.trim())   repPayload.last_name_kana   = k.lastNameKana.trim();
+      if (k.firstNameKanji?.trim()) repPayload.first_name_kanji = k.firstNameKanji.trim();
+      if (k.lastNameKanji?.trim())  repPayload.last_name_kanji  = k.lastNameKanji.trim();
+      if (k.dobDay && k.dobMonth && k.dobYear && !isNaN(Number(k.dobDay))) {
+        repPayload.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
+      }
+      if (k.postalCode?.trim()) {
+        repPayload.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
+        repPayload.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+      }
+      if (k.phone?.trim())  repPayload.phone = toE164Japan(k.phone);
+      if (ownerEmail)       repPayload.email = ownerEmail;
+      repPayload.relationship = {
+        representative:    true,
+        director:          true,
+        executive:         true,
+        owner:             true,
+        percent_ownership: 100,
+        title:             k.representativeTitle?.trim() || "代表取締役",
+      };
+
+      console.log(`📤 [bank-setup] STEP4b person payload: ${JSON.stringify(repPayload, null, 2)}`);
+      try {
+        const existingPersons = await stripeCall(
+          stripe.accounts.listPersons(accountId!, { limit: 10 }),
+          "persons.list-sync", 10000
+        ) as any;
+        const existingRep = (existingPersons?.data ?? []).find((p: any) => p.relationship?.representative === true);
+        if (existingRep) {
+          await stripeCall(
+            stripe.accounts.updatePerson(accountId!, existingRep.id, repPayload as any),
+            "persons.update-sync", 30000
+          );
+          syncPersonId = existingRep.id;
+          console.log(`✅ [bank-setup] STEP4b Persons.update OK id=${existingRep.id}`);
+        } else {
+          const created = await stripeCall(
+            stripe.accounts.createPerson(accountId!, repPayload as any),
+            "persons.create-sync", 30000
+          ) as any;
+          syncPersonId = created?.id ?? null;
+          console.log(`✅ [bank-setup] STEP4b Persons.create OK id=${created?.id}`);
+        }
+      } catch (personErr: any) {
+        // エラーをログに出すが処理は継続（書類なしでは一部要件が残るのは正常）
+        console.warn(`⚠️  [bank-setup] STEP4b Persons API FAILED: ${personErr?.raw?.message ?? personErr?.message}`);
+        console.warn(`   type=${personErr?.type} code=${personErr?.raw?.code ?? personErr?.code} param=${personErr?.raw?.param ?? personErr?.param}`);
+        console.warn(`   raw: ${JSON.stringify(personErr?.raw ?? { message: personErr?.message })}`);
+      }
+    }
+
+    // ── STEP 4b-2: directors_provided: true を送信（全取締役の情報が揃ったことを Stripe に通知）──
+    // persons.create の後に設定しないと Stripe が受け付けない
+    if (businessType === "company" && syncPersonId) {
+      try {
+        await stripeCall(
+          stripe.accounts.update(accountId!, { company: { directors_provided: true } } as any),
+          "accounts.update(directors_provided)", 10000
+        );
+        console.log(`✅ [bank-setup] STEP4b-2 directors_provided=true submitted`);
+      } catch (dirErr: any) {
+        console.warn(`⚠️  [bank-setup] STEP4b-2 directors_provided FAILED (non-fatal): ${dirErr?.raw?.message ?? dirErr?.message}`);
+      }
+    }
+
+    // ── STEP 4c: 法人番号（tax_id）同期送信 ──
+    if (businessType === "company") {
+      const isTestKey = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
+      const rawTaxId  = (kycData.companyTaxId ?? "").replace(/-/g, '').trim();
+      // ⚠️ "0000000000000" は Stripe JP テスト環境で invalid。テスト時は "9999999999999" を使用する
+      const taxId = rawTaxId.length === 13 ? rawTaxId : (isTestKey ? "9999999999999" : null);
+      if (taxId) {
+        try {
+          await stripeCall(
+            stripe.accounts.update(accountId!, { company: { tax_id: taxId } } as any),
+            "accounts.update(tax_id-sync)", 15000
+          );
+          console.log(`✅ [bank-setup] STEP4c company.tax_id submitted (test=${isTestKey})`);
+        } catch (taxErr: any) {
+          console.warn(`⚠️  [bank-setup] STEP4c tax_id FAILED (non-fatal): ${taxErr?.raw?.message ?? taxErr?.message}`);
+        }
+      }
+    }
+
+    // STEP1-4 完了 → クライアントにレスポンスを返す（BG は書類アップロードのみ）
+    console.log(`✅ [bank-setup] STEP1-4 complete — responding to client (syncPersonId=${syncPersonId})`);
     res.json({ success: true, accountId, partial: true });
 
   } catch (err: any) {
-    console.error("❌ [bank-setup] Fatal error (STEP1-2):", err?.raw?.message ?? err?.message ?? err);
+    console.error("❌ [bank-setup] Fatal error (STEP1-4):", err?.raw?.message ?? err?.message ?? err);
     if (!res.headersSent) {
       res.status(500).json({
         error:   "stripe_error",
@@ -1981,6 +2143,19 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     }
     return;  // BG は起動しない
   }
+
+  // syncPersonId を BG に渡すため let で宣言し直す（上の try-catch 内の変数は外から見えないため）
+  // ※ accountId は上の try ブロック外で宣言済み（line 1806）
+  // BG は書類アップロード + 代表者の本人確認書類更新 + DB 更新のみ担当
+  let syncPersonId2: string | null = null;
+  try {
+    // 既存代表者 Person ID を取得（BG で書類を添付するため）
+    if (businessType === "company" && accountId) {
+      const personsList = await stripe.accounts.listPersons(accountId, { limit: 10 });
+      const rep = personsList.data.find(p => p.relationship?.representative === true);
+      if (rep) syncPersonId2 = rep.id;
+    }
+  } catch (_) {}
 
   // ── STEP 3-5: バックグラウンド処理 ──
   // ここは try の外なので accountId / kycData / stripe / businessUrl / ownerEmail / storeId すべてアクセス可能
@@ -2047,217 +2222,58 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         }
       }
 
-      // STEP 4: KYC 更新（部分更新 — 空フィールドは除外）
-      const k = kycData;
-      const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
-      const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana ].filter(Boolean).join(" ");
-
-      const indiv: Record<string, any> = {};
-      // JP では first_name/last_name（Latin）は不要。kana/kanji のみ送る
-      if (k.firstNameKana?.trim())  indiv.first_name_kana  = k.firstNameKana;
-      if (k.lastNameKana?.trim())   indiv.last_name_kana   = k.lastNameKana;
-      if (k.firstNameKanji?.trim()) indiv.first_name_kanji = k.firstNameKanji;
-      if (k.lastNameKanji?.trim())  indiv.last_name_kanji  = k.lastNameKanji;
-      if (k.dobDay && k.dobMonth && k.dobYear) {
-        indiv.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
-      }
-      if (k.postalCode?.trim()) {
-        // JP では address と address_kana/address_kanji は共存不可 → kanji/kana のみ送る
-        indiv.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
-        indiv.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
-      }
-      if (k.phone?.trim()) indiv.phone = toE164Japan(k.phone);
-      if (ownerEmail)      indiv.email = ownerEmail;
-      if (frontFile) {
-        indiv.verification = {
-          document: {
-            front: (frontFile as any).id,
-            ...(backFileId ? { back: backFileId } : {}),
-          },
-        };
-      }
-
-      const bizProfile: Record<string, string> = { mcc: "5812", url: businessUrl };
-      // product_description は必須。未入力の場合はデフォルト文言を使う
-      bizProfile.product_description = k.productDescription?.trim() || "食品ロス削減おすそ分けサービス";
-      // 法人の場合は business_profile.name（ビジネス名）も設定する
-      if (businessType === "company") {
-        bizProfile.name = k.companyNameKanji?.trim() || store.name || "株式会社テスト";
-      }
-
-      const step4Payload: Record<string, any> = {
-        business_type:    businessType,
-        business_profile: bizProfile,
-        // ToS 再確認（JP では date・ip・service_agreement の3点セットが必須）
-        tos_acceptance:   { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
-        // 送金スケジュール: 毎日自動・2日後（要件充足後即時送金を有効にする）
-        settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
-      };
-
-      if (businessType === "company") {
-        // 法人の場合: company オブジェクトに法人名情報を設定
-        // ⚠️ 法人の company フィールドマッピング（Stripe JP）:
-        //   company.name_kanji = 漢字法人名（必須）
-        //   company.name_kana  = カナ法人名（必須）
-        //   company.name       = ローマ字法人名（任意 — 日本語を入れると Stripe が拒否する）
-        //   company.tax_id     = 法人番号13桁（必須）
-        const companyNameFallback = store.name ?? "株式会社テスト";
-        // ⚠️ JP では company.structure を送ると全値エラーになるため省略
-        const companyObj: Record<string, any> = {
-          name_kanji: (k.companyNameKanji?.trim() || companyNameFallback),
-          name_kana:  (k.companyNameKana?.trim()  || companyNameFallback),
-        };
-        // ローマ字法人名はユーザーが入力した場合のみ送る（日本語は Stripe が拒否）
-        if (k.companyNameLatin?.trim()) companyObj.name = k.companyNameLatin.trim();
-        // ⚠️ tax_id はバリデーションで弾かれる可能性があるため別リクエストに分離する
-        // → STEP4 では住所・電話のみ。tax_id は STEP4c で個別 try-catch で送る
-        if (k.postalCode?.trim()) {
-          companyObj.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
-          companyObj.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
-        }
-        if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
-        step4Payload.company = companyObj;
-        console.log(`[bank-setup] BG company obj: name_kanji="${companyObj.name_kanji}" name_kana="${companyObj.name_kana}" structure="${companyObj.structure}"`);
-        // ⚠️ 法人の代表者は accounts.update の "representative" キーでは設定できない（Stripe が拒否する）
-        // → Persons API で accounts.update の後に別途登録する
-      } else {
-        // 個人事業主: id_number（マイナンバー12桁）と political_exposure を追加してから individual キーに設定
-        // テスト環境では "000000000000" が受け入れられる
-        indiv.id_number          = "000000000000";
-        indiv.political_exposure = "none";
-        if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
-      }
-
-      console.log(`📤 [bank-setup] BG STEP4 accounts.update for ${accountId}:`);
-      console.log(JSON.stringify(step4Payload, null, 2));
-
+      // ── BG STEP4b-docs: 同期で作成済みの person に本人確認書類を添付 ──
       let kycChargesEnabled: boolean | null = null;
-      try {
-        const kycAccount = await stripeCall(
-          stripe.accounts.update(accountId!, step4Payload as any),
-          "accounts.update(kyc)", 30000
-        ) as any;
-        kycChargesEnabled = kycAccount?.charges_enabled ?? false;
-        console.log(`✅ [bank-setup] BG STEP4 accounts.update succeeded (charges_enabled=${kycChargesEnabled})`);
-        console.log(`   currently_due: ${JSON.stringify(kycAccount?.requirements?.currently_due)}`);
-        console.log(`   eventually_due: ${JSON.stringify(kycAccount?.requirements?.eventually_due)}`);
-        if ((kycAccount?.requirements?.errors ?? []).length > 0) {
-          console.warn(`⚠️  [bank-setup] BG STEP4 Stripe requirements.errors: ${JSON.stringify(kycAccount.requirements.errors)}`);
-        }
-      } catch (kycErr: any) {
-        console.warn(`⚠️  [bank-setup] BG STEP4 accounts.update FAILED: ${kycErr?.raw?.message ?? kycErr?.message}`);
-        console.warn(`   type: ${kycErr?.type}, code: ${kycErr?.raw?.code ?? kycErr?.code}, param: ${kycErr?.raw?.param ?? kycErr?.param}`);
-      }
-
-      // STEP 4b: 法人の場合 — 代表者を Persons API で登録/更新
-      // accounts.update は "representative" パラメータを受け付けないため必ずこちらで設定する
-      // ⚠️ indiv 経由ではなく kycData から直接ペイロードを構築する（indiv が空の場合でも動作する）
-      if (businessType === "company") {
-        console.log(`[bank-setup] BG STEP4b 開始 — accountId=${accountId}`);
-        console.log(`[bank-setup] BG STEP4b kycData keys: ${Object.keys(k).join(", ")}`);
-        console.log(`[bank-setup] BG STEP4b kycData: firstName="${k.firstNameKanji}" lastName="${k.lastNameKanji}" phone="${k.phone}" dob=${k.dobYear}/${k.dobMonth}/${k.dobDay} postal="${k.postalCode}"`);
-
-        // kycData から直接ペイロードを構築
-        const repPayload: Record<string, any> = {};
-
-        if (k.firstNameKana?.trim())  repPayload.first_name_kana  = k.firstNameKana.trim();
-        if (k.lastNameKana?.trim())   repPayload.last_name_kana   = k.lastNameKana.trim();
-        if (k.firstNameKanji?.trim()) repPayload.first_name_kanji = k.firstNameKanji.trim();
-        if (k.lastNameKanji?.trim())  repPayload.last_name_kanji  = k.lastNameKanji.trim();
-
-        const dobOK = k.dobDay && k.dobMonth && k.dobYear && !isNaN(Number(k.dobDay));
-        if (dobOK) repPayload.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
-
-        if (k.postalCode?.trim()) {
-          repPayload.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
-          repPayload.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
-        }
-
-        if (k.phone?.trim())  repPayload.phone = toE164Japan(k.phone);
-        if (ownerEmail)       repPayload.email = ownerEmail;
-
-        // 本人確認書類（会社代表者の本人確認）
-        if (frontFile) {
-          repPayload.verification = {
-            document: {
-              front: (frontFile as any).id,
-              ...(backFileId ? { back: backFileId } : {}),
-            },
-          };
-        }
-
-        // ⚠️ title は relationship の中に入れる（Stripe JP 仕様）。director: true も JP 法人では必須
-        repPayload.relationship = {
-          representative:    true,
-          director:          true,
-          executive:         true,
-          owner:             true,
-          percent_ownership: 100,
-          title:             k.representativeTitle?.trim() || "代表取締役",
-        };
-
-        console.log(`[bank-setup] BG STEP4b person payload keys: ${Object.keys(repPayload).join(", ")}`);
-        console.log(`[bank-setup] BG STEP4b person payload: ${JSON.stringify(repPayload, null, 2)}`);
-
+      if (businessType === "company" && syncPersonId2 && frontFile) {
         try {
-          // 既存の代表者 Person があれば update、なければ create
-          const existingPersons = await stripeCall(
-            stripe.accounts.persons.list(accountId!, { limit: 10 }),
-            "persons.list", 10000
-          ) as any;
-          console.log(`[bank-setup] BG STEP4b existing persons count: ${existingPersons?.data?.length ?? 0}`);
-          const existingRep = (existingPersons?.data ?? []).find((p: any) => p.relationship?.representative === true);
-          if (existingRep) {
-            console.log(`[bank-setup] BG STEP4b 既存 representative 発見: ${existingRep.id} — update します`);
-            await stripeCall(
-              stripe.accounts.persons.update(accountId!, existingRep.id, repPayload as any),
-              "persons.update(representative)", 30000
-            );
-            console.log(`✅ [bank-setup] BG STEP4b Persons.update OK id=${existingRep.id}`);
-          } else {
-            console.log(`[bank-setup] BG STEP4b representative なし — create します`);
-            const created = await stripeCall(
-              stripe.accounts.persons.create(accountId!, repPayload as any),
-              "persons.create(representative)", 30000
-            ) as any;
-            console.log(`✅ [bank-setup] BG STEP4b Persons.create OK id=${created?.id}`);
-          }
-          // 最新の charges_enabled を取得
-          const refreshed = await stripeCall(
-            stripe.accounts.retrieve(accountId!),
-            "accounts.retrieve(post-persons)", 10000
-          ) as any;
-          if (refreshed?.charges_enabled === true) kycChargesEnabled = true;
-          console.log(`   post-persons charges_enabled=${refreshed?.charges_enabled}`);
-          console.log(`   post-persons currently_due: ${JSON.stringify(refreshed?.requirements?.currently_due)}`);
-          console.log(`   post-persons eventually_due: ${JSON.stringify(refreshed?.requirements?.eventually_due)}`);
-        } catch (personErr: any) {
-          console.warn(`⚠️  [bank-setup] BG STEP4b Persons API FAILED: ${personErr?.raw?.message ?? personErr?.message}`);
-          console.warn(`   raw:`, JSON.stringify(personErr?.raw ?? { message: personErr?.message }));
+          await stripeCall(
+            stripe.accounts.updatePerson(accountId!, syncPersonId2, {
+              verification: {
+                document: {
+                  front: (frontFile as any).id,
+                  ...(backFileId ? { back: backFileId } : {}),
+                },
+              },
+            } as any),
+            "persons.update(docs)", 30000
+          );
+          console.log(`✅ [bank-setup] BG Person docs updated OK: person=${syncPersonId2}`);
+        } catch (personDocErr: any) {
+          console.warn(`⚠️  [bank-setup] BG person doc update FAILED: ${personDocErr?.raw?.message ?? personDocErr?.message}`);
+        }
+      } else if (businessType === "individual" && frontFile) {
+        // 個人事業主: accounts.update の individual.verification で書類を添付
+        try {
+          await stripeCall(
+            stripe.accounts.update(accountId!, {
+              individual: {
+                verification: {
+                  document: {
+                    front: (frontFile as any).id,
+                    ...(backFileId ? { back: backFileId } : {}),
+                  },
+                },
+              },
+            } as any),
+            "accounts.update(individual-docs)", 30000
+          );
+          console.log(`✅ [bank-setup] BG individual verification docs updated OK`);
+        } catch (indDocErr: any) {
+          console.warn(`⚠️  [bank-setup] BG individual doc update FAILED: ${indDocErr?.raw?.message ?? indDocErr?.message}`);
         }
       }
 
-      // STEP 4c: 法人番号（tax_id）を別途送信 — バリデーションエラーでも他フィールドに影響しない
-      if (businessType === "company") {
-        const isTestKey = stripeKey.startsWith("sk_test_");
-        const rawTaxId  = (kycData.companyTaxId ?? "").replace(/-/g, '').trim();
-        // テストキーの場合: 13桁でなければ "0000000000000" にフォールバック（Stripe テスト有効値）
-        // 本番キーの場合: ユーザー入力が正確に13桁のときのみ送る
-        const taxId = rawTaxId.length === 13 ? rawTaxId : (isTestKey ? "0000000000000" : null);
-        if (taxId) {
-          try {
-            await stripeCall(
-              stripe.accounts.update(accountId!, { company: { tax_id: taxId } } as any),
-              "accounts.update(tax_id)", 15000
-            );
-            console.log(`✅ [bank-setup] BG STEP4c company.tax_id submitted (test=${isTestKey})`);
-          } catch (taxErr: any) {
-            console.warn(`⚠️  [bank-setup] BG STEP4c company.tax_id FAILED (non-fatal): ${taxErr?.raw?.message ?? taxErr?.message}`);
-          }
-        } else {
-          console.warn(`⚠️  [bank-setup] BG STEP4c company.tax_id skipped — length=${rawTaxId.length} (expected 13, prod key)`);
-        }
-      }
+      // 書類添付後の charges_enabled を確認
+      try {
+        const refreshed = await stripeCall(
+          stripe.accounts.retrieve(accountId!),
+          "accounts.retrieve(post-docs)", 10000
+        ) as any;
+        kycChargesEnabled = refreshed?.charges_enabled ?? false;
+        console.log(`   post-docs charges_enabled=${refreshed?.charges_enabled}`);
+        console.log(`   post-docs currently_due: ${JSON.stringify(refreshed?.requirements?.currently_due)}`);
+        console.log(`   post-docs eventually_due: ${JSON.stringify(refreshed?.requirements?.eventually_due)}`);
+      } catch (_) {}
 
       // STEP 5: DB 更新 + オーナーの role を確実に store_owner に設定
       // auto_approve_stripe_verified が true かつ charges_enabled ならそのまま approved にする
@@ -2343,9 +2359,10 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
     console.log(`[fill-req] business_type=${account.business_type} isCompany=${isCompany}`);
 
     // ── テストデータペイロード（JP Custom Account 用）──
+    const fillIp = req.ip ?? req.headers["x-forwarded-for"]?.toString().split(",")[0].trim() ?? "127.0.0.1";
     const payload: Record<string, any> = {
-      // ToS（service_agreement: 'full' は JP 必須）
-      tos_acceptance: { service_agreement: "full" },
+      // ToS（JP では date・ip・service_agreement の3点セット必須）
+      tos_acceptance: { date: Math.floor(Date.now() / 1000), ip: fillIp, service_agreement: "full" },
       // 送金スケジュール
       settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
     };
@@ -2403,13 +2420,18 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
         const fillCompany: Record<string, any> = {
           name_kanji: storeNameForFallback,
           name_kana:  "テスト",
+          // company.name はラテン文字社名（英語）。Stripe JP では currently_due に含まれる場合がある
+          name: "Test Company Inc",
           address_kanji: { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" },
           address_kana:  { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" },
           phone: "+810600000000",
+          // 法人の directors_provided: true → 全取締役の情報が揃っていることを Stripe に通知
+          directors_provided: true,
         };
         // テストキーの場合: 法人番号を有効なテスト値で送る（本番は実際の13桁番号が必要）
+        // ⚠️ "0000000000000" は Stripe JP で invalid。"9999999999999" を使用する
         if (stripeKey.startsWith("sk_test_")) {
-          fillCompany.tax_id = "0000000000000";
+          fillCompany.tax_id = "9999999999999";
         }
         payload.company = fillCompany;
       }
@@ -2474,13 +2496,13 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
     if (personRepPayload) {
       console.log(`📤 [fill-req] Persons API for representative:`, JSON.stringify(personRepPayload, null, 2));
       try {
-        const existingPersons = await stripe.accounts.persons.list(accountId, { limit: 10 });
+        const existingPersons = await stripe.accounts.listPersons(accountId, { limit: 10 });
         const existingRep = (existingPersons.data ?? []).find((p: any) => p.relationship?.representative === true);
         if (existingRep) {
-          await stripe.accounts.persons.update(accountId, existingRep.id, personRepPayload as any);
+          await stripe.accounts.updatePerson(accountId, existingRep.id, personRepPayload as any);
           console.log(`✅ [fill-req] Persons.update representative id=${existingRep.id}`);
         } else {
-          const created = await stripe.accounts.persons.create(accountId, personRepPayload as any) as any;
+          const created = await stripe.accounts.createPerson(accountId, personRepPayload as any) as any;
           console.log(`✅ [fill-req] Persons.create representative id=${created?.id}`);
         }
       } catch (personErr: any) {
