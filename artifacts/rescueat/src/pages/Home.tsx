@@ -134,11 +134,11 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       onClick={e => isSoldOut && e.preventDefault()}
-      className={`group block relative w-44 shrink-0 rounded-2xl overflow-hidden shadow-sm border border-border/50 bg-card
+      className={`group block relative w-32 shrink-0 rounded-xl overflow-hidden shadow-sm border border-border/50 bg-card
         tap-scale transition-all duration-200
         ${isSoldOut ? 'opacity-55 grayscale cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-md'}`}
     >
-      <div className="relative w-full h-28 overflow-hidden bg-muted">
+      <div className="relative w-full h-20 overflow-hidden bg-muted">
         {!loaded && <div className="absolute inset-0 skeleton-shimmer" />}
         <img
           src={imgSrc} alt={bag.store.name} loading="lazy" decoding="async"
@@ -193,41 +193,41 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
         </div>
       </div>
 
-      <div className="p-2.5">
+      <div className="p-1.5">
         {(bag as any).itemType === 'item' && (
-          <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 mb-1 leading-none">🥡 単品</span>
+          <span className="inline-block text-[9px] font-black px-1 py-0.5 rounded-full bg-blue-100 text-blue-700 mb-0.5 leading-none">🥡 単品</span>
         )}
-        <p className="font-black text-xs leading-tight line-clamp-2 mb-1.5 text-foreground">{bag.title}</p>
+        <p className="font-black text-[10px] leading-tight line-clamp-2 mb-1 text-foreground">{bag.title}</p>
         <div className="flex items-center justify-between gap-1">
           <div className="flex flex-col gap-0.5 min-w-0">
             {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
               <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
-                <Clock className="w-2.5 h-2.5 text-primary shrink-0" />
+                <Clock className="w-2 h-2 text-primary shrink-0" />
                 <span className="truncate">{formatPickupTime(bag.pickupStart, bag.pickupEnd)}</span>
               </div>
             )}
           </div>
           {!isSoldOut && (
-            <div className="flex flex-col items-end gap-[3px] shrink-0">
+            <div className="flex flex-col items-end gap-[2px] shrink-0">
               {isLowStock && (
                 <span className="text-[9px] font-black text-rose-500 leading-none tracking-tight">
-                  残りあと{bag.stockCount}個！
+                  残り{bag.stockCount}個！
                 </span>
               )}
               {distLabel ? (
-                <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/60 font-medium leading-none">
-                  <MapPin className="w-2.5 h-2.5 shrink-0" />
+                <span className="inline-flex items-center gap-0.5 text-[9px] text-muted-foreground/60 font-medium leading-none">
+                  <MapPin className="w-2 h-2 shrink-0" />
                   {distLabel}
                 </span>
               ) : gpsLoading ? (
-                <span className="inline-block w-10 h-2.5 rounded bg-muted animate-pulse" />
+                <span className="inline-block w-8 h-2 rounded bg-muted animate-pulse" />
               ) : null}
-              {bag.originalPrice > 0 && (
-                <span className="text-[10px] text-muted-foreground/45 line-through font-medium leading-none">
+              {bag.originalPrice > bag.discountedPrice && (
+                <span className="text-[9px] text-muted-foreground/45 line-through font-medium leading-none">
                   ¥{bag.originalPrice.toLocaleString()}
                 </span>
               )}
-              <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+              <span className="text-[14px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
                 ¥{bag.discountedPrice.toLocaleString()}
               </span>
             </div>
@@ -250,9 +250,9 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
 
 function HorizBagCardSkeleton() {
   return (
-    <div className="w-44 shrink-0 rounded-2xl overflow-hidden border border-border/30 bg-card">
-      <div className="w-full h-28 skeleton-shimmer" />
-      <div className="p-2.5 space-y-1.5">
+    <div className="w-32 shrink-0 rounded-xl overflow-hidden border border-border/30 bg-card">
+      <div className="w-full h-20 skeleton-shimmer" />
+      <div className="p-1.5 space-y-1">
         <div className="h-3 skeleton-shimmer rounded-full w-5/6" />
         <div className="h-2.5 skeleton-shimmer rounded-full w-2/3" />
         <div className="flex justify-between mt-1">
@@ -278,7 +278,7 @@ function SectionHeader({ icon, title, count }: {
 }
 
 // ─── 横スクロールラッパー ─────────────────────────────────────────────────
-function HorizScrollRow({ bags, loading, skeletonCount = 3, distMap, gpsLoading }: {
+function HorizScrollRow({ bags, loading, skeletonCount = 4, distMap, gpsLoading }: {
   bags: SurpriseBagWithStore[];
   loading: boolean;
   skeletonCount?: number;
@@ -287,7 +287,7 @@ function HorizScrollRow({ bags, loading, skeletonCount = 3, distMap, gpsLoading 
 }) {
   if (!loading && bags.length === 0) return null;
   return (
-    <div className="flex gap-2.5 overflow-x-auto hide-scrollbar px-4 pr-6 pb-1">
+    <div className="flex gap-2 overflow-x-auto hide-scrollbar px-3 pr-5 pb-1">
       {loading
         ? Array.from({ length: skeletonCount }, (_, i) => <HorizBagCardSkeleton key={i} />)
         : bags.map(bag => (

@@ -354,7 +354,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
                     {bag.store.lat && bag.store.lng && (
                       <CompactDistanceInline storeLat={bag.store.lat} storeLng={bag.store.lng} />
                     )}
-                    {bag.originalPrice > 0 && (
+                    {bag.originalPrice > bag.discountedPrice && (
                       <span className="text-[10px] text-muted-foreground/45 line-through font-medium leading-none">
                         ¥{bag.originalPrice.toLocaleString()}
                       </span>
@@ -387,7 +387,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
             <div className="flex items-center justify-between pt-3"
               style={{ borderTop: '1px solid rgba(10,8,6,0.07)' }}>
               <div className="flex flex-col">
-                {bag.originalPrice > 0 ? (
+                {bag.originalPrice > bag.discountedPrice ? (
                   <>
                     <span className="text-[10px] text-muted-foreground/70 font-medium mb-0.5">定価</span>
                     <span className="text-sm text-muted-foreground/60 line-through decoration-rose-400/40 font-semibold leading-tight">
