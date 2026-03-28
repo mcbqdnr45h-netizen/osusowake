@@ -138,7 +138,7 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
         tap-scale transition-all duration-200
         ${isSoldOut ? 'opacity-55 grayscale cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-md'}`}
     >
-      <div className="relative w-full h-20 overflow-hidden bg-muted">
+      <div className="relative w-full h-24 overflow-hidden bg-muted">
         {!loaded && <div className="absolute inset-0 skeleton-shimmer" />}
         <img
           src={imgSrc} alt={bag.store.name} loading="lazy" decoding="async"
@@ -199,40 +199,22 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
         </div>
       </div>
 
-      <div className="p-1.5">
-        {/* タイトル行：左=バッジ+商品名 ／ 右=距離ピル */}
-        <div className="flex items-start justify-between gap-1 mb-1">
-          <div className="flex-1 min-w-0">
-            {(bag as any).itemType === 'item' && (
-              <span className="inline-block text-[9px] font-black px-1 py-0.5 rounded-full bg-blue-100 text-blue-700 mb-0.5 leading-none">🥡 単品</span>
-            )}
-            <p className="font-black text-[10px] leading-tight line-clamp-2 text-foreground">{bag.title}</p>
-          </div>
+      <div className="p-2 pt-1.5">
+        {/* 単品バッジ（控えめ） */}
+        {(bag as any).itemType === 'item' && (
+          <span className="inline-block text-[8px] font-semibold px-1.5 py-px rounded bg-gray-100 text-gray-400 mb-1 leading-none">
+            単品
+          </span>
+        )}
 
-          {/* 距離ピル（右上） */}
-          {!isSoldOut && (
-            <div className="shrink-0 mt-0.5">
-              {distLabel ? (
-                <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[9px] px-1.5 py-[3px]
-                  ${(() => {
-                    const min = distM != null ? Math.round(distM / 67) : 99;
-                    return min <= 5
-                      ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
-                      : min <= 15
-                      ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
-                      : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
-                  })()}`}>
-                  <Navigation className="w-2 h-2 shrink-0" />
-                  {distLabel}
-                </span>
-              ) : gpsLoading ? (
-                <span className="inline-block w-9 h-4 rounded-full bg-muted animate-pulse" />
-              ) : null}
-            </div>
-          )}
-        </div>
+        {/* 商品名（フル幅・2行） */}
+        <p className="font-black text-[11px] leading-snug line-clamp-2 text-foreground mb-1.5">
+          {bag.title}
+        </p>
 
-        <div className="flex items-center justify-between gap-1">
+        {/* 下段: 左=時間+距離 ／ 右=価格 */}
+        <div className="flex items-end justify-between gap-1">
+          {/* 左: 受取時間 + 距離 */}
           <div className="flex flex-col gap-0.5 min-w-0">
             {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
               <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
@@ -240,20 +222,39 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
                 <span className="truncate">{formatPickupTime(bag.pickupStart, bag.pickupEnd)}</span>
               </div>
             )}
+            {!isSoldOut && distLabel && (
+              <span className={`inline-flex items-center gap-0.5 self-start rounded-full font-bold text-[9px] px-1.5 py-[2px]
+                ${(() => {
+                  const min = distM != null ? Math.round(distM / 67) : 99;
+                  return min <= 5
+                    ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
+                    : min <= 15
+                    ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
+                    : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
+                })()}`}>
+                <Navigation className="w-2 h-2 shrink-0" />
+                {distLabel}
+              </span>
+            )}
+            {!isSoldOut && !distLabel && gpsLoading && (
+              <span className="inline-block w-10 h-[18px] rounded-full bg-muted animate-pulse" />
+            )}
           </div>
+
+          {/* 右: 価格 */}
           {!isSoldOut && (
             <div className="flex flex-col items-end gap-[2px] shrink-0">
               {isLowStock && (
-                <span className="text-[9px] font-black text-rose-500 leading-none tracking-tight">
+                <span className="text-[8px] font-black text-rose-500 leading-none">
                   残り{bag.stockCount}個！
                 </span>
               )}
               {bag.originalPrice > bag.discountedPrice && (
-                <span className="text-[9px] text-muted-foreground/45 line-through font-medium leading-none">
+                <span className="text-[9px] text-muted-foreground/40 line-through font-medium leading-none">
                   ¥{bag.originalPrice.toLocaleString()}
                 </span>
               )}
-              <span className="text-[14px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+              <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
                 ¥{bag.discountedPrice.toLocaleString()}
               </span>
             </div>
@@ -277,19 +278,16 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
 function HorizBagCardSkeleton() {
   return (
     <div className="w-32 shrink-0 rounded-xl overflow-hidden border border-border/30 bg-card">
-      <div className="w-full h-20 skeleton-shimmer" />
-      <div className="p-1.5 space-y-1">
-        {/* タイトル行 + 距離ピル */}
-        <div className="flex items-start justify-between gap-1">
-          <div className="flex-1 space-y-0.5">
-            <div className="h-3 skeleton-shimmer rounded-full w-4/5" />
-            <div className="h-2.5 skeleton-shimmer rounded-full w-3/5" />
+      <div className="w-full h-24 skeleton-shimmer" />
+      <div className="p-2 pt-1.5 space-y-1.5">
+        <div className="h-3 skeleton-shimmer rounded-full w-4/5" />
+        <div className="h-2.5 skeleton-shimmer rounded-full w-3/5" />
+        <div className="flex items-end justify-between mt-0.5">
+          <div className="space-y-1">
+            <div className="h-2.5 skeleton-shimmer rounded-full w-14" />
+            <div className="h-[18px] skeleton-shimmer rounded-full w-10" />
           </div>
-          <div className="h-4 skeleton-shimmer rounded-full w-9 shrink-0 mt-0.5" />
-        </div>
-        <div className="flex justify-between mt-0.5">
-          <div className="h-2.5 skeleton-shimmer rounded-full w-12" />
-          <div className="h-3.5 skeleton-shimmer rounded-full w-12" />
+          <div className="h-4 skeleton-shimmer rounded-full w-14" />
         </div>
       </div>
     </div>
