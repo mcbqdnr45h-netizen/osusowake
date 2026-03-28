@@ -1442,8 +1442,7 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       //   name_kanji = 漢字法人名（必須）  /  name_kana = カナ（必須）  /  name = ローマ字（任意）
       if (companyNameKanji?.trim()) companyObj.name_kanji = companyNameKanji.trim();
       if (companyNameKana?.trim())  companyObj.name_kana  = companyNameKana.trim();
-      // 会社組織（Stripe JP 必須）
-      companyObj.structure = companyStructure?.trim() || "multi_member_llc";
+      // ⚠️ JP では company.structure を送ると全値エラーになるため送らない
       // JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
         companyObj.address_kanji = addressKanji;
@@ -1856,11 +1855,11 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     if (!accountId) {
       console.log(`[bank-setup] STEP1 Creating Stripe Custom Account for store ${storeId}… businessType=${businessType}`);
       // ⚠️ business_type は accounts.create 時に設定しないと後から変更できない
-      // 法人の場合は company 基本情報（name_kanji/kana/structure）も一緒に渡す
+      // 法人の場合は company 基本情報（name_kanji/kana）も一緒に渡す
+      // ⚠️ JP では company.structure を送ると全値エラーになるため省略
       const step1CompanyPayload: Record<string, any> = businessType === "company" ? {
         name_kanji: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト",
         name_kana:  kycData.companyNameKana?.trim()  || "テスト",
-        structure:  kycData.companyStructure          || "multi_member_llc",
       } : {};
       try {
         const account = await stripeCall(
@@ -1910,10 +1909,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         settings:       { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
       };
       if (businessType === "company") {
+        // ⚠️ JP では company.structure を送ると全値エラーになるため省略
         step1UpdPayload.company = {
           name_kanji: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト",
           name_kana:  kycData.companyNameKana?.trim()  || "テスト",
-          structure:  kycData.companyStructure          || "multi_member_llc",
         };
       }
       try {
@@ -2080,11 +2079,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         //   company.name       = ローマ字法人名（任意 — 日本語を入れると Stripe が拒否する）
         //   company.tax_id     = 法人番号13桁（必須）
         const companyNameFallback = store.name ?? "株式会社テスト";
+        // ⚠️ JP では company.structure を送ると全値エラーになるため省略
         const companyObj: Record<string, any> = {
           name_kanji: (k.companyNameKanji?.trim() || companyNameFallback),
           name_kana:  (k.companyNameKana?.trim()  || companyNameFallback),
-          // 会社組織（Stripe JP 必須）: multi_member_llc（合同会社）をデフォルトに
-          structure:  (k.companyStructure?.trim()  || "multi_member_llc"),
         };
         // ローマ字法人名はユーザーが入力した場合のみ送る（日本語は Stripe が拒否）
         if (k.companyNameLatin?.trim()) companyObj.name = k.companyNameLatin.trim();
@@ -2327,10 +2325,10 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
       // 法人情報（company オブジェクト）は accounts.update で送れる
       if (due.some(f => f.includes("company."))) {
         const storeNameForFallback = store.name ?? "株式会社テスト";
+        // ⚠️ JP では company.structure を送ると全値エラーになるため省略
         payload.company = {
           name_kanji: storeNameForFallback,
           name_kana:  "テスト",
-          structure:  "multi_member_llc",
           // tax_id は 13 桁法人番号。ダミー値を送るとエラーになるため due に tax_id が含まれる場合はスキップ
           address_kanji: { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" },
           address_kana:  { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" },
