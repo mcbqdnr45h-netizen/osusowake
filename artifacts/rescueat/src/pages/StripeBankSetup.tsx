@@ -761,11 +761,11 @@ export default function StripeBankSetup() {
               <Field label="会社組織" required hint="Stripeに登録する法人の種類を選択してください">
                 <select value={companyStructure} onChange={e => setCompanyStructure(e.target.value)} required className={selectClass}>
                   <option value="">選択してください</option>
-                  <option value="incorporated_partnership">株式会社 / 合名会社 / 合資会社</option>
-                  <option value="multi_member_llc">合同会社</option>
+                  <option value="multi_member_llc">株式会社 / 合同会社 / 合名会社 / 合資会社</option>
                   <option value="incorporated_nonprofit_organization">NPO法人 / 一般社団法人 / 公益法人</option>
                   <option value="government_instrumentality">国・地方公共団体・行政機関</option>
                   <option value="unincorporated_association">任意団体（非法人）</option>
+                  <option value="unincorporated_partnership">組合（民法上の組合など）</option>
                 </select>
               </Field>
             </FormSection>
