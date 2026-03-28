@@ -1870,9 +1870,12 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       // ⚠️ business_type は accounts.create 時に設定しないと後から変更できない
       // 法人の場合は company 基本情報（name_kanji/kana）も一緒に渡す
       // ⚠️ JP では company.structure を送ると全値エラーになるため省略
+      const isTestKeyStep1 = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
       const step1CompanyPayload: Record<string, any> = businessType === "company" ? {
         name_kanji: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト",
         name_kana:  kycData.companyNameKana?.trim()  || "テスト",
+        // company.name（ラテン文字）は Stripe JP で必須
+        name: kycData.companyNameLatin?.trim() || (isTestKeyStep1 ? "Kabushiki Gaisha Test" : undefined),
       } : {};
       try {
         const account = await stripeCall(
@@ -2003,12 +2006,14 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     };
 
     if (businessType === "company") {
+      const isTestKeyStep4 = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
       const companyNameFallback = store.name ?? "株式会社テスト";
       const companyObj: Record<string, any> = {
         name_kanji: k.companyNameKanji?.trim() || companyNameFallback,
         name_kana:  k.companyNameKana?.trim()  || companyNameFallback,
       };
-      if (k.companyNameLatin?.trim()) companyObj.name = k.companyNameLatin.trim();
+      // company.name（ラテン文字社名）は Stripe JP で必須。未入力時はテストモードのみフォールバック
+      companyObj.name = k.companyNameLatin?.trim() || (isTestKeyStep4 ? "Kabushiki Gaisha Test" : undefined);
       if (k.postalCode?.trim()) {
         companyObj.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
         companyObj.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };

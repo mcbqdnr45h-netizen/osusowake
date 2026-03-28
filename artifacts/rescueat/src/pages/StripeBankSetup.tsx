@@ -409,6 +409,7 @@ export default function StripeBankSetup() {
   const missingFields: string[] = [];
   if (businessType === 'company' && !companyNameKanji.trim()) missingFields.push('法人名（漢字）');
   if (businessType === 'company' && !companyNameKana.trim())  missingFields.push('法人名（カナ）');
+  if (businessType === 'company' && !companyNameLatin.trim()) missingFields.push('法人名（ローマ字）— Stripe必須');
   if (businessType === 'company' && companyTaxId.replace(/-/g, '').length !== 13) missingFields.push(`法人番号（13桁で入力 — 現在${companyTaxId.replace(/-/g, '').length}桁）`);
   if (!lastNameKanji.trim() || !firstNameKanji.trim()) missingFields.push('代表者氏名（漢字）');
   if (!lastNameKana.trim()   || !firstNameKana.trim())  missingFields.push('代表者氏名（カタカナ）');
@@ -797,9 +798,9 @@ export default function StripeBankSetup() {
                 <input type="text" value={companyNameKana} onChange={e => setCompanyNameKana(e.target.value)}
                   placeholder="カブシキガイシャ〇〇フード" required={businessType === 'company'} className={inputClass} />
               </Field>
-              <Field label="法人名（ローマ字）" hint="例：Kabushiki Gaisha XX Food（任意）">
+              <Field label="法人名（ローマ字・英語）" required hint="Stripeの必須項目。例：Kabushiki Gaisha XX Food">
                 <input type="text" value={companyNameLatin} onChange={e => setCompanyNameLatin(e.target.value)}
-                  placeholder="Kabushiki Gaisha XX Food" className={inputClass} />
+                  placeholder="Kabushiki Gaisha XX Food" required={businessType === 'company'} className={inputClass} />
               </Field>
               <Field label="法人番号（13桁）" required hint="国税庁の法人番号。ハイフンなしで入力">
                 <input type="text" value={companyTaxId} onChange={e => setCompanyTaxId(e.target.value.replace(/[^\d-]/g, ''))}
