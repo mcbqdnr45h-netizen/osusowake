@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Layout } from '@/components/Layout';
-import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
@@ -775,11 +774,6 @@ export default function MyPage() {
     </AnimatePresence>
   );
 
-  if (isStoreOwner) {
-    return (
-      <StoreLayout showHeader={false}>{pageContent}</StoreLayout>
-    );
-  }
   return (
     <>
       <Layout>{pageContent}</Layout>
