@@ -173,7 +173,7 @@ export default function MyReservations() {
       </AnimatePresence>
 
       {/* ── ページ本体 ── */}
-      <div className="max-w-2xl mx-auto pt-5 pb-28">
+      <div className="max-w-2xl mx-auto pt-5 pb-28 overflow-x-hidden w-full">
         <h1 className="text-xl font-display font-bold text-foreground mb-4 px-4">マイバック</h1>
 
         {isLoading ? (
@@ -254,7 +254,7 @@ export default function MyReservations() {
                             layout
                             initial={{ opacity: 0, y: 6 }}
                             animate={{ opacity: isFaded ? 0.6 : 1, y: 0 }}
-                            exit={{ opacity: 0, x: 60, transition: { duration: 0.2 } }}
+                            exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
                             transition={{ delay: i * 0.04 }}
                             className="relative bg-card"
                           >

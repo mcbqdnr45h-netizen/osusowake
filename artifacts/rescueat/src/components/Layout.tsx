@@ -65,7 +65,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
   return (
     <div
-      className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen md:!pb-0'} bg-background text-foreground flex flex-col font-sans`}
+      className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen md:!pb-0'} bg-background text-foreground flex flex-col font-sans overflow-x-hidden`}
       style={!hideFooter ? { paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' } : undefined}
     >
 
@@ -256,7 +256,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
       </header>}
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
-      <main className="flex-1 min-h-0 w-full relative flex flex-col">
+      <main className="flex-1 min-h-0 w-full relative flex flex-col overflow-x-hidden">
         <AnimatePresence mode="wait">
           <motion.div
             key={location}
