@@ -19,10 +19,11 @@ const NAV_ITEMS = [
 
 export function StoreLayout({ children, showBottomNav = true, showHeader = true }: StoreLayoutProps) {
   const [location] = useLocation();
-  const { store } = useMyStore();
+  const { store, loading: storeLoading } = useMyStore();
 
-  // 店舗登録が完了していない場合はボトムナビを非表示にする
-  const shouldShowNav = showBottomNav && !!store;
+  // ロード中・店舗未登録の場合はボトムナビを非表示にする
+  // （キャッシュ値で一瞬 store が非null になるフラッシュを防ぐため loading も確認）
+  const shouldShowNav = showBottomNav && !storeLoading && !!store;
 
   return (
     <div
