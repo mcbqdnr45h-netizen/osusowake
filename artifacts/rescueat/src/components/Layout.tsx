@@ -54,12 +54,18 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   const navItems = isStoreOwner ? storeNavItems : customerNavItems;
   const isLoggedIn = !!user;
 
-  const desktopNavItems = [
-    { href: '/',    label: '発見'  },
-    { href: '/map', label: 'マップ' },
-    { href: '/my-reservations', label: 'マイバック' },
-    ...(isLoggedIn ? [{ href: '/mypage', label: 'マイページ' }] : []),
-  ];
+  const desktopNavItems = isStoreOwner
+    ? [
+        { href: '/store/dashboard', label: '出品管理' },
+        { href: '/store/sales',     label: '売上確認' },
+        ...(isApprovedOwner ? [{ href: '/mypage', label: 'マイページ' }] : []),
+      ]
+    : [
+        { href: '/',                label: '発見'     },
+        { href: '/map',             label: 'マップ'   },
+        { href: '/my-reservations', label: 'マイバック' },
+        ...(isLoggedIn ? [{ href: '/mypage', label: 'マイページ' }] : []),
+      ];
 
   return (
     <div
