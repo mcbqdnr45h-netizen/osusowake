@@ -118,11 +118,13 @@ export default function MyPage() {
                 )}
               </button>
             )}
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-2 rounded-xl bg-secondary/60 hover:bg-secondary transition-colors">
-              <Settings className="w-5 h-5 text-foreground" />
-            </button>
+            {!isStoreOwner && (
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 rounded-xl bg-secondary/60 hover:bg-secondary transition-colors">
+                <Settings className="w-5 h-5 text-foreground" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -412,6 +414,165 @@ export default function MyPage() {
           </Link>
         )}
 
+        {/* ── 店舗オーナー：設定コンテンツをインライン表示 ── */}
+        {isStoreOwner && (
+          <div className="mt-4 space-y-3">
+
+            {/* 購入履歴 */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">購入履歴</p>
+              <div className="bg-card rounded-2xl overflow-hidden"
+                style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                <Link
+                  href="/orders"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors"
+                >
+                  <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 font-bold text-foreground text-sm">購入履歴・領収書</div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+              </div>
+            </div>
+
+            {/* 店舗管理 */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">店舗管理</p>
+              <div className="bg-card rounded-2xl overflow-hidden"
+                style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                {(store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') && (
+                  <Link
+                    href="/store-dashboard"
+                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
+                  >
+                    <div className="w-9 h-9 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-foreground text-sm">店舗申請 — 審査中</div>
+                      <div className="text-xs text-muted-foreground">1〜2営業日以内に結果をお知らせします</div>
+                    </div>
+                    <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">審査中</span>
+                  </Link>
+                )}
+                {store?.status === 'rejected' && (
+                  <Link
+                    href="/store-dashboard"
+                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
+                  >
+                    <div className="w-9 h-9 bg-red-100 text-red-500 rounded-full flex items-center justify-center shrink-0">
+                      <XCircle className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-foreground text-sm">店舗申請が却下されました</div>
+                      <div className="text-xs text-muted-foreground">詳細を確認・再申請する</div>
+                    </div>
+                    <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">却下</span>
+                  </Link>
+                )}
+                {isApprovedOwner && (
+                  <Link
+                    href="/store/profile-edit"
+                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                  >
+                    <div className="w-9 h-9 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center shrink-0">
+                      <Camera className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-foreground text-sm">店舗プロフィール編集</div>
+                      <div className="text-xs text-muted-foreground">カバー写真・紹介文・営業時間など</div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </Link>
+                )}
+                {isApprovedOwner && (
+                  <Link
+                    href="/store/reviews"
+                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors"
+                  >
+                    <div className="w-9 h-9 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center shrink-0">
+                      <MessageSquare className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-foreground text-sm">お客様からのレビュー</div>
+                      <div className="text-xs text-muted-foreground">レビュー確認・返信管理</div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* アカウント・サポート */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アカウント・サポート</p>
+              <div className="bg-card rounded-2xl overflow-hidden"
+                style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                <Link
+                  href="/report-store"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shrink-0">
+                    <Flag className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-foreground text-sm">食品ロスのお店を教えて</div>
+                    <div className="text-xs text-muted-foreground">OsusOwakeスタッフが直接お伺いします</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <Link
+                  href="/help"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
+                    <HelpCircle className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 font-bold text-foreground text-sm">ヘルプ・お問い合わせ</div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <Link
+                  href="/settings"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
+                    <Settings className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 font-bold text-foreground text-sm">アカウント設定</div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 py-3 px-4 hover:bg-destructive/5 transition-colors text-left text-destructive"
+                >
+                  <div className="w-9 h-9 bg-destructive/10 text-destructive rounded-full flex items-center justify-center shrink-0">
+                    <LogOut className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 font-bold text-sm">ログアウト</div>
+                </button>
+              </div>
+            </div>
+
+            {/* 法的情報リンク */}
+            <div className="pt-2 pb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+              <Link href="/tokusho" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                特定商取引法に基づく表記
+              </Link>
+              <span className="text-muted-foreground/30 text-xs">|</span>
+              <Link href="/terms" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                利用規約
+              </Link>
+              <span className="text-muted-foreground/30 text-xs">|</span>
+              <Link href="/privacy" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                プライバシーポリシー
+              </Link>
+              <p className="w-full text-center text-[10px] text-muted-foreground/40 mt-1">© 2025 OsusOwake All rights reserved.</p>
+            </div>
+
+          </div>
+        )}
+
       </div>
   );
 
@@ -634,10 +795,7 @@ export default function MyPage() {
 
   if (isStoreOwner) {
     return (
-      <>
-        <StoreLayout showHeader={false}>{pageContent}</StoreLayout>
-        {settingsSheet}
-      </>
+      <StoreLayout showHeader={false}>{pageContent}</StoreLayout>
     );
   }
   return (
