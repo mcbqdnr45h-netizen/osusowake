@@ -1249,7 +1249,7 @@ export default function StoreDashboard() {
           });
         }
       });
-    return Array.from(seen.values());
+    return Array.from(seen.values()).slice(0, 5);
   }, [bags]);
 
   // 受取済みにする
