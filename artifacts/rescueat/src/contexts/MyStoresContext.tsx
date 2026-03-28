@@ -24,6 +24,8 @@ export type MyStore = {
   holiday: string | null;
   pickupHours: string | null;
   rejectionReason: string | null;
+  licenseImageUrl: string | null;
+  licenseNumber: string | null;
   totalBagsAvailable?: number;
 };
 

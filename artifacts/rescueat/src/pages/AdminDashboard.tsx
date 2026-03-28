@@ -776,7 +776,6 @@ export default function AdminDashboard() {
 
                                   {/* コンプライアンス書類 */}
                                   <DetailSection title="📋 コンプライアンス書類">
-                                    <DetailRow label="許可証番号" value={d.license_number} />
                                     <DetailRow label="誓約書署名" value={d.pledge_signed ? '✅ 署名済み' : '❌ 未署名'} />
                                     <DetailRow
                                       label="Stripe口座"
@@ -791,42 +790,49 @@ export default function AdminDashboard() {
                                         }
                                       />
                                     )}
-                                    {/* 書類画像 */}
-                                    <div className="mt-2 space-y-2">
-                                      {d.license_image_url && (
-                                        <div>
-                                          <p className="text-[10px] font-bold text-muted-foreground mb-1">営業許可証</p>
-                                          <button
-                                            onClick={() => setLightboxImg(d.license_image_url!)}
-                                            className="block w-full"
-                                          >
-                                            <img
-                                              src={d.license_image_url}
-                                              alt="営業許可証"
-                                              className="w-full max-h-40 object-contain rounded-xl border border-border bg-secondary/30 cursor-zoom-in hover:opacity-90 transition-opacity"
-                                            />
-                                          </button>
-                                        </div>
+
+                                    {/* ─── オーナー確認（本人確認書類）─── */}
+                                    <div className="mt-3 rounded-xl border border-border bg-secondary/20 p-3 space-y-2">
+                                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wide">オーナー確認（本人確認・口座）</p>
+                                      {d.id_image_url ? (
+                                        <button
+                                          onClick={() => setLightboxImg(d.id_image_url!)}
+                                          className="block w-full"
+                                        >
+                                          <img
+                                            src={d.id_image_url}
+                                            alt="本人確認書類"
+                                            className="w-full max-h-36 object-contain rounded-lg border border-border bg-background cursor-zoom-in hover:opacity-90 transition-opacity"
+                                          />
+                                        </button>
+                                      ) : d.stripe_account_id ? (
+                                        <p className="text-[11px] text-emerald-600 font-semibold">✅ Stripe共有済み（bank-setup完了）</p>
+                                      ) : (
+                                        <p className="text-[11px] text-amber-600 font-semibold">⚠️ 本人確認未完了（bank-setup未実施）</p>
                                       )}
-                                      {d.id_image_url && (
-                                        <div>
-                                          <p className="text-[10px] font-bold text-muted-foreground mb-1">本人確認書類</p>
-                                          <button
-                                            onClick={() => setLightboxImg(d.id_image_url!)}
-                                            className="block w-full"
-                                          >
-                                            <img
-                                              src={d.id_image_url}
-                                              alt="本人確認書類"
-                                              className="w-full max-h-40 object-contain rounded-xl border border-border bg-secondary/30 cursor-zoom-in hover:opacity-90 transition-opacity"
-                                            />
-                                          </button>
-                                        </div>
-                                      )}
-                                      {!d.license_image_url && !d.id_image_url && (
-                                        d.stripe_account_id
-                                          ? <p className="text-[11px] text-emerald-600 font-semibold">✅ オーナー認証済み（Stripe共有）</p>
-                                          : <p className="text-[11px] text-muted-foreground italic">書類未アップロード</p>
+                                    </div>
+
+                                    {/* ─── この店舗の営業許可証 ─── */}
+                                    <div className="mt-2 rounded-xl border border-border bg-secondary/20 p-3 space-y-2">
+                                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wide">
+                                        この店舗の営業許可証
+                                        {d.license_number && (
+                                          <span className="ml-2 font-normal normal-case text-foreground/70">{d.license_number}</span>
+                                        )}
+                                      </p>
+                                      {d.license_image_url ? (
+                                        <button
+                                          onClick={() => setLightboxImg(d.license_image_url!)}
+                                          className="block w-full"
+                                        >
+                                          <img
+                                            src={d.license_image_url}
+                                            alt="営業許可証"
+                                            className="w-full max-h-40 object-contain rounded-lg border border-border bg-background cursor-zoom-in hover:opacity-90 transition-opacity"
+                                          />
+                                        </button>
+                                      ) : (
+                                        <p className="text-[11px] text-destructive font-semibold">❌ 未提出（要確認）</p>
                                       )}
                                     </div>
                                   </DetailSection>

@@ -144,7 +144,10 @@ router.post("/stores/apply", async (req, res) => {
 
     // 営業許可証写真を Supabase Storage にアップロード（base64 が届いた場合）
     let licenseImageUrl: string | null = null;
+    let resolvedLicenseNumber: string | null = body.licenseNumber?.trim() || null;
+
     if (body.licenseImageBase64) {
+      // 直接アップロード
       try {
         const match = (body.licenseImageBase64 as string).match(/^data:(image\/[\w+]+);base64,(.+)$/s);
         if (match) {
@@ -168,6 +171,24 @@ router.post("/stores/apply", async (req, res) => {
       } catch (uploadEx: any) {
         console.warn("[/stores/apply] 営業許可証アップロード例外:", uploadEx?.message);
       }
+    } else if (body.copyLicenseFromStoreId) {
+      // 既存店舗の営業許可証をコピー（同一オーナーの店舗のみ許可）
+      try {
+        const sourceStoreId = Number(body.copyLicenseFromStoreId);
+        const [sourceStore] = await db
+          .select({ licenseImageUrl: storesTable.licenseImageUrl, licenseNumber: storesTable.licenseNumber, ownerId: storesTable.ownerId })
+          .from(storesTable)
+          .where(eq(storesTable.id, sourceStoreId));
+        if (sourceStore?.ownerId === body.ownerId) {
+          licenseImageUrl = sourceStore.licenseImageUrl;
+          if (!resolvedLicenseNumber) resolvedLicenseNumber = sourceStore.licenseNumber;
+          console.log("[/stores/apply] ✅ 営業許可証コピー from storeId=", sourceStoreId);
+        } else {
+          console.warn("[/stores/apply] ⚠️ copyLicenseFromStoreId のオーナーが一致しない — スキップ");
+        }
+      } catch (copyEx: any) {
+        console.warn("[/stores/apply] 営業許可証コピー例外:", copyEx?.message);
+      }
     }
 
     // 基本情報のみ保存 — 審査待ち（pending_review）で登録
@@ -186,7 +207,7 @@ router.post("/stores/apply", async (req, res) => {
       ownerId: body.ownerId,
       // 2店舗目以降は既存のStripeアカウントIDを流用（bank-setup不要）
       stripeAccountId: existingStripeAccountId,
-      licenseNumber: body.licenseNumber?.trim() || null,
+      licenseNumber: resolvedLicenseNumber,
       licenseImageUrl,
       idImageUrl: null,
       pledgeSigned: body.pledgeSigned === true,

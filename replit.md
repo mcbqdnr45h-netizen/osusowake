@@ -65,15 +65,19 @@
 
 ## 店舗登録フロー（重要）
 
-### 登録 → bank-setup 即遷移設計
-- `/store-onboarding`（StoreOnboarding.tsx）: 基本情報のみ入力（コンプライアンスステップ廃止）
-  - フォーム: 店名・住所・市区町村・ジャンル・電話・写真・誓約チェック
-  - `POST /api/stores/apply` を**2秒タイムアウト**で呼び出し（タイムアウトでも続行）
-  - Stripe は一切呼ばない・書類アップロードなし
-  - 成功・失敗・タイムアウトいずれの場合も即 `/store/bank-setup` へ `navigate()`
-- `/api/stores/apply` は `status: "approved"` で即座に保存（管理者審査なし）
-  - 重複登録 → 409 + `{ error: "already_exists", store: {...} }` を返す
+### 登録 → bank-setup 遷移設計
+- `/store-onboarding`（StoreOnboarding.tsx）: 基本情報 + 営業許可証アップロード
+  - フォーム: 店名・住所・市区町村・ジャンル・写真・**営業許可証（必須）**・誓約チェック
+  - `POST /api/stores/apply` を送信（`licenseImageBase64` / `copyLicenseFromStoreId` 対応）
+  - **初回登録（isInherited=false）**: 成功後 `/store/bank-setup` へ遷移
+  - **追加登録（isInherited=true: `?add=1` かつ Stripe アカウント済み）**: `/mypage` へ遷移（bank-setup スキップ）
+  - `?add=1` クエリパラメータで追加登録モード → 既存店舗リダイレクトをスキップ
+  - 追加登録時: 「本人確認・口座情報は引き継がれます」バナー表示
+  - 追加登録時: 既存店舗の営業許可証コピー機能（`copyLicenseFromStoreId` で API 側でコピー）
+- `/api/stores/apply` は `status: "pending_review"` で登録（管理者審査あり）
+  - `copyLicenseFromStoreId` → 同一オーナーの店舗から営業許可証を複製
   - lat/lng が未指定の場合は東京デフォルト座標を使用
+- `MyStore` 型: `licenseImageUrl`, `licenseNumber` フィールド追加
 
 ## Stripe KYC フロー（重要）
 

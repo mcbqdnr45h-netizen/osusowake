@@ -7,6 +7,7 @@ import { useMyStores } from '@/hooks/use-my-stores';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
+  Copy, FileCheck, ShieldCheck,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -18,7 +19,7 @@ const CATEGORY_OPTIONS = [
   { value: 'ingredients',   label: '食材・その他',  emoji: '🍎' },
 ];
 
-async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<string> {
+async function compressImage(file: File, maxPx = 1200, quality = 0.80): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -63,11 +64,24 @@ export default function StoreOnboarding() {
     ? new URLSearchParams(window.location.search).get('add') === '1'
     : false;
 
+  // Stripe引き継ぎモード: 追加モード かつ 既存のStripeアカウントあり
+  // → 本人確認・銀行口座は自動引き継ぎ。営業許可証のみ提出。
+  const isInherited = isAddMode && hasExistingStripeAccount;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pledgeSigned, setPledgeSigned] = useState(false);
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
   const [imagePreview, setImagePreview] = useState('');
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+
+  // 営業許可証
+  const [licenseImageBase64, setLicenseImageBase64] = useState('');
+  const [licensePreview, setLicensePreview] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [copyFromStoreId, setCopyFromStoreId] = useState<number | null>(null);
+
+  // 営業許可証を持つ既存店舗（コピー元候補）
+  const storesWithLicense = stores.filter(s => s.licenseImageUrl);
 
   const obDraft = loadOnboardingDraft();
   const [form, setForm] = useState({
@@ -102,15 +116,16 @@ export default function StoreOnboarding() {
   useEffect(() => {
     if (validationWarnings.length === 0) return;
     const updated: string[] = [];
-    if (!form.imageUrl)                 updated.push('店舗写真が未入力です。');
-    if (!form.name.trim())              updated.push('店名が未入力です。');
-    if (!form.address.trim())           updated.push('住所が未入力です。');
-    if (!form.city.trim())              updated.push('市区町村が未入力です。');
-    if (!form.category)                 updated.push('ジャンルが未選択です。');
-    if (!pledgeSigned)                  updated.push('利用規約への同意が未完了です。');
+    if (!form.imageUrl)                         updated.push('店舗写真が未入力です。');
+    if (!form.name.trim())                      updated.push('店名が未入力です。');
+    if (!form.address.trim())                   updated.push('住所が未入力です。');
+    if (!form.city.trim())                      updated.push('市区町村が未入力です。');
+    if (!form.category)                         updated.push('ジャンルが未選択です。');
+    if (!licenseImageBase64 && !copyFromStoreId) updated.push('営業許可証の写真が必要です。');
+    if (!pledgeSigned)                          updated.push('利用規約への同意が未完了です。');
     setValidationWarnings(updated);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.imageUrl, form.name, form.address, form.city, form.category, pledgeSigned]);
+  }, [form.imageUrl, form.name, form.address, form.city, form.category, licenseImageBase64, copyFromStoreId, pledgeSigned]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -126,6 +141,20 @@ export default function StoreOnboarding() {
     const compressed = await compressImage(f);
     setForm(prev => ({ ...prev, imageUrl: compressed }));
     setImagePreview(compressed);
+  };
+
+  const handleLicenseFile = async (f: File) => {
+    const compressed = await compressImage(f, 1600, 0.85);
+    setLicenseImageBase64(compressed);
+    setLicensePreview(compressed);
+    setCopyFromStoreId(null);
+  };
+
+  const handleCopyLicense = (store: { id: number; name: string; licenseImageUrl: string | null }) => {
+    if (!store.licenseImageUrl) return;
+    setCopyFromStoreId(store.id);
+    setLicensePreview(store.licenseImageUrl);
+    setLicenseImageBase64(''); // コピー元を使う場合は base64 は空
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,14 +178,15 @@ export default function StoreOnboarding() {
 
     // 未入力項目を収集 → ひとつでも欠けていたら送信をブロック
     const warnings: string[] = [];
-    if (!form.imageUrl)                 warnings.push('店舗写真が未入力です。');
-    if (!form.name.trim())              warnings.push('店名が未入力です。');
-    if (!form.address.trim())           warnings.push('住所が未入力です。');
-    if (!form.city.trim())              warnings.push('市区町村が未入力です。');
-    if (!form.category)                 warnings.push('ジャンルが未選択です。');
-    if (!pledgeSigned)                  warnings.push('利用規約への同意が未完了です。');
+    if (!form.imageUrl)                         warnings.push('店舗写真が未入力です。');
+    if (!form.name.trim())                      warnings.push('店名が未入力です。');
+    if (!form.address.trim())                   warnings.push('住所が未入力です。');
+    if (!form.city.trim())                      warnings.push('市区町村が未入力です。');
+    if (!form.category)                         warnings.push('ジャンルが未選択です。');
+    if (!licenseImageBase64 && !copyFromStoreId) warnings.push('営業許可証の写真が必要です。');
+    if (!pledgeSigned)                          warnings.push('利用規約への同意が未完了です。');
     setValidationWarnings(warnings);
-    if (warnings.length > 0) return; // ハードブロック：すべて入力されるまで送信しない
+    if (warnings.length > 0) return;
     if (!user.id) {
       toast({ title: 'ログイン情報を取得できませんでした', description: 'いったんログアウトして再度ログインしてください。', variant: 'destructive' });
       return;
@@ -164,11 +194,12 @@ export default function StoreOnboarding() {
 
     setIsSubmitting(true);
 
-    // 15秒タイムアウト（Supabase のネットワーク遅延を考慮）
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
+      // コピー元店舗の場合、既存の licenseImageUrl をサーバー側で取得できるよう copyFromStoreId を送る
+      // 直接アップロードの場合は licenseImageBase64 を送る
       const res = await fetch(`${BASE}/api/stores/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -184,6 +215,9 @@ export default function StoreOnboarding() {
           lat: pinPos?.lat ?? null,
           lng: pinPos?.lng ?? null,
           pledgeSigned: true,
+          licenseImageBase64: licenseImageBase64 || null,
+          licenseNumber: licenseNumber.trim() || null,
+          copyLicenseFromStoreId: copyFromStoreId ?? null,
         }),
       });
 
@@ -198,7 +232,6 @@ export default function StoreOnboarding() {
         throw new Error(msg);
       }
 
-      // サイレントエラー防止: レスポンス JSON を検証
       const responseBody = await res.json().catch(() => null);
       if (!responseBody?.id) {
         console.error('[StoreOnboarding] ❌ 登録成功レスポンスに id がない:', responseBody);
@@ -210,15 +243,25 @@ export default function StoreOnboarding() {
         return;
       }
 
-      // 登録成功 → 下書きクリアして bank-setup へ
-      console.log('[StoreOnboarding] ✅ 登録成功 id=', responseBody.id, '→ /store/bank-setup');
       clearOnboardingDraft();
-      navigate('/store/bank-setup');
+
+      if (isInherited) {
+        // Stripe引き継ぎ → bank-setup スキップ → マイページへ
+        console.log('[StoreOnboarding] ✅ 追加店舗登録成功（引き継ぎ） id=', responseBody.id, '→ /mypage');
+        toast({
+          title: '店舗を追加しました',
+          description: '審査が完了するまでお待ちください。',
+        });
+        navigate('/mypage');
+      } else {
+        // 初回登録 → bank-setup へ
+        console.log('[StoreOnboarding] ✅ 登録成功 id=', responseBody.id, '→ /store/bank-setup');
+        navigate('/store/bank-setup');
+      }
     } catch (err: unknown) {
       clearTimeout(timeout);
 
       if (err instanceof Error && err.name === 'AbortError') {
-        // タイムアウト → 店舗が実際に作成されたか確認してから遷移
         console.warn('[StoreOnboarding] タイムアウト — 店舗作成を確認中...');
         try {
           const check = await fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
@@ -226,7 +269,11 @@ export default function StoreOnboarding() {
             const checkStore = await check.json().catch(() => null);
             console.log('[StoreOnboarding] タイムアウト後、店舗確認 OK → 遷移');
             clearOnboardingDraft();
-            navigate(checkStore?.stripeAccountId ? '/store/dashboard' : '/store/bank-setup');
+            if (isInherited) {
+              navigate('/mypage');
+            } else {
+              navigate(checkStore?.stripeAccountId ? '/store/dashboard' : '/store/bank-setup');
+            }
             return;
           }
         } catch (_) {}
@@ -268,25 +315,48 @@ export default function StoreOnboarding() {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-black">店舗を登録する</h1>
-            <p className="text-xs text-muted-foreground">基本情報を入力して口座設定へ</p>
+            <h1 className="text-xl font-black">{isAddMode ? '店舗を追加する' : '店舗を登録する'}</h1>
+            <p className="text-xs text-muted-foreground">
+              {isInherited ? '営業許可証のみ提出してください' : '基本情報を入力して口座設定へ'}
+            </p>
           </div>
         </div>
+
+        {/* 引き継ぎバナー（追加モード＋Stripe済みの場合） */}
+        {isInherited && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex gap-3"
+          >
+            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-black text-emerald-800">本人確認・口座情報は引き継がれます</p>
+              <p className="text-xs text-emerald-700 mt-0.5 leading-relaxed">
+                1店舗目で登録済みの免許証・銀行口座は、この店舗にも自動的に紐付けられます。
+                <strong>営業許可証だけ</strong>この店舗のものをアップロードしてください。
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         <motion.form
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           onSubmit={handleSubmit}
+          noValidate
           className="space-y-5"
         >
-          {/* 料金案内 */}
-          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex gap-3 text-sm">
-            <Leaf className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <div className="font-black text-foreground">完全成果報酬型</div>
-              <div className="text-muted-foreground">初期費用・月額0円。売れた分だけ手数料25%</div>
+          {/* 料金案内（初回のみ） */}
+          {!isInherited && (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex gap-3 text-sm">
+              <Leaf className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-black text-foreground">完全成果報酬型</div>
+                <div className="text-muted-foreground">初期費用・月額0円。売れた分だけ手数料25%</div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 店舗写真 */}
           <div>
@@ -392,6 +462,102 @@ export default function StoreOnboarding() {
             </div>
           </div>
 
+          {/* ── 営業許可証セクション ── */}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <FileCheck className="w-4 h-4 text-amber-700 shrink-0" />
+              <span className="text-sm font-black text-amber-800">
+                この店舗の営業許可証 <span className="text-destructive">*</span>
+              </span>
+            </div>
+            <p className="text-xs text-amber-700 leading-relaxed">
+              食品衛生法に基づく営業許可証を撮影してアップロードしてください。
+              店舗ごとに許可証が異なるため、この店舗専用のものが必要です。
+            </p>
+
+            {/* 許可証番号（任意） */}
+            <input
+              type="text"
+              value={licenseNumber}
+              onChange={e => setLicenseNumber(e.target.value)}
+              className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-300 focus:border-amber-400 outline-none"
+              placeholder="許可証番号（任意）例: 第○○○号"
+            />
+
+            {/* アップロードエリア */}
+            <label className="block cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={e => e.target.files?.[0] && handleLicenseFile(e.target.files[0])}
+              />
+              <div className={`relative w-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 overflow-hidden transition-all min-h-[120px]
+                ${licensePreview
+                  ? 'border-emerald-400 bg-emerald-50/50'
+                  : 'border-amber-300 bg-white hover:border-amber-400'}`}
+              >
+                {licensePreview ? (
+                  <>
+                    <img src={licensePreview} alt="営業許可証" className="w-full max-h-48 object-contain p-2" />
+                    <div className="absolute top-2 right-2 bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <FileCheck className="w-3 h-3" /> アップロード済み
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-xl">📋</div>
+                    <span className="text-xs font-bold text-amber-700">タップして営業許可証を追加</span>
+                    <span className="text-[10px] text-amber-600/70">JPG・PNG対応</span>
+                  </>
+                )}
+              </div>
+            </label>
+
+            {/* 既存店舗からコピーする選択肢（同じ場所で別業態の場合） */}
+            {isAddMode && storesWithLicense.length > 0 && (
+              <div className="border-t border-amber-200 pt-3">
+                <p className="text-[11px] font-bold text-amber-700 mb-2 flex items-center gap-1">
+                  <Copy className="w-3 h-3" />
+                  同じ場所で別業態の場合 — 既存の許可証をコピー
+                </p>
+                <div className="space-y-2">
+                  {storesWithLicense.map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => handleCopyLicense(s)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all text-sm
+                        ${copyFromStoreId === s.id
+                          ? 'border-emerald-400 bg-emerald-50 text-emerald-800 font-bold'
+                          : 'border-amber-200 bg-white hover:border-amber-300 text-amber-800'}`}
+                    >
+                      {s.licenseImageUrl && (
+                        <img src={s.licenseImageUrl} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0 border border-amber-200" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold truncate">{s.name}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{s.address}</div>
+                      </div>
+                      {copyFromStoreId === s.id && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                  {copyFromStoreId !== null && (
+                    <button
+                      type="button"
+                      onClick={() => { setCopyFromStoreId(null); setLicensePreview(''); }}
+                      className="text-[11px] text-muted-foreground underline"
+                    >
+                      コピーをやめて別の許可証をアップロードする
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* 誓約チェック */}
           <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
             <div className="flex items-start gap-3">
@@ -451,13 +617,17 @@ export default function StoreOnboarding() {
                 <Loader2 className="w-5 h-5 animate-spin" />
                 登録中...
               </>
+            ) : isInherited ? (
+              '登録して審査へ →'
             ) : (
               '登録して口座設定へ →'
             )}
           </button>
 
           <p className="text-center text-xs text-muted-foreground pb-4">
-            登録後すぐに口座情報の入力へ進みます
+            {isInherited
+              ? '口座・本人確認は1店舗目の情報を引き継ぎます'
+              : '登録後すぐに口座情報の入力へ進みます'}
           </p>
         </motion.form>
       </div>
