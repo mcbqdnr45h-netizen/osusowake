@@ -374,6 +374,7 @@ export default function StripeBankSetup() {
   if (!accountNumber.trim())                            missingFields.push('口座番号');
   if (!holderName.trim())                               missingFields.push('口座名義（カタカナ）');
   if (!docFrontPreview)                                 missingFields.push('本人確認書類（表面）の写真');
+  if (!docBackPreview)                                  missingFields.push('本人確認書類（裏面）の写真');
   if (!bizLicensePreview)                               missingFields.push('営業許可証の画像');
   if (!tosAgreed)                                       missingFields.push('利用規約への同意');
 
@@ -866,7 +867,7 @@ export default function StripeBankSetup() {
               {businessType === 'company'
                 ? '代表者（法人代表）の運転免許証・マイナンバーカード・パスポートなど。'
                 : '運転免許証・マイナンバーカード・パスポートなど。'}
-              <span className="text-red-500 font-medium">表面は必須</span>、裏面は任意です。
+              <span className="text-red-500 font-medium">表面・裏面ともに必須</span>です。
             </p>
             {/* hidden inputs */}
             <input ref={frontInputRef} type="file" accept="image/*,image/heic,image/heif" className="hidden"
@@ -901,7 +902,7 @@ export default function StripeBankSetup() {
 
               {/* 裏面 */}
               <div className="flex flex-col gap-2">
-                <p className="text-xs font-bold text-gray-600">裏面 <span className="text-gray-400 font-normal">（任意）</span></p>
+                <p className="text-xs font-bold text-gray-600">裏面 <span className="text-red-500">*</span></p>
                 <button type="button" onClick={() => backInputRef.current?.click()}
                   className={`relative w-full aspect-[3/2] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 overflow-hidden transition-colors ${
                     docBackPreview ? 'border-orange-400 bg-orange-50' : 'border-gray-300 bg-gray-50 hover:border-orange-300'
