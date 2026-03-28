@@ -1436,9 +1436,10 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     } else {
       // company: 会社情報 + 代表者情報
       const companyObj: Record<string, any> = {};
-      // 法人名は companyNameKanji/companyNameKana から取得（代表者名ではない）
-      if (companyNameKanji?.trim()) companyObj.name      = companyNameKanji.trim();
-      if (companyNameKana?.trim())  companyObj.name_kana = companyNameKana.trim();
+      // 法人名マッピング（JP Stripe）:
+      //   name_kanji = 漢字法人名（必須）  /  name_kana = カナ（必須）  /  name = ローマ字（任意）
+      if (companyNameKanji?.trim()) companyObj.name_kanji = companyNameKanji.trim();
+      if (companyNameKana?.trim())  companyObj.name_kana  = companyNameKana.trim();
       // JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
         companyObj.address_kanji = addressKanji;
@@ -1469,7 +1470,9 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       }
       if (representative.phone?.trim()) rep.phone = toE164Japan(representative.phone);
       if (representative.email?.trim()) rep.email = representative.email;
-      updateParams["representative"] = rep;
+      // ⚠️ accounts.update は "representative" パラメータを受け付けない（Stripe JP）
+      // → accounts.update の後に Persons API で登録する
+      // updateParams["representative"] = rep;  ← NG
     }
 
     // ── Stripe 送信直前のペイロードをフルログ（null/空がないか確認）──
@@ -1477,6 +1480,25 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     console.log(JSON.stringify(updateParams, null, 2));
 
     const account = await stripe.accounts.update(store.stripeAccountId, updateParams as any);
+
+    // ── 法人代表者を Persons API で登録/更新（accounts.update では設定不可）──
+    if (businessType === 'company' && Object.keys(rep ?? {}).length > 0) {
+      try {
+        const kyc_existingPersons = await stripe.accounts.persons.list(store.stripeAccountId, { limit: 10 });
+        const kyc_existing = kyc_existingPersons.data.find(p => p.relationship?.representative);
+        rep.title = (representative as any).title?.trim() || "代表取締役";
+        rep.relationship = { representative: true, executive: true, owner: true, percent_ownership: 100 };
+        if (kyc_existing) {
+          await stripe.accounts.persons.update(store.stripeAccountId, kyc_existing.id, rep as any);
+          console.log(`[KYC] Persons.update done — ${kyc_existing.id}`);
+        } else {
+          const np = await stripe.accounts.persons.create(store.stripeAccountId, rep as any);
+          console.log(`[KYC] Persons.create done — ${np.id}`);
+        }
+      } catch (perr: any) {
+        console.error("[KYC] Persons API error (non-fatal):", perr?.message ?? perr);
+      }
+    }
 
     // ── Stripe レスポンスをフルログ ──
     console.log(`✅ [KYC] Stripe accounts.update succeeded for store ${storeId}`);
@@ -1702,6 +1724,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       stateKana: string;  cityKana: string;  townKana: string;  line1Kana?: string;
       productDescription?: string; businessUrl?: string;
       companyNameKanji?: string; companyNameKana?: string;
+      companyNameLatin?: string; companyTaxId?: string;
+      representativeTitle?: string;
     };
     docFrontBase64: string; docFrontMime: string;
     docBackBase64?: string; docBackMime?: string;
@@ -2017,19 +2041,27 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 
       if (businessType === "company") {
         // 法人の場合: company オブジェクトに法人名情報を設定
-        // ⚠️ company.name は Stripe JP 法人で必須。未入力ならストア名をフォールバックに使う
+        // ⚠️ 法人の company フィールドマッピング（Stripe JP）:
+        //   company.name_kanji = 漢字法人名（必須）
+        //   company.name_kana  = カナ法人名（必須）
+        //   company.name       = ローマ字法人名（任意 — 日本語を入れると Stripe が拒否する）
+        //   company.tax_id     = 法人番号13桁（必須）
         const companyNameFallback = store.name ?? "株式会社テスト";
         const companyObj: Record<string, any> = {
-          name:      (k.companyNameKanji?.trim() || companyNameFallback),
-          name_kana: (k.companyNameKana?.trim()  || companyNameFallback),
+          name_kanji: (k.companyNameKanji?.trim() || companyNameFallback),
+          name_kana:  (k.companyNameKana?.trim()  || companyNameFallback),
         };
+        // ローマ字法人名はユーザーが入力した場合のみ送る（日本語は Stripe が拒否）
+        if (k.companyNameLatin?.trim()) companyObj.name = k.companyNameLatin.trim();
+        // 法人番号（13桁）
+        if (k.companyTaxId?.trim()) companyObj.tax_id = k.companyTaxId.replace(/-/g, '').trim();
         if (k.postalCode?.trim()) {
           companyObj.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
           companyObj.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
         }
         if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
         step4Payload.company = companyObj;
-        console.log(`[bank-setup] BG company obj: name="${companyObj.name}" name_kana="${companyObj.name_kana}"`);
+        console.log(`[bank-setup] BG company obj: name_kanji="${companyObj.name_kanji}" name_kana="${companyObj.name_kana}" tax_id="${companyObj.tax_id}"`);
         // ⚠️ 法人の代表者は accounts.update の "representative" キーでは設定できない（Stripe が拒否する）
         // → Persons API で accounts.update の後に別途登録する
       } else {
@@ -2067,9 +2099,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         const { id_number: _idNum, political_exposure: _polExp, ...repData } = indiv;
         const personPayload = {
           ...repData,
+          title: k.representativeTitle?.trim() || "代表取締役",
           relationship: { representative: true, executive: true, owner: true, percent_ownership: 100 },
         };
-        console.log(`[bank-setup] BG STEP4b Persons API — keys: ${Object.keys(repData).join(", ")}`);
+        console.log(`[bank-setup] BG STEP4b Persons API — keys: ${Object.keys(repData).join(", ")} title="${personPayload.title}"`);
         try {
           // 既存の代表者 Person があれば update、なければ create
           const existingPersons = await stripeCall(
@@ -2232,12 +2265,18 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
         if (due.some(f => f.includes("representative.email"))) {
           rep.email = ownerEmail ?? "test@example.com";
         }
+        // 役職は JP 法人で必須
+        rep.title = "代表取締役";
         personRepPayload = rep;
       }
 
       // 法人情報（company オブジェクト）は accounts.update で送れる
       if (due.some(f => f.includes("company."))) {
+        const storeNameForFallback = store.name ?? "株式会社テスト";
         payload.company = {
+          name_kanji: storeNameForFallback,
+          name_kana:  "テスト",
+          // tax_id は 13 桁法人番号。ダミー値を送るとエラーになるため due に tax_id が含まれる場合はスキップ
           address_kanji: { postal_code: "1000001", state: "東京都", city: "千代田区", town: "千代田", line1: "1-1" },
           address_kana:  { postal_code: "1000001", state: "トウキョウト", city: "チヨダク", town: "チヨダ", line1: "1-1" },
           phone: "+810600000000",

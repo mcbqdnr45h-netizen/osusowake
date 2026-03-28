@@ -51,6 +51,8 @@ type DraftState = {
   bankName: string; bankCode: string; branchCode: string;
   accountNumber: string; holderName: string;
   companyNameKanji?: string; companyNameKana?: string;
+  companyNameLatin?: string; companyTaxId?: string;
+  representativeTitle?: string;
 };
 function saveDraft(d: DraftState) {
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
@@ -196,8 +198,11 @@ export default function StripeBankSetup() {
   const [businessType, setBusinessType] = useState<'individual' | 'company'>(initialBusinessType);
 
   // ── KYC: 法人情報（法人の場合のみ） ──
-  const [companyNameKanji, setCompanyNameKanji] = useState(draft.companyNameKanji ?? '');
-  const [companyNameKana, setCompanyNameKana]   = useState(draft.companyNameKana  ?? '');
+  const [companyNameKanji, setCompanyNameKanji]     = useState(draft.companyNameKanji   ?? '');
+  const [companyNameKana, setCompanyNameKana]       = useState(draft.companyNameKana    ?? '');
+  const [companyNameLatin, setCompanyNameLatin]     = useState(draft.companyNameLatin   ?? '');
+  const [companyTaxId, setCompanyTaxId]             = useState(draft.companyTaxId       ?? '');
+  const [representativeTitle, setRepresentativeTitle] = useState(draft.representativeTitle ?? '代表取締役');
 
   // ── KYC: 代表者氏名 ──
   const [lastNameKanji, setLastNameKanji]   = useState(draft.lastNameKanji   ?? '');
@@ -258,7 +263,7 @@ export default function StripeBankSetup() {
     stateKana, cityKana, townKana, line1Kana,
     productDescription, businessUrl,
     bankName, bankCode, branchCode, accountNumber, holderName,
-    companyNameKanji, companyNameKana,
+    companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle,
   });
   useEffect(() => {
     draftStateRef.current = {
@@ -268,7 +273,7 @@ export default function StripeBankSetup() {
       stateKana, cityKana, townKana, line1Kana,
       productDescription, businessUrl,
       bankName, bankCode, branchCode, accountNumber, holderName,
-      companyNameKanji, companyNameKana,
+      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle,
     };
     const t = setTimeout(() => saveDraft(draftStateRef.current), 2000);
     return () => clearTimeout(t);
@@ -278,7 +283,7 @@ export default function StripeBankSetup() {
       stateKana, cityKana, townKana, line1Kana,
       productDescription, businessUrl,
       bankName, bankCode, branchCode, accountNumber, holderName,
-      companyNameKanji, companyNameKana]);
+      companyNameKanji, companyNameKana, companyNameLatin, companyTaxId, representativeTitle]);
 
   // 30秒おきにも保存
   useEffect(() => {
@@ -360,6 +365,7 @@ export default function StripeBankSetup() {
   const missingFields: string[] = [];
   if (businessType === 'company' && !companyNameKanji.trim()) missingFields.push('法人名（漢字）');
   if (businessType === 'company' && !companyNameKana.trim())  missingFields.push('法人名（カナ）');
+  if (businessType === 'company' && companyTaxId.replace(/-/g, '').length !== 13) missingFields.push(`法人番号（13桁で入力 — 現在${companyTaxId.replace(/-/g, '').length}桁）`);
   if (!lastNameKanji.trim() || !firstNameKanji.trim()) missingFields.push('代表者氏名（漢字）');
   if (!lastNameKana.trim()   || !firstNameKana.trim())  missingFields.push('代表者氏名（カタカナ）');
   if (phone.trim().length < 10)  missingFields.push(`電話番号（現在${phone.trim().length}桁 / 10桁以上）`);
@@ -454,8 +460,11 @@ export default function StripeBankSetup() {
             productDescription: productDescription.trim() || undefined,
             businessUrl:        businessUrl.trim() || undefined,
             ...(businessType === 'company' ? {
-              companyNameKanji: companyNameKanji.trim() || undefined,
-              companyNameKana:  companyNameKana.trim()  || undefined,
+              companyNameKanji:     companyNameKanji.trim()     || undefined,
+              companyNameKana:      companyNameKana.trim()      || undefined,
+              companyNameLatin:     companyNameLatin.trim()     || undefined,
+              companyTaxId:         companyTaxId.replace(/-/g, '').trim() || undefined,
+              representativeTitle:  representativeTitle.trim()  || '代表取締役',
             } : {}),
           },
           // 本人確認書類（base64 data URL のまま送信）
@@ -718,6 +727,15 @@ export default function StripeBankSetup() {
                 <input type="text" value={companyNameKana} onChange={e => setCompanyNameKana(e.target.value)}
                   placeholder="カブシキガイシャ〇〇フード" required={businessType === 'company'} className={inputClass} />
               </Field>
+              <Field label="法人名（ローマ字）" hint="例：Kabushiki Gaisha XX Food（任意）">
+                <input type="text" value={companyNameLatin} onChange={e => setCompanyNameLatin(e.target.value)}
+                  placeholder="Kabushiki Gaisha XX Food" className={inputClass} />
+              </Field>
+              <Field label="法人番号（13桁）" required hint="国税庁の法人番号。ハイフンなしで入力">
+                <input type="text" value={companyTaxId} onChange={e => setCompanyTaxId(e.target.value.replace(/[^\d-]/g, ''))}
+                  placeholder="0000000000000" maxLength={13} inputMode="numeric" className={inputClass} />
+                <p className="text-xs text-gray-400 mt-1">{companyTaxId.replace(/-/g, '').length} / 13 桁</p>
+              </Field>
             </FormSection>
           )}
 
@@ -752,6 +770,12 @@ export default function StripeBankSetup() {
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="owner@example.com" required className={inputClass} />
             </Field>
+            {businessType === 'company' && (
+              <Field label="代表者の役職" required hint="例：代表取締役、CEO">
+                <input type="text" value={representativeTitle} onChange={e => setRepresentativeTitle(e.target.value)}
+                  placeholder="代表取締役" className={inputClass} />
+              </Field>
+            )}
           </FormSection>
 
           {/* ── ③ 生年月日 ── */}
