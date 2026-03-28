@@ -266,9 +266,9 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
           const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
           if (ownerEmail) {
             await resend.emails.send({
-              from: `OsusOwake <${fromDomain}>`,
+              from: `Osusowake <${fromDomain}>`,
               to: ownerEmail,
-              subject: `【OsusOwake】${updated.name}の審査が完了しました`,
+              subject: `【Osusowake】${updated.name}の審査が完了しました`,
               html: `
 <!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">

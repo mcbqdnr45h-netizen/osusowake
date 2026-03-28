@@ -175,7 +175,7 @@ export default function RegisterStore() {
           </button>
           <div>
             <h1 className="text-xl font-black">お店を登録する</h1>
-            <p className="text-xs text-muted-foreground">OsusOwakeに参加して、フードロスを減らしましょう</p>
+            <p className="text-xs text-muted-foreground">Osusowakeに参加して、フードロスを減らしましょう</p>
           </div>
         </div>
 

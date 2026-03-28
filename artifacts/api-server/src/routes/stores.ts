@@ -216,9 +216,9 @@ router.post("/stores/apply", async (req, res) => {
         const approveUrl = `${appUrl}/api/admin/approve-store?storeId=${store.id}&token=${token}`;
 
         await resend.emails.send({
-          from: `OsusOwake <${fromDomain}>`,
+          from: `Osusowake <${fromDomain}>`,
           to: adminEmail,
-          subject: `【OsusOwake】新しい店舗が審査待ちです: ${store.name}`,
+          subject: `【Osusowake】新しい店舗が審査待ちです: ${store.name}`,
           html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -582,9 +582,9 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
           const ownerEmail = userData?.user?.email;
           if (ownerEmail) {
             await resend.emails.send({
-              from: `OsusOwake <${fromDomain}>`,
+              from: `Osusowake <${fromDomain}>`,
               to: ownerEmail,
-              subject: `【OsusOwake】店舗審査の結果について：${updated.name}`,
+              subject: `【Osusowake】店舗審査の結果について：${updated.name}`,
               html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -597,7 +597,7 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
     </div>
     <div style="padding:32px;">
       <p style="font-size:15px;color:#333;line-height:1.7;margin-bottom:20px;">
-        この度は OsusOwake にご申請いただきありがとうございます。<br>
+        この度は Osusowake にご申請いただきありがとうございます。<br>
         誠に申し訳ございませんが、<strong>${updated.name}</strong> の店舗申請について、今回は審査を通過できませんでした。
       </p>
       ${rejectionReason ? `
@@ -689,9 +689,9 @@ router.post("/stores/:storeId/reapply", async (req, res) => {
         const approveUrl = `${appUrl}/api/admin/approve-store?storeId=${storeId}&token=${token}`;
 
         await resend.emails.send({
-          from: `OsusOwake <${fromDomain}>`,
+          from: `Osusowake <${fromDomain}>`,
           to: adminEmail,
-          subject: `【OsusOwake】店舗が再申請されました: ${updated.name}`,
+          subject: `【Osusowake】店舗が再申請されました: ${updated.name}`,
           html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -1786,9 +1786,9 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
           const token = crypto.createHmac('sha256', secret).update(String(storeId)).digest('hex');
           const approveUrl = `${appUrl}/api/admin/approve-store?storeId=${storeId}&token=${token}`;
           await resend.emails.send({
-            from: `OsusOwake <${fromDomain}>`,
+            from: `Osusowake <${fromDomain}>`,
             to: adminEmail,
-            subject: `【OsusOwake】店舗がStripe口座を再設定しました（再審査）: ${store.name}`,
+            subject: `【Osusowake】店舗がStripe口座を再設定しました（再審査）: ${store.name}`,
             html: `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
     <div style="background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);padding:40px 32px;text-align:center;">

@@ -413,7 +413,7 @@ export default function StoreOnboarding() {
                 onClick={() => setPledgeSigned(v => !v)}
               >
                 <span className="font-black block mb-1">利用規約への同意 <span className="text-destructive">*</span></span>
-                食品衛生法を遵守し、営業許可証に基づいて営業していることを誓約します。また、OsusOwakeの
+                食品衛生法を遵守し、営業許可証に基づいて営業していることを誓約します。また、Osusowakeの
                 <span className="text-primary font-bold">利用規約</span>に同意の上、申請します。
               </p>
             </div>

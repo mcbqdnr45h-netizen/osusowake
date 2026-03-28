@@ -125,7 +125,7 @@ export default function VerifyEmail() {
             />
           </div>
           <h2 className="text-2xl font-black text-foreground mb-2">認証完了！</h2>
-          <p className="text-muted-foreground text-sm">ようこそ、OsusOwakeへ 🎉</p>
+          <p className="text-muted-foreground text-sm">ようこそ、Osusowakeへ 🎉</p>
           <p className="text-muted-foreground text-xs mt-1">ホーム画面へ移動します...</p>
         </motion.div>
       </div>

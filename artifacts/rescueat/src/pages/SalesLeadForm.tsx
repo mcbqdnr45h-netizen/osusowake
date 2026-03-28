@@ -77,7 +77,7 @@ export default function SalesLeadForm() {
                   <p className="text-xl font-black text-foreground">ありがとうございます！</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     情報を受け付けました。<br/>
-                    OsusOwakeのスタッフが直接お伺いします🙏
+                    Osusowakeのスタッフが直接お伺いします🙏
                   </p>
                 </div>
                 <button
@@ -105,7 +105,7 @@ export default function SalesLeadForm() {
                   </div>
                   <p className="text-[12px] text-muted-foreground leading-relaxed">
                     「あそこのパン屋さん、毎日余ってそう…」そんな気づきを教えてください。<br/>
-                    OsusOwakeスタッフが直接お話を聞きに伺います。
+                    Osusowakeスタッフが直接お話を聞きに伺います。
                   </p>
                 </div>
 
@@ -188,12 +188,12 @@ export default function SalesLeadForm() {
                     style={{ boxShadow: '0 4px 14px -2px rgba(242,100,25,0.4)' }}
                   >
                     <SendHorizontal className="w-5 h-5" />
-                    {submitting ? '送信中...' : 'OsusOwakeに教える'}
+                    {submitting ? '送信中...' : 'Osusowakeに教える'}
                   </button>
                 </form>
 
                 <p className="text-[11px] text-center text-muted-foreground/50 leading-relaxed">
-                  送信いただいた情報はOsusOwakeの営業担当のみが閲覧します。<br/>
+                  送信いただいた情報はOsusowakeの営業担当のみが閲覧します。<br/>
                   個人情報は含めないようにしてください。
                 </p>
               </motion.div>

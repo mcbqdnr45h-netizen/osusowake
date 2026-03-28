@@ -63,7 +63,7 @@ export default function ResetPassword() {
       >
         {/* ロゴ */}
         <div className="text-center mb-8">
-          <p className="text-3xl font-black text-primary tracking-tight">OsusOwake</p>
+          <p className="text-3xl font-black text-primary tracking-tight">Osusowake</p>
           <p className="text-xs text-muted-foreground mt-1">食品ロスをなくす、おすそわけマーケット</p>
         </div>
 

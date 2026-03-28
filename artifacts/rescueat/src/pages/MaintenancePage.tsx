@@ -46,7 +46,7 @@ export default function MaintenancePage({ settings }: Props) {
         </div>
 
         <div className="bg-primary/8 border border-primary/20 rounded-2xl px-5 py-4">
-          <p className="text-xs font-bold text-primary">OsusOwake</p>
+          <p className="text-xs font-bold text-primary">Osusowake</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             ご不便をおかけして申し訳ありません
           </p>

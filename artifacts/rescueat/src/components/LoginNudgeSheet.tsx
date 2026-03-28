@@ -20,7 +20,7 @@ const REASON_TEXT = {
   },
   general: {
     title: 'ログインしてこの機能を使おう',
-    desc: 'OsusOwakeのすべての機能を使うにはアカウントが必要です。',
+    desc: 'Osusowakeのすべての機能を使うにはアカウントが必要です。',
   },
 };
 

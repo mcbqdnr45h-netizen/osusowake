@@ -78,9 +78,9 @@ router.post("/auth/forgot-password", async (req, res) => {
     const resend = new Resend(resendKey);
 
     await resend.emails.send({
-      from:    `OsusOwake 事務局 <${fromDomain}>`,
+      from:    `Osusowake 事務局 <${fromDomain}>`,
       to:      email.trim(),
-      subject: "【OsusOwake】パスワード再設定のご案内",
+      subject: "【Osusowake】パスワード再設定のご案内",
       html:    buildPasswordResetHtml(resetLink),
     });
 
@@ -97,7 +97,7 @@ function buildPasswordResetHtml(resetLink: string): string {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>パスワード再設定 — OsusOwake</title>
+  <title>パスワード再設定 — Osusowake</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F5F5F3;font-family:'Hiragino Kaku Gothic Pro','Hiragino Sans','Yu Gothic UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#F5F5F3;padding:40px 16px;">
@@ -110,7 +110,7 @@ function buildPasswordResetHtml(resetLink: string): string {
           <tr>
             <td style="background:linear-gradient(135deg,#F26419 0%,#F6AE2D 100%);padding:36px 40px;text-align:center;">
               <p style="margin:0 0 4px;font-size:32px;font-weight:900;color:#ffffff;letter-spacing:-1px;line-height:1;">
-                OsusOwake
+                Osusowake
               </p>
               <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.8);font-weight:600;letter-spacing:0.5px;">
                 食品ロスをなくす、おすそわけマーケット
@@ -127,7 +127,7 @@ function buildPasswordResetHtml(resetLink: string): string {
               <div style="width:40px;height:4px;background:linear-gradient(90deg,#F26419,#F6AE2D);border-radius:2px;margin:0 0 24px;"></div>
 
               <p style="margin:0 0 12px;font-size:15px;color:#555;line-height:1.8;">
-                OsusOwakeをご利用いただきありがとうございます。
+                Osusowakeをご利用いただきありがとうございます。
               </p>
               <p style="margin:0 0 32px;font-size:15px;color:#555;line-height:1.8;">
                 以下のボタンをタップして、新しいパスワードを設定してください。<br/>
@@ -164,8 +164,8 @@ function buildPasswordResetHtml(resetLink: string): string {
           <!-- ── フッター ── -->
           <tr>
             <td style="background:#F8F8F7;padding:20px 40px;text-align:center;border-top:1px solid #EBEBEA;">
-              <p style="margin:0 0 4px;font-size:13px;font-weight:900;color:#888;">OsusOwake</p>
-              <p style="margin:0;font-size:11px;color:#bbb;">© 2026 OsusOwake. All rights reserved.</p>
+              <p style="margin:0 0 4px;font-size:13px;font-weight:900;color:#888;">Osusowake</p>
+              <p style="margin:0;font-size:11px;color:#bbb;">© 2026 Osusowake. All rights reserved.</p>
             </td>
           </tr>
 

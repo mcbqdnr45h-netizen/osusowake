@@ -73,9 +73,9 @@ async function sendAdminKycEmail(store: {
   `;
 
   const { error } = await resend.emails.send({
-    from: `OsusOwake <${fromDomain}>`,
+    from: `Osusowake <${fromDomain}>`,
     to: ADMIN_EMAIL,
-    subject: `【OsusOwake】🎉 Stripe KYC完了 — 承認依頼: ${store.name}`,
+    subject: `【Osusowake】🎉 Stripe KYC完了 — 承認依頼: ${store.name}`,
     html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -120,13 +120,13 @@ async function sendAdminKycEmail(store: {
       </div>
 
       <p style="color:#999999;font-size:12px;line-height:1.6;margin:0;text-align:center;">
-        このメールは OsusOwake システムから自動送信されています。<br>
+        このメールは Osusowake システムから自動送信されています。<br>
         承認リンクはセキュリティのため1回限り有効です。
       </p>
     </div>
 
     <div style="background:#f5f5f0;padding:20px 32px;text-align:center;">
-      <p style="color:#aaaaaa;font-size:11px;margin:0;">OsusOwake — おいしいものを、もっとみんなへ。</p>
+      <p style="color:#aaaaaa;font-size:11px;margin:0;">Osusowake — おいしいものを、もっとみんなへ。</p>
     </div>
   </div>
 </body>
@@ -229,7 +229,7 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
           userId: store.ownerId,
           type: "store_approved",
           title: "🎉 店舗が承認されました！",
-          body: `${store.name} がOsusOwakeに公開されました。おすそわけバッグを出品しましょう！`,
+          body: `${store.name} がOsusowakeに公開されました。おすそわけバッグを出品しましょう！`,
           read: false,
         });
       } catch (e) {
