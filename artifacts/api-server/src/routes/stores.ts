@@ -2000,12 +2000,6 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       const bizProfile: Record<string, string> = { mcc: "5812", url: businessUrl };
       if (k.productDescription?.trim()) bizProfile.product_description = k.productDescription;
 
-      // ── 日本 JP 必須フィールドを必ず含める ──
-      // id_number: マイナンバー（個人番号）12桁。テスト環境では "000000000000" が受け入れられる
-      indiv.id_number         = "000000000000";
-      // political_exposure: PEP（政治的重要人物）かどうか — ほとんどの場合 'none'
-      indiv.political_exposure = "none";
-
       const step4Payload: Record<string, any> = {
         business_type:    businessType,
         business_profile: bizProfile,
@@ -2026,16 +2020,21 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         }
         if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
         if (Object.keys(companyObj).length > 0) step4Payload.company = companyObj;
-        // 法人の場合: 代表者情報は "representative" キーに入れる（"individual" は個人事業主専用）
-        // ※ Stripe は business_type=company で individual を受け取るとリクエスト全体を拒否する
+
+        // 法人: 代表者情報は "representative" キー（"individual" は個人事業主専用）
+        // ⚠️ id_number・political_exposure は representative に含めてはいけない — Stripe がリクエスト全体を拒否する
         if (Object.keys(indiv).length > 0) {
+          const { id_number: _idNum, political_exposure: _polExp, ...repData } = indiv;
           step4Payload.representative = {
-            ...indiv,
+            ...repData,
             relationship: { representative: true, owner: true, percent_ownership: 100 },
           };
         }
       } else {
-        // 個人事業主: 本人情報は "individual" キー
+        // 個人事業主: id_number（マイナンバー12桁）と political_exposure を追加してから individual キーに設定
+        // テスト環境では "000000000000" が受け入れられる
+        indiv.id_number          = "000000000000";
+        indiv.political_exposure = "none";
         if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
       }
 
