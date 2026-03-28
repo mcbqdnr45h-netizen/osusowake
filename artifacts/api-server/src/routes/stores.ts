@@ -1467,9 +1467,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     };
     docFrontBase64: string; docFrontMime: string;
     docBackBase64?: string; docBackMime?: string;
+    bizLicenseBase64?: string; bizLicenseMime?: string; bizLicenseNumber?: string;
   };
 
-  const { bankToken, tosTimestamp, businessType = "individual", kycData, docFrontBase64, docFrontMime, docBackBase64, docBackMime } = body;
+  const { bankToken, tosTimestamp, businessType = "individual", kycData, docFrontBase64, docFrontMime, docBackBase64, docBackMime, bizLicenseNumber } = body;
 
   if (!bankToken || !tosTimestamp || !kycData || !docFrontBase64 || !docFrontMime) {
     res.status(400).json({ error: "bad_request", message: "bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime は必須です" });
@@ -1526,7 +1527,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
   // ── STEP 1-2: Stripe アカウント作成＋口座登録（同期） ──
   try {
     // ── 即座に "applied" を書いてループを防止 ──
-    await db.update(storesTable).set({ status: "applied" }).where(eq(storesTable.id, storeId));
+    await db.update(storesTable).set({
+      status: "applied",
+      ...(bizLicenseNumber?.trim() ? { licenseNumber: bizLicenseNumber.trim() } : {}),
+    }).where(eq(storesTable.id, storeId));
     console.log(`[bank-setup] ✅ Store ${storeId} status → 'applied'`);
 
     // STEP 1: アカウント作成 or 更新

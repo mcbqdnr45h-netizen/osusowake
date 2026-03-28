@@ -239,6 +239,7 @@ export default function StripeBankSetup() {
   // ── 営業許可証 ──
   const [bizLicenseFile, setBizLicenseFile]       = useState<File | null>(null);
   const [bizLicensePreview, setBizLicensePreview] = useState<string | null>(null);
+  const [bizLicenseNumber, setBizLicenseNumber]   = useState('');
   const bizLicenseInputRef = useRef<HTMLInputElement>(null);
 
   // ── UI 状態 ──
@@ -459,8 +460,9 @@ export default function StripeBankSetup() {
           docBackBase64:  docBackPreview ?? undefined,
           docBackMime:    docBackFile?.type ?? undefined,
           // 営業許可証
-          bizLicenseBase64: bizLicensePreview ?? undefined,
-          bizLicenseMime:   bizLicenseFile?.type ?? undefined,
+          bizLicenseBase64:   bizLicensePreview ?? undefined,
+          bizLicenseMime:     bizLicenseFile?.type ?? undefined,
+          bizLicenseNumber:   bizLicenseNumber.trim() || undefined,
         }),
       });
       clearTimeout(timeoutId);
@@ -980,6 +982,21 @@ export default function StripeBankSetup() {
                 営業許可証は必須です。書類の画像を添付してください。
               </p>
             )}
+
+            {/* 許可証番号 */}
+            <div className="mt-3">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                営業許可証番号
+              </label>
+              <input
+                type="text"
+                value={bizLicenseNumber}
+                onChange={e => setBizLicenseNumber(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-base font-medium focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 outline-none transition-all"
+                placeholder="例: 第○○号"
+              />
+              <p className="text-xs text-gray-400 mt-1.5">許可証に記載の番号を入力してください（任意）</p>
+            </div>
           </FormSection>
 
           {/* ── ToS ── */}
