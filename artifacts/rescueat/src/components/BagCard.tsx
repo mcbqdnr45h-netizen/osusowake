@@ -166,8 +166,15 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
           </div>
         </div>
 
-        {/* 右上: ハートとバッジ */}
+        {/* 右上: 評価バッジ・ハート・割引バッジ */}
         <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1.5">
+          {/* 星評価バッジ（口コミがある場合のみ） */}
+          {avgRating && !isSoldOut && (
+            <div className="flex items-center gap-0.5 bg-emerald-500 text-white font-black px-2 py-0.5 rounded-full text-[11px] shadow-[0_2px_8px_rgba(16,185,129,0.45)] backdrop-blur-sm">
+              <Star className="w-2.5 h-2.5 fill-white shrink-0" />
+              {Number(avgRating).toFixed(1)}
+            </div>
+          )}
           <button
             onClick={handleFavorite}
             className={`w-8 h-8 flex items-center justify-center rounded-full
