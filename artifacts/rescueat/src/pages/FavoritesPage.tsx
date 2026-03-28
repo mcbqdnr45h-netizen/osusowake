@@ -24,15 +24,15 @@ export default function FavoritesPage() {
   const favoriteBags = bags?.filter(b => isFavorite(b.store.id)) ?? [];
 
   const content = (
-    <div className="max-w-3xl mx-auto px-4 py-6 pb-24">
+    <div className="w-full pb-24 pt-5">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center">
+        <div className="flex items-center gap-3 mb-5 px-4">
+          <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center shrink-0">
             <Heart className="w-5 h-5 fill-rose-500 text-rose-500" />
           </div>
           <div>
-            <h1 className="text-2xl font-black">お気に入り</h1>
+            <h1 className="text-xl font-black">お気に入り</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               {favoriteStores.length > 0
                 ? `${favoriteStores.length}店舗をフォロー中`
@@ -42,7 +42,7 @@ export default function FavoritesPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 px-3">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="h-52 bg-card rounded-2xl animate-pulse border border-border" />
             ))}
@@ -52,7 +52,7 @@ export default function FavoritesPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center min-h-[60vh] text-center"
+            className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"
           >
             <div className="relative mb-6">
               <div className="w-28 h-28 bg-rose-50 border-2 border-rose-100 rounded-full flex items-center justify-center">
@@ -77,7 +77,7 @@ export default function FavoritesPage() {
         ) : (
           <>
             {/* Favorite Stores Chips */}
-            <div className="mb-6">
+            <div className="mb-5 px-4">
               <h2 className="text-sm font-bold text-muted-foreground mb-3 uppercase tracking-wide">フォロー中の店舗</h2>
               <div className="flex flex-wrap gap-2">
                 {favoriteStores.map(store => (
@@ -96,7 +96,7 @@ export default function FavoritesPage() {
 
             {/* Bags from Favorited Stores */}
             <div>
-              <h2 className="text-sm font-bold text-muted-foreground mb-3 uppercase tracking-wide flex items-center gap-1.5">
+              <h2 className="text-sm font-bold text-muted-foreground mb-3 uppercase tracking-wide flex items-center gap-1.5 px-4">
                 <Store className="w-3.5 h-3.5" />
                 お気に入り店舗の出品中バッグ
                 {favoriteBags.length > 0 && (
@@ -107,7 +107,7 @@ export default function FavoritesPage() {
               </h2>
 
               {favoriteBags.length === 0 ? (
-                <div className="text-center py-12 bg-card rounded-2xl border-2 border-dashed border-border">
+                <div className="mx-4 text-center py-12 bg-card rounded-2xl border-2 border-dashed border-border">
                   <div className="text-4xl mb-3">😴</div>
                   <p className="font-bold text-foreground mb-1">現在出品中のバッグはありません</p>
                   <p className="text-xs text-muted-foreground">
@@ -117,7 +117,7 @@ export default function FavoritesPage() {
               ) : (
                 <AnimatePresence>
                   <motion.div
-                    className="grid grid-cols-2 gap-3"
+                    className="grid grid-cols-2 gap-2.5 px-3"
                     initial="hidden"
                     animate="show"
                     variants={{

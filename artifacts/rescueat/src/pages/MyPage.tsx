@@ -83,7 +83,7 @@ export default function MyPage() {
   if (authLoading || (isStoreOwner && loadingStore && store === null)) {
     return (
       <Layout showBottomNav>
-        <div className="max-w-md mx-auto py-8 px-4 pb-24 animate-pulse">
+        <div className="w-full py-8 px-4 pb-24 animate-pulse">
           <div className="h-8 w-32 bg-muted rounded-xl mb-6" />
           <div className="bg-card border border-border rounded-2xl p-5 mb-4">
             <div className="flex items-center gap-4">
@@ -110,7 +110,7 @@ export default function MyPage() {
 
   const pageContent = (
     <div
-      className="max-w-md mx-auto px-4 pb-24"
+      className="w-full px-4 pb-24"
       style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top) + 1rem))' }}
     >
         <div className="flex items-center justify-between mb-2">
@@ -237,14 +237,14 @@ export default function MyPage() {
         </div>
 
         {/* ── おすそわけスコア（カスタマーのみ） ── */}
-        {!isStoreOwner && <div className="mb-2">
+        {!isStoreOwner && <div className="mb-2 -mx-4">
 
           {/* ヒーローカード：スコア全体 */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="relative rounded-2xl overflow-hidden mb-2 shadow-md"
+            className="relative overflow-hidden mb-0"
             style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)' }}
           >
             {/* 背景装飾円 */}
@@ -316,7 +316,9 @@ export default function MyPage() {
 
         {/* ── マイタウン（カスタマーのみ・インライン表示）── */}
         {!isStoreOwner && (
-          <MyTown purchaseCount={pickedUpCount} />
+          <div className="-mx-4 mb-2">
+            <MyTown purchaseCount={pickedUpCount} />
+          </div>
         )}
 
         {/* ── 店舗オーナー：接続エラー中（リトライ待機）── */}
