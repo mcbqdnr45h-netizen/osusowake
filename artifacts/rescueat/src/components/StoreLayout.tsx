@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { LayoutGrid, BarChart2, UserCircle, Compass } from 'lucide-react';
+import { LayoutGrid, BarChart2, UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
 import { NotificationsBell } from '@/components/NotificationsBell';
@@ -12,7 +12,6 @@ interface StoreLayoutProps {
 }
 
 const NAV_ITEMS = [
-  { href: '/',                icon: Compass,    label: '発見'       },
   { href: '/store/dashboard', icon: LayoutGrid, label: '出品管理'   },
   { href: '/store/sales',     icon: BarChart2,  label: '売上確認'   },
   { href: '/mypage',          icon: UserCircle, label: 'マイページ' },
@@ -78,9 +77,7 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
           <div className="flex items-stretch h-[62px] px-1">
             {NAV_ITEMS.map((item) => {
               const isActive =
-                item.href === '/'
-                  ? location === '/'
-                  : item.href === '/store/dashboard'
+                item.href === '/store/dashboard'
                   ? location === '/store/dashboard'
                   : location.startsWith(item.href);
               const Icon = item.icon;
