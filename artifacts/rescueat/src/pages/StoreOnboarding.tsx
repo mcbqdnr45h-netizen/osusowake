@@ -282,7 +282,7 @@ export default function StoreOnboarding() {
   // ロード中
   if (storeLoading) {
     return (
-      <Layout showBottomNav={false}>
+      <Layout showBottomNav={false} hideHeader={true}>
         <div className="flex-1 flex items-center justify-center min-h-dvh">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
@@ -291,7 +291,7 @@ export default function StoreOnboarding() {
   }
 
   return (
-    <Layout showBottomNav={false}>
+    <Layout showBottomNav={false} hideHeader={true}>
       <div className="max-w-xl mx-auto px-4 py-6 pb-24">
 
         {/* ヘッダー */}
