@@ -1,17 +1,8 @@
-// 後方互換レイヤー: use-my-stores から選択中の店舗を1件返す
-export type { MyStore } from './use-my-stores';
-export { useMyStores as _useMyStores } from './use-my-stores';
-import { useMyStores } from './use-my-stores';
+// 後方互換レイヤー: MyStoresContext から選択中の1店舗を返す
+export type { MyStore } from '@/contexts/MyStoresContext';
+import { useMyStoresContext } from '@/contexts/MyStoresContext';
 
 export function useMyStore() {
-  const {
-    currentStore: store,
-    loading,
-    fetchError,
-    refetch,
-    isApprovedOwner,
-    needsBankSetup,
-  } = useMyStores();
-
+  const { currentStore: store, loading, fetchError, refetch, isApprovedOwner, needsBankSetup } = useMyStoresContext();
   return { store, loading, fetchError, isApprovedOwner, needsBankSetup, refetch };
 }

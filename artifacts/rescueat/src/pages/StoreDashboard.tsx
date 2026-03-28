@@ -12,7 +12,7 @@ import {
 import {
   Plus, Minus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
-  History, CreditCard, Zap, Pencil, Trash2, Save,
+  History, CreditCard, Zap, Pencil, Trash2, Save, Store,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1393,9 +1393,16 @@ export default function StoreDashboard() {
     <StoreLayout>
       <div className="max-w-2xl mx-auto w-full space-y-5">
 
-        {/* ── 複数店舗セレクター（2店舗以上のオーナー向け） ── */}
+        {/* ── 店舗セレクター（複数店舗の場合に表示） ── */}
         {stores.length > 1 && (
           <StoreSelector className="px-0" />
+        )}
+        {stores.length === 1 && store && (
+          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
+            <Store className="w-4 h-4 text-orange-500 shrink-0" />
+            <span className="text-sm font-bold text-orange-800 truncate">{store.name}</span>
+            <span className="text-[10px] font-bold text-orange-500 ml-auto shrink-0">操作中</span>
+          </div>
         )}
 
         {/* ── カバー写真バナー ── */}

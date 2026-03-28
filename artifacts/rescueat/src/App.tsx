@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { MyStoresProvider } from "@/contexts/MyStoresContext";
 import { ProtectedRoute, GuestRoute, GuestWallRoute } from "@/components/ProtectedRoute";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
@@ -303,16 +304,18 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <FavoritesProvider>
-          <TooltipProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <MaintenanceGate>
-                <AnimatedRoutes />
-              </MaintenanceGate>
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
-        </FavoritesProvider>
+        <MyStoresProvider>
+          <FavoritesProvider>
+            <TooltipProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <MaintenanceGate>
+                  <AnimatedRoutes />
+                </MaintenanceGate>
+              </WouterRouter>
+              <Toaster />
+            </TooltipProvider>
+          </FavoritesProvider>
+        </MyStoresProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

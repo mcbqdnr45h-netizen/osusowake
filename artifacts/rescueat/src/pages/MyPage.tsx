@@ -13,7 +13,7 @@ const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
 
 export default function MyPage() {
   const userId = useUserId();
-  const { currentStore: store, stores, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStores();
+  const { currentStore: store, stores, selectedStoreId, setSelectedStoreId, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStores();
   const [, navigate] = useLocation();
   const { user, profile, session, isLoading: authLoading, signOut, refreshProfile } = useAuth();
 
@@ -444,23 +444,42 @@ export default function MyPage() {
                       pending:       { label: '審査待ち',     cls: 'bg-amber-100 text-amber-700' },
                     };
                     const st = statusMap[s.status] ?? { label: s.status, cls: 'bg-gray-100 text-gray-600' };
+                    const isSelected = s.id === selectedStoreId;
                     return (
-                      <div key={s.id} className="bg-card rounded-2xl overflow-hidden flex items-center gap-3 px-4 py-3"
-                        style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
-                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedStoreId(s.id)}
+                        className={`w-full text-left rounded-2xl overflow-hidden flex items-center gap-3 px-4 py-3 transition-all active:scale-[0.98] ${
+                          isSelected
+                            ? 'bg-orange-50 border-2 border-orange-400'
+                            : 'bg-card border-2 border-transparent hover:border-orange-200'
+                        }`}
+                        style={!isSelected ? { boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' } : undefined}
+                      >
+                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 relative">
                           {s.imageUrl
                             ? <img src={s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
                             : <div className="w-full h-full bg-orange-100 flex items-center justify-center">
                                 <StoreIcon className="w-5 h-5 text-orange-400" />
                               </div>
                           }
+                          {isSelected && (
+                            <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
+                              <CheckCircle className="w-4 h-4 text-orange-600" />
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm text-foreground truncate">{s.name}</p>
+                          <p className={`font-bold text-sm truncate ${isSelected ? 'text-orange-700' : 'text-foreground'}`}>{s.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{s.address}</p>
                         </div>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${st.cls}`}>{st.label}</span>
-                      </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          {isSelected && (
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-orange-500 text-white">操作中</span>
+                          )}
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
+                        </div>
+                      </button>
                     );
                   })}
                   {/* 追加ボタン */}

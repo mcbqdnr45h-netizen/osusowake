@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
+import { useMyStoresContext } from '@/contexts/MyStoresContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationsBell } from '@/components/NotificationsBell';
 
@@ -20,6 +21,7 @@ interface LayoutProps {
 export function Layout({ children, showBottomNav = true, hideFooter = false, hideHeader = false }: LayoutProps) {
   const [location] = useLocation();
   const { isApprovedOwner } = useMyStore();
+  const { currentStore: activeStore, stores: ownerStores } = useMyStoresContext();
   const { user, profile } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -70,7 +72,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   return (
     <div
       className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen md:!pb-0'} bg-background text-foreground flex flex-col font-sans overflow-x-hidden`}
-      style={!hideFooter ? { paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' } : undefined}
+      style={!hideFooter ? { paddingBottom: (isStoreOwner && showBottomNav) ? 'calc(92px + env(safe-area-inset-bottom))' : 'calc(64px + env(safe-area-inset-bottom))' } : undefined}
     >
 
       {/* ── モバイル専用セーフエリアスペーサー（デスクトップ非表示）── */}
@@ -457,6 +459,16 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             boxShadow: '0 -1px 0 rgba(10,8,6,0.04), 0 -4px 20px rgba(10,8,6,0.05)',
           }}
         >
+          {/* 店舗オーナー向け：現在操作中の店舗名バナー */}
+          {isStoreOwner && activeStore && (
+            <div className="flex items-center justify-center gap-1.5 px-4 py-1.5 bg-orange-500/95 border-b border-orange-400/30">
+              <Store className="w-3 h-3 text-white/90 shrink-0" />
+              <span className="text-[11px] font-black text-white truncate max-w-[200px]">{activeStore.name}</span>
+              {ownerStores.length > 1 && (
+                <span className="text-[9px] font-bold text-orange-200 shrink-0 ml-0.5">操作中</span>
+              )}
+            </div>
+          )}
           <div className="flex items-stretch h-[64px] px-2">
             {navItems.map((item) => {
               const isActive =
