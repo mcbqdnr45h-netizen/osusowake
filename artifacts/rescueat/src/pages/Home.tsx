@@ -134,11 +134,11 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       onClick={e => isSoldOut && e.preventDefault()}
-      className={`group block relative w-40 shrink-0 rounded-xl overflow-hidden shadow-sm border border-border/50 bg-card
+      className={`group block relative w-52 shrink-0 rounded-xl overflow-hidden shadow-sm border border-border/50 bg-card
         tap-scale transition-all duration-200
         ${isSoldOut ? 'opacity-55 grayscale cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-md'}`}
     >
-      <div className="relative w-full h-28 overflow-hidden bg-muted">
+      <div className="relative w-full h-32 overflow-hidden bg-muted">
         {!loaded && <div className="absolute inset-0 skeleton-shimmer" />}
         <img
           src={imgSrc} alt={bag.store.name} loading="lazy" decoding="async"
@@ -212,10 +212,10 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
           {bag.title}
         </p>
 
-        {/* 下段: 左=受取時間 ／ 右=残り個数+距離+価格 */}
-        <div className="flex items-end justify-between gap-1">
-          {/* 左: 受取時間のみ */}
-          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+        {/* 下段: 左=受取時間 ／ 右=残り個数+距離（中央）+価格 */}
+        <div className="flex items-stretch justify-between gap-1">
+          {/* 左: 受取時間（下揃え） */}
+          <div className="flex items-end min-w-0 flex-1">
             {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
               <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
                 <Clock className="w-2 h-2 text-primary shrink-0" />
@@ -224,38 +224,45 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
             )}
           </div>
 
-          {/* 右: ①残り個数 → ②距離 → ③元値 → ④販売価格（右揃え縦列） */}
+          {/* 右: 3段構成（右揃え縦列・stretch） */}
           {!isSoldOut && (
-            <div className="flex flex-col items-end gap-[2px] shrink-0">
+            <div className="flex flex-col items-end shrink-0">
+              {/* ①残り個数（上） */}
               {isLowStock && (
-                <span className="text-[8px] font-black text-rose-500 leading-none">
+                <span className="text-[8px] font-black text-rose-500 leading-none mb-0.5">
                   残り{bag.stockCount}個！
                 </span>
               )}
-              {distLabel ? (
-                <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[9px] px-1.5 py-[2px]
-                  ${(() => {
-                    const min = distM != null ? Math.round(distM / 67) : 99;
-                    return min <= 5
-                      ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
-                      : min <= 15
-                      ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
-                      : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
-                  })()}`}>
-                  <Navigation className="w-2 h-2 shrink-0" />
-                  {distLabel}
+              {/* ②距離（中央に浮く） */}
+              <div className="flex-1 flex items-center justify-end">
+                {distLabel ? (
+                  <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[9px] px-1.5 py-[2px]
+                    ${(() => {
+                      const min = distM != null ? Math.round(distM / 67) : 99;
+                      return min <= 5
+                        ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
+                        : min <= 15
+                        ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
+                        : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/60';
+                    })()}`}>
+                    <Navigation className="w-2 h-2 shrink-0" />
+                    {distLabel}
+                  </span>
+                ) : gpsLoading ? (
+                  <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
+                ) : null}
+              </div>
+              {/* ③元値＋販売価格（下） */}
+              <div className="flex flex-col items-end gap-[1px]">
+                {bag.originalPrice > bag.discountedPrice && (
+                  <span className="text-[9px] text-muted-foreground/40 line-through font-medium leading-none">
+                    ¥{bag.originalPrice.toLocaleString()}
+                  </span>
+                )}
+                <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+                  ¥{bag.discountedPrice.toLocaleString()}
                 </span>
-              ) : gpsLoading ? (
-                <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
-              ) : null}
-              {bag.originalPrice > bag.discountedPrice && (
-                <span className="text-[9px] text-muted-foreground/40 line-through font-medium leading-none">
-                  ¥{bag.originalPrice.toLocaleString()}
-                </span>
-              )}
-              <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
-                ¥{bag.discountedPrice.toLocaleString()}
-              </span>
+              </div>
             </div>
           )}
         </div>
@@ -276,8 +283,8 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
 
 function HorizBagCardSkeleton() {
   return (
-    <div className="w-40 shrink-0 rounded-xl overflow-hidden border border-border/30 bg-card">
-      <div className="w-full h-28 skeleton-shimmer" />
+    <div className="w-52 shrink-0 rounded-xl overflow-hidden border border-border/30 bg-card">
+      <div className="w-full h-32 skeleton-shimmer" />
       <div className="p-2 pt-1.5 space-y-1.5">
         <div className="h-3 skeleton-shimmer rounded-full w-4/5" />
         <div className="h-2.5 skeleton-shimmer rounded-full w-3/5" />
