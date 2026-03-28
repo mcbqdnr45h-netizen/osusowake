@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Eye, EyeOff, Mail, Lock, CheckCircle2, Gift, X, User, Phone, Store, ShieldCheck,
+  Eye, EyeOff, Mail, Lock, CheckCircle2, X, User, Phone, Store, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
@@ -23,8 +23,6 @@ export default function SignUp() {
   const [showPassword,    setShowPassword]    = useState(false);
   const [showConfirmPw,   setShowConfirmPw]   = useState(false);
   const [agreed,          setAgreed]          = useState(false);
-  const [referralCode,    setReferralCode]    = useState('');
-  const [referralValid,   setReferralValid]   = useState<boolean | null>(null);
   const [isLoading,       setIsLoading]       = useState(false);
   const [error,           setError]           = useState('');
   const [shakeKey,        setShakeKey]        = useState(0);
@@ -34,8 +32,7 @@ export default function SignUp() {
   useEffect(() => {
     setName(''); setPhone(''); setEmail('');
     setPassword(''); setConfirmPassword('');
-    setAgreed(false); setError(''); setReferralCode('');
-    setReferralValid(null);
+    setAgreed(false); setError('');
   }, [activeTab]);
 
   const passwordsMatch  = confirmPassword === '' || password === confirmPassword;
@@ -50,14 +47,6 @@ export default function SignUp() {
     password === confirmPassword &&
     agreed &&
     !isLoading;
-
-  function handleReferralChange(val: string) {
-    const upper = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    setReferralCode(upper);
-    if (upper.length === 0)    setReferralValid(null);
-    else if (upper.length >= 8) setReferralValid(true);
-    else                        setReferralValid(false);
-  }
 
   function handlePhoneChange(val: string) {
     setPhone(val.replace(/[^\d\-\s]/g, ''));
@@ -292,48 +281,6 @@ export default function SignUp() {
               {!passwordsMatch && <p className="text-destructive text-[12px] font-semibold mt-1.5">パスワードが一致しません</p>}
               {confirmPassword.length > 0 && password === confirmPassword && <p className="text-green-600 text-[12px] font-semibold mt-1.5">パスワードが一致しています ✓</p>}
             </div>
-
-            {/* 招待コード（ユーザーのみ） */}
-            {!isStore && (
-              <div>
-                <label className={`${labelClass}`}>
-                  招待コード <span className="ml-1 text-[11px] font-semibold text-muted-foreground normal-case tracking-normal">（任意）</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <Gift className="w-4 h-4 text-muted-foreground/60" />
-                  </div>
-                  <input type="text" value={referralCode} onChange={e => handleReferralChange(e.target.value)}
-                    placeholder="例：OSUSOA08C32" maxLength={12}
-                    className={`w-full bg-white border rounded-xl pl-11 pr-10 py-3.5 text-foreground font-mono font-medium tracking-widest placeholder:text-muted-foreground/45 placeholder:font-normal placeholder:tracking-normal focus:ring-4 outline-none transition-all text-[15px] uppercase ${
-                      referralValid === true  ? 'border-green-500 focus:border-green-500 focus:ring-green-500/10'
-                      : referralValid === false ? 'border-amber-400 focus:border-amber-400 focus:ring-amber-400/10'
-                      : 'border-border/80 focus:border-primary focus:ring-primary/10'
-                    }`}
-                    autoComplete="off" disabled={isLoading} />
-                  {referralCode.length > 0 && (
-                    <button type="button" onClick={() => { setReferralCode(''); setReferralValid(null); }}
-                      className="absolute inset-y-0 right-4 flex items-center text-muted-foreground/50 hover:text-foreground transition-colors">
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                <AnimatePresence>
-                  {referralValid === true && (
-                    <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      className="flex items-center gap-1.5 text-green-600 text-[12px] font-bold mt-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5" />招待コードを確認しました
-                    </motion.p>
-                  )}
-                  {referralValid === false && (
-                    <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      className="text-amber-600 text-[12px] font-semibold mt-1.5">
-                      8文字以上の英数字で入力してください
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
 
             {/* エラー（シェイク付き） */}
             <AnimatePresence>

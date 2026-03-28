@@ -2,11 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import {
   Package, Store, Clock, QrCode,
-  ChevronRight, Home, Copy, Check, Sparkles, Receipt, Share2,
+  ChevronRight, Home, Copy, Check, Sparkles, Receipt,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { useAuth } from '@/contexts/AuthContext';
 
 
 interface OrderReceipt {
@@ -34,9 +33,6 @@ function fireConfetti() {
 
 export default function CheckoutSuccess() {
   const [, navigate] = useLocation();
-  const { user } = useAuth();
-  const referralCode = user?.id ? `OW${user.id.replace(/-/g, '').slice(0, 6).toUpperCase()}` : null;
-  const [referralCopied, setReferralCopied] = useState(false);
   const [receipt, setReceipt] = useState<OrderReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -265,52 +261,6 @@ export default function CheckoutSuccess() {
           </button>
         </motion.div>
 
-        {/* ── 紹介コードバナー ── */}
-        {referralCode && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.75 }}
-            className="mt-5 rounded-3xl overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #FFF8F0 0%, #FFE8CC 100%)', border: '2px solid rgba(242,100,25,0.25)' }}
-          >
-            <div className="px-5 py-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">🌱</span>
-                <p className="text-sm font-black text-foreground">友達に教えてOsusOwakeを広めよう</p>
-              </div>
-              <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
-                紹介経由で登録が増えると、今後特別な特典があるかも？
-              </p>
-              <div className="bg-white/80 rounded-2xl py-4 flex items-center justify-center mb-3 border border-primary/15">
-                <span className="text-3xl font-black font-mono tracking-[0.2em] text-primary">{referralCode}</span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(referralCode).then(() => {
-                      setReferralCopied(true);
-                      setTimeout(() => setReferralCopied(false), 2000);
-                    });
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-muted-foreground hover:bg-muted transition-colors"
-                >
-                  {referralCopied ? <><Check className="w-4 h-4 text-green-500" /><span className="text-green-500">コピー済み</span></> : <><Copy className="w-4 h-4" />コードをコピー</>}
-                </button>
-                <button
-                  onClick={() => {
-                    const text = `OsusOwakeで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」で登録してみて 🌱\nhttps://osusowake.app`;
-                    if (navigator.share) navigator.share({ text });
-                    else navigator.clipboard.writeText(text);
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
-                >
-                  <Share2 className="w-4 h-4" />シェア
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {/* 底部余白（safe-area対応） */}
         <div className="pb-safe-4 mt-4" />

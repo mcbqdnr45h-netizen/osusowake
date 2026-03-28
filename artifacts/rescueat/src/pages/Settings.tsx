@@ -4,9 +4,8 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useLocation, Link } from 'wouter';
 import {
-  ChevronLeft, User, Camera, Bell, Gift, LogOut,
-  Copy, Share2, Check, ChevronRight, Mail, Pencil,
-  X,
+  ChevronLeft, User, Camera, Bell, LogOut,
+  ChevronRight, Mail, Pencil, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -180,7 +179,6 @@ export default function Settings() {
   const [notifFavoriteUpdate, setNotifFavoriteUpdate] = useState(saved.notifFavoriteUpdate);
   const [notifPoints, setNotifPoints] = useState(saved.notifPoints);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [saved_, setSaved_] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const [showTokusho, setShowTokusho] = useState(false);
@@ -194,9 +192,6 @@ export default function Settings() {
     }
     if (user?.email) setEmail(user.email);
   }, [profile?.display_name, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Referral code: first 6 chars of userId, uppercase
-  const referralCode = `OW${userId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
 
   // Avatar initials
   const initials = displayName.trim().slice(0, 2) || 'GU';
@@ -247,24 +242,6 @@ export default function Settings() {
     save({ [key]: val });
   }
 
-  async function handleCopy() {
-    await navigator.clipboard.writeText(referralCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast({ title: 'コードをコピーしました！', description: referralCode });
-  }
-
-  async function handleShare() {
-    const text = `OsusOwakeで食品ロスを一緒に減らしましょう！紹介コード「${referralCode}」で登録してみて 🌱\nhttps://osusowake.app`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'OsusOwakeに参加しよう', text });
-      } catch {}
-    } else {
-      await navigator.clipboard.writeText(text);
-      toast({ title: 'テキストをコピーしました！', description: '友達にシェアしてください' });
-    }
-  }
 
   async function handleLogout() {
     await authSignOut();
@@ -454,46 +431,6 @@ export default function Settings() {
               <span className="flex-1 font-bold text-sm text-destructive text-left">ログアウト</span>
             </button>
           </div>
-
-          {/* ── REFERRAL（カスタマーのみ・一番下）── */}
-          {!isStoreOwner && (
-            <>
-              <SectionLabel>友達紹介</SectionLabel>
-              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-8">
-                <div className="bg-gradient-to-br from-primary/10 to-primary/5 px-4 py-4 border-b border-border/60">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Gift className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-black text-primary">友達にOsusOwakeを教えよう</span>
-                  </div>
-                  <p className="text-sm text-foreground font-medium leading-relaxed">
-                    紹介経由で登録が増えると、今後特別な特典があるかも？🌱
-                  </p>
-                </div>
-                <div className="px-4 py-4 border-b border-border/60">
-                  <p className="text-xs font-bold text-muted-foreground mb-2">あなたの紹介コード</p>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-secondary rounded-xl px-4 py-3 flex items-center justify-between">
-                      <span className="font-black text-lg text-foreground tracking-widest">{referralCode}</span>
-                    </div>
-                    <button
-                      onClick={handleCopy}
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0
-                        ${copied ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-foreground'}`}
-                    >
-                      {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-                <button
-                  onClick={handleShare}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-4 font-bold text-primary hover:bg-primary/5 transition-colors"
-                >
-                  <Share2 className="w-4 h-4" />
-                  友達に教える（シェア）
-                </button>
-              </div>
-            </>
-          )}
 
           <p className="text-center text-xs text-muted-foreground pb-4">OsusOwake v1.0.0</p>
         </div>
