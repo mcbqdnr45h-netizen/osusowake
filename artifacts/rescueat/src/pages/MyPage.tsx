@@ -4,11 +4,13 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag } from 'lucide-react';
+import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck } from 'lucide-react';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
+
+const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
 
 export default function MyPage() {
   const userId = useUserId();
@@ -63,6 +65,7 @@ export default function MyPage() {
   }
 
   const isStoreOwner = profile?.role === 'store_owner';
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   // Auth確定前はスケルトン表示でフラッシュを防ぐ
   // キャッシュから store が読めている場合はスケルトン不要
@@ -376,6 +379,29 @@ export default function MyPage() {
             <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
             <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">有効</span>
           </div>
+        )}
+
+        {/* ── 神モード（管理者専用） ── */}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className="flex items-center gap-3 mb-3 rounded-2xl px-4 py-3 overflow-hidden relative
+              bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600
+              shadow-[0_4px_20px_rgba(124,58,237,0.40)]
+              hover:shadow-[0_6px_24px_rgba(124,58,237,0.55)] hover:-translate-y-0.5
+              tap-scale transition-all duration-200"
+          >
+            <div className="absolute inset-0 opacity-20 pointer-events-none"
+              style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 0%, transparent 60%)' }} />
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0 backdrop-blur-sm border border-white/30">
+              <ShieldCheck className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="font-black text-white text-sm leading-tight">⚡️ 神モード</div>
+              <div className="text-white/70 text-[11px] mt-0.5">管理者ダッシュボード</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-white/60" />
+          </Link>
         )}
 
         {/* Menu List */}
