@@ -60,6 +60,8 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   ];
 
   const isLoggedIn = !!user;
+  // ヘッダーはマイページ（/mypage）のみ表示、他ページは非表示
+  const showHeader = !hideHeader && (location === '/mypage' || location.startsWith('/mypage/'));
 
   return (
     <div
@@ -67,8 +69,8 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
       style={!hideFooter ? { paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' } : undefined}
     >
 
-      {/* ── Top Header ───────────────────────────────────────────────── */}
-      {!hideHeader && <header
+      {/* ── Top Header: マイページのみ表示 ─────────────────────────────── */}
+      {showHeader && <header
         className="sticky top-0 z-50 shrink-0"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
