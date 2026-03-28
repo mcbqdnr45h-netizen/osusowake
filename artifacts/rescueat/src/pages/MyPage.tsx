@@ -48,6 +48,17 @@ export default function MyPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  // スクロールロック
+  useEffect(() => {
+    if (showSettings) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [showSettings]);
+
   useEffect(() => {
     if (!userId || !session?.access_token) return;
     const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
@@ -573,7 +584,7 @@ export default function MyPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/20"
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
             onClick={() => setShowSettings(false)}
           />
 
@@ -584,10 +595,11 @@ export default function MyPage() {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-            className="fixed inset-x-0 bottom-0 z-50 bg-background rounded-t-3xl overflow-hidden flex flex-col"
+            className="fixed left-3 right-3 bottom-3 z-50 bg-background rounded-3xl overflow-hidden flex flex-col"
             style={{
-              maxHeight: '90dvh',
-              paddingBottom: 'env(safe-area-inset-bottom)',
+              maxHeight: '88dvh',
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)',
+              boxShadow: '0 -4px 40px rgba(0,0,0,0.18)',
             }}
           >
             {/* ハンドルバー */}
@@ -613,17 +625,17 @@ export default function MyPage() {
 
               {/* ── 購入履歴 ── */}
               <div className="bg-card rounded-2xl overflow-hidden"
-                style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                style={{ boxShadow: '0 2px 12px -2px rgba(10,8,6,0.09)' }}>
                 <Link
                   href="/orders"
                   onClick={() => setShowSettings(false)}
-                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors"
+                  className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors"
                 >
-                  <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 bg-primary/10 text-primary rounded-xl flex items-center justify-center shrink-0">
                     <Receipt className="w-4 h-4" />
                   </div>
                   <div className="flex-1 font-bold text-foreground text-sm">購入履歴・領収書</div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                 </Link>
               </div>
 
@@ -632,69 +644,69 @@ export default function MyPage() {
                 <div>
                   <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">店舗管理</p>
                   <div className="bg-card rounded-2xl overflow-hidden"
-                    style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                    style={{ boxShadow: '0 2px 12px -2px rgba(10,8,6,0.09)' }}>
                     {(store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') && (
                       <Link
                         href="/store-dashboard"
                         onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
+                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border last:border-0"
                       >
-                        <div className="w-9 h-9 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
                           <Clock className="w-4 h-4" />
                         </div>
                         <div className="flex-1">
                           <div className="font-bold text-foreground text-sm">店舗申請 — 審査中</div>
-                          <div className="text-xs text-muted-foreground">1〜2営業日以内に結果をお知らせします</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">1〜2営業日以内に結果をお知らせします</div>
                         </div>
                         <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">審査中</span>
                       </Link>
                     )}
                     {store?.status === 'rejected' && (
                       <Link
-                        href="/store-dashboard"
+                        href="/store/reapply"
                         onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
+                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border last:border-0"
                       >
-                        <div className="w-9 h-9 bg-red-100 text-red-500 rounded-full flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 bg-red-100 text-red-500 rounded-xl flex items-center justify-center shrink-0">
                           <XCircle className="w-4 h-4" />
                         </div>
                         <div className="flex-1">
                           <div className="font-bold text-foreground text-sm">店舗申請が却下されました</div>
-                          <div className="text-xs text-muted-foreground">詳細を確認・再申請する</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">詳細を確認・再申請する</div>
                         </div>
-                        <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">却下</span>
+                        <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">再申請</span>
                       </Link>
                     )}
                     {isApprovedOwner && (
                       <Link
                         href="/store/profile-edit"
                         onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
                       >
-                        <div className="w-9 h-9 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 bg-orange-100 text-orange-500 rounded-xl flex items-center justify-center shrink-0">
                           <Camera className="w-4 h-4" />
                         </div>
                         <div className="flex-1">
                           <div className="font-bold text-foreground text-sm">店舗プロフィール編集</div>
-                          <div className="text-xs text-muted-foreground">カバー写真・紹介文・営業時間など</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">カバー写真・紹介文・営業時間など</div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                       </Link>
                     )}
                     {isApprovedOwner && (
                       <Link
                         href="/store/reviews"
                         onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors"
+                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors"
                       >
-                        <div className="w-9 h-9 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 bg-amber-100 text-amber-500 rounded-xl flex items-center justify-center shrink-0">
                           <MessageSquare className="w-4 h-4" />
                         </div>
                         <div className="flex-1">
                           <div className="font-bold text-foreground text-sm">お客様からのレビュー</div>
-                          <div className="text-xs text-muted-foreground">レビュー確認・返信管理</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">レビュー確認・返信管理</div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                       </Link>
                     )}
                   </div>
@@ -705,50 +717,50 @@ export default function MyPage() {
               <div>
                 <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アカウント・サポート</p>
                 <div className="bg-card rounded-2xl overflow-hidden"
-                  style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                  style={{ boxShadow: '0 2px 12px -2px rgba(10,8,6,0.09)' }}>
                   {!isStoreOwner && (
                     <Link
                       href="/settings"
                       onClick={() => setShowSettings(false)}
-                      className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                      className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
                     >
-                      <div className="w-9 h-9 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 bg-secondary text-foreground rounded-xl flex items-center justify-center shrink-0">
                         <Settings className="w-4 h-4" />
                       </div>
                       <div className="flex-1 font-bold text-foreground text-sm">アカウント設定</div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                     </Link>
                   )}
                   <Link
                     href="/report-store"
                     onClick={() => setShowSettings(false)}
-                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                    className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
                   >
-                    <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center shrink-0">
                       <Flag className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
                       <div className="font-bold text-foreground text-sm">食品ロスのお店を教えて</div>
-                      <div className="text-xs text-muted-foreground">OsusOwakeスタッフが直接お伺いします</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">OsusOwakeスタッフが直接お伺いします</div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                   </Link>
                   <Link
                     href="/help"
                     onClick={() => setShowSettings(false)}
-                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                    className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
                   >
-                    <div className="w-9 h-9 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 bg-secondary text-foreground rounded-xl flex items-center justify-center shrink-0">
                       <HelpCircle className="w-4 h-4" />
                     </div>
                     <div className="flex-1 font-bold text-foreground text-sm">ヘルプ・お問い合わせ</div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 py-3 px-4 hover:bg-destructive/5 transition-colors text-left text-destructive"
+                    className="w-full flex items-center gap-3.5 py-3.5 px-4 hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-left text-destructive"
                   >
-                    <div className="w-9 h-9 bg-destructive/10 text-destructive rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 bg-destructive/10 text-destructive rounded-xl flex items-center justify-center shrink-0">
                       <LogOut className="w-4 h-4" />
                     </div>
                     <div className="flex-1 font-bold text-sm">ログアウト</div>
