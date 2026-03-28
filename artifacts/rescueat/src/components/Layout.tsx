@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import {
   Map, MapPin, Package, Heart, User, Menu, X,
   FileText, Shield, Store, Settings, ChevronRight, Coins, BarChart2,
-  MessageCircle, HelpCircle, ExternalLink, ShieldCheck,
+  MessageCircle, HelpCircle, ExternalLink, ShieldCheck, Compass,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
@@ -38,6 +38,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   const isAdmin = user?.email === 'yuuhi0125416@icloud.com';
 
   const storeNavItems = [
+    { href: '/',                icon: Compass,   label: '発見',     isUser: false },
     { href: '/store/dashboard', icon: Store,     label: '出品管理', isUser: false },
     { href: '/store/sales',     icon: BarChart2, label: '売上確認', isUser: false },
     { href: '/mypage',          icon: User,      label: 'マイページ', isUser: true },

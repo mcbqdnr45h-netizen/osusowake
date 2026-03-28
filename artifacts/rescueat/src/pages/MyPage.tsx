@@ -4,7 +4,7 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck } from 'lucide-react';
+import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck } from 'lucide-react';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -408,18 +408,38 @@ export default function MyPage() {
         <div className="bg-card rounded-2xl overflow-hidden"
           style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)' }}>
 
-          {!isStoreOwner && (
-            <Link
-              href="/orders"
-              className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
-            >
-              <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
-                <Receipt className="w-4 h-4" />
-              </div>
-              <div className="flex-1 font-bold text-foreground text-sm">購入履歴・領収書</div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </Link>
-          )}
+          <Link
+            href="/orders"
+            className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+          >
+            <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+              <Receipt className="w-4 h-4" />
+            </div>
+            <div className="flex-1 font-bold text-foreground text-sm">購入履歴・領収書</div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </Link>
+
+          <Link
+            href="/my-reservations"
+            className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+          >
+            <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+              <ShoppingBag className="w-4 h-4" />
+            </div>
+            <div className="flex-1 font-bold text-foreground text-sm">マイバック</div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </Link>
+
+          <Link
+            href="/favorites"
+            className="flex items-center gap-3 py-2 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+          >
+            <div className="w-9 h-9 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shrink-0">
+              <Heart className="w-4 h-4" />
+            </div>
+            <div className="flex-1 font-bold text-foreground text-sm">お気に入り店舗</div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </Link>
 
 
           {profile?.role === 'store_owner' && (store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') && (
