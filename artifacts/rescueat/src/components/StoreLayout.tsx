@@ -20,15 +20,14 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
   const [location] = useLocation();
   const { store, loading: storeLoading } = useMyStore();
 
-  // pending_review/pending はナビ非表示。applied/suspended/approved は全ナビ表示。
-  // ローディング中でもキャッシュに店舗データがあれば即座にナビを表示する。
-  const storeReady = !!store &&
-    (store.status === 'approved' || store.status === 'applied' || store.status === 'suspended');
+  // ナビ表示条件:
+  // - pending/pending_review → StoreDashboard が既に <Layout> を返すので StoreLayout には来ない
+  // - applied/approved/suspended/rejected → StoreLayout が使われるのでナビを表示
+  // ※ ステータス判定は親ページが行うため、ここでは store が存在すればナビを表示する
+  const storeReady = !!store;
   const shouldShowNav = showBottomNav && storeReady;
 
-  const navItems = storeReady
-    ? [...BASE_NAV_ITEMS, { href: '/mypage', icon: UserCircle, label: 'マイページ' }]
-    : BASE_NAV_ITEMS;
+  const navItems = [...BASE_NAV_ITEMS, { href: '/mypage', icon: UserCircle, label: 'マイページ' }];
 
   return (
     <div
