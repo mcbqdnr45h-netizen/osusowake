@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { StoreLayout } from '@/components/StoreLayout';
 import {
   Store, Package, LogOut, RefreshCw, Loader2, AlertCircle,
   ChevronRight, TrendingUp, ShoppingBag, PlusCircle,
@@ -498,7 +499,7 @@ export default function StoreOwnerDashboard() {
   const isApproved = store?.status === 'approved';
 
   return (
-    <div className="min-h-dvh bg-background">
+    <StoreLayout showHeader={false}>
 
       {/* ── ヘッダー ── */}
       <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-xl border-b border-border">
@@ -821,7 +822,7 @@ export default function StoreOwnerDashboard() {
           </button>
         </motion.div>
       </div>
-    </div>
+    </StoreLayout>
   );
 }
 
