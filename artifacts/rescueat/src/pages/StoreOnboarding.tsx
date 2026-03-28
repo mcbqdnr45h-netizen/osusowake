@@ -4,9 +4,9 @@ import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyStore } from '@/hooks/use-my-store';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, CheckCircle2, Leaf, Loader2,
+  ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -66,6 +66,7 @@ export default function StoreOnboarding() {
   const [pledgeSigned, setPledgeSigned] = useState(false);
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   const obDraft = loadOnboardingDraft();
   const [businessType, setBusinessType] = useState<'individual' | 'company'>(
@@ -99,6 +100,21 @@ export default function StoreOnboarding() {
     }, 1000);
     return () => clearTimeout(t);
   }, [form.name, form.address, form.city, form.category, form.phone, businessType]);
+
+  // 警告が表示中のとき、フィールドが埋まったら警告をリアルタイム更新
+  useEffect(() => {
+    if (validationWarnings.length === 0) return;
+    const updated: string[] = [];
+    if (!form.imageUrl)         updated.push('店舗写真が未入力です。');
+    if (!form.name.trim())      updated.push('店名が未入力です。');
+    if (!form.address.trim())   updated.push('住所が未入力です。');
+    if (!form.city.trim())      updated.push('市区町村が未入力です。');
+    if (!form.category)         updated.push('ジャンルが未選択です。');
+    if (!form.phone.trim())     updated.push('電話番号が未入力です。');
+    if (!pledgeSigned)          updated.push('利用規約への同意が未完了です。');
+    setValidationWarnings(updated);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.imageUrl, form.name, form.address, form.city, form.category, form.phone, pledgeSigned]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -135,18 +151,16 @@ export default function StoreOnboarding() {
       return;
     }
 
-    if (!form.imageUrl) {
-      toast({ title: '店舗写真を追加してください', variant: 'destructive' });
-      return;
-    }
-    if (!form.name.trim() || !form.address.trim() || !form.city.trim() || !form.category || !form.phone.trim()) {
-      toast({ title: '必須項目を入力してください', variant: 'destructive' });
-      return;
-    }
-    if (!pledgeSigned) {
-      toast({ title: '利用規約への同意が必要です', variant: 'destructive' });
-      return;
-    }
+    // 未入力項目を収集してソフトバリデーション警告を表示
+    const warnings: string[] = [];
+    if (!form.imageUrl)         warnings.push('店舗写真が未入力です。');
+    if (!form.name.trim())      warnings.push('店名が未入力です。');
+    if (!form.address.trim())   warnings.push('住所が未入力です。');
+    if (!form.city.trim())      warnings.push('市区町村が未入力です。');
+    if (!form.category)         warnings.push('ジャンルが未選択です。');
+    if (!form.phone.trim())     warnings.push('電話番号が未入力です。');
+    if (!pledgeSigned)          warnings.push('利用規約への同意が未完了です。');
+    setValidationWarnings(warnings);
     if (!user.id) {
       toast({ title: 'ログイン情報を取得できませんでした', description: 'いったんログアウトして再度ログインしてください。', variant: 'destructive' });
       return;
@@ -472,6 +486,33 @@ export default function StoreOnboarding() {
               </p>
             </div>
           </div>
+
+          {/* 未入力警告パネル */}
+          <AnimatePresence>
+            {validationWarnings.length > 0 && (
+              <motion.div
+                key="validation-warnings"
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3.5"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-sm font-black text-amber-700">入力内容をご確認ください</span>
+                </div>
+                <ul className="space-y-1">
+                  {validationWarnings.map((msg, i) => (
+                    <li key={i} className="text-sm text-amber-700 flex items-start gap-1.5">
+                      <span className="shrink-0 mt-0.5">・</span>
+                      <span>{msg}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 送信ボタン */}
           <button
