@@ -3,7 +3,7 @@ import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon } from '@/lib/category-utils';
-import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation } from 'lucide-react';
+import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -420,12 +420,6 @@ export default function BagDetail() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
-            {discountPercent > 0 && (
-              <div className="absolute top-4 right-4 bg-accent text-accent-foreground font-bold px-4 py-1.5 rounded-full text-sm shadow-lg shadow-accent/20">
-                {discountPercent}% OFF
-              </div>
-            )}
-
             <div className="absolute bottom-6 left-6 right-6">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-medium border border-white/30 flex items-center gap-1.5">
@@ -482,62 +476,60 @@ export default function BagDetail() {
               </motion.div>
             )}
 
-            {/* Price and Details row */}
-            <div className="flex flex-wrap gap-6 justify-between items-start">
-              <div>
-                {bag.originalPrice > 0 && (
-                  <div className="text-sm text-muted-foreground line-through mb-1">
-                    通常価格 ¥{bag.originalPrice.toLocaleString()}
+            {/* ── 価格ブロック ──────────────────────────────────── */}
+            <div>
+              {/* 価格行 */}
+              <div className="flex items-end gap-3 flex-wrap">
+                <span className="text-5xl font-black text-primary leading-none tracking-tight">
+                  ¥{bag.discountedPrice.toLocaleString()}
+                </span>
+                {bag.originalPrice > bag.discountedPrice && (
+                  <div className="flex flex-col gap-0.5 mb-0.5">
+                    <span className="text-xs text-muted-foreground/70 font-medium">通常価格</span>
+                    <span className="text-base text-muted-foreground line-through font-medium">
+                      ¥{bag.originalPrice.toLocaleString()}
+                    </span>
                   </div>
                 )}
-                <div className="text-4xl font-display font-bold text-primary flex items-baseline gap-2">
-                  ¥{bag.discountedPrice.toLocaleString()}
-                  <span className="text-sm text-muted-foreground font-normal">/個</span>
-                  {!isSoldOut && (
-                    <span className={`text-sm font-bold ${bag.stockCount < 3 ? 'text-orange-500' : 'text-muted-foreground'}`}>
-                      残り{bag.stockCount}個
-                    </span>
-                  )}
-                </div>
+                {discountPercent > 0 && (
+                  <span className="mb-1 bg-accent text-accent-foreground font-black text-sm px-3 py-1 rounded-full shadow-sm shadow-accent/20">
+                    {discountPercent}% OFF
+                  </span>
+                )}
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                <div className="bg-secondary/50 rounded-2xl p-4 min-w-[110px]">
-                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                    <Clock className="w-4 h-4" />
-                    <span className="text-xs font-semibold">受取時間</span>
-                  </div>
-                  <div className="font-bold text-foreground text-sm">
-                    {bag.pickupStart}{bag.pickupEnd ? ` 〜 ${bag.pickupEnd}` : '〜'}
-                  </div>
-                </div>
-                <div className="bg-secondary/50 rounded-2xl p-4 min-w-[90px]">
-                  <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-                    <MapPin className="w-4 h-4" />
-                    <span className="text-xs font-semibold">エリア</span>
-                  </div>
-                  <div className="font-bold text-foreground text-sm truncate max-w-[90px]">
-                    {bag.store.city}
-                  </div>
-                </div>
-                {/* 徒歩時間カード */}
+              {/* ステータスバー */}
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                {isSoldOut ? (
+                  <span className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground font-bold text-xs px-3 py-1.5 rounded-full">
+                    完売しました
+                  </span>
+                ) : (
+                  <span className={`inline-flex items-center gap-1.5 font-bold text-xs px-3 py-1.5 rounded-full ${
+                    bag.stockCount <= 2
+                      ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+                      : bag.stockCount <= 5
+                      ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
+                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-500'
+                  }`}>
+                    {bag.stockCount <= 2 ? '🔥' : bag.stockCount <= 5 ? '⚡' : '✅'} 残り{bag.stockCount}個
+                  </span>
+                )}
+                {bag.pickupStart && (
+                  <span className="inline-flex items-center gap-1.5 bg-secondary text-foreground font-semibold text-xs px-3 py-1.5 rounded-full">
+                    <Clock className="w-3.5 h-3.5 text-primary" />
+                    受取 {bag.pickupStart}{bag.pickupEnd ? `〜${bag.pickupEnd}` : '〜'}
+                  </span>
+                )}
                 {bag.store.lat && bag.store.lng && userCoords && (() => {
                   const meters  = haversineMeters(userCoords.lat, userCoords.lng, bag.store.lat!, bag.store.lng!);
                   const minutes = metersToWalkMinutes(meters);
-                  const isFast  = minutes <= 5;
-                  const isNear  = minutes <= 15;
+                  const colorCls = minutes <= 5 ? 'text-emerald-700 bg-emerald-100' : minutes <= 15 ? 'text-orange-700 bg-orange-100' : 'text-foreground bg-secondary';
                   return (
-                    <div className={`rounded-2xl p-4 min-w-[100px] border ${
-                      isFast ? 'bg-green-50 border-green-200' : isNear ? 'bg-orange-50 border-orange-200' : 'bg-secondary/50 border-transparent'
-                    }`}>
-                      <div className={`flex items-center gap-1.5 mb-1 ${isFast ? 'text-green-600' : isNear ? 'text-orange-500' : 'text-muted-foreground'}`}>
-                        <Navigation className="w-4 h-4" />
-                        <span className="text-xs font-semibold">現在地から</span>
-                      </div>
-                      <div className={`font-black text-sm ${isFast ? 'text-green-700' : isNear ? 'text-orange-600' : 'text-foreground'}`}>
-                        {formatDistanceLabel(meters)}
-                      </div>
-                    </div>
+                    <span className={`inline-flex items-center gap-1.5 font-semibold text-xs px-3 py-1.5 rounded-full ${colorCls}`}>
+                      <Navigation className="w-3.5 h-3.5" />
+                      {formatDistanceLabel(meters)}
+                    </span>
                   );
                 })()}
               </div>
@@ -563,29 +555,115 @@ export default function BagDetail() {
 
             <hr className="border-border" />
 
-            {/* Store Info */}
+            {/* ── 店舗情報（完全版）──────────────────────────────── */}
             <div>
-              <h3 className="font-bold text-lg mb-3">店舗情報</h3>
-              <div className="flex items-start gap-3 text-muted-foreground">
-                <MapPin className="w-5 h-5 shrink-0 text-primary mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-medium text-foreground">{bag.store.name}</div>
-                    <button
-                      onClick={() => { if (!user) { requireLogin('favorite'); return; } toggle(bag.store.id); }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shrink-0
-                        ${isFavorite(bag.store.id)
-                          ? 'bg-rose-500 text-white border-rose-500'
-                          : 'bg-card text-rose-500 border-rose-200 hover:bg-rose-50'
-                        }`}
-                      aria-label={isFavorite(bag.store.id) ? 'お気に入りから削除' : 'お気に入りに追加'}
-                    >
-                      <Heart className={`w-3.5 h-3.5 transition-all ${isFavorite(bag.store.id) ? 'fill-white stroke-white' : 'fill-none stroke-rose-500'}`} />
-                      {isFavorite(bag.store.id) ? 'フォロー中' : 'フォローする'}
-                    </button>
+              <h3 className="font-black text-lg mb-4 flex items-center gap-2">
+                <Store className="w-5 h-5 text-primary" />
+                店舗情報
+              </h3>
+
+              <div className="rounded-2xl border border-border/60 overflow-hidden divide-y divide-border/40">
+
+                {/* 店舗名 + フォローボタン */}
+                <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-lg leading-none">{getCategoryIcon(bag.store.category)}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-black text-base text-foreground truncate">{bag.store.name}</div>
+                      {bag.store.city && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{bag.store.city}</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-sm mt-0.5">{bag.store.address}</div>
+                  <button
+                    type="button"
+                    onClick={() => { if (!user) { requireLogin('favorite'); return; } toggle(bag.store.id); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shrink-0
+                      ${isFavorite(bag.store.id)
+                        ? 'bg-rose-500 text-white border-rose-500'
+                        : 'bg-card text-rose-500 border-rose-200 hover:bg-rose-50'
+                      }`}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${isFavorite(bag.store.id) ? 'fill-white stroke-white' : 'fill-none stroke-rose-500'}`} />
+                    {isFavorite(bag.store.id) ? 'フォロー中' : 'フォロー'}
+                  </button>
                 </div>
+
+                {/* 住所 */}
+                {bag.store.address && (
+                  <div className="flex items-start gap-3 px-4 py-3.5">
+                    <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">住所</div>
+                      <div className="text-sm text-foreground font-medium leading-relaxed">{bag.store.address}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 電話番号 */}
+                {(bag.store as any).phone && (
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <Phone className="w-4 h-4 text-primary shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">電話番号</div>
+                      <a
+                        href={`tel:${(bag.store as any).phone}`}
+                        className="text-sm font-bold text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                      >
+                        {(bag.store as any).phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* 営業時間 */}
+                {((bag.store as any).openTime || (bag.store as any).closeTime) && (
+                  <div className="flex items-start gap-3 px-4 py-3.5">
+                    <Clock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">営業時間</div>
+                      <div className="text-sm font-bold text-foreground">
+                        {(bag.store as any).openTime ?? '—'}
+                        {(bag.store as any).closeTime ? ` 〜 ${(bag.store as any).closeTime}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 受取時間の説明文 */}
+                {(bag.store as any).pickupHours && (
+                  <div className="flex items-start gap-3 px-4 py-3.5">
+                    <Timer className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">受取時間について</div>
+                      <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{(bag.store as any).pickupHours}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 定休日 */}
+                {(bag.store as any).holiday && (
+                  <div className="flex items-start gap-3 px-4 py-3.5">
+                    <CalendarDays className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">定休日</div>
+                      <div className="text-sm text-foreground font-medium">{(bag.store as any).holiday}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* アレルギー情報 */}
+                {bag.allergyInfo && (
+                  <div className="flex items-start gap-3 px-4 py-3.5 bg-amber-50/60 dark:bg-amber-950/20">
+                    <UtensilsCrossed className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">アレルギー情報</div>
+                      <div className="text-sm text-amber-900 dark:text-amber-200 leading-relaxed whitespace-pre-wrap">{bag.allergyInfo}</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -600,18 +678,16 @@ export default function BagDetail() {
               </div>
             )}
 
-            {/* Warning box */}
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-4 flex gap-3 text-amber-800 dark:text-amber-200">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <div className="text-sm">
-                <p className="font-bold mb-1">アレルギーについて</p>
-                {bag.allergyInfo ? (
-                  <p className="whitespace-pre-wrap">{bag.allergyInfo}</p>
-                ) : (
+            {/* 汎用アレルギー注意（allergyInfo未設定時のみ表示） */}
+            {!bag.allergyInfo && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-4 flex gap-3 text-amber-800 dark:text-amber-200">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-bold mb-1">アレルギーについて</p>
                   <p>サプライズバッグの内容は日によって異なります。重度のアレルギーをお持ちの方はご遠慮ください。</p>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Reviews Section */}
             <div>
