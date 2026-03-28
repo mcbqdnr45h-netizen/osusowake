@@ -41,8 +41,7 @@ async function compressImage(file: File, maxPx = 1000, quality = 0.75): Promise<
 }
 
 const ONBOARDING_DRAFT_KEY = 'store-onboarding-draft-v1';
-const BUSINESS_TYPE_KEY = 'store-business-type';
-type OnboardingDraft = { name: string; address: string; city: string; category: string; phone: string; businessType?: 'individual' | 'company' };
+type OnboardingDraft = { name: string; address: string; city: string; category: string; phone: string };
 function saveOnboardingDraft(d: OnboardingDraft) {
   try { localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
 }
@@ -51,9 +50,6 @@ function loadOnboardingDraft(): Partial<OnboardingDraft> {
 }
 function clearOnboardingDraft() {
   try { localStorage.removeItem(ONBOARDING_DRAFT_KEY); } catch (_) {}
-}
-function saveBusinessType(t: 'individual' | 'company') {
-  try { localStorage.setItem(BUSINESS_TYPE_KEY, t); } catch (_) {}
 }
 
 export default function StoreOnboarding() {
@@ -69,9 +65,6 @@ export default function StoreOnboarding() {
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   const obDraft = loadOnboardingDraft();
-  const [businessType, setBusinessType] = useState<'individual' | 'company'>(
-    obDraft.businessType ?? 'individual'
-  );
   const [form, setForm] = useState({
     name:          obDraft.name     ?? '',
     address:       obDraft.address  ?? '',
@@ -95,11 +88,10 @@ export default function StoreOnboarding() {
   // 入力内容を自動保存（フォーム変化から1秒後）
   useEffect(() => {
     const t = setTimeout(() => {
-      saveOnboardingDraft({ name: form.name, address: form.address, city: form.city, category: form.category, phone: form.phone, businessType });
-      saveBusinessType(businessType);
+      saveOnboardingDraft({ name: form.name, address: form.address, city: form.city, category: form.category, phone: form.phone });
     }, 1000);
     return () => clearTimeout(t);
-  }, [form.name, form.address, form.city, form.category, form.phone, businessType]);
+  }, [form.name, form.address, form.city, form.category, form.phone]);
 
   // 警告が表示中のとき、フィールドが埋まったら警告をリアルタイム更新
   useEffect(() => {
@@ -201,11 +193,10 @@ export default function StoreOnboarding() {
           const stored = body?.store;
           console.log('[StoreOnboarding] already_exists stripeAccountId=', stored?.stripeAccountId);
           clearOnboardingDraft();
-          saveBusinessType(businessType);
           if (stored?.stripeAccountId) {
             navigate('/store/dashboard');
           } else {
-            navigate(`/store/bank-setup?type=${businessType}`);
+            navigate('/store/bank-setup');
           }
           return;
         }
@@ -231,8 +222,7 @@ export default function StoreOnboarding() {
       // 登録成功 → 下書きクリアして bank-setup へ
       console.log('[StoreOnboarding] ✅ 登録成功 id=', responseBody.id, '→ /store/bank-setup');
       clearOnboardingDraft();
-      saveBusinessType(businessType);
-      navigate(`/store/bank-setup?type=${businessType}`);
+      navigate('/store/bank-setup');
     } catch (err: unknown) {
       clearTimeout(timeout);
 
@@ -245,8 +235,7 @@ export default function StoreOnboarding() {
             const checkStore = await check.json().catch(() => null);
             console.log('[StoreOnboarding] タイムアウト後、店舗確認 OK → 遷移');
             clearOnboardingDraft();
-            saveBusinessType(businessType);
-            navigate(checkStore?.stripeAccountId ? '/store/dashboard' : `/store/bank-setup?type=${businessType}`);
+            navigate(checkStore?.stripeAccountId ? '/store/dashboard' : '/store/bank-setup');
             return;
           }
         } catch (_) {}
@@ -306,46 +295,6 @@ export default function StoreOnboarding() {
               <div className="font-black text-foreground">完全成果報酬型</div>
               <div className="text-muted-foreground">初期費用・月額0円。売れた分だけ手数料25%</div>
             </div>
-          </div>
-
-          {/* 事業形態選択 */}
-          <div>
-            <label className="block text-sm font-bold text-muted-foreground mb-2">
-              事業形態を選択してください <span className="text-destructive">*</span>
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { type: 'individual' as const, emoji: '👤', label: '個人事業主', desc: '個人・フリーランス・小規模店舗' },
-                { type: 'company'    as const, emoji: '🏢', label: '法人',       desc: '株式会社・合同会社・社団法人など' },
-              ]).map(({ type, emoji, label, desc }) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => { setBusinessType(type); saveBusinessType(type); }}
-                  className={`relative flex flex-col items-center gap-1.5 p-4 rounded-2xl border-2 text-center transition-all ${
-                    businessType === type
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-input bg-background hover:border-primary/40'
-                  }`}
-                >
-                  {businessType === type && (
-                    <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                      <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 text-white fill-none stroke-white stroke-[1.5]">
-                        <polyline points="2,5.5 4.2,7.5 8,3" />
-                      </svg>
-                    </span>
-                  )}
-                  <span className="text-2xl">{emoji}</span>
-                  <span className={`font-black text-sm ${businessType === type ? 'text-primary' : 'text-foreground'}`}>{label}</span>
-                  <span className="text-[10px] leading-tight text-muted-foreground">{desc}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              {businessType === 'individual'
-                ? '👤 個人事業主として Stripe Connect に登録されます。売上は毎週月曜日に振り込まれます。'
-                : '🏢 法人として Stripe Connect に登録されます。登記簿情報と代表者情報が必要です。'}
-            </p>
           </div>
 
           {/* 店舗写真 */}
