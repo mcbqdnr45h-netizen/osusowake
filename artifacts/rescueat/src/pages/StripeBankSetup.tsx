@@ -236,6 +236,11 @@ export default function StripeBankSetup() {
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef  = useRef<HTMLInputElement>(null);
 
+  // ── 営業許可証 ──
+  const [bizLicenseFile, setBizLicenseFile]       = useState<File | null>(null);
+  const [bizLicensePreview, setBizLicensePreview] = useState<string | null>(null);
+  const bizLicenseInputRef = useRef<HTMLInputElement>(null);
+
   // ── UI 状態 ──
   const [loading, setLoading]           = useState(false);
   const [zipLoading, setZipLoading]     = useState(false);
@@ -332,6 +337,19 @@ export default function StripeBankSetup() {
     reader.readAsDataURL(file);
   };
 
+  const handleBizLicenseChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const raw = ev.target?.result as string;
+      const compressed = await compressIdImage(raw);
+      setBizLicenseFile(file);
+      setBizLicensePreview(compressed);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleTosChange = (checked: boolean) => {
     setTosAgreed(checked);
     setTosTime(checked ? Date.now() : null);
@@ -355,6 +373,7 @@ export default function StripeBankSetup() {
   if (!accountNumber.trim())                            missingFields.push('口座番号');
   if (!holderName.trim())                               missingFields.push('口座名義（カタカナ）');
   if (!docFrontPreview)                                 missingFields.push('本人確認書類（表面）の写真');
+  if (!bizLicensePreview)                               missingFields.push('営業許可証の画像');
   if (!tosAgreed)                                       missingFields.push('利用規約への同意');
 
   const canSubmit = !loading && missingFields.length === 0;
@@ -439,6 +458,9 @@ export default function StripeBankSetup() {
           docFrontMime:   docFrontFile?.type ?? 'image/jpeg',
           docBackBase64:  docBackPreview ?? undefined,
           docBackMime:    docBackFile?.type ?? undefined,
+          // 営業許可証
+          bizLicenseBase64: bizLicensePreview ?? undefined,
+          bizLicenseMime:   bizLicenseFile?.type ?? undefined,
         }),
       });
       clearTimeout(timeoutId);
@@ -903,6 +925,59 @@ export default function StripeBankSetup() {
             {docError && (
               <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {docError}
+              </p>
+            )}
+          </FormSection>
+
+          {/* ── ⑨ 営業許可証 ── */}
+          <FormSection title="営業許可証" icon={<FileText className="w-5 h-5 text-orange-500" />}>
+            <p className="text-sm text-gray-500 -mt-1 mb-3">
+              食品衛生法に基づく営業許可証の画像をアップロードしてください。
+              <span className="text-red-500 font-medium ml-1">必須</span>
+            </p>
+
+            <input
+              ref={bizLicenseInputRef}
+              type="file"
+              accept="image/*,image/heic,image/heif,application/pdf"
+              className="hidden"
+              onChange={handleBizLicenseChange}
+            />
+
+            <button
+              type="button"
+              onClick={() => bizLicenseInputRef.current?.click()}
+              className={`relative w-full aspect-video rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 overflow-hidden transition-colors ${
+                bizLicensePreview
+                  ? 'border-orange-400 bg-orange-50'
+                  : 'border-red-300 bg-red-50/40 hover:border-orange-300 hover:bg-orange-50'
+              }`}
+            >
+              {bizLicensePreview ? (
+                <>
+                  <img src={bizLicensePreview} alt="営業許可証プレビュー" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
+                    <Camera className="w-7 h-7 text-white opacity-80" />
+                    <span className="text-sm text-white font-bold">タップして変更</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-gray-600">タップして書類を追加</p>
+                    <p className="text-xs text-gray-400 mt-0.5">JPG・PNG・HEIC・PDF 対応</p>
+                  </div>
+                </>
+              )}
+            </button>
+
+            {!bizLicensePreview && (
+              <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                営業許可証は必須です。書類の画像を添付してください。
               </p>
             )}
           </FormSection>
