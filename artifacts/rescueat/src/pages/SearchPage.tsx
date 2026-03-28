@@ -780,8 +780,8 @@ export default function SearchPage() {
       <div className={`flex flex-col ${view === 'map' ? 'flex-1 min-h-0 h-full' : ''}`}>
 
         {/* ── Sticky スリムフィルターバー ── */}
-        <div className="sticky z-20 bg-background/97 backdrop-blur-md border-b border-border/40 px-3 pt-2 pb-1.5 shrink-0"
-          style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}>
+        <div className="sticky z-30 bg-background/97 backdrop-blur-md border-b border-border/40 px-3 pb-1.5 shrink-0"
+          style={{ top: 0, paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)' }}>
 
           {/* Row 1: 検索バー */}
           <div className="relative mb-1.5">
