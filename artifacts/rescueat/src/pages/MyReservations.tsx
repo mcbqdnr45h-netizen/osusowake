@@ -279,6 +279,8 @@ export default function MyReservations() {
                                   <img
                                     src={res.store.imageUrl}
                                     alt={res.store?.name ?? ''}
+                                    loading="lazy"
+                                    decoding="async"
                                     className={`w-12 h-12 rounded-xl object-cover active:scale-95 transition-transform ${isFaded ? 'grayscale opacity-60' : ''}`}
                                   />
                                 ) : (

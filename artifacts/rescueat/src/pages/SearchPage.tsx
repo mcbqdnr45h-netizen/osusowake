@@ -314,7 +314,7 @@ function StoreBottomSheet({
                         className={`flex gap-3 bg-card border rounded-2xl overflow-hidden transition-all
                           ${isSoldOut ? 'opacity-60 border-border' : 'border-primary/20 shadow-sm'}`}>
                         <div className="relative w-24 h-24 shrink-0 bg-muted">
-                          <img src={bag.store.imageUrl || getCategoryImage(bag.store.category)} alt={bag.title} className="w-full h-full object-cover" />
+                          <img src={bag.store.imageUrl || getCategoryImage(bag.store.category)} alt={bag.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                           {!isSoldOut && (
                             <span className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 rounded-md">
                               {discountPct}% OFF
@@ -562,11 +562,11 @@ export default function SearchPage() {
   }
 
   const { data: bags, isLoading: bagsLoading } = useListAllBags(
-    { query: { staleTime: 0, refetchOnMount: 'always' } }
+    { query: { staleTime: 60_000 } }
   );
   const { data: stores } = useListStores(
     undefined,
-    { query: { staleTime: 0, refetchOnMount: 'always' } }
+    { query: { staleTime: 60_000 } }
   );
 
   // 検索実行（キーボードを閉じる + ローダー演出）
