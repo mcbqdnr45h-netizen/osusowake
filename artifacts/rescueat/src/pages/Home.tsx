@@ -199,21 +199,23 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
         </div>
       </div>
 
-      <div className="px-2 pt-1 pb-1.5">
-        {/* 単品バッジ（控えめ） */}
-        {(bag as any).itemType === 'item' && (
-          <span className="inline-block text-[8px] font-semibold px-1.5 py-px rounded bg-gray-100 text-gray-400 mb-0.5 leading-none">
-            単品
-          </span>
-        )}
+      <div className="px-2 pt-1 pb-1.5 flex flex-col">
+        {/* バッジエリア固定高（バッジ有無にかかわらず h-4 確保） */}
+        <div className="h-4 flex items-center">
+          {(bag as any).itemType === 'item' && (
+            <span className="inline-block text-[8px] font-semibold px-1.5 py-px rounded bg-gray-100 text-gray-400 leading-none">
+              単品
+            </span>
+          )}
+        </div>
 
-        {/* 商品名（フル幅・1行） */}
-        <p className="font-black text-[11px] leading-snug line-clamp-1 text-foreground mb-0.5">
+        {/* 商品名（全カードで同じY座標から始まる） */}
+        <p className="font-black text-[11px] leading-snug line-clamp-1 text-foreground">
           {bag.title}
         </p>
 
-        {/* 下段: 左=受取時間（下揃え） ／ 右=下揃え積み上げ */}
-        <div className="flex items-end justify-between gap-1">
+        {/* 下段: mt-auto で常に下端に固定 */}
+        <div className="flex items-end justify-between gap-1 mt-auto pt-1">
           {/* 左: 受取時間 */}
           <div className="min-w-0 flex-1">
             {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
@@ -278,9 +280,10 @@ function HorizBagCardSkeleton() {
   return (
     <div className="w-52 shrink-0 rounded-xl overflow-hidden border border-border/30 bg-card">
       <div className="w-full h-32 skeleton-shimmer" />
-      <div className="px-2 pt-1 pb-1.5 space-y-0.5">
+      <div className="px-2 pt-1 pb-1.5 flex flex-col">
+        <div className="h-4" />{/* バッジエリア固定高 */}
         <div className="h-3 skeleton-shimmer rounded-full w-4/5" />
-        <div className="flex items-center justify-between mt-0.5">
+        <div className="flex items-end justify-between gap-1 mt-auto pt-1">
           <div className="h-2.5 skeleton-shimmer rounded-full w-14" />
           <div className="flex flex-col items-end gap-1">
             <div className="h-[14px] skeleton-shimmer rounded-full w-10" />
