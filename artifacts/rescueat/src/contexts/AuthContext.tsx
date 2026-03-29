@@ -198,7 +198,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
     }
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { intended_role: 'store_owner' } },
+    });
 
     if (error) {
       return { error: translateError(error.message), needsConfirmation: false };
@@ -237,78 +241,96 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let role: string | null = forceRole ?? 'customer';
     try {
-      if (data.user) {
-        if (forceRole) {
-          // ロール更新 or 初回挿入
-          const existResult = await raceTimeout(
-            supabase.from('users').select('id').eq('id', data.user.id).single().then(r => r),
-            5000
-          );
-          if (existResult?.data) {
-            await supabase.from('users').update({ role: forceRole }).eq('id', data.user.id);
+      if (data.user && data.session?.access_token) {
+        const token = data.session.access_token;
+        const apiBase = getApiBase();
+        const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
+
+        // ── ロール確定（サーバー経由で RLS バイパス・クロスログイン防止）───────
+        // desiredRole: store タブ → 'store_owner', user タブ → 'customer'
+        // ただし管理者はどちらのタブでもサーバーチェックをスキップ
+        const isAdmin = email.trim().toLowerCase() === ADMIN_EMAIL;
+        if (!isAdmin && forceRole) {
+          const roleRes = await fetch(`${apiBase}/api/auth/update-role`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ desiredRole: forceRole }),
+          });
+          if (!roleRes.ok) {
+            const errData = await roleRes.json().catch(() => ({}));
+            // ロールが合わない場合はサインアウトしてエラーを返す
+            if (roleRes.status === 403) {
+              await supabase.auth.signOut();
+              fetchingRef.current = false;
+              return { error: errData?.message ?? 'ログインできませんでした', role: null };
+            }
+            // その他のエラーはフォールスルー（プロフィール取得で補完）
+            console.warn('[AuthContext] update-role error:', errData);
           } else {
-            await supabase.from('users').insert({
-              id: data.user.id,
-              email: data.user.email!,
-              role: forceRole,
-            });
+            const { role: confirmedRole } = await roleRes.json();
+            role = confirmedRole;
+          }
+        } else if (!isAdmin) {
+          // user タブ（forceRole なし）でもサーバーで store_owner かチェック
+          const roleRes = await fetch(`${apiBase}/api/auth/update-role`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ desiredRole: 'customer' }),
+          });
+          if (!roleRes.ok) {
+            const errData = await roleRes.json().catch(() => ({}));
+            if (roleRes.status === 403) {
+              // store_owner が user タブでログイン試みた → ブロック
+              await supabase.auth.signOut();
+              fetchingRef.current = false;
+              return { error: errData?.message ?? 'このアカウントは店舗オーナー用です', role: null };
+            }
+          } else {
+            const { role: confirmedRole } = await roleRes.json();
+            role = confirmedRole;
           }
         }
 
-        // プロフィール取得（5秒タイムアウト）
-        const profResult = await raceTimeout(
-          supabase.from('users').select('role, email, full_name, phone_number, display_name')
-            .eq('id', data.user.id).single().then(r => r),
-          5000
-        );
+        // ── プロフィール取得（Admin 経由・RLS バイパス）──────────────────────
+        const profRes = await fetch(`${apiBase}/api/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-        if (profResult?.data) {
-          const prof = profResult.data;
-          // 管理者がユーザータブ（forceRoleなし）でログインした場合はセッション内でcustomerとして扱う
-          const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
-          const sessionRole = (!forceRole && prof.email?.toLowerCase() === ADMIN_EMAIL)
-            ? 'customer'
-            : prof.role;
-          role = sessionRole;
-          setProfile({
-            id: data.user.id,
-            email: prof.email,
-            role: sessionRole,
-            full_name: prof.full_name ?? null,
-            phone_number: prof.phone_number ?? null,
-            display_name: prof.display_name ?? null,
-            created_at: data.user.created_at,
-          });
-          console.log('[AuthContext] profile set:', prof.email, 'role:', sessionRole);
+        if (profRes.ok) {
+          const { profile: prof } = await profRes.json();
+          if (prof) {
+            // 管理者が user タブでログインした場合はセッション内で customer として扱う
+            const sessionRole = (!forceRole && prof.email?.toLowerCase() === ADMIN_EMAIL)
+              ? 'customer'
+              : (role ?? prof.role);
+            role = sessionRole;
+            setProfile({
+              id: data.user.id,
+              email: prof.email,
+              role: sessionRole,
+              full_name: prof.full_name ?? null,
+              phone_number: prof.phone_number ?? null,
+              display_name: prof.display_name ?? null,
+              created_at: data.user.created_at,
+            });
+            console.log('[AuthContext] profile set:', prof.email, 'role:', sessionRole);
+          } else {
+            // プロフィールが存在しない場合（まれ）
+            role = forceRole ?? 'customer';
+            setProfile({ id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at });
+          }
         } else {
-          // タイムアウトまたはDBエラー → フォールバックプロフィール
+          // プロフィール取得失敗 → フォールバック
           role = forceRole ?? 'customer';
-          setProfile({
-            id: data.user.id,
-            email: data.user.email!,
-            role: forceRole ?? 'customer',
-            full_name: null,
-            phone_number: null,
-            display_name: null,
-            created_at: data.user.created_at,
-          });
-          console.warn('[AuthContext] profile fetch failed — using fallback profile');
+          setProfile({ id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at });
+          console.warn('[AuthContext] profile fetch failed — using fallback');
         }
       }
     } catch (err) {
       console.warn('[AuthContext] signIn profile error:', err);
-      // タイムアウト時もフォールバック
       if (data.user) {
         role = forceRole ?? 'customer';
-        setProfile({
-          id: data.user.id,
-          email: data.user.email!,
-          role: forceRole ?? 'customer',
-          full_name: null,
-          phone_number: null,
-          display_name: null,
-          created_at: data.user.created_at,
-        });
+        setProfile({ id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at });
       }
     } finally {
       fetchingRef.current = false;
