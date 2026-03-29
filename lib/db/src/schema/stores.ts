@@ -64,6 +64,8 @@ export const storesTable = pgTable("stores", {
   // Stripe アカウントの入金可否（bank-setup / KYC完了後に更新）
   stripePayoutsEnabled: boolean("stripe_payouts_enabled"),
   stripeKycAdminEmailSent: boolean("stripe_kyc_admin_email_sent").notNull().default(false),
+  // Stripe Files API でアップロードした営業許可証のファイルID（file_...）
+  stripeLicenseFileId: text("stripe_license_file_id"),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });

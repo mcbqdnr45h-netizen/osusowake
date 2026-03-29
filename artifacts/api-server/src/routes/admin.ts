@@ -145,7 +145,42 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
       } catch { /* ignore */ }
     }
 
-    res.json({ ...store, owner_email: ownerEmail });
+    // ── Stripe ライブステータスを取得して DB も最新化 ────────────────────────
+    let stripeRequirements: Record<string, any> | null = null;
+    if (store.stripe_account_id) {
+      const stripeKey = process.env["STRIPE_SECRET_KEY"];
+      if (stripeKey) {
+        try {
+          const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+          const account = await stripe.accounts.retrieve(store.stripe_account_id as string);
+
+          stripeRequirements = {
+            currently_due:        account.requirements?.currently_due ?? [],
+            eventually_due:       account.requirements?.eventually_due ?? [],
+            errors:               account.requirements?.errors ?? [],
+            disabled_reason:      account.requirements?.disabled_reason ?? null,
+            pending_verification: account.requirements?.pending_verification ?? [],
+          };
+
+          // DB に最新値を書き込む（常に最新を保つ）
+          await db.update(storesTable).set({
+            stripeChargesEnabled: account.charges_enabled,
+            stripePayoutsEnabled: account.payouts_enabled,
+          }).where(eq(storesTable.id, storeId));
+
+          // レスポンスのフィールドも最新値で上書き
+          (store as any).stripe_charges_enabled = account.charges_enabled;
+          (store as any).stripe_payouts_enabled = account.payouts_enabled;
+
+          console.log(`[admin/stores/detail] Stripe live fetch: storeId=${storeId} acct=${store.stripe_account_id} charges=${account.charges_enabled} payouts=${account.payouts_enabled} due=${stripeRequirements.currently_due.length}`);
+        } catch (stripeErr: any) {
+          console.warn(`[admin/stores/detail] Stripe fetch failed: ${stripeErr?.message}`);
+          stripeRequirements = { error: stripeErr?.code ?? "stripe_error", message: stripeErr?.message };
+        }
+      }
+    }
+
+    res.json({ ...store, owner_email: ownerEmail, stripe_requirements: stripeRequirements });
   } catch (err: any) {
     console.error("[admin/stores/detail]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });

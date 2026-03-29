@@ -74,6 +74,16 @@ interface AdminStore {
   owner_store_rank: number;
 }
 
+interface StripeRequirements {
+  currently_due:        string[];
+  eventually_due:       string[];
+  errors:               { code: string; reason: string; requirement: string }[];
+  disabled_reason:      string | null;
+  pending_verification: string[];
+  error?:               string;
+  message?:             string;
+}
+
 interface AdminStoreDetail extends AdminStore {
   description: string | null;
   phone: string | null;
@@ -85,6 +95,7 @@ interface AdminStoreDetail extends AdminStore {
   pickup_hours: string | null;
   license_number: string | null;
   license_image_url: string | null;
+  stripe_license_file_id: string | null;
   id_image_url: string | null;
   pledge_signed: boolean;
   legal_name: string | null;
@@ -95,6 +106,8 @@ interface AdminStoreDetail extends AdminStore {
   legal_other: string | null;
   owner_email: string | null;
   stripe_charges_enabled: boolean | null;
+  stripe_payouts_enabled: boolean | null;
+  stripe_requirements: StripeRequirements | null;
 }
 
 interface Announcement {
@@ -823,11 +836,26 @@ export default function AdminDashboard() {
                                     />
                                     {d.stripe_account_id && (
                                       <>
+                                        {/* Stripe Files API ファイルID */}
+                                        {d.stripe_license_file_id ? (
+                                          <DetailRow
+                                            label="Stripe File ID"
+                                            value={`✅ ${d.stripe_license_file_id}`}
+                                            mono copyable
+                                          />
+                                        ) : (
+                                          <div className="flex items-start justify-between gap-2">
+                                            <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5 min-w-[72px]">Stripe File ID</span>
+                                            <span className="text-[11px] text-amber-600 font-semibold">❌ 未提出（Stripe未送信）</span>
+                                          </div>
+                                        )}
+
                                         {stripeErrors[store.id] && (
                                           <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-700 mb-1">
                                             🔴 連携エラー: {stripeErrors[store.id]}
                                           </div>
                                         )}
+
                                         <DetailRow
                                           label="決済 / 入金"
                                           value={
@@ -836,6 +864,54 @@ export default function AdminDashboard() {
                                               : `決済: ${d.stripe_charges_enabled === true ? '✅ 有効' : d.stripe_charges_enabled === false ? '❌ 制限中' : '未確認'}　入金: ${d.stripe_payouts_enabled === true ? '✅ 有効' : d.stripe_payouts_enabled === false ? '❌ 停止中' : '未確認'}`
                                           }
                                         />
+
+                                        {/* Stripe ライブ requirements */}
+                                        {d.stripe_requirements && !d.stripe_requirements.error && (
+                                          <div className="mt-2 rounded-xl border border-border bg-secondary/10 p-2.5 space-y-1.5">
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-wide">📡 Stripe ライブ確認事項</p>
+
+                                            {d.stripe_requirements.disabled_reason && (
+                                              <div className="flex items-start gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+                                                <span className="text-[10px] font-black text-red-700">停止理由:</span>
+                                                <span className="text-[10px] text-red-600 font-mono">{d.stripe_requirements.disabled_reason}</span>
+                                              </div>
+                                            )}
+
+                                            {d.stripe_requirements.currently_due.length > 0 ? (
+                                              <div>
+                                                <p className="text-[10px] font-bold text-amber-700 mb-0.5">⚠️ 今すぐ必要な項目 ({d.stripe_requirements.currently_due.length}件)</p>
+                                                {d.stripe_requirements.currently_due.map((item, i) => (
+                                                  <div key={i} className="text-[10px] font-mono text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 mb-0.5">{item}</div>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <p className="text-[10px] text-emerald-700 font-bold">✅ 未解決の必要項目なし</p>
+                                            )}
+
+                                            {d.stripe_requirements.errors.length > 0 && (
+                                              <div>
+                                                <p className="text-[10px] font-bold text-red-700 mb-0.5">🚫 エラー ({d.stripe_requirements.errors.length}件)</p>
+                                                {d.stripe_requirements.errors.map((e, i) => (
+                                                  <div key={i} className="text-[10px] font-mono text-red-800 bg-red-50 rounded px-1.5 py-0.5 mb-0.5">
+                                                    [{e.code}] {e.requirement}: {e.reason}
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+
+                                            {d.stripe_requirements.pending_verification.length > 0 && (
+                                              <p className="text-[10px] text-blue-600 font-semibold">
+                                                🔄 審査中: {d.stripe_requirements.pending_verification.join(', ')}
+                                              </p>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {d.stripe_requirements?.error && (
+                                          <div className="text-[10px] text-red-600 bg-red-50 rounded-lg px-2 py-1.5 mt-1">
+                                            🔴 Stripe API エラー: {d.stripe_requirements.error}
+                                          </div>
+                                        )}
                                       </>
                                     )}
 

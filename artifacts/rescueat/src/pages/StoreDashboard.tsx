@@ -1200,6 +1200,32 @@ export default function StoreDashboard() {
     staleTime: 30_000,
   });
 
+  // Stripe ライブステータス（requirements / payouts_enabled / charges_enabled）
+  const { data: stripeStatus, isLoading: stripeStatusLoading } = useQuery<{
+    connected: boolean;
+    accountId?: string;
+    chargesEnabled?: boolean;
+    payoutsEnabled?: boolean;
+    requirements?: {
+      currentlyDue: string[];
+      eventuallyDue: string[];
+      errors: { code: string; reason: string; requirement: string }[];
+      pendingVerification: string[];
+      disabledReason: string | null;
+    };
+  } | null>({
+    queryKey: [`/api/stores/${storeId}/connect/status`],
+    queryFn: async () => {
+      if (!storeId) return null;
+      const res = await fetch(`${BASE}/api/stores/${storeId}/connect/status`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!storeId && !!store?.stripeAccountId,
+    staleTime: 60_000,
+    refetchOnMount: 'always',
+  });
+
   const updateStatus = useUpdateReservationStatus();
 
   // 今日の未受取予約
@@ -1585,8 +1611,62 @@ export default function StoreDashboard() {
                 </div>
                 <p className="text-sm font-black text-foreground">売上残高</p>
               </div>
-              {balanceLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+              {(balanceLoading || stripeStatusLoading) && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
             </div>
+
+            {/* Stripe ライブ requirements（APIから直接取得） */}
+            {stripeStatus?.requirements && (
+              <div className="mb-3 rounded-xl border border-border/60 bg-secondary/20 p-3 space-y-1.5">
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <span>📡</span> Stripe 最新ステータス（ライブ）
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stripeStatus.chargesEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                    決済: {stripeStatus.chargesEnabled ? '✅ 有効' : '❌ 制限中'}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stripeStatus.payoutsEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    入金: {stripeStatus.payoutsEnabled ? '✅ 有効' : '⚠️ 停止中'}
+                  </span>
+                </div>
+
+                {stripeStatus.requirements.disabledReason && (
+                  <div className="flex items-start gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+                    <AlertCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-black text-red-700">アカウント停止理由</p>
+                      <p className="text-[10px] text-red-600 font-mono">{stripeStatus.requirements.disabledReason}</p>
+                    </div>
+                  </div>
+                )}
+
+                {stripeStatus.requirements.currentlyDue.length > 0 ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
+                    <p className="text-[10px] font-black text-amber-800 mb-1">⚠️ 提出が必要な書類 ({stripeStatus.requirements.currentlyDue.length}件)</p>
+                    {stripeStatus.requirements.currentlyDue.map((item, i) => (
+                      <p key={i} className="text-[10px] text-amber-700 font-mono leading-relaxed">{item}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-emerald-700 font-bold">✅ 必要書類はすべて提出済みです</p>
+                )}
+
+                {stripeStatus.requirements.errors.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
+                    <p className="text-[10px] font-black text-red-800 mb-1">🚫 エラー ({stripeStatus.requirements.errors.length}件)</p>
+                    {stripeStatus.requirements.errors.map((e, i) => (
+                      <p key={i} className="text-[10px] text-red-700 font-mono">[{e.code}] {e.requirement}</p>
+                    ))}
+                  </div>
+                )}
+
+                {stripeStatus.requirements.pendingVerification.length > 0 && (
+                  <p className="text-[10px] text-blue-600 font-semibold">
+                    🔄 審査中: {stripeStatus.requirements.pendingVerification.join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+
 
             {balanceData && (
               <div className="space-y-2.5">

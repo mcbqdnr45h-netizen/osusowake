@@ -191,6 +191,57 @@ router.post("/stores/apply", async (req, res) => {
       }
     }
 
+    // ── Stripe Files API: 営業許可証をStripeサーバーにアップロード ──────────────
+    // 既存のStripeアカウントがある場合（2店舗目以降）のみ実行
+    let stripeLicenseFileId: string | null = null;
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (existingStripeAccountId && stripeKey) {
+      try {
+        const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+        // 営業許可証バッファを確保（直接アップロードの場合は base64 から、コピーの場合はスキップ）
+        let licenseBuffer: Buffer | null = null;
+        let licenseMime = "image/jpeg";
+        if (body.licenseImageBase64) {
+          const match = (body.licenseImageBase64 as string).match(/^data:(image\/[\w+]+);base64,(.+)$/s);
+          if (match) {
+            licenseMime = match[1];
+            licenseBuffer = Buffer.from(match[2], "base64");
+          }
+        }
+
+        if (licenseBuffer) {
+          // Stripe Files API にアップロード（purpose: additional_verification — 追加書類）
+          const { Readable } = await import("stream");
+          const fileStream = Readable.from(licenseBuffer);
+          const stripeFile = await stripe.files.create(
+            {
+              file: { data: fileStream, name: `license-${Date.now()}.${licenseMime.split("/")[1] || "jpg"}`, type: licenseMime },
+              purpose: "additional_verification",
+            },
+            { stripeAccount: existingStripeAccountId }
+          );
+          stripeLicenseFileId = stripeFile.id;
+          console.log(`[/stores/apply] ✅ Stripe Files API アップロード完了: fileId=${stripeFile.id} accountId=${existingStripeAccountId} size=${stripeFile.size}bytes purpose=${stripeFile.purpose}`);
+        }
+
+        // ── Stripe Account メタデータ更新: 新店舗情報を送信 ──────────────────
+        const updatedAccount = await stripe.accounts.update(existingStripeAccountId, {
+          metadata: {
+            latest_store_name:    body.name,
+            latest_store_address: `${body.address} ${body.city}`,
+            store_count:          String(existingStores.length + 1),
+            updated_at:           new Date().toISOString(),
+          },
+        });
+        console.log(`[/stores/apply] ✅ Stripe Account メタデータ更新完了: accountId=${existingStripeAccountId} charges=${updatedAccount.charges_enabled} payouts=${updatedAccount.payouts_enabled} metadata=${JSON.stringify(updatedAccount.metadata)}`);
+
+      } catch (stripeEx: any) {
+        // Stripe の失敗はスキップ（店舗登録自体を止めない）
+        console.warn(`[/stores/apply] ⚠️ Stripe連携処理エラー: ${stripeEx?.message} code=${stripeEx?.code}`);
+      }
+    }
+
     // 基本情報のみ保存 — 審査待ち（pending_review）で登録
     const inserted = await db.insert(storesTable).values({
       name: body.name,
@@ -211,6 +262,7 @@ router.post("/stores/apply", async (req, res) => {
       licenseImageUrl,
       idImageUrl: null,
       pledgeSigned: body.pledgeSigned === true,
+      stripeLicenseFileId,
     }).returning();
 
     const store = inserted[0];
