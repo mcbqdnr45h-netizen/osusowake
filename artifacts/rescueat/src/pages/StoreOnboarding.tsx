@@ -57,7 +57,7 @@ export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { currentStore: existingStore, stores, loading: storeLoading, hasExistingStripeAccount } = useMyStores();
+  const { currentStore: existingStore, stores, loading: storeLoading, hasExistingStripeAccount, refetch: refetchStores } = useMyStores();
 
   // ?add=1 が付いている場合は「追加登録モード」→ 既存店舗リダイレクトをスキップ
   const isAddMode = typeof window !== 'undefined'
@@ -245,6 +245,9 @@ export default function StoreOnboarding() {
 
       clearOnboardingDraft();
 
+      // 店舗リストを即時更新してから遷移する
+      refetchStores();
+
       if (isInherited) {
         // Stripe引き継ぎ → bank-setup スキップ → マイページへ
         console.log('[StoreOnboarding] ✅ 追加店舗登録成功（引き継ぎ） id=', responseBody.id, '→ /mypage');
@@ -269,6 +272,7 @@ export default function StoreOnboarding() {
             const checkStore = await check.json().catch(() => null);
             console.log('[StoreOnboarding] タイムアウト後、店舗確認 OK → 遷移');
             clearOnboardingDraft();
+            refetchStores();
             if (isInherited) {
               navigate('/mypage');
             } else {
