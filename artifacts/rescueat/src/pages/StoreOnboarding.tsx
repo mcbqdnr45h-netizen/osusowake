@@ -316,7 +316,7 @@ export default function StoreOnboarding() {
         {/* ヘッダー */}
         <div className="flex items-center gap-3 mb-6">
           <button
-            onClick={() => navigate('/register-store')}
+            onClick={() => navigate(isAddMode ? '/store/dashboard' : '/register-store')}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
