@@ -1149,6 +1149,8 @@ export default function StoreDashboard() {
   }, [store, storeLoading, storeFetchError, navigate]);
 
   const [showPostModal, setShowPostModal] = useState(false);
+  const [syncingStripe, setSyncingStripe] = useState(false);
+  const [stripeError, setStripeError]     = useState<string | null>(null);
   const [markingId, setMarkingId]         = useState<number | null>(null);
   const [togglingId, setTogglingId]       = useState<number | null>(null);
   const [adjustingId, setAdjustingId]     = useState<number | null>(null);
@@ -1247,6 +1249,38 @@ export default function StoreDashboard() {
       });
     return Array.from(seen.values()).slice(0, 5);
   }, [bags]);
+
+  // Stripe ステータスを再同期
+  async function syncStripeStatus() {
+    if (!storeId) return;
+    setSyncingStripe(true);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/stripe-sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.stripeError) {
+          setStripeError(data.stripeError);
+          toast({ title: '⚠️ Stripe連携エラーを検出しました', description: `エラーコード: ${data.stripeError}`, variant: 'destructive' });
+        } else {
+          setStripeError(null);
+          toast({
+            title: '✅ Stripe情報を更新しました',
+            description: `決済: ${data.chargesEnabled ? '有効' : '制限中'} / 入金: ${data.payoutsEnabled ? '有効' : '停止中'}`,
+          });
+          queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/connect/balance`] });
+        }
+      } else {
+        toast({ title: 'エラー', description: '再同期に失敗しました', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'エラー', description: 'サーバーへの接続に失敗しました', variant: 'destructive' });
+    } finally {
+      setSyncingStripe(false);
+    }
+  }
 
   // 受取済みにする
   async function handlePickedUp(id: number) {
@@ -1606,6 +1640,31 @@ export default function StoreDashboard() {
             {!balanceData && !balanceLoading && (
               <p className="text-xs text-muted-foreground text-center py-2">残高情報を取得できませんでした</p>
             )}
+
+            {/* Stripe 連携エラー表示 */}
+            {stripeError && (
+              <div className="mt-2 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-black text-red-700">🔴 Stripe連携エラー</p>
+                  <p className="text-[11px] text-red-600 mt-0.5">エラーコード: {stripeError}</p>
+                  <p className="text-[11px] text-red-500 mt-0.5">サポートまでお問い合わせください: hello.osusowake@gmail.com</p>
+                </div>
+              </div>
+            )}
+
+            {/* 再同期ボタン */}
+            <button
+              type="button"
+              onClick={syncStripeStatus}
+              disabled={syncingStripe}
+              className="mt-3 w-full flex items-center justify-center gap-1.5 bg-orange-50 hover:bg-orange-100 text-primary font-bold text-xs py-2 rounded-xl transition-colors border border-orange-200 disabled:opacity-50"
+            >
+              {syncingStripe
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />同期中…</>
+                : <><RefreshCw className="w-3.5 h-3.5" />Stripe情報を最新に更新する</>
+              }
+            </button>
           </div>
         )}
 

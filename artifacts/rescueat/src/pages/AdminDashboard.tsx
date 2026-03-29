@@ -246,6 +246,8 @@ export default function AdminDashboard() {
   const [storeDetails, setStoreDetails]   = useState<Record<number, AdminStoreDetail>>({});
   const [detailLoading, setDetailLoading] = useState<number | null>(null);
   const [lightboxImg, setLightboxImg]     = useState<string | null>(null);
+  const [syncingStripe, setSyncingStripe] = useState<number | null>(null);
+  const [stripeErrors, setStripeErrors]   = useState<Record<number, string | null>>({});
 
   const token = session?.access_token;
 
@@ -406,6 +408,40 @@ export default function AdminDashboard() {
       if (res.ok) { toast({ title: '🗑 店舗を削除しました' }); await fetchAll(); }
       else toast({ title: 'エラー', description: '削除に失敗しました', variant: 'destructive' });
     } finally { setActionLoading(null); }
+  }
+
+  async function syncStripeForStore(storeId: number) {
+    setSyncingStripe(storeId);
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/stripe-sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.stripeError) {
+          setStripeErrors(prev => ({ ...prev, [storeId]: data.stripeError }));
+          setStores(prev => prev.map(s => s.id === storeId
+            ? { ...s, stripe_charges_enabled: false, stripe_payouts_enabled: false }
+            : s
+          ));
+          toast({ title: '⚠️ Stripe連携エラーを検出', description: `エラー: ${data.stripeError}`, variant: 'destructive' });
+        } else {
+          setStripeErrors(prev => ({ ...prev, [storeId]: null }));
+          setStores(prev => prev.map(s => s.id === storeId
+            ? { ...s, stripe_charges_enabled: data.chargesEnabled, stripe_payouts_enabled: data.payoutsEnabled }
+            : s
+          ));
+          toast({ title: '✅ Stripe再同期完了', description: `決済: ${data.chargesEnabled ? '有効' : '制限中'} / 入金: ${data.payoutsEnabled ? '有効' : '停止中'}` });
+        }
+      } else {
+        toast({ title: 'エラー', description: '再同期に失敗しました', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'エラー', description: 'サーバーへの接続に失敗しました', variant: 'destructive' });
+    } finally {
+      setSyncingStripe(null);
+    }
   }
 
   async function sendAnnouncement() {
@@ -670,15 +706,17 @@ export default function AdminDashboard() {
                                 </span>
                               )}
                               {store.stripe_account_id && (
-                                store.stripe_charges_enabled === true
-                                  ? (
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${store.stripe_payouts_enabled === true ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                      {store.stripe_payouts_enabled === true ? '✅ Stripe有効・入金可' : '⚠️ Stripe有効・入金停止'}
-                                    </span>
-                                  )
-                                  : store.stripe_charges_enabled === false
-                                    ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">❌ Stripe制限中</span>
-                                    : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Stripe未確認</span>
+                                stripeErrors[store.id]
+                                  ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300">🔴 連携エラー</span>
+                                  : store.stripe_charges_enabled === true
+                                    ? (
+                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${store.stripe_payouts_enabled === true ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                        {store.stripe_payouts_enabled === true ? '✅ Stripe有効・入金可' : '⚠️ Stripe有効・入金停止'}
+                                      </span>
+                                    )
+                                    : store.stripe_charges_enabled === false
+                                      ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">❌ Stripe制限中</span>
+                                      : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Stripe未確認</span>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5 truncate">{store.address}</p>
@@ -781,14 +819,24 @@ export default function AdminDashboard() {
                                       label="Stripe口座"
                                       value={d.stripe_account_id ? `✅ ${d.stripe_account_id}` : '❌ 未連携'}
                                       mono={!!d.stripe_account_id}
+                                      copyable={!!d.stripe_account_id}
                                     />
                                     {d.stripe_account_id && (
-                                      <DetailRow
-                                        label="決済 / 入金"
-                                        value={
-                                          `決済: ${d.stripe_charges_enabled === true ? '✅ 有効' : d.stripe_charges_enabled === false ? '❌ 制限中' : '未確認'}　入金: ${d.stripe_payouts_enabled === true ? '✅ 有効' : d.stripe_payouts_enabled === false ? '❌ 停止中' : '未確認'}`
-                                        }
-                                      />
+                                      <>
+                                        {stripeErrors[store.id] && (
+                                          <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-700 mb-1">
+                                            🔴 連携エラー: {stripeErrors[store.id]}
+                                          </div>
+                                        )}
+                                        <DetailRow
+                                          label="決済 / 入金"
+                                          value={
+                                            stripeErrors[store.id]
+                                              ? '🔴 Stripe接続エラー — 再同期してください'
+                                              : `決済: ${d.stripe_charges_enabled === true ? '✅ 有効' : d.stripe_charges_enabled === false ? '❌ 制限中' : '未確認'}　入金: ${d.stripe_payouts_enabled === true ? '✅ 有効' : d.stripe_payouts_enabled === false ? '❌ 停止中' : '未確認'}`
+                                          }
+                                        />
+                                      </>
                                     )}
 
                                     {/* ─── オーナー確認（本人確認書類）─── */}
@@ -865,7 +913,27 @@ export default function AdminDashboard() {
                             {store.stripe_account_id && store.stripe_charges_enabled === false && (
                               <div className="mb-2 flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-[11px] font-bold text-red-600">
                                 <XCircle className="w-3.5 h-3.5 shrink-0" />
-                                Stripe制限中のため承認できません。書類不備を解消してください。
+                                {stripeErrors[store.id]
+                                  ? 'Stripe連携エラーが検出されています。アカウントIDを確認してください。'
+                                  : 'Stripe制限中のため承認できません。書類不備を解消してください。'
+                                }
+                              </div>
+                            )}
+                            {/* Stripe再同期ボタン */}
+                            {store.stripe_account_id && (
+                              <div className="mb-2">
+                                <button
+                                  type="button"
+                                  onClick={() => syncStripeForStore(store.id)}
+                                  disabled={syncingStripe === store.id}
+                                  className="w-full flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs py-2 rounded-xl transition-colors border border-blue-200 disabled:opacity-50"
+                                >
+                                  {syncingStripe === store.id
+                                    ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    : <RefreshCw className="w-3.5 h-3.5" />
+                                  }
+                                  Stripe情報を再同期
+                                </button>
                               </div>
                             )}
                             <div className="flex gap-2 flex-wrap">

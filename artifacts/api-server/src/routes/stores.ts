@@ -1082,6 +1082,79 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
   }
 });
 
+// ─── Stripe 強制再同期 ────────────────────────────────────────────────────────
+// POST /api/stores/:storeId/stripe-sync
+// Stripe API から最新ステータスを取得して DB を上書きする（管理者・オーナー両用）
+router.post("/stores/:storeId/stripe-sync", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) {
+      return res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+    }
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) {
+      return res.status(404).json({ error: "not_found", message: "Store not found" });
+    }
+
+    if (!store.stripeAccountId) {
+      return res.json({
+        synced: false,
+        reason: "no_stripe_account",
+        stripeAccountId: null,
+        chargesEnabled: null,
+        payoutsEnabled: null,
+      });
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      return res.status(500).json({ error: "config_error", message: "Stripe not configured" });
+    }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    let chargesEnabled = false;
+    let payoutsEnabled = false;
+    let stripeError: string | null = null;
+
+    try {
+      const account = await stripe.accounts.retrieve(store.stripeAccountId);
+      chargesEnabled = account.charges_enabled ?? false;
+      payoutsEnabled = account.payouts_enabled ?? false;
+      console.log(`[stripe-sync] storeId=${storeId} accountId=${store.stripeAccountId} charges=${chargesEnabled} payouts=${payoutsEnabled}`);
+    } catch (stripeErr: any) {
+      // account_invalid = アカウントが存在しない or このキーからアクセス不可
+      stripeError = stripeErr?.code ?? stripeErr?.type ?? "stripe_error";
+      console.warn(`[stripe-sync] Stripe error for storeId=${storeId} accountId=${store.stripeAccountId}:`, stripeErr?.message);
+    }
+
+    // DB に最新値を書き込む
+    await db
+      .update(storesTable)
+      .set({
+        stripeChargesEnabled: stripeError ? false : chargesEnabled,
+        stripePayoutsEnabled: stripeError ? false : payoutsEnabled,
+      })
+      .where(eq(storesTable.id, storeId));
+
+    res.json({
+      synced: true,
+      stripeAccountId: store.stripeAccountId,
+      chargesEnabled: stripeError ? false : chargesEnabled,
+      payoutsEnabled: stripeError ? false : payoutsEnabled,
+      stripeError,
+    });
+  } catch (err: any) {
+    console.error("[stripe-sync] error:", err?.message);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 // ─── Stripe Account Link（インクリメンタル認証）──────────────────────────────
 // POST /api/stores/:storeId/connect/account-link
 // requirements.currently_due を確認し、不足情報だけを補完するためのStripe管理ページURLを生成する
