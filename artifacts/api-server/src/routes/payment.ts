@@ -96,7 +96,7 @@ router.post("/payment/create-intent", async (req, res) => {
 
     if (stripeKey) {
       const [store] = await db
-        .select({ stripeAccountId: storesTable.stripeAccountId })
+        .select({ stripeAccountId: storesTable.stripeAccountId, name: storesTable.name, id: storesTable.id })
         .from(storesTable)
         .where(eq(storesTable.id, reservation.storeId));
 
@@ -105,9 +105,12 @@ router.post("/payment/create-intent", async (req, res) => {
       try {
         const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-        // Stripeダッシュボードのメタデータで計算内訳を確認可能
+        // Stripeダッシュボードのメタデータで「どの店舗の売上か」を判別可能にする
+        // store_id / store_name を必ず付与することで、1アカウント多店舗でも識別できる
         const feeMetadata = {
           reservationId:      String(reservation.id),
+          store_id:           String(store?.id ?? reservation.storeId),
+          store_name:         store?.name ?? "不明な店舗",
           platformFeeRate:    "25%",
           platformRevenue:    String(platformRevenue),     // = floor(total × 0.25)
           stripeFee:          String(stripeFee),           // = round(total × 0.036)
@@ -338,9 +341,9 @@ router.post("/checkout/session", async (req, res) => {
       return;
     }
 
-    // 店舗の Stripe アカウント ID を取得
+    // 店舗の Stripe アカウント ID と名称を取得（課金メタデータで店舗識別に使用）
     const [store] = await db
-      .select({ stripeAccountId: storesTable.stripeAccountId })
+      .select({ stripeAccountId: storesTable.stripeAccountId, name: storesTable.name, id: storesTable.id })
       .from(storesTable)
       .where(eq(storesTable.id, reservation.storeId));
 
@@ -367,16 +370,19 @@ router.post("/checkout/session", async (req, res) => {
 
     console.log(
       `[Checkout] Separate C&T: ` +
+      `store_id=${store?.id} store_name="${store?.name}" ` +
       `total=${total}JPY | ` +
       `PlatformRevenue=${platformRevenue}JPY | ` +
       `StripeFee≈${stripeFee}JPY | ` +
       `ShopTransfer=${shopTransferAmount}JPY (支払い確認後に送金)`
     );
 
-    // Stripeダッシュボードのメタデータに計算内訳を記録
-    // ※ storeStripeAccountId は Transfer 時に参照する
+    // Stripeダッシュボードのメタデータに「どの店舗の売上か」と計算内訳を記録
+    // store_id / store_name により、1アカウント多店舗でも Stripe 上で店舗識別が可能
     const feeMetadata: Record<string, string> = {
       reservationId:        String(reservation.id),
+      store_id:             String(store?.id ?? reservation.storeId),
+      store_name:           store?.name ?? "不明な店舗",
       chargeMode:           "separate_charges_and_transfers",
       platformRevenue:      String(platformRevenue),
       stripeFeeEstimate:    String(stripeFee),
