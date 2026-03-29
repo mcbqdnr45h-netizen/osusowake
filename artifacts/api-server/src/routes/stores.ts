@@ -225,16 +225,52 @@ router.post("/stores/apply", async (req, res) => {
           console.log(`[/stores/apply] ✅ Stripe Files API アップロード完了: fileId=${stripeFile.id} accountId=${existingStripeAccountId} size=${stripeFile.size}bytes purpose=${stripeFile.purpose}`);
         }
 
-        // ── Stripe Account メタデータ更新: 新店舗情報を送信 ──────────────────
+        // ── Stripe Account Update: business_profile（屋号・住所・電話番号）+ metadata ──────────────────
+        // 店舗ごとに必ず新しく送る情報（per-store）
+        const storePhone   = body.phone ? toE164Japan(String(body.phone)) : undefined;
+        const storeAddress = `${body.address}, ${body.city}`.trim();
+        const newStoreCount = existingStores.length + 1;
+
+        // ── 送信データの分類ログ（JSON形式）──────────────────────────────────
+        const stripeUpdatePayload = {
+          // ===== 店舗ごとに「新しく送る」情報 =====
+          NEW_PER_STORE: {
+            "business_profile.name":          body.name,
+            "business_profile.support_phone": storePhone ?? "(電話番号なし)",
+            "metadata.latest_store_name":     body.name,
+            "metadata.latest_store_address":  storeAddress,
+            "metadata.store_phone":           storePhone ?? "(なし)",
+            "metadata.store_count":           String(newStoreCount),
+            "metadata.license_file_id":       stripeLicenseFileId ?? "(未アップロード)",
+          },
+          // ===== オーナーから「引き継ぐ」情報（Stripe側で保持済み・変更不要）=====
+          INHERITED_FROM_OWNER: {
+            "individual.id_number":           "（免許証・マイナンバー → Stripe保持済み）",
+            "external_account (bank)":        "（振込先口座 → Stripe保持済み）",
+            "company.tax_id":                 "（法人番号 → Stripe保持済み）",
+            "tos_acceptance":                 "（利用規約同意 → Stripe保持済み）",
+          },
+          stripe_account_id: existingStripeAccountId,
+          timestamp:         new Date().toISOString(),
+        };
+        console.log(`[/stores/apply] 📦 Stripe送信データ分類:\n${JSON.stringify(stripeUpdatePayload, null, 2)}`);
+
         const updatedAccount = await stripe.accounts.update(existingStripeAccountId, {
+          // 店舗固有の business_profile を明示的に更新
+          business_profile: {
+            name:          body.name,
+            ...(storePhone ? { support_phone: storePhone } : {}),
+          },
           metadata: {
             latest_store_name:    body.name,
-            latest_store_address: `${body.address} ${body.city}`,
-            store_count:          String(existingStores.length + 1),
+            latest_store_address: storeAddress,
+            store_phone:          storePhone ?? "",
+            store_count:          String(newStoreCount),
+            license_file_id:      stripeLicenseFileId ?? "",
             updated_at:           new Date().toISOString(),
           },
         });
-        console.log(`[/stores/apply] ✅ Stripe Account メタデータ更新完了: accountId=${existingStripeAccountId} charges=${updatedAccount.charges_enabled} payouts=${updatedAccount.payouts_enabled} metadata=${JSON.stringify(updatedAccount.metadata)}`);
+        console.log(`[/stores/apply] ✅ Stripe Account Update 完了: accountId=${existingStripeAccountId} charges=${updatedAccount.charges_enabled} payouts=${updatedAccount.payouts_enabled} bp_name="${updatedAccount.business_profile?.name}" bp_phone="${updatedAccount.business_profile?.support_phone}"`);
 
       } catch (stripeEx: any) {
         // Stripe の失敗はスキップ（店舗登録自体を止めない）

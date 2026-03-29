@@ -89,6 +89,7 @@ export default function StoreOnboarding() {
     address:       obDraft.address  ?? '',
     city:          obDraft.city     ?? '',
     category:      obDraft.category ?? '',
+    phone:         '',
     imageUrl:      '',
   });
 
@@ -120,12 +121,13 @@ export default function StoreOnboarding() {
     if (!form.name.trim())                      updated.push('店名が未入力です。');
     if (!form.address.trim())                   updated.push('住所が未入力です。');
     if (!form.city.trim())                      updated.push('市区町村が未入力です。');
+    if (!form.phone.trim())                     updated.push('店舗電話番号が未入力です。');
     if (!form.category)                         updated.push('ジャンルが未選択です。');
     if (!licenseImageBase64 && !copyFromStoreId) updated.push('営業許可証の写真が必要です。');
     if (!pledgeSigned)                          updated.push('利用規約への同意が未完了です。');
     setValidationWarnings(updated);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.imageUrl, form.name, form.address, form.city, form.category, licenseImageBase64, copyFromStoreId, pledgeSigned]);
+  }, [form.imageUrl, form.name, form.address, form.city, form.phone, form.category, licenseImageBase64, copyFromStoreId, pledgeSigned]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -182,6 +184,7 @@ export default function StoreOnboarding() {
     if (!form.name.trim())                      warnings.push('店名が未入力です。');
     if (!form.address.trim())                   warnings.push('住所が未入力です。');
     if (!form.city.trim())                      warnings.push('市区町村が未入力です。');
+    if (!form.phone.trim())                     warnings.push('店舗電話番号が未入力です。');
     if (!form.category)                         warnings.push('ジャンルが未選択です。');
     if (!licenseImageBase64 && !copyFromStoreId) warnings.push('営業許可証の写真が必要です。');
     if (!pledgeSigned)                          warnings.push('利用規約への同意が未完了です。');
@@ -210,7 +213,7 @@ export default function StoreOnboarding() {
           address: form.address.trim(),
           city: form.city.trim(),
           category: form.category,
-          phone: (user as any).phone_number ?? null,
+          phone: form.phone.trim() || null,
           imageUrl: form.imageUrl || null,
           lat: pinPos?.lat ?? null,
           lng: pinPos?.lng ?? null,
@@ -443,6 +446,25 @@ export default function StoreOnboarding() {
               className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
               placeholder="例: 高槻市"
             />
+          </div>
+
+          {/* 店舗電話番号 */}
+          <div>
+            <label className="block text-sm font-bold text-muted-foreground mb-1.5">
+              店舗電話番号 <span className="text-destructive">*</span>
+            </label>
+            <input
+              required
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              className="w-full bg-background border border-input rounded-xl px-4 py-3.5 font-medium text-base focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
+              placeholder="例: 072-639-9628"
+              inputMode="tel"
+            />
+            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+              この店舗専用の電話番号です。Stripeの決済審査・トラブル対応に使用されます。
+            </p>
           </div>
 
           {/* ジャンル */}
