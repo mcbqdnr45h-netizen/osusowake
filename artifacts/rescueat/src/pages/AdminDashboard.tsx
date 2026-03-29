@@ -7,7 +7,7 @@ import {
   ShieldCheck, TrendingUp, Users, Store, Clock, CheckCircle, XCircle,
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench, CreditCard,
-  LogOut, ExternalLink, Package, Receipt, Flag, MapPin, Trash2,
+  LogOut, ExternalLink, Package, Receipt, Flag, MapPin, Trash2, FileWarning,
 } from 'lucide-react';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 
@@ -993,6 +993,13 @@ export default function AdminDashboard() {
                                   ? 'Stripe連携エラーが検出されています。アカウントIDを確認してください。'
                                   : 'Stripe制限中のため承認できません。書類不備を解消してください。'
                                 }
+                              </div>
+                            )}
+                            {/* Stripe File ID 警告（営業許可証が Stripe に未送信） */}
+                            {store.stripe_account_id && storeDetails[store.id] && !storeDetails[store.id].stripe_license_file_id && (
+                              <div className="mb-2 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-[11px] font-bold text-amber-700">
+                                <FileWarning className="w-3.5 h-3.5 shrink-0" />
+                                ⚠️ 営業許可証が Stripe に未送信です（stripe-sync ボタンで再送信可能）
                               </div>
                             )}
                             {/* Stripe再同期ボタン */}

@@ -431,7 +431,13 @@ router.post("/checkout/session", async (req, res) => {
         ? successUrl
         : `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
-      metadata: { reservationId: String(reservation.id), userId: userId || '' },
+      metadata: {
+        reservationId: String(reservation.id),
+        userId:        userId || '',
+        // Stripe ダッシュボードの「セッション一覧」でも直接店舗を特定できるよう付与
+        store_id:      String(store?.id ?? reservation.storeId),
+        store_name:    store?.name ?? "不明な店舗",
+      },
       locale: "ja",
       payment_intent_data: { metadata: feeMetadata }, // ← app_fee/transfer_data は使わない
     });

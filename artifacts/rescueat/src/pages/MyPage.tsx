@@ -3,11 +3,12 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 
 const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
 
@@ -27,6 +28,26 @@ export default function MyPage() {
   const pickedUpCount  = pickedUpReservations.length;
   const foodSavedKg    = +(pickedUpCount * 0.5).toFixed(1);
   const co2Saved       = +(pickedUpCount * 2.5).toFixed(1);
+
+  // ── Stripe ライブステータス（payouts_enabled を DB 固定値ではなく API から取得）──
+  const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+  const storeId = store?.id;
+  const { data: stripeStatus } = useQuery<{
+    connected: boolean;
+    chargesEnabled?: boolean;
+    payoutsEnabled?: boolean;
+  } | null>({
+    queryKey: [`/api/stores/${storeId}/connect/status`],
+    queryFn: async () => {
+      if (!storeId) return null;
+      const res = await fetch(`${BASE_URL}/api/stores/${storeId}/connect/status`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!storeId && !!store?.stripeAccountId,
+    staleTime: 60_000,
+    refetchOnMount: 'always',
+  });
 
   // ── お知らせ（通知）──
   const [notifications, setNotifications] = useState<{ id: number; title: string; body: string; type: string; read: boolean; createdAt: string }[]>([]);
@@ -379,14 +400,41 @@ export default function MyPage() {
           </div>
         )}
 
-        {/* ── 店舗オーナー：承認済み・Stripe連携完了（緑バッジ・コンパクト版） ── */}
-        {profile?.role === 'store_owner' && !loadingStore && isApprovedOwner && (
-          <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-            <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
-            <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
-            <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">有効</span>
-          </div>
-        )}
+        {/* ── 店舗オーナー：承認済み・Stripe連携完了（緑バッジ — ライブAPI判定） ── */}
+        {profile?.role === 'store_owner' && !loadingStore && isApprovedOwner && (() => {
+          const payoutsOk  = stripeStatus?.payoutsEnabled;
+          const chargesOk  = stripeStatus?.chargesEnabled;
+          const isLoaded   = stripeStatus !== undefined;
+          // payouts有効 かつ charges有効 → 完全有効
+          if (!isLoaded) return (
+            <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+              <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
+              <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
+              <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">確認中…</span>
+            </div>
+          );
+          if (payoutsOk && chargesOk) return (
+            <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+              <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
+              <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
+              <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">有効</span>
+            </div>
+          );
+          if (chargesOk && !payoutsOk) return (
+            <div className="mb-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <p className="text-xs font-black text-amber-800 flex-1">⚠️ 決済受付中・入金一時停止</p>
+              <span className="text-[9px] font-black bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full shrink-0">入金停止</span>
+            </div>
+          );
+          return (
+            <div className="mb-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <p className="text-xs font-black text-red-800 flex-1">❌ Stripe連携に問題があります</p>
+              <span className="text-[9px] font-black bg-red-200 text-red-800 px-2 py-0.5 rounded-full shrink-0">要確認</span>
+            </div>
+          );
+        })()}
 
         {/* ── 神モード（管理者専用） ── */}
         {isAdmin && (
