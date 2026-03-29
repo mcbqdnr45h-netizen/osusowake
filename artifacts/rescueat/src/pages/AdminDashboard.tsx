@@ -510,6 +510,17 @@ export default function AdminDashboard() {
       if (res.ok) {
         const data = await res.json();
         setStoreDetails(prev => ({ ...prev, [storeId]: data }));
+        // Stripe ライブ値を store リストの in-memory にも反映（バッジズレ防止）
+        if (data.stripe_charges_enabled != null || data.stripe_payouts_enabled != null) {
+          setStores(prev => prev.map(s => s.id === storeId
+            ? {
+                ...s,
+                stripe_charges_enabled: data.stripe_charges_enabled ?? s.stripe_charges_enabled,
+                stripe_payouts_enabled: data.stripe_payouts_enabled ?? s.stripe_payouts_enabled,
+              }
+            : s
+          ));
+        }
       }
     } finally {
       setDetailLoading(null);
@@ -718,19 +729,26 @@ export default function AdminDashboard() {
                                   🏪 {store.owner_store_rank ?? '?'}店舗目 / 計{store.owner_store_count}店
                                 </span>
                               )}
-                              {store.stripe_account_id && (
-                                stripeErrors[store.id]
-                                  ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300">🔴 連携エラー</span>
-                                  : store.stripe_charges_enabled === true
-                                    ? (
-                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${store.stripe_payouts_enabled === true ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                        {store.stripe_payouts_enabled === true ? '✅ Stripe有効・入金可' : '⚠️ Stripe有効・入金停止'}
-                                      </span>
-                                    )
-                                    : store.stripe_charges_enabled === false
-                                      ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">❌ Stripe制限中</span>
-                                      : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Stripe未確認</span>
-                              )}
+                              {store.stripe_account_id && (() => {
+                                // storeDetails のライブ値を優先、なければ DB 値を使う
+                                const d = storeDetails[store.id];
+                                const chargesOk = d?.stripe_charges_enabled ?? store.stripe_charges_enabled;
+                                const payoutsOk = d?.stripe_payouts_enabled ?? store.stripe_payouts_enabled;
+                                if (stripeErrors[store.id]) {
+                                  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300">🔴 連携エラー</span>;
+                                }
+                                if (chargesOk === true) {
+                                  return (
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${payoutsOk === true ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                      {payoutsOk === true ? '✅ Stripe有効・入金可' : '⚠️ Stripe有効・入金停止'}
+                                    </span>
+                                  );
+                                }
+                                if (chargesOk === false) {
+                                  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">❌ Stripe制限中</span>;
+                                }
+                                return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Stripe未確認</span>;
+                              })()}
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5 truncate">{store.address}</p>
                             <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">

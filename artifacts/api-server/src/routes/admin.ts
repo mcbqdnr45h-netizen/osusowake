@@ -121,7 +121,7 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
         s.open_time, s.close_time, s.holiday, s.pickup_hours,
         s.owner_id, s.created_at, s.stripe_account_id,
         s.stripe_charges_enabled, s.stripe_payouts_enabled,
-        s.license_number, s.license_image_url, s.id_image_url, s.pledge_signed,
+        s.license_number, s.license_image_url, s.stripe_license_file_id, s.id_image_url, s.pledge_signed,
         s.legal_name, s.legal_representative, s.legal_address,
         s.legal_phone, s.legal_email, s.legal_other,
         COUNT(DISTINCT b.id)::int AS bag_count,
@@ -162,7 +162,27 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
             pending_verification: account.requirements?.pending_verification ?? [],
           };
 
-          // DB に最新値を書き込む（常に最新を保つ）
+          // ── Stripe metadata から stripe_license_file_id を同期 ──────────
+          // DB に値がなくてもメタデータに保存されていれば復元する
+          const metaFileId = (account.metadata as any)?.license_file_id;
+          const dbFileId   = (store as any).stripe_license_file_id;
+
+          // メタデータに有効な file ID（"file_..." で始まる）があれば採用
+          const resolvedFileId: string | null =
+            dbFileId ?? (metaFileId?.startsWith('file_') ? metaFileId : null);
+
+          // DB が空でメタデータに値があれば DB に書き戻す
+          if (!dbFileId && resolvedFileId) {
+            await db.update(storesTable)
+              .set({ stripeLicenseFileId: resolvedFileId } as any)
+              .where(eq(storesTable.id, storeId));
+            console.log(`[admin/stores/detail] ✅ stripe_license_file_id を DB に復元: ${resolvedFileId}`);
+          }
+
+          // レスポンス用フィールドを上書き
+          (store as any).stripe_license_file_id = resolvedFileId;
+
+          // DB に最新値を書き込む（charges/payouts）
           await db.update(storesTable).set({
             stripeChargesEnabled: account.charges_enabled,
             stripePayoutsEnabled: account.payouts_enabled,
