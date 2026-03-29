@@ -199,14 +199,30 @@ router.post("/stores/apply", async (req, res) => {
       try {
         const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-        // 営業許可証バッファを確保（直接アップロードの場合は base64 から、コピーの場合はスキップ）
+        // 営業許可証バッファを確保（直接アップロード or コピー元URLからfetch）
         let licenseBuffer: Buffer | null = null;
         let licenseMime = "image/jpeg";
         if (body.licenseImageBase64) {
+          // 新規アップロード: base64 から復元
           const match = (body.licenseImageBase64 as string).match(/^data:(image\/[\w+]+);base64,(.+)$/s);
           if (match) {
             licenseMime = match[1];
             licenseBuffer = Buffer.from(match[2], "base64");
+          }
+        } else if (licenseImageUrl) {
+          // copyLicenseFromStoreId: コピー元の signed URL から画像を fetch して Stripe にアップロード
+          try {
+            const imgResp = await fetch(licenseImageUrl);
+            if (imgResp.ok) {
+              const ct = imgResp.headers.get("content-type") ?? "image/jpeg";
+              licenseMime = ct.split(";")[0].trim();
+              licenseBuffer = Buffer.from(await imgResp.arrayBuffer());
+              console.log(`[/stores/apply] ✅ コピー元ライセンス画像 fetch 完了: size=${licenseBuffer.byteLength} mime=${licenseMime}`);
+            } else {
+              console.warn(`[/stores/apply] ⚠️ コピー元ライセンス画像 fetch 失敗: HTTP ${imgResp.status}`);
+            }
+          } catch (fetchErr: any) {
+            console.warn("[/stores/apply] ⚠️ コピー元ライセンス画像 fetch 例外:", fetchErr?.message);
           }
         }
 

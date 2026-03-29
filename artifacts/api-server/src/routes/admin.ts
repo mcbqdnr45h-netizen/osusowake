@@ -57,7 +57,7 @@ router.get("/admin/metrics", requireAdmin, async (_req, res) => {
         COUNT(*)::int                                                     AS total_stores,
         COUNT(*) FILTER (WHERE status = 'approved' AND is_active = true)::int AS approved_stores,
         COUNT(*) FILTER (WHERE status IN ('pending_review', 'pending', 'applied'))::int AS pending_stores,
-        COUNT(*) FILTER (WHERE status = 'suspended' OR (status = 'approved' AND is_active = false))::int AS suspended_stores
+        COUNT(*) FILTER (WHERE status = 'approved' AND is_active = false)::int AS suspended_stores
       FROM stores
     `);
     const storeRow = storeStats.rows[0] as any;
@@ -710,6 +710,104 @@ router.patch("/admin/sales-leads/:id", requireAdmin, async (req: any, res) => {
     res.json({ ok: true });
   } catch (err: any) {
     console.error("[admin] sales-leads PATCH error:", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── POST /admin/stores/batch-patch-stripe-license ──────────────────────────────
+// license_image_url が存在するのに stripe_license_file_id が NULL の店舗を一括修正
+// (copyLicenseFromStoreId バグの遡及パッチ)
+router.post("/admin/stores/batch-patch-stripe-license", requireAdmin, async (_req, res) => {
+  try {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+      return res.status(500).json({ error: "stripe_key_missing" });
+    }
+    const Stripe = (await import("stripe")).default;
+    const { Readable } = await import("stream");
+
+    // license_image_url あり・stripe_license_file_id なし・stripe_account_id あり
+    const targets = await db
+      .select({
+        id: storesTable.id,
+        name: storesTable.name,
+        licenseImageUrl: storesTable.licenseImageUrl,
+        stripeAccountId: storesTable.stripeAccountId,
+      })
+      .from(storesTable)
+      .where(
+        sql`license_image_url IS NOT NULL AND stripe_license_file_id IS NULL AND stripe_account_id IS NOT NULL`
+      );
+
+    const results: { storeId: number; name: string; result: string; fileId?: string }[] = [];
+
+    for (const store of targets) {
+      try {
+        const stripe = new Stripe(stripeKey);
+        const imgResp = await fetch(store.licenseImageUrl!);
+        if (!imgResp.ok) {
+          results.push({ storeId: store.id, name: store.name, result: `fetch失敗: HTTP ${imgResp.status}` });
+          continue;
+        }
+        const ct = imgResp.headers.get("content-type") ?? "image/jpeg";
+        const mime = ct.split(";")[0].trim();
+        const buf = Buffer.from(await imgResp.arrayBuffer());
+        const ext = mime.split("/")[1] ?? "jpg";
+        const fileStream = Readable.from(buf);
+        const stripeFile = await stripe.files.create(
+          {
+            file: { data: fileStream, name: `license-${store.id}-backfill.${ext}`, type: mime },
+            purpose: "additional_verification",
+          },
+          { stripeAccount: store.stripeAccountId! }
+        );
+        await db
+          .update(storesTable)
+          .set({ stripeLicenseFileId: stripeFile.id } as any)
+          .where(eq(storesTable.id, store.id));
+        results.push({ storeId: store.id, name: store.name, result: "✅ アップロード完了", fileId: stripeFile.id });
+        console.log(`[admin/batch-patch] ✅ store ${store.id} "${store.name}" → Stripe fileId=${stripeFile.id}`);
+      } catch (err: any) {
+        results.push({ storeId: store.id, name: store.name, result: `❌ エラー: ${err?.message}` });
+        console.error(`[admin/batch-patch] store ${store.id} エラー:`, err?.message);
+      }
+    }
+
+    res.json({ patched: results.filter(r => r.fileId).length, total: targets.length, results });
+  } catch (err: any) {
+    console.error("[admin/batch-patch-stripe-license]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── POST /admin/stores/:storeId/fix-stripe-business-name ───────────────────────
+// Stripeアカウントの business_profile.name を正しいオーナー名に修正
+router.post("/admin/stores/:storeId/fix-stripe-business-name", requireAdmin, async (req, res) => {
+  try {
+    const storeId = Number(req.params.storeId);
+    const { businessName } = req.body as { businessName?: string };
+    if (!businessName?.trim()) {
+      return res.status(400).json({ error: "bad_request", message: "businessName は必須です" });
+    }
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) return res.status(500).json({ error: "stripe_key_missing" });
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId, name: storesTable.name })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+    if (!store?.stripeAccountId) {
+      return res.status(404).json({ error: "not_found", message: "StripeアカウントIDが見つかりません" });
+    }
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(stripeKey);
+    const updated = await stripe.accounts.update(store.stripeAccountId, {
+      business_profile: { name: businessName.trim() },
+    });
+    console.log(`[admin/fix-business-name] ✅ storeId=${storeId} acct=${store.stripeAccountId} 新しいbusiness_profile.name="${updated.business_profile?.name}"`);
+    res.json({ ok: true, stripeAccountId: store.stripeAccountId, businessProfileName: updated.business_profile?.name });
+  } catch (err: any) {
+    console.error("[admin/fix-stripe-business-name]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });
