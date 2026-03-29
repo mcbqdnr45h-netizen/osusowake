@@ -163,23 +163,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (data.user) {
-      const { error: upsertErr } = await supabase.from('users').upsert({
-        id: data.user.id,
-        email: data.user.email!,
-        role: 'customer',
-        full_name: name.trim(),
-        phone_number: normalizedPhone,
-      }, { onConflict: 'id' });
-
-      if (upsertErr?.code === '23505' || upsertErr?.message?.includes('unique')) {
-        // DB登録失敗 → auth.usersに孤立ユーザーが残るため削除
-        const sessionToken = data.session?.access_token;
-        if (sessionToken) await cleanupOrphanedAuthUser(sessionToken);
-        return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+      // RLS バイパスのためサーバー経由でプロフィールを upsert
+      const token = data.session?.access_token;
+      if (!token) {
+        // メール確認が必要なため session が発行されていない（確認待ち）
+        // この場合は後でログイン時に create-profile が呼ばれる想定
+        return { error: null, needsConfirmation: true };
       }
-      if (upsertErr) {
-        const sessionToken = data.session?.access_token;
-        if (sessionToken) await cleanupOrphanedAuthUser(sessionToken);
+      const profileRes = await fetch(`${getApiBase()}/api/auth/create-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: 'customer', full_name: name.trim(), phone_number: normalizedPhone }),
+      });
+      if (!profileRes.ok) {
+        const errData = await profileRes.json().catch(() => ({}));
+        await cleanupOrphanedAuthUser(token);
+        if (profileRes.status === 409 || errData?.error === 'phone_taken') {
+          return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+        }
         return { error: '登録中にエラーが発生しました。もう一度お試しください', needsConfirmation: false };
       }
     }
@@ -204,22 +205,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (data.user) {
-      const { error: upsertErr } = await supabase.from('users').upsert({
-        id: data.user.id,
-        email: data.user.email!,
-        role: 'store_owner',
-        full_name: name.trim(),
-        phone_number: normalizedPhone,
-      }, { onConflict: 'id' });
-
-      if (upsertErr?.code === '23505' || upsertErr?.message?.includes('unique')) {
-        const sessionToken = data.session?.access_token;
-        if (sessionToken) await cleanupOrphanedAuthUser(sessionToken);
-        return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+      const token = data.session?.access_token;
+      if (!token) {
+        return { error: null, needsConfirmation: true };
       }
-      if (upsertErr) {
-        const sessionToken = data.session?.access_token;
-        if (sessionToken) await cleanupOrphanedAuthUser(sessionToken);
+      const profileRes = await fetch(`${getApiBase()}/api/auth/create-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: 'store_owner', full_name: name.trim(), phone_number: normalizedPhone }),
+      });
+      if (!profileRes.ok) {
+        const errData = await profileRes.json().catch(() => ({}));
+        await cleanupOrphanedAuthUser(token);
+        if (profileRes.status === 409 || errData?.error === 'phone_taken') {
+          return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+        }
         return { error: '登録中にエラーが発生しました。もう一度お試しください', needsConfirmation: false };
       }
     }

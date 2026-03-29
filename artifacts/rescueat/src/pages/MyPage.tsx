@@ -67,14 +67,16 @@ export default function MyPage() {
 
   useEffect(() => {
     if (!userId || !session?.access_token) return;
-    const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-    fetch(`${BASE_URL}/api/notifications`, {
+    // 複数店舗オーナーの場合、現在選択中の店舗の通知のみ表示
+    // store_id=NULL の全体通知（管理者お知らせ等）は常に含まれる
+    const storeFilter = storeId ? `?storeId=${storeId}` : '';
+    fetch(`${BASE_URL}/api/notifications${storeFilter}`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
       .then(r => r.ok ? r.json() : { notifications: [], unreadCount: 0 })
       .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unreadCount || 0); })
       .catch(() => {});
-  }, [userId, session?.access_token]);
+  }, [userId, session?.access_token, storeId]);
 
   async function handleLogout() {
     await signOut();

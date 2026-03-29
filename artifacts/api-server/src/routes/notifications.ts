@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull, or } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 
 const router: IRouter = Router();
@@ -15,6 +15,9 @@ async function getUserId(req: any): Promise<string | null> {
   return user.id;
 }
 
+// ── GET /notifications?storeId=N ─────────────────────────────────────────────
+// storeId が指定された場合: その店舗の通知 + store_id が NULL の全体通知を返す
+// storeId が未指定の場合: ユーザーに紐づく全通知を返す
 router.get("/notifications", async (req, res) => {
   const userId = await getUserId(req);
   if (!userId) {
@@ -22,11 +25,23 @@ router.get("/notifications", async (req, res) => {
     return;
   }
 
+  const storeIdParam = req.query.storeId ? parseInt(req.query.storeId as string, 10) : null;
+
   try {
     const rows = await db
       .select()
       .from(notificationsTable)
-      .where(eq(notificationsTable.userId, userId))
+      .where(
+        storeIdParam && !isNaN(storeIdParam)
+          ? and(
+              eq(notificationsTable.userId, userId),
+              or(
+                eq(notificationsTable.storeId, storeIdParam),
+                isNull(notificationsTable.storeId)
+              )
+            )
+          : eq(notificationsTable.userId, userId)
+      )
       .orderBy(desc(notificationsTable.createdAt))
       .limit(50);
 

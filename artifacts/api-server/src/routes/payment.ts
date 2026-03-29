@@ -285,7 +285,7 @@ router.post("/payment/confirm", async (req, res) => {
           const title = "【重要】おすそわけバッグが購入されました！";
           const body  = `受取コード: ${updated.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
           await Promise.all([
-            db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title, body }),
+            db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title, body, storeId: updated.storeId }),
             sendWebPushToUser(store.ownerId, { title, body, tag: `bag-sold-${updated.id}`, url: "/store/orders" }),
           ]);
         }
@@ -650,7 +650,7 @@ router.get("/checkout/verify", async (req, res) => {
             const title = "【重要】おすそわけバッグが購入されました！";
             const body  = `受取コード: ${reservationFull.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
             await Promise.all([
-              db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title, body }),
+              db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title, body, storeId: reservationFull.storeId ?? undefined }),
               sendWebPushToUser(ownerId, { title, body, tag: `bag-sold-${reservationId}`, url: "/store/orders" }),
             ]);
           }
