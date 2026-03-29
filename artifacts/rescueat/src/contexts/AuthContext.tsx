@@ -205,6 +205,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) {
+      // 「既に登録済み」の場合は店舗タブでのログインを促す
+      if (error.message.includes('User already registered')) {
+        return { error: 'このメールアドレスは既に登録されています。「飲食店・パートナー」タブからログインしてください。', needsConfirmation: false };
+      }
       return { error: translateError(error.message), needsConfirmation: false };
     }
 
