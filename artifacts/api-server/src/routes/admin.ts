@@ -716,7 +716,6 @@ router.patch("/admin/sales-leads/:id", requireAdmin, async (req: any, res) => {
 
 // ── POST /admin/stores/batch-patch-stripe-license ──────────────────────────────
 // license_image_url が存在するのに stripe_license_file_id が NULL の店舗を一括修正
-// (copyLicenseFromStoreId バグの遡及パッチ)
 router.post("/admin/stores/batch-patch-stripe-license", requireAdmin, async (_req, res) => {
   try {
     const stripeKey = process.env.STRIPE_SECRET_KEY;

@@ -171,24 +171,6 @@ router.post("/stores/apply", async (req, res) => {
       } catch (uploadEx: any) {
         console.warn("[/stores/apply] 営業許可証アップロード例外:", uploadEx?.message);
       }
-    } else if (body.copyLicenseFromStoreId) {
-      // 既存店舗の営業許可証をコピー（同一オーナーの店舗のみ許可）
-      try {
-        const sourceStoreId = Number(body.copyLicenseFromStoreId);
-        const [sourceStore] = await db
-          .select({ licenseImageUrl: storesTable.licenseImageUrl, licenseNumber: storesTable.licenseNumber, ownerId: storesTable.ownerId })
-          .from(storesTable)
-          .where(eq(storesTable.id, sourceStoreId));
-        if (sourceStore?.ownerId === body.ownerId) {
-          licenseImageUrl = sourceStore.licenseImageUrl;
-          if (!resolvedLicenseNumber) resolvedLicenseNumber = sourceStore.licenseNumber;
-          console.log("[/stores/apply] ✅ 営業許可証コピー from storeId=", sourceStoreId);
-        } else {
-          console.warn("[/stores/apply] ⚠️ copyLicenseFromStoreId のオーナーが一致しない — スキップ");
-        }
-      } catch (copyEx: any) {
-        console.warn("[/stores/apply] 営業許可証コピー例外:", copyEx?.message);
-      }
     }
 
     // ── Stripe Files API: 営業許可証をStripeサーバーにアップロード ──────────────
@@ -199,7 +181,7 @@ router.post("/stores/apply", async (req, res) => {
       try {
         const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-        // 営業許可証バッファを確保（直接アップロード or コピー元URLからfetch）
+        // 営業許可証バッファを確保（base64 から復元）
         let licenseBuffer: Buffer | null = null;
         let licenseMime = "image/jpeg";
         if (body.licenseImageBase64) {
@@ -208,21 +190,6 @@ router.post("/stores/apply", async (req, res) => {
           if (match) {
             licenseMime = match[1];
             licenseBuffer = Buffer.from(match[2], "base64");
-          }
-        } else if (licenseImageUrl) {
-          // copyLicenseFromStoreId: コピー元の signed URL から画像を fetch して Stripe にアップロード
-          try {
-            const imgResp = await fetch(licenseImageUrl);
-            if (imgResp.ok) {
-              const ct = imgResp.headers.get("content-type") ?? "image/jpeg";
-              licenseMime = ct.split(";")[0].trim();
-              licenseBuffer = Buffer.from(await imgResp.arrayBuffer());
-              console.log(`[/stores/apply] ✅ コピー元ライセンス画像 fetch 完了: size=${licenseBuffer.byteLength} mime=${licenseMime}`);
-            } else {
-              console.warn(`[/stores/apply] ⚠️ コピー元ライセンス画像 fetch 失敗: HTTP ${imgResp.status}`);
-            }
-          } catch (fetchErr: any) {
-            console.warn("[/stores/apply] ⚠️ コピー元ライセンス画像 fetch 例外:", fetchErr?.message);
           }
         }
 

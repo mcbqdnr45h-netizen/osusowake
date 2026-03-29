@@ -7,7 +7,7 @@ import { useMyStores } from '@/hooks/use-my-stores';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
-  Copy, FileCheck, ShieldCheck,
+  FileCheck, ShieldCheck,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -57,7 +57,7 @@ export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { currentStore: existingStore, stores, loading: storeLoading, hasExistingStripeAccount, refetch: refetchStores } = useMyStores();
+  const { currentStore: existingStore, loading: storeLoading, hasExistingStripeAccount, refetch: refetchStores } = useMyStores();
 
   // ?add=1 が付いている場合は「追加登録モード」→ 既存店舗リダイレクトをスキップ
   const isAddMode = typeof window !== 'undefined'
@@ -78,10 +78,6 @@ export default function StoreOnboarding() {
   const [licenseImageBase64, setLicenseImageBase64] = useState('');
   const [licensePreview, setLicensePreview] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
-  const [copyFromStoreId, setCopyFromStoreId] = useState<number | null>(null);
-
-  // 営業許可証を持つ既存店舗（コピー元候補）
-  const storesWithLicense = stores.filter(s => s.licenseImageUrl);
 
   const obDraft = loadOnboardingDraft();
   const [form, setForm] = useState({
@@ -123,11 +119,11 @@ export default function StoreOnboarding() {
     if (!form.city.trim())                      updated.push('市区町村が未入力です。');
     if (!form.phone.trim())                     updated.push('店舗電話番号が未入力です。');
     if (!form.category)                         updated.push('ジャンルが未選択です。');
-    if (!licenseImageBase64 && !copyFromStoreId) updated.push('営業許可証の写真が必要です。');
+    if (!licenseImageBase64)                    updated.push('営業許可証の写真が必要です。');
     if (!pledgeSigned)                          updated.push('利用規約への同意が未完了です。');
     setValidationWarnings(updated);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.imageUrl, form.name, form.address, form.city, form.phone, form.category, licenseImageBase64, copyFromStoreId, pledgeSigned]);
+  }, [form.imageUrl, form.name, form.address, form.city, form.phone, form.category, licenseImageBase64, pledgeSigned]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -149,14 +145,6 @@ export default function StoreOnboarding() {
     const compressed = await compressImage(f, 1600, 0.85);
     setLicenseImageBase64(compressed);
     setLicensePreview(compressed);
-    setCopyFromStoreId(null);
-  };
-
-  const handleCopyLicense = (store: { id: number; name: string; licenseImageUrl: string | null }) => {
-    if (!store.licenseImageUrl) return;
-    setCopyFromStoreId(store.id);
-    setLicensePreview(store.licenseImageUrl);
-    setLicenseImageBase64(''); // コピー元を使う場合は base64 は空
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -186,7 +174,7 @@ export default function StoreOnboarding() {
     if (!form.city.trim())                      warnings.push('市区町村が未入力です。');
     if (!form.phone.trim())                     warnings.push('店舗電話番号が未入力です。');
     if (!form.category)                         warnings.push('ジャンルが未選択です。');
-    if (!licenseImageBase64 && !copyFromStoreId) warnings.push('営業許可証の写真が必要です。');
+    if (!licenseImageBase64) warnings.push('営業許可証の写真が必要です。');
     if (!pledgeSigned)                          warnings.push('利用規約への同意が未完了です。');
     setValidationWarnings(warnings);
     if (warnings.length > 0) return;
@@ -201,8 +189,6 @@ export default function StoreOnboarding() {
     const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
-      // コピー元店舗の場合、既存の licenseImageUrl をサーバー側で取得できるよう copyFromStoreId を送る
-      // 直接アップロードの場合は licenseImageBase64 を送る
       const res = await fetch(`${BASE}/api/stores/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -220,7 +206,6 @@ export default function StoreOnboarding() {
           pledgeSigned: true,
           licenseImageBase64: licenseImageBase64 || null,
           licenseNumber: licenseNumber.trim() || null,
-          copyLicenseFromStoreId: copyFromStoreId ?? null,
         }),
       });
 
@@ -540,48 +525,6 @@ export default function StoreOnboarding() {
               </div>
             </label>
 
-            {/* 既存店舗からコピーする選択肢（同じ場所で別業態の場合） */}
-            {isAddMode && storesWithLicense.length > 0 && (
-              <div className="border-t border-amber-200 pt-3">
-                <p className="text-[11px] font-bold text-amber-700 mb-2 flex items-center gap-1">
-                  <Copy className="w-3 h-3" />
-                  同じ場所で別業態の場合 — 既存の許可証をコピー
-                </p>
-                <div className="space-y-2">
-                  {storesWithLicense.map(s => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => handleCopyLicense(s)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all text-sm
-                        ${copyFromStoreId === s.id
-                          ? 'border-emerald-400 bg-emerald-50 text-emerald-800 font-bold'
-                          : 'border-amber-200 bg-white hover:border-amber-300 text-amber-800'}`}
-                    >
-                      {s.licenseImageUrl && (
-                        <img src={s.licenseImageUrl} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0 border border-amber-200" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold truncate">{s.name}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">{s.address}</div>
-                      </div>
-                      {copyFromStoreId === s.id && (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                  {copyFromStoreId !== null && (
-                    <button
-                      type="button"
-                      onClick={() => { setCopyFromStoreId(null); setLicensePreview(''); }}
-                      className="text-[11px] text-muted-foreground underline"
-                    >
-                      コピーをやめて別の許可証をアップロードする
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* 誓約チェック */}
