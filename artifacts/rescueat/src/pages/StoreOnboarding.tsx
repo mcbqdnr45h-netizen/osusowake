@@ -301,15 +301,15 @@ export default function StoreOnboarding() {
         {/* ヘッダー */}
         <div className="flex items-center gap-3 mb-6">
           <button
-            onClick={() => navigate(isAddMode ? '/store/dashboard' : '/register-store')}
+            onClick={() => navigate(isAddMode ? '/store/dashboard' : '/mypage')}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-black">{isAddMode ? '店舗を追加する' : '店舗を登録する'}</h1>
+            <h1 className="text-xl font-black">{isAddMode ? '店舗を追加する' : 'お店を登録する'}</h1>
             <p className="text-xs text-muted-foreground">
-              {isInherited ? '営業許可証のみ提出してください' : '基本情報を入力して口座設定へ'}
+              {isInherited ? '営業許可証のみ提出してください' : 'Osusowakeに参加して、フードロスを減らしましょう'}
             </p>
           </div>
         </div>

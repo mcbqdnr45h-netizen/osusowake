@@ -738,7 +738,7 @@ export default function StoreOwnerDashboard() {
         {/* ── ④ 新規出品ボタン ── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <button
-            onClick={() => navigate('/register-store')}
+            onClick={() => navigate('/store/bags')}
             className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2.5 shadow-lg shadow-primary/20 active:scale-[0.98] transition-transform"
           >
             <Zap className="w-5 h-5" />

@@ -31,7 +31,12 @@ const StoreBagsPage      = React.lazy(() => import("./pages/StoreBagsPage"));
 const StoreSalesPage     = React.lazy(() => import("./pages/StoreSalesPage"));
 const FavoritesPage      = React.lazy(() => import("./pages/FavoritesPage"));
 const MyPage             = React.lazy(() => import("./pages/MyPage"));
-const RegisterStore      = React.lazy(() => import("./pages/RegisterStore"));
+// RegisterStore は廃止 — /register-store は /store-onboarding へリダイレクト
+function RegisterStoreRedirect() {
+  const [, navigate] = useLocation();
+  useEffect(() => { navigate('/store-onboarding', { replace: true }); }, [navigate]);
+  return null;
+}
 const AdminVerifyShops   = React.lazy(() => import("./pages/AdminVerifyShops"));
 const Terms              = React.lazy(() => import("./pages/Terms"));
 const Privacy            = React.lazy(() => import("./pages/Privacy"));
@@ -86,7 +91,6 @@ const GuardedStoreDashboard  = Protected(StoreDashboard, 'store_owner');
 const GuardedStoreOwnerDash  = Protected(StoreOwnerDashboard, 'store_owner');
 const GuardedStoreBags       = Protected(StoreBagsPage, 'store_owner');
 const GuardedStoreSales      = Protected(StoreSalesPage, 'store_owner');
-const GuardedRegisterStore   = Protected(RegisterStore, 'store_owner');
 const GuardedStoreOnboarding = Protected(StoreOnboarding, 'store_owner');
 const GuardedStripeBankSetup = Protected(StripeBankSetup, 'store_owner');
 const GuardedAdminVerify     = Protected(AdminVerifyShops);
@@ -260,7 +264,7 @@ function AnimatedRoutes() {
               <Route path="/store/bags"      component={GuardedStoreBags} />
               <Route path="/store/sales"     component={GuardedStoreSales} />
               <Route path="/store-dashboard" component={GuardedStoreOwnerDash} />
-              <Route path="/register-store"  component={GuardedRegisterStore} />
+              <Route path="/register-store"  component={RegisterStoreRedirect} />
               <Route path="/store-onboarding" component={GuardedStoreOnboarding} />
               <Route path="/store/bank-setup" component={GuardedStripeBankSetup} />
               <Route path="/store/profile-edit" component={GuardedStoreProfileEdit} />
