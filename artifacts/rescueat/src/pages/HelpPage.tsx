@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { Layout } from '@/components/Layout';
-import { ChevronDown, ChevronUp, ChevronLeft, HelpCircle, ShoppingBag, CreditCard, AlertTriangle, MessageCircle } from 'lucide-react';
+import {
+  ChevronDown, ChevronUp, ChevronLeft, HelpCircle,
+  ShoppingBag, CreditCard, AlertTriangle, MessageCircle,
+  Store, Banknote, Receipt, BadgePercent,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
 
@@ -17,7 +21,7 @@ interface FaqSection {
   items: FaqItem[];
 }
 
-const FAQ_SECTIONS: FaqSection[] = [
+const USER_FAQ_SECTIONS: FaqSection[] = [
   {
     id: 'order',
     title: '注文・受取について',
@@ -98,15 +102,86 @@ const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         q: 'アカウントを削除したい場合は？',
-        a: 'アプリ内「アカウント設定」→「アカウント削除」から手続きできます。削除後はデータを復元できませんのでご注意ください。',
-      },
-      {
-        q: '店舗として登録・出品したい場合は？',
-        a: 'マイページ→「店舗として登録する」から申請できます。審査通過後、すぐにおすそわけ袋を出品いただけます。ご不明な点はLINEサポートまでお気軽にどうぞ。',
+        a: 'アプリ内「マイページ」→「アカウント設定」→「アカウント削除（退会）」から手続きできます。削除後はデータを復元できませんのでご注意ください。',
       },
       {
         q: 'お気に入り店舗はどこで確認できますか？',
         a: '画面下のナビバーにある「お気に入り」からいつでも確認できます。店舗ページのハートマークをタップして登録・解除できます。',
+      },
+    ],
+  },
+];
+
+const STORE_FAQ_SECTIONS: FaqSection[] = [
+  {
+    id: 'store-register',
+    title: '登録・出品について',
+    icon: <Store className="w-5 h-5" />,
+    color: 'bg-orange-100 text-primary',
+    items: [
+      {
+        q: '店舗として出品するにはどうすればいいですか？',
+        a: 'マイページの「店舗として登録」から、店舗名・住所・営業許可証などの情報をアップロードして申請してください。\n\n運営スタッフが内容を確認し、通常1〜2営業日以内に審査結果をお知らせします。承認後すぐに¥0（初期費用なし）から出品を開始できます。',
+      },
+      {
+        q: '出品価格に制限はありますか？',
+        a: 'Stripeの決済システムの制限により、最低¥50以上の価格設定が必要です。\n\n¥0（無料おすそわけ）での出品はシステム上対応しておりません。フードロス削減の観点から、通常販売価格の30〜50%程度の割引価格での出品を推奨しています。',
+      },
+      {
+        q: '出品できる商品の種類に制限はありますか？',
+        a: '当日または翌日中に消費される食品（惣菜・パン・スイーツ・弁当・野菜・乳製品など）が対象です。アルコール類・生の魚介類（刺身など）は現時点では対象外となります。\n\nご不明な場合はLINEサポートにご相談ください。',
+      },
+    ],
+  },
+  {
+    id: 'store-payment',
+    title: '売上・振込について',
+    icon: <Banknote className="w-5 h-5" />,
+    color: 'bg-green-100 text-green-600',
+    items: [
+      {
+        q: '売上はいつ、どのように振り込まれますか？',
+        a: 'Stripe Connect（銀行口座登録）を通じて、自動的に登録口座へ振り込まれます。\n\n振込サイクルはデフォルトで月2回（1日・16日）ですが、Stripeダッシュボードから毎週・毎日など変更することも可能です。詳細はStripeの管理画面をご確認ください。',
+      },
+      {
+        q: 'プラットフォーム手数料はいくらですか？',
+        a: '販売成立時のみ、販売金額の25%をプラットフォーム手数料として申し受けます。初期費用・月額費用は一切かかりません。\n\nまた、Stripe決済手数料（3.6%）が別途かかります。例：¥500の商品の場合、店舗への振込額は約¥357になります（¥500 − ¥125 − ¥18）。',
+      },
+      {
+        q: '売上の確認はどこでできますか？',
+        a: 'Stripeダッシュボード（dashboard.stripe.com）にログインすると、売上・入金履歴・今後の振込予定を確認できます。また、Osusowakeのマイページ「売上管理」からも月別の売上サマリーを確認できます。',
+      },
+    ],
+  },
+  {
+    id: 'store-receipt',
+    title: '領収書・税務について',
+    icon: <Receipt className="w-5 h-5" />,
+    color: 'bg-purple-100 text-purple-600',
+    items: [
+      {
+        q: '購入者への領収書は発行する必要がありますか？',
+        a: 'いいえ、店舗側で個別に発行する必要はありません。\n\nStripeが購入者に対して自動的に領収書メールを送信します。購入者がアプリ内「購入履歴」からPDFでダウンロードすることも可能です。',
+      },
+      {
+        q: '消費税の扱いはどうなりますか？',
+        a: '出品価格は税込価格として設定してください。アプリ上では税込の表示価格がそのまま決済されます。\n\n税務処理については、各店舗の会計担当者または税理士にご相談ください。Stripeダッシュボードから取引明細のCSV出力が可能です。',
+      },
+    ],
+  },
+  {
+    id: 'store-fee',
+    title: '手数料・コスト',
+    icon: <BadgePercent className="w-5 h-5" />,
+    color: 'bg-blue-100 text-blue-600',
+    items: [
+      {
+        q: '月額や初期費用はかかりますか？',
+        a: '初期費用・月額費用は一切かかりません。販売成立時のみ手数料が発生する、完全成果報酬型です。\n\n売れなかった場合のコストは¥0です。',
+      },
+      {
+        q: 'Stripe口座の登録に費用はかかりますか？',
+        a: 'Stripeアカウントの開設・維持費用は無料です。Stripe Connect（振込用口座設定）の設定も無料で行えます。\n\n決済手数料（3.6%/件）はStripeへの支払いであり、Osusowakeのプラットフォーム手数料とは別になります。',
       },
     ],
   },
@@ -150,7 +225,27 @@ function FaqAccordion({ item }: { item: FaqItem }) {
   );
 }
 
+function FaqSectionBlock({ section }: { section: FaqSection }) {
+  return (
+    <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border/60">
+        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${section.color}`}>
+          {section.icon}
+        </div>
+        <h2 className="font-black text-sm text-foreground">{section.title}</h2>
+      </div>
+      {section.items.map((item, i) => (
+        <FaqAccordion key={i} item={item} />
+      ))}
+    </div>
+  );
+}
+
+type TabId = 'user' | 'store';
+
 export default function HelpPage() {
+  const [activeTab, setActiveTab] = useState<TabId>('user');
+
   return (
     <Layout showBottomNav>
       <div className="max-w-md mx-auto px-4 pt-4 pb-28">
@@ -166,7 +261,7 @@ export default function HelpPage() {
         </button>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
             <HelpCircle className="w-5 h-5 text-primary" />
           </div>
@@ -176,25 +271,56 @@ export default function HelpPage() {
           </div>
         </div>
 
-        {/* FAQ Sections */}
-        <div className="space-y-4">
-          {FAQ_SECTIONS.map(section => (
-            <div key={section.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              {/* Section Header */}
-              <div className={`flex items-center gap-3 px-4 py-3.5 border-b border-border/60`}>
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${section.color}`}>
-                  {section.icon}
-                </div>
-                <h2 className="font-black text-sm text-foreground">{section.title}</h2>
-              </div>
-
-              {/* Items */}
-              {section.items.map((item, i) => (
-                <FaqAccordion key={i} item={item} />
-              ))}
-            </div>
+        {/* タブ切り替え */}
+        <div className="flex bg-secondary rounded-2xl p-1 mb-5 gap-1">
+          {([
+            { id: 'user',  label: '👤 ユーザー向け' },
+            { id: 'store', label: '🏪 店舗（出品者）向け' },
+          ] as { id: TabId; label: string }[]).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${
+                activeTab === tab.id
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+            </button>
           ))}
         </div>
+
+        {/* FAQ コンテンツ */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-4"
+          >
+            {activeTab === 'user'
+              ? USER_FAQ_SECTIONS.map(s => <FaqSectionBlock key={s.id} section={s} />)
+              : <>
+                  {/* 店舗向けヒーローバナー */}
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
+                    <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                      <Store className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-black text-sm text-foreground">飲食店・食料品店の方へ</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                        初期費用・月額費用は一切かかりません。売れた時だけ25%の手数料をいただく完全成果報酬制です。
+                      </p>
+                    </div>
+                  </div>
+                  {STORE_FAQ_SECTIONS.map(s => <FaqSectionBlock key={s.id} section={s} />)}
+                </>
+            }
+          </motion.div>
+        </AnimatePresence>
 
         {/* LINE Support */}
         <div className="mt-8 bg-gradient-to-br from-[#06C755]/10 to-[#06C755]/5 border-2 border-[#06C755]/30 rounded-2xl p-5">

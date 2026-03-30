@@ -390,4 +390,39 @@ router.post("/auth/admin-otp/verify", async (req: Request, res: Response) => {
   res.json({ ok: true, verifiedAt: Date.now() });
 });
 
+// ── DELETE /api/user/account ──────────────────────────────────────────────────
+// App Store 必須：ログイン中ユーザーの完全削除
+router.delete("/user/account", async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+
+  const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+  if (authErr || !user) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+
+  try {
+    // 1. 予約・お気に入り・通知など（CASCADE FK があれば自動削除されるが念のため明示）
+    await supabaseAdmin.from("reservations").delete().eq("user_id", user.id);
+    await supabaseAdmin.from("favorites").delete().eq("user_id", user.id);
+
+    // 2. public.users 行を削除
+    await supabaseAdmin.from("users").delete().eq("id", user.id);
+
+    // 3. auth.users を削除（Supabase Admin API）
+    const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+    if (delErr) throw delErr;
+
+    console.log(`[user/account] Deleted user ${user.id}`);
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error("[user/account] delete error:", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 export default router;

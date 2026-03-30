@@ -5,7 +5,7 @@ import { useUserId } from '@/hooks/use-user';
 import { useLocation, Link } from 'wouter';
 import {
   ChevronLeft, User, Camera, Bell, LogOut,
-  ChevronRight, Mail, Pencil, X, Check,
+  ChevronRight, Mail, Pencil, X, Check, Trash2, AlertTriangle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -151,6 +151,100 @@ function Row({
   );
 }
 
+function DeleteAccountModal({ onClose, onConfirm, deleting }: {
+  onClose: () => void;
+  onConfirm: () => void;
+  deleting: boolean;
+}) {
+  const [confirmText, setConfirmText] = useState('');
+  const canDelete = confirmText === '退会する';
+  return (
+    <div
+      className="fixed inset-0 z-[300] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm px-0 md:px-6"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className="bg-card w-full md:max-w-md rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-3 md:hidden">
+          <div className="w-10 h-1 bg-border rounded-full" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-destructive/10 rounded-xl flex items-center justify-center">
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </div>
+            <h2 className="text-lg font-black text-foreground">アカウント削除（退会）</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {/* 警告 */}
+          <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-4 flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+            <div className="space-y-1.5">
+              <p className="text-sm font-black text-destructive">全てのデータが完全に削除されます</p>
+              <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                <li>アカウント情報・ログイン資格情報</li>
+                <li>購入履歴・電子チケット</li>
+                <li>お気に入り店舗・設定</li>
+              </ul>
+              <p className="text-xs font-bold text-destructive mt-2">この操作は取り消せません。</p>
+            </div>
+          </div>
+
+          {/* 確認入力 */}
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">
+              確認のため「<span className="text-foreground font-black">退会する</span>」と入力してください
+            </label>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={e => setConfirmText(e.target.value)}
+              placeholder="退会する"
+              className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-destructive/30 focus:border-destructive transition-colors"
+            />
+          </div>
+
+          {/* ボタン群 */}
+          <div className="flex gap-3 pt-1 pb-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3.5 rounded-xl border border-border font-bold text-sm text-foreground hover:bg-secondary transition-colors"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={!canDelete || deleting}
+              className="flex-1 py-3.5 rounded-xl font-black text-sm text-white bg-destructive hover:bg-destructive/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+            >
+              {deleting
+                ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />削除中...</>
+                : <><Trash2 className="w-4 h-4" />アカウントを削除する</>
+              }
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function SettingsWrapper({ children }: { children: React.ReactNode }) {
   const { profile } = useAuth();
   if (profile?.role === 'store_owner') {
@@ -186,6 +280,8 @@ export default function Settings() {
   const [saved_, setSaved_] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const [showTokusho, setShowTokusho] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // profile が読み込まれたら display_name を同期
   useEffect(() => {
@@ -254,10 +350,47 @@ export default function Settings() {
     navigate('/welcome');
   }
 
+  async function handleDeleteAccount() {
+    setDeletingAccount(true);
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('ログインセッションが切れています。再ログインしてください。');
+
+      const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
+      const res = await fetch(`${base}/api/user/account`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
+        throw new Error(err.message || 'アカウントの削除に失敗しました');
+      }
+      // セッション破棄 → ウェルカム画面へ
+      await authSignOut();
+      navigate('/welcome');
+      toast({ title: 'アカウントを削除しました', description: 'ご利用いただきありがとうございました。' });
+    } catch (err: any) {
+      console.error('[Settings] deleteAccount error:', err);
+      toast({ title: '削除に失敗しました', description: err.message || 'もう一度お試しください。', variant: 'destructive' });
+    } finally {
+      setDeletingAccount(false);
+      setShowDeleteAccount(false);
+    }
+  }
+
   return (
     <SettingsWrapper>
       <AnimatePresence>
         {showTokusho && <TokushoModal onClose={() => setShowTokusho(false)} />}
+        {showDeleteAccount && (
+          <DeleteAccountModal
+            onClose={() => setShowDeleteAccount(false)}
+            onConfirm={handleDeleteAccount}
+            deleting={deletingAccount}
+          />
+        )}
       </AnimatePresence>
       <div className="max-w-md mx-auto pb-16">
 
@@ -451,17 +584,29 @@ export default function Settings() {
             )}
           </div>
 
-          {/* ── LOGOUT ── */}
+          {/* ── LOGOUT / DELETE ── */}
           <SectionLabel>アカウント</SectionLabel>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-8">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3.5 px-4 min-h-[56px] hover:bg-destructive/5 active:bg-destructive/10 transition-colors"
+              className="w-full flex items-center gap-3.5 px-4 min-h-[56px] hover:bg-destructive/5 active:bg-destructive/10 transition-colors border-b border-border/60"
             >
               <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
                 <LogOut className="w-4 h-4 text-destructive" />
               </div>
               <span className="flex-1 font-bold text-sm text-destructive text-left">ログアウト</span>
+            </button>
+            <button
+              onClick={() => setShowDeleteAccount(true)}
+              className="w-full flex items-center gap-3.5 px-4 min-h-[56px] hover:bg-destructive/5 active:bg-destructive/10 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </div>
+              <div className="flex-1 text-left">
+                <span className="block font-bold text-sm text-destructive">アカウント削除（退会）</span>
+                <span className="block text-xs text-muted-foreground">全データを完全に削除します</span>
+              </div>
             </button>
           </div>
 
