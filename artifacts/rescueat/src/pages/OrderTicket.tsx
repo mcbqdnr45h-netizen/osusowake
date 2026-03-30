@@ -369,8 +369,8 @@ export default function OrderTicket() {
                 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 className="bg-primary text-primary-foreground rounded-2xl px-4 py-3.5 shadow-lg shadow-primary/20"
               >
-                <p className="text-sm font-black text-center leading-relaxed">
-                  お店の人にこの<span className="text-yellow-300">6桁のコード</span>と<br />画面を見せてください
+                <p className="text-sm font-black text-center leading-relaxed break-words">
+                  お店の人にこの<span className="text-yellow-300">6桁のコード</span>と画面を見せてください
                 </p>
               </motion.div>
             )}
