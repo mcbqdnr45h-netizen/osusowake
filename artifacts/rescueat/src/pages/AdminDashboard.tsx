@@ -237,7 +237,7 @@ export default function AdminDashboard() {
   const [autoApproveStripe,     setAutoApproveStripe]     = useState(false);
   const [settingsSaving,        setSettingsSaving]        = useState(false);
 
-  const [storeFilter, setStoreFilter] = useState<'all' | 'pending' | 'approved' | 'suspended'>('pending');
+  const [storeFilter, setStoreFilter] = useState<'all' | 'applied' | 'pending' | 'pending_review' | 'approved' | 'suspended'>('applied');
   const [showAllStores, setShowAllStores] = useState(false);
   const [expandedStore, setExpandedStore] = useState<number | null>(null);
   // 却下モーダル
@@ -554,9 +554,11 @@ export default function AdminDashboard() {
     s.status === 'pending_review' || s.status === 'pending' || s.status === 'applied';
 
   const filteredStores = stores.filter(s => {
-    if (storeFilter === 'pending')   return isPending(s);
-    if (storeFilter === 'approved')  return s.status === 'approved' && s.is_active;
-    if (storeFilter === 'suspended') return s.status === 'suspended' || s.status === 'rejected' || (s.status === 'approved' && !s.is_active);
+    if (storeFilter === 'applied')        return s.status === 'applied';
+    if (storeFilter === 'pending')        return s.status === 'pending';
+    if (storeFilter === 'pending_review') return s.status === 'pending_review';
+    if (storeFilter === 'approved')       return s.status === 'approved' && s.is_active;
+    if (storeFilter === 'suspended')      return s.status === 'suspended' || s.status === 'rejected' || (s.status === 'approved' && !s.is_active);
     return true;
   });
   const displayedStores = showAllStores ? filteredStores : filteredStores.slice(0, 10);
@@ -627,21 +629,33 @@ export default function AdminDashboard() {
                     <p className="text-xs text-white/60 mt-1">手数料収益 (25%): <span className="text-white/90 font-bold">¥{fmt(metrics.platformFee)}</span></p>
                   </div>
 
-                  {/* 3つのビッグ数値 */}
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-                      <p className="text-3xl font-black text-emerald-300">{metrics.approvedStores}</p>
-                      <p className="text-[10px] text-white/60 mt-0.5">アクティブ店舗</p>
+                  {/* 5つのビッグ数値 */}
+                  <div className="grid grid-cols-5 gap-1.5 mb-2">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 text-center border border-white/10">
+                      <p className="text-2xl font-black text-emerald-300">{metrics.approvedStores}</p>
+                      <p className="text-[9px] text-white/60 mt-0.5 leading-tight">公開中</p>
                     </div>
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-                      <p className={`text-3xl font-black ${metrics.pendingStores > 0 ? 'text-amber-300' : 'text-white/50'}`}>
-                        {metrics.pendingStores}
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 text-center border border-white/10">
+                      <p className={`text-2xl font-black ${stores.filter(s => s.status === 'applied').length > 0 ? 'text-blue-300' : 'text-white/50'}`}>
+                        {stores.filter(s => s.status === 'applied').length}
                       </p>
-                      <p className="text-[10px] text-white/60 mt-0.5">審査待ち</p>
+                      <p className="text-[9px] text-white/60 mt-0.5 leading-tight">KYC審査中</p>
                     </div>
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-                      <p className="text-3xl font-black text-sky-300">{metrics.activeUsers}</p>
-                      <p className="text-[10px] text-white/60 mt-0.5">ユーザー数</p>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 text-center border border-white/10">
+                      <p className={`text-2xl font-black ${stores.filter(s => s.status === 'pending').length > 0 ? 'text-orange-300' : 'text-white/50'}`}>
+                        {stores.filter(s => s.status === 'pending').length}
+                      </p>
+                      <p className="text-[9px] text-white/60 mt-0.5 leading-tight">口座未登録</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 text-center border border-white/10">
+                      <p className={`text-2xl font-black ${stores.filter(s => s.status === 'pending_review').length > 0 ? 'text-amber-300' : 'text-white/50'}`}>
+                        {stores.filter(s => s.status === 'pending_review').length}
+                      </p>
+                      <p className="text-[9px] text-white/60 mt-0.5 leading-tight">要確認</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 text-center border border-white/10">
+                      <p className="text-2xl font-black text-sky-300">{metrics.activeUsers}</p>
+                      <p className="text-[9px] text-white/60 mt-0.5 leading-tight">ユーザー数</p>
                     </div>
                   </div>
                 </>
@@ -671,27 +685,37 @@ export default function AdminDashboard() {
             <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
               <Store className="w-3.5 h-3.5" />店舗管理
             </h2>
-            {metrics && metrics.pendingStores > 0 && (
-              <span className="text-[11px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Clock className="w-3 h-3" />{metrics.pendingStores}件 審査待ち
+            {stores.filter(s => s.status === 'applied').length > 0 && (
+              <span className="text-[11px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Clock className="w-3 h-3" />{stores.filter(s => s.status === 'applied').length}件 KYC審査中
               </span>
             )}
           </div>
 
           {/* フィルタータブ */}
           <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
-            {(['pending', 'approved', 'suspended', 'all'] as const).map(f => {
-              const counts: Record<typeof f, number> = {
-                pending:   stores.filter(isPending).length,
-                approved:  stores.filter(s => s.status === 'approved' && s.is_active).length,
-                suspended: stores.filter(s => s.status === 'suspended' || s.status === 'rejected' || (s.status === 'approved' && !s.is_active)).length,
-                all:       stores.length,
-              };
-              const labels = { pending: '審査待ち', approved: '承認済み', suspended: '停止/却下', all: 'すべて' };
+            {([
+              { key: 'applied',        label: 'KYC審査中',  urgent: stores.filter(s => s.status === 'applied').length > 0 },
+              { key: 'pending',        label: '口座未登録',  urgent: false },
+              { key: 'pending_review', label: '要確認',      urgent: stores.filter(s => s.status === 'pending_review').length > 0 },
+              { key: 'approved',       label: '公開中',       urgent: false },
+              { key: 'suspended',      label: '停止/却下',    urgent: false },
+              { key: 'all',            label: 'すべて',       urgent: false },
+            ] as { key: typeof storeFilter; label: string; urgent: boolean }[]).map(f => {
+              const tabCount = (() => {
+                if (f.key === 'applied')        return stores.filter(s => s.status === 'applied').length;
+                if (f.key === 'pending')        return stores.filter(s => s.status === 'pending').length;
+                if (f.key === 'pending_review') return stores.filter(s => s.status === 'pending_review').length;
+                if (f.key === 'approved')       return stores.filter(s => s.status === 'approved' && s.is_active).length;
+                if (f.key === 'suspended')      return stores.filter(s => s.status === 'suspended' || s.status === 'rejected' || (s.status === 'approved' && !s.is_active)).length;
+                return stores.length;
+              })();
+              void cnt;
               return (
-                <button key={f} onClick={() => { setStoreFilter(f); setShowAllStores(false); }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${storeFilter === f ? 'bg-foreground text-background' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
-                  {labels[f]} ({counts[f]})
+                <button key={f.key} onClick={() => { setStoreFilter(f.key); setShowAllStores(false); }}
+                  className={`relative px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${storeFilter === f.key ? 'bg-foreground text-background' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
+                  {f.label} ({tabCount})
+                  {f.urgent && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full" />}
                 </button>
               );
             })}
@@ -705,7 +729,10 @@ export default function AdminDashboard() {
             <div className="bg-secondary/30 rounded-2xl p-8 text-center">
               <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-3 opacity-60" />
               <p className="font-bold text-foreground">
-                {storeFilter === 'pending' ? '審査待ちの店舗はありません' : '該当する店舗はありません'}
+                {storeFilter === 'applied'        ? 'KYC審査中の店舗はありません'
+                 : storeFilter === 'pending'      ? '口座未登録の店舗はありません'
+                 : storeFilter === 'pending_review'? '要確認の店舗はありません'
+                 : '該当する店舗はありません'}
               </p>
             </div>
           ) : (
