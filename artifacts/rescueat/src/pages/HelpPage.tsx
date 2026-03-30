@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import {
   ChevronDown, ChevronUp, ChevronLeft, HelpCircle,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FaqItem {
   q: string;
@@ -21,6 +22,9 @@ interface FaqSection {
   items: FaqItem[];
 }
 
+/* ─────────────────────────────────────────────
+   ユーザー（購入者）向け FAQ
+───────────────────────────────────────────── */
 const USER_FAQ_SECTIONS: FaqSection[] = [
   {
     id: 'order',
@@ -34,7 +38,7 @@ const USER_FAQ_SECTIONS: FaqSection[] = [
       },
       {
         q: '受取方法を教えてください。',
-        a: '購入後に発行される「電子チケット（QRコード）」を店舗スタッフに提示してください。アプリ内「購入履歴」→該当の注文→「チケットを表示」からいつでも確認できます。',
+        a: '購入後に発行される「電子チケット（QRコード）」を店舗スタッフに提示してください。アプリ内「購入履歴」→該当の注文→「チケットを表示」からいつでか確認できます。',
       },
       {
         q: '受取時間に間に合わない場合はどうすればいいですか？',
@@ -62,7 +66,7 @@ const USER_FAQ_SECTIONS: FaqSection[] = [
     items: [
       {
         q: '使用できる支払い方法は何ですか？',
-        a: 'クレジットカード・デビットカード（Visa / Mastercard / American Express / JCB）に対応しています。決済はStripeを通じて安全に処理されます。',
+        a: 'クレジットカード・デビットカード（Visa / Mastercard / American Express / JCB）に対応しています。カード情報は国際基準のセキュリティ認証（PCI DSS準拠）で安全に管理されます。',
       },
       {
         q: '支払い後のキャンセル・返金はできますか？',
@@ -78,7 +82,7 @@ const USER_FAQ_SECTIONS: FaqSection[] = [
       },
       {
         q: '決済情報は安全ですか？',
-        a: 'カード情報はアプリ・サーバーに一切保存されません。国際基準のセキュリティ認証（PCI DSS準拠）を持つStripeが安全に管理します。',
+        a: 'カード情報はアプリ・サーバーに一切保存されません。国際基準のセキュリティ認証（PCI DSS準拠）を持つ決済パートナーが安全に管理します。',
       },
     ],
   },
@@ -112,6 +116,12 @@ const USER_FAQ_SECTIONS: FaqSection[] = [
   },
 ];
 
+/* ─────────────────────────────────────────────
+   店舗（出品者）向け FAQ
+   ※ Stripeダッシュボードへのログインは不可（Custom Connect）
+   ※ 振込スケジュール変更はオーナー側では不可
+   ※ 売上確認はアプリ内のみ
+───────────────────────────────────────────── */
 const STORE_FAQ_SECTIONS: FaqSection[] = [
   {
     id: 'store-register',
@@ -120,12 +130,12 @@ const STORE_FAQ_SECTIONS: FaqSection[] = [
     color: 'bg-orange-100 text-primary',
     items: [
       {
-        q: '店舗として出品するにはどうすればいいですか？',
-        a: 'マイページの「店舗として登録」から、店舗名・住所・営業許可証などの情報をアップロードして申請してください。\n\n運営スタッフが内容を確認し、通常1〜2営業日以内に審査結果をお知らせします。承認後すぐに¥0（初期費用なし）から出品を開始できます。',
+        q: 'お店として出品するにはどうすればいいですか？',
+        a: 'マイページの「お店を登録する」から、店舗名・住所・営業許可証などの情報をアップロードして申請してください。\n\n運営スタッフが内容を確認し、通常1〜2営業日以内に審査結果をお知らせします。承認後すぐに初期費用なしで出品を開始できます。',
       },
       {
         q: '出品価格に制限はありますか？',
-        a: 'Stripeの決済システムの制限により、最低¥50以上の価格設定が必要です。\n\n¥0（無料おすそわけ）での出品はシステム上対応しておりません。フードロス削減の観点から、通常販売価格の30〜50%程度の割引価格での出品を推奨しています。',
+        a: 'システムの都合上、最低¥50以上の価格設定が必要です。\n\n¥0（無料おすそわけ）での出品はシステム上対応しておりません。フードロス削減の観点から、通常販売価格の30〜50%程度の割引価格での出品を推奨しています。',
       },
       {
         q: '出品できる商品の種類に制限はありますか？',
@@ -141,15 +151,15 @@ const STORE_FAQ_SECTIONS: FaqSection[] = [
     items: [
       {
         q: '売上はいつ、どのように振り込まれますか？',
-        a: 'Stripe Connect（銀行口座登録）を通じて、自動的に登録口座へ振り込まれます。\n\n振込サイクルはデフォルトで月2回（1日・16日）ですが、Stripeダッシュボードから毎週・毎日など変更することも可能です。詳細はStripeの管理画面をご確認ください。',
+        a: '振込先情報（銀行口座）を登録いただくと、売上からOsusowakeの手数料を差し引いた金額が自動的に登録口座へ振り込まれます。\n\n振込サイクルはOsusowakeが管理しており、月2回（毎月1日・16日）を基本としています。\n\nスケジュールの変更はできません。詳しくはLINEサポートまでお問い合わせください。',
       },
       {
         q: 'プラットフォーム手数料はいくらですか？',
-        a: '販売成立時のみ、販売金額の25%をプラットフォーム手数料として申し受けます。初期費用・月額費用は一切かかりません。\n\nまた、Stripe決済手数料（3.6%）が別途かかります。例：¥500の商品の場合、店舗への振込額は約¥357になります（¥500 − ¥125 − ¥18）。',
+        a: '販売成立時のみ、販売金額の25%をプラットフォーム手数料として申し受けます。初期費用・月額費用は一切かかりません。\n\nまた、決済手数料（3.6%）が別途かかります。例：¥500の商品の場合、お振込額は約¥357になります（¥500 − ¥125 − ¥18）。',
       },
       {
         q: '売上の確認はどこでできますか？',
-        a: 'Stripeダッシュボード（dashboard.stripe.com）にログインすると、売上・入金履歴・今後の振込予定を確認できます。また、Osusowakeのマイページ「売上管理」からも月別の売上サマリーを確認できます。',
+        a: 'アプリ内「売上管理」画面からご確認いただけます。月別の売上サマリー・個別の取引履歴をいつでも確認できます。\n\n売上はOsusowakeの管理システムで一括管理しているため、外部サービスへのログインは不要です。',
       },
     ],
   },
@@ -161,11 +171,11 @@ const STORE_FAQ_SECTIONS: FaqSection[] = [
     items: [
       {
         q: '購入者への領収書は発行する必要がありますか？',
-        a: 'いいえ、店舗側で個別に発行する必要はありません。\n\nStripeが購入者に対して自動的に領収書メールを送信します。購入者がアプリ内「購入履歴」からPDFでダウンロードすることも可能です。',
+        a: 'いいえ、店舗側で個別に発行する必要はありません。\n\n購入者はアプリ内「購入履歴」からいつでも領収書PDFをダウンロードできます。店舗の対応は不要です。',
       },
       {
         q: '消費税の扱いはどうなりますか？',
-        a: '出品価格は税込価格として設定してください。アプリ上では税込の表示価格がそのまま決済されます。\n\n税務処理については、各店舗の会計担当者または税理士にご相談ください。Stripeダッシュボードから取引明細のCSV出力が可能です。',
+        a: '出品価格は税込価格として設定してください。アプリ上では税込の表示価格がそのまま決済されます。\n\n税務処理については、各店舗の会計担当者または税理士にご相談ください。売上の取引履歴はアプリ内「売上管理」から確認できます。',
       },
     ],
   },
@@ -177,15 +187,21 @@ const STORE_FAQ_SECTIONS: FaqSection[] = [
     items: [
       {
         q: '月額や初期費用はかかりますか？',
-        a: '初期費用・月額費用は一切かかりません。販売成立時のみ手数料が発生する、完全成果報酬型です。\n\n売れなかった場合のコストは¥0です。',
+        a: 'Osusowakeの利用開始にあたって、月額費用や初期費用は一切かかりません。販売成立時のみ手数料が発生する、完全成果報酬型です。\n\n売れなかった場合のコストは¥0です。',
       },
       {
-        q: 'Stripe口座の登録に費用はかかりますか？',
-        a: 'Stripeアカウントの開設・維持費用は無料です。Stripe Connect（振込用口座設定）の設定も無料で行えます。\n\n決済手数料（3.6%/件）はStripeへの支払いであり、Osusowakeのプラットフォーム手数料とは別になります。',
+        q: '振込先情報の登録に費用はかかりますか？',
+        a: '振込先情報（銀行口座）の登録・維持費用は無料です。\n\n決済手数料（3.6%/件）はOsusowakeのプラットフォーム手数料（25%）とは別に、決済システムの利用料として販売金額から自動的に差し引かれます。',
+      },
+      {
+        q: 'アカウントを削除したい場合は？',
+        a: 'アプリ内「マイページ」→「アカウント設定」→「アカウント削除（退会）」から手続きできます。出品中のバッグは事前に削除してから退会手続きをお願いします。削除後はデータを復元できませんのでご注意ください。',
       },
     ],
   },
 ];
+
+/* ─────────────────── コンポーネント ─────────────────── */
 
 function FaqAccordion({ item }: { item: FaqItem }) {
   const [open, setOpen] = useState(false);
@@ -244,7 +260,31 @@ function FaqSectionBlock({ section }: { section: FaqSection }) {
 type TabId = 'user' | 'store';
 
 export default function HelpPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('user');
+  const { profile } = useAuth();
+
+  // URL パラメータ ?mode=store でタブを自動切り替え
+  // 例: 店舗ダッシュボードから /help?mode=store でリンク
+  const urlMode = new URLSearchParams(window.location.search).get('mode');
+
+  // ロールベースのデフォルトタブ決定
+  // 1. URLパラメータ優先
+  // 2. store_owner ロールなら店舗タブ
+  // 3. それ以外はユーザータブ
+  const defaultTab: TabId = (() => {
+    if (urlMode === 'store') return 'store';
+    if (urlMode === 'user') return 'user';
+    if (profile?.role === 'store_owner') return 'store';
+    return 'user';
+  })();
+
+  const [activeTab, setActiveTab] = useState<TabId>(defaultTab);
+
+  // プロフィールの読み込みが完了したら再評価
+  useEffect(() => {
+    if (!urlMode && profile?.role === 'store_owner') {
+      setActiveTab('store');
+    }
+  }, [profile?.role, urlMode]);
 
   return (
     <Layout showBottomNav>
@@ -275,7 +315,7 @@ export default function HelpPage() {
         <div className="flex bg-secondary rounded-2xl p-1 mb-5 gap-1">
           {([
             { id: 'user',  label: '👤 ユーザー向け' },
-            { id: 'store', label: '🏪 店舗（出品者）向け' },
+            { id: 'store', label: '🏪 店舗向け' },
           ] as { id: TabId; label: string }[]).map(tab => (
             <button
               key={tab.id}
@@ -303,7 +343,8 @@ export default function HelpPage() {
           >
             {activeTab === 'user'
               ? USER_FAQ_SECTIONS.map(s => <FaqSectionBlock key={s.id} section={s} />)
-              : <>
+              : (
+                <>
                   {/* 店舗向けヒーローバナー */}
                   <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
                     <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
@@ -312,12 +353,13 @@ export default function HelpPage() {
                     <div>
                       <p className="font-black text-sm text-foreground">飲食店・食料品店の方へ</p>
                       <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                        初期費用・月額費用は一切かかりません。売れた時だけ25%の手数料をいただく完全成果報酬制です。
+                        月額・初期費用は¥0。売れた時だけ25%の手数料をいただく完全成果報酬制です。売上確認もアプリ内で完結します。
                       </p>
                     </div>
                   </div>
                   {STORE_FAQ_SECTIONS.map(s => <FaqSectionBlock key={s.id} section={s} />)}
                 </>
+              )
             }
           </motion.div>
         </AnimatePresence>
