@@ -329,13 +329,37 @@ export default function BagDetail() {
         </Layout>
       );
     }
+    // ネットワーク/サーバーエラー（404以外の失敗）
+    const httpStatus = (error as any)?.status as number | undefined;
+    const isNetworkErr = !httpStatus || httpStatus >= 500;
     return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center p-12 text-center gap-4">
-          <p className="text-muted-foreground">バッグが見つかりません</p>
-          <a href={`${BASE}/`} className="px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-bold text-sm hover:bg-primary/90 transition-colors">
-            商品を探す
-          </a>
+      <Layout showBottomNav={false}>
+        <div className="min-h-[70vh] flex flex-col items-center justify-center px-6 text-center gap-5">
+          <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center text-4xl">
+            {isNetworkErr ? '📡' : '🔍'}
+          </div>
+          <div>
+            <p className="font-black text-foreground text-lg mb-1">
+              {isNetworkErr ? '通信エラーが発生しました' : '商品が見つかりません'}
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {isNetworkErr
+                ? '通信状況を確認して、もう一度お試しください。'
+                : 'この商品は存在しないか、削除されました。'}
+            </p>
+          </div>
+          {isNetworkErr ? (
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-primary text-white rounded-2xl font-bold text-sm hover:bg-primary/90 transition-colors"
+            >
+              再読み込み
+            </button>
+          ) : (
+            <a href={`${BASE}/`} className="px-6 py-3 bg-primary text-white rounded-2xl font-bold text-sm hover:bg-primary/90 transition-colors">
+              商品を探す
+            </a>
+          )}
         </div>
       </Layout>
     );

@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { MyStoresProvider, useMyStoresContext } from "@/contexts/MyStoresContext";
 import { ProtectedRoute, GuestRoute, GuestWallRoute } from "@/components/ProtectedRoute";
 import { AdminMfaModal } from "@/components/AdminMfaModal";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import { useAppSettings } from "@/hooks/use-app-settings";
@@ -206,6 +207,7 @@ function AnimatedRoutes() {
   return (
     <>
       <PageTransitionOverlay />
+      <ErrorBoundary>
       <Suspense fallback={<PageSkeleton />}>
         <AnimatePresence mode="wait">
           <motion.div
@@ -233,7 +235,8 @@ function AnimatedRoutes() {
               <Route path="/reset-password" component={ResetPassword} />
               <Route path="/success" component={CheckoutSuccess} />
               <Route path="/cancel" component={CheckoutCancel} />
-              <Route path="/supabase-test" component={SupabaseTest} />
+              {/* /supabase-test は開発専用 — 本番環境では非公開 */}
+              {import.meta.env.DEV && <Route path="/supabase-test" component={SupabaseTest} />}
 
               {/* ── ゲスト専用 ── */}
               <Route path="/login" component={GuardedLogin} />
@@ -276,6 +279,7 @@ function AnimatedRoutes() {
           </motion.div>
         </AnimatePresence>
       </Suspense>
+      </ErrorBoundary>
     </>
   );
 }
