@@ -37,7 +37,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   useEffect(() => { setMenuOpen(false); }, [location]);
 
   const isStoreOwner = profile?.role === 'store_owner';
-  const isAdmin = user?.email === 'yuuhi0125416@icloud.com';
+  const { isAdmin } = useAuth();
 
   const storeNavItems = [
     { href: '/store/dashboard', icon: Store,     label: '出品管理', isUser: false },

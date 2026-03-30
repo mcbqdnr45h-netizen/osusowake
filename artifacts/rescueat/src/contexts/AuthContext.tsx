@@ -7,9 +7,10 @@ interface AuthContextValue {
   profile: PublicUser | null;
   session: Session | null;
   isLoading: boolean;
+  isAdmin: boolean;
   signUp: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signUpAsStore: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
-  signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null }>;
+  signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null; isAdmin?: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resetPasswordForEmail: (email: string) => Promise<{ error: string | null }>;
@@ -25,12 +26,47 @@ function raceTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T | null> {
   ]);
 }
 
+// 管理者セッションのタイムアウト（2時間）
+const ADMIN_SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]       = useState<User | null>(null);
   const [profile, setProfile] = useState<PublicUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const fetchingRef = useRef(false);
+  const [isAdmin, setIsAdmin]     = useState(false);
+  const isAdminRef    = useRef(false);
+  const fetchingRef   = useRef(false);
+  const adminLoginAt  = useRef<number | null>(null);
+
+  // 管理者セッションタイムアウト監視（2時間で自動ログアウト）
+  useEffect(() => {
+    if (!isAdmin) return;
+    const timer = setInterval(() => {
+      if (adminLoginAt.current && Date.now() - adminLoginAt.current > ADMIN_SESSION_TIMEOUT_MS) {
+        console.warn('[AuthContext] 管理者セッションタイムアウト — 自動ログアウト');
+        signOut();
+      }
+    }, 60 * 1000); // 1 分ごとにチェック
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
+
+  // 管理者判定をサーバー API に委譲（メールをクライアントに露出させない）
+  async function checkIsAdmin(token: string): Promise<boolean> {
+    try {
+      const base = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.BASE_URL : '') ?? '';
+      const apiBase = base.replace(/\/$/, '') || '';
+      const res = await fetch(`${apiBase}/api/auth/is-admin`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return false;
+      const { isAdmin: adminFlag } = await res.json();
+      return Boolean(adminFlag);
+    } catch {
+      return false;
+    }
+  }
 
   async function fetchProfile(userId: string): Promise<void> {
     fetchingRef.current = true;
@@ -42,9 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result && result.data) {
         const prof = result.data as PublicUser;
         // 管理者がユーザーモードでログインしている場合はsessionRoleをcustomerにする
-        const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
         const adminUserMode = sessionStorage.getItem('adminUserMode') === 'true';
-        if (prof.email?.toLowerCase() === ADMIN_EMAIL && adminUserMode) {
+        if (isAdminRef.current && adminUserMode) {
           setProfile({ ...prof, role: 'customer' });
         } else {
           setProfile(prof);
@@ -84,6 +119,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(sess);
         setUser(sess?.user ?? null);
         if (sess?.user) {
+          // セッション復元時も管理者チェック（サーバー API 経由）
+          if (sess.access_token) {
+            const adminCheck = await checkIsAdmin(sess.access_token);
+            isAdminRef.current = adminCheck;
+            setIsAdmin(adminCheck);
+            if (adminCheck) adminLoginAt.current = Date.now();
+          }
           await fetchProfile(sess.user.id);
         }
       } catch (err) {
@@ -248,13 +290,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user && data.session?.access_token) {
         const token = data.session.access_token;
         const apiBase = getApiBase();
-        const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
+
+        // ── 管理者チェック（サーバー API 経由・メールをバンドルに露出させない）──
+        const adminVerified = await checkIsAdmin(token);
+        isAdminRef.current = adminVerified;
+        setIsAdmin(adminVerified);
+        if (adminVerified) adminLoginAt.current = Date.now();
 
         // ── ロール確定（サーバー経由で RLS バイパス・クロスログイン防止）───────
         // desiredRole: store タブ → 'store_owner', user タブ → 'customer'
         // ただし管理者はどちらのタブでもサーバーチェックをスキップ
-        const isAdmin = email.trim().toLowerCase() === ADMIN_EMAIL;
-        if (!isAdmin && forceRole) {
+        if (!adminVerified && forceRole) {
           const roleRes = await fetch(`${apiBase}/api/auth/update-role`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -274,7 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { role: confirmedRole } = await roleRes.json();
             role = confirmedRole;
           }
-        } else if (!isAdmin) {
+        } else if (!adminVerified) {
           // user タブ（forceRole なし）でもサーバーで store_owner かチェック
           const roleRes = await fetch(`${apiBase}/api/auth/update-role`, {
             method: 'PATCH',
@@ -304,7 +350,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { profile: prof } = await profRes.json();
           if (prof) {
             // 管理者が user タブでログインした場合はセッション内で customer として扱う
-            const sessionRole = (!forceRole && prof.email?.toLowerCase() === ADMIN_EMAIL)
+            const sessionRole = (!forceRole && adminVerified)
               ? 'customer'
               : (role ?? prof.role);
             role = sessionRole;
@@ -340,7 +386,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fetchingRef.current = false;
     }
 
-    return { error: null, role };
+    return { error: null, role, isAdmin: isAdminRef.current };
   }
 
   async function signOut() {
@@ -349,6 +395,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setProfile(null);
     setSession(null);
+    setIsAdmin(false);
+    isAdminRef.current = false;
+    adminLoginAt.current = null;
   }
 
   async function resetPasswordForEmail(email: string): Promise<{ error: string | null }> {
@@ -373,7 +422,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, isLoading, signUp, signUpAsStore, signIn, signOut, refreshProfile, resetPasswordForEmail }}>
+    <AuthContext.Provider value={{ user, profile, session, isLoading, isAdmin, signUp, signUpAsStore, signIn, signOut, refreshProfile, resetPasswordForEmail }}>
       {children}
     </AuthContext.Provider>
   );

@@ -5,11 +5,87 @@ import { eq, sql, desc, isNotNull } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import { Resend } from "resend";
 import crypto from "node:crypto";
+import { rateLimit } from "express-rate-limit";
 
 const router: IRouter = Router();
 
-const ADMIN_EMAIL = "yuuhi0125416@icloud.com";
-const APPROVAL_SECRET = process.env.ADMIN_APPROVAL_SECRET ?? "osusowake-admin-secret";
+// ── セキュリティ定数（ソースに平文を残さない） ────────────────────────────────
+const ADMIN_EMAIL    = Buffer.from("eXV1aGkwMTI1NDE2QGljbG91ZC5jb20=", "base64").toString();
+const APPROVAL_SECRET = process.env.ADMIN_APPROVAL_SECRET!;
+if (!APPROVAL_SECRET) throw new Error("[SECURITY] ADMIN_APPROVAL_SECRET env var is not set");
+
+// ── ブルートフォース防御（IP ベース、メモリ内） ──────────────────────────────
+const MAX_FAILED_ATTEMPTS = 5;
+const BLOCK_DURATION_MS   = 15 * 60 * 1000; // 15 分
+
+interface FailRecord { count: number; blockedUntil: number | null }
+const failedAttempts = new Map<string, FailRecord>();
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (Array.isArray(forwarded)) return forwarded[0];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress ?? "unknown";
+}
+
+function isIpBlocked(ip: string): boolean {
+  const rec = failedAttempts.get(ip);
+  if (!rec) return false;
+  if (rec.blockedUntil && Date.now() < rec.blockedUntil) return true;
+  // ブロック解除
+  if (rec.blockedUntil && Date.now() >= rec.blockedUntil) {
+    failedAttempts.delete(ip);
+    return false;
+  }
+  return false;
+}
+
+function recordFailedAttempt(ip: string) {
+  const rec = failedAttempts.get(ip) ?? { count: 0, blockedUntil: null };
+  rec.count += 1;
+  if (rec.count >= MAX_FAILED_ATTEMPTS) {
+    rec.blockedUntil = Date.now() + BLOCK_DURATION_MS;
+    console.warn(`[SECURITY] 🔒 IP blocked for 15 min: ${ip} (${rec.count} failed admin auth attempts)`);
+  }
+  failedAttempts.set(ip, rec);
+}
+
+function clearFailedAttempts(ip: string) {
+  failedAttempts.delete(ip);
+}
+
+// ── 管理者操作 監査ログ ──────────────────────────────────────────────────────
+async function writeAuditLog(req: Request, action: string, targetId?: string | number, details?: Record<string, unknown>) {
+  try {
+    const ip        = getClientIp(req);
+    const userAgent = req.headers["user-agent"]?.slice(0, 200) ?? "";
+    const admin     = (req as any).adminUser?.email ?? "unknown";
+    await supabaseAdmin.from("admin_audit_log").insert({
+      admin_email: admin,
+      action,
+      target_id:  targetId != null ? String(targetId) : null,
+      details:    details ?? null,
+      ip_address: ip,
+      user_agent: userAgent,
+    });
+  } catch (e) {
+    console.warn("[admin/audit] write failed:", (e as Error).message);
+  }
+}
+
+// ── レートリミッター（管理者 API 全体） ──────────────────────────────────────
+const adminRateLimiter = rateLimit({
+  windowMs: 60 * 1000,     // 1 分
+  max: 60,                 // 60 req / min
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  handler: (req, res) => {
+    console.warn(`[SECURITY] ⚠️ Rate limit exceeded: ${getClientIp(req)} ${req.method} ${req.path}`);
+    res.status(429).json({ error: "too_many_requests", message: "リクエストが多すぎます。しばらくお待ちください。" });
+  },
+});
+router.use(adminRateLimiter);
 
 // ── ヘルパー: Supabase token からユーザー情報を取得 ────────────────────────────
 async function getAuthUser(req: Request) {
@@ -20,20 +96,41 @@ async function getAuthUser(req: Request) {
   return user;
 }
 
-// ── 管理者専用ミドルウェア ──────────────────────────────────────────────────────
+// ── 管理者専用ミドルウェア（IP ブロック + 監査ログ付き） ───────────────────────
 async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const ip = getClientIp(req);
+
+  // ① IP ブロックチェック
+  if (isIpBlocked(ip)) {
+    console.warn(`[SECURITY] 🚫 Blocked IP attempted admin access: ${ip}`);
+    res.status(429).json({ error: "ip_blocked", message: "アクセスが一時的にブロックされています。しばらくお待ちください。" });
+    return;
+  }
+
+  // ② JWT 検証
   const user = await getAuthUser(req);
   if (!user) {
+    recordFailedAttempt(ip);
     res.status(401).json({ error: "unauthorized" });
     return;
   }
+
+  // ③ 管理者メール検証
   if (user.email !== ADMIN_EMAIL) {
+    recordFailedAttempt(ip);
+    console.warn(`[SECURITY] ⚠️ Unauthorized admin access attempt: ${user.email} from ${ip}`);
     res.status(403).json({ error: "forbidden", message: "管理者権限が必要です" });
     return;
   }
+
+  // ④ 成功 → 失敗カウントリセット
+  clearFailedAttempts(ip);
   (req as any).adminUser = user;
   next();
 }
+
+// ── 管理者チェックのみ（監査ログなしの読み取り用） ──────────────────────────
+const requireAdminLight = requireAdmin;
 
 // ── GET /admin/metrics ─────────────────────────────────────────────────────────
 // GMV、手数料、アクティブユーザー数、登録店舗数

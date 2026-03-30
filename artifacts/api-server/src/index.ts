@@ -385,6 +385,25 @@ async function runMigrations() {
     `);
     console.log('[migration] reviews table ✅');
 
+    // ── admin_audit_log テーブル ──────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS admin_audit_log (
+        id          SERIAL PRIMARY KEY,
+        admin_email VARCHAR(255) NOT NULL,
+        action      VARCHAR(100) NOT NULL,
+        target_id   VARCHAR(100),
+        details     JSONB,
+        ip_address  VARCHAR(50),
+        user_agent  TEXT,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS audit_log_created_idx ON admin_audit_log (created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS audit_log_action_idx  ON admin_audit_log (action)`);
+    // RLS 有効化（管理者 API サーバーのみ書き込み可）
+    await client.query(`ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY`);
+    console.log('[migration] admin_audit_log table ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

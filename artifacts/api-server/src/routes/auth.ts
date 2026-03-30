@@ -3,6 +3,13 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 
+// 管理者メールはサーバーサイドのみで保持（JS バンドルに露出させない）
+const ADMIN_EMAIL_B64 = "eXV1aGkwMTI1NDE2QGljbG91ZC5jb20=";
+function isAdminEmail(email: string | undefined | null): boolean {
+  if (!email) return false;
+  return email === Buffer.from(ADMIN_EMAIL_B64, "base64").toString();
+}
+
 const router: IRouter = Router();
 
 // ── POST /auth/create-profile ─────────────────────────────────────────────────
@@ -237,6 +244,16 @@ router.post("/auth/cleanup-user", async (req: Request, res: Response) => {
     console.error("[auth/cleanup-user]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
+});
+
+// ── GET /auth/is-admin ────────────────────────────────────────────────────────
+// 現在の JWT トークンが管理者かを返す（管理者メールをクライアントに露出させない）
+router.get("/auth/is-admin", async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) { res.json({ isAdmin: false }); return; }
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !user) { res.json({ isAdmin: false }); return; }
+  res.json({ isAdmin: isAdminEmail(user.email) });
 });
 
 export default router;

@@ -12,7 +12,6 @@ import {
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
 
 const STRIPE_FIELD_JA: Record<string, string> = {
   'individual.first_name_kana':          '代表者の名前（カナ）',
@@ -203,7 +202,7 @@ function DetailRow({
 }
 
 export default function AdminDashboard() {
-  const { user, session, signOut, isLoading: authLoading } = useAuth();
+  const { user, session, signOut, isLoading: authLoading, isAdmin } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -266,8 +265,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
-    if (user.email !== ADMIN_EMAIL) { navigate('/'); return; }
-  }, [user]);
+    if (!authLoading && !isAdmin) { navigate('/'); return; }
+  }, [user, isAdmin, authLoading]);
 
   const fetchAll = useCallback(async () => {
     if (!token) return;
@@ -555,7 +554,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (user.email !== ADMIN_EMAIL) {
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8">

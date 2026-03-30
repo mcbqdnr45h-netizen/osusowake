@@ -284,8 +284,6 @@ function HomeRouter() {
   return <Home />;
 }
 
-const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
-
 // ── ロール整合チェック：store があるのに customer のままになるバグを防ぐ ──────────
 // MyPage だけでなくアプリ全体で動作し、ページ問わず確実に store_owner ロールへ修正する
 function RoleReconciler() {
@@ -345,10 +343,9 @@ function RoleReconciler() {
 
 function MaintenanceGate({ children }: { children: React.ReactNode }) {
   const { settings, isMaintenanceMode } = useAppSettings();
-  const { user } = useAuth();
+  const { isAdmin } = useAuth();
   const [location] = useLocation();
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
   const isAdminRoute = location === '/admin' || location.startsWith('/admin/');
 
   if (isMaintenanceMode && !isAdmin && !isAdminRoute) {

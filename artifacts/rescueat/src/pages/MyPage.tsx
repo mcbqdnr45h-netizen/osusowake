@@ -10,13 +10,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 
-const ADMIN_EMAIL = 'yuuhi0125416@icloud.com';
-
 export default function MyPage() {
   const userId = useUserId();
   const { currentStore: store, stores, selectedStoreId, setSelectedStoreId, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStores();
   const [, navigate] = useLocation();
-  const { user, profile, session, isLoading: authLoading, signOut } = useAuth();
+  const { user, profile, session, isLoading: authLoading, signOut, isAdmin } = useAuth();
 
   // ── ロール修正は App.tsx の RoleReconciler が全ページで自動実行するため不要 ──
 
@@ -84,7 +82,6 @@ export default function MyPage() {
   }
 
   const isStoreOwner = profile?.role === 'store_owner';
-  const isAdmin = user?.email === ADMIN_EMAIL;
 
   // Auth確定前はスケルトン表示でフラッシュを防ぐ
   // キャッシュから store が読めている場合はスケルトン不要
