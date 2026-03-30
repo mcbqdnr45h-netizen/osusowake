@@ -80,11 +80,20 @@ export default function StoreBagsPage() {
     }
   }, []);
 
+  // Stripe 最低決済額バリデーション
+  const STRIPE_MIN_PRICE = 50;
+  const priceError = form.discountedPrice > 0 && form.discountedPrice < STRIPE_MIN_PRICE;
+  const canSubmit = !isSubmitting && form.title.trim() !== '' && !!imageUrl && !priceError && form.discountedPrice >= STRIPE_MIN_PRICE;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!storeId || !form.title.trim()) return;
     if (!imageUrl) {
       toast({ title: '写真を追加してください', variant: 'destructive' });
+      return;
+    }
+    if (form.discountedPrice < STRIPE_MIN_PRICE) {
+      toast({ title: 'Stripeの決済制限により、価格は50円以上に設定してください', variant: 'destructive' });
       return;
     }
     setIsSubmitting(true);
@@ -311,6 +320,16 @@ export default function StoreBagsPage() {
                   </div>
                 </div>
 
+                {/* ⚠️ Stripe 最低価格エラー */}
+                {priceError && (
+                  <div className="flex items-start gap-2 mt-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                    <p className="text-xs font-bold text-red-600 leading-snug">
+                      Stripeの決済制限により、価格は50円以上に設定してください
+                    </p>
+                  </div>
+                )}
+
                 {/* 店舗受取予定額プレビュー */}
                 {form.discountedPrice > 0 && (() => {
                   const price       = form.discountedPrice;
@@ -517,7 +536,7 @@ export default function StoreBagsPage() {
                   className="flex-1 py-3 rounded-xl border-2 border-border font-bold text-muted-foreground hover:bg-muted transition-colors">
                   キャンセル
                 </button>
-                <button type="submit" disabled={isSubmitting || !form.title.trim() || !imageUrl}
+                <button type="submit" disabled={!canSubmit}
                   className="flex-1 py-3 rounded-xl bg-primary text-white font-black flex items-center justify-center gap-2 shadow-md shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-primary/90 transition-all">
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" />出品する</>}
                 </button>
@@ -525,6 +544,34 @@ export default function StoreBagsPage() {
             </motion.form>
           )}
         </AnimatePresence>
+
+        {/* ── 50円未満バッグ警告バナー ── */}
+        {!isLoading && (() => {
+          const lowPriceBags = (bags as Bag[]).filter(b => b.discountedPrice > 0 && b.discountedPrice < 50);
+          if (lowPriceBags.length === 0) return null;
+          return (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-black text-red-700">価格修正が必要な商品があります</p>
+                  <p className="text-xs text-red-600 mt-0.5 leading-relaxed">
+                    Stripeの決済制限により、販売価格が50円未満の商品は購入時にエラーが発生します。
+                    速やかに50円以上に修正してください。
+                  </p>
+                </div>
+              </div>
+              <ul className="space-y-1 pl-7">
+                {lowPriceBags.map(b => (
+                  <li key={b.id} className="text-xs font-bold text-red-700 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    {b.title} — 現在 ¥{b.discountedPrice}（50円以上が必要）
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
 
         {/* ── 出品中リスト ── */}
         {isLoading ? (

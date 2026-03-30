@@ -233,6 +233,15 @@ router.post("/stores/:storeId/bags", async (req, res) => {
     if (!body.pickupEnd || body.pickupEnd.trim() === '') {
       return res.status(400).json({ error: "bad_request", message: "受取終了時間（pickupEnd）は必須です" });
     }
+
+    // Stripe 最低決済額チェック（50円未満は決済エラーになる）
+    if (Number(body.discountedPrice) < 50) {
+      return res.status(400).json({
+        error: "price_too_low",
+        message: "Stripeの決済制限により、価格は50円以上に設定してください",
+      });
+    }
+
     const [bag] = await db.insert(surpriseBagsTable).values({
       storeId,
       title: body.title,
@@ -298,6 +307,14 @@ router.put("/bags/:bagId", async (req, res) => {
   try {
     const { bagId } = UpdateBagParams.parse(req.params);
     const body = UpdateBagBody.parse(req.body);
+
+    // Stripe 最低決済額チェック
+    if (body.discountedPrice !== undefined && Number(body.discountedPrice) < 50) {
+      return res.status(400).json({
+        error: "price_too_low",
+        message: "Stripeの決済制限により、価格は50円以上に設定してください",
+      });
+    }
 
     const [updated] = await db
       .update(surpriseBagsTable)
@@ -374,6 +391,15 @@ router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
     }
 
     const body = UpdateBagBody.parse(req.body);
+
+    // Stripe 最低決済額チェック
+    if (body.discountedPrice !== undefined && Number(body.discountedPrice) < 50) {
+      res.status(400).json({
+        error: "price_too_low",
+        message: "Stripeの決済制限により、価格は50円以上に設定してください",
+      });
+      return;
+    }
 
     // 公開ON操作の場合：店舗が approved でないとブロック
     if (body.isActive === true) {
