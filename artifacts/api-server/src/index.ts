@@ -289,8 +289,13 @@ async function runMigrations() {
         ('maintenance_mode',              'false'),
         ('maintenance_title',             'ただいまメンテナンス中です'),
         ('maintenance_message',           'より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏'),
-        ('auto_approve_stripe_verified',  'false')
+        ('auto_approve_stripe_verified',  'true')
       ON CONFLICT (key) DO NOTHING;
+    `);
+    // 管理者審査廃止に伴い auto_approve_stripe_verified をデフォルト ON に更新
+    await client.query(`
+      UPDATE app_settings SET value = 'true'
+      WHERE key = 'auto_approve_stripe_verified' AND value = 'false';
     `);
     console.log('[migration] app_settings table ✅');
 

@@ -63,8 +63,9 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
                 s === 'approved'                          ? { label: '✓ 承認済み', cls: 'bg-green-50 text-green-700 border border-green-200' }
                 : s === 'rejected'                        ? { label: '❌ 却下',    cls: 'bg-red-50 text-red-600 border border-red-200' }
                 : s === 'suspended'                       ? { label: '停止中',     cls: 'bg-gray-100 text-gray-500 border border-gray-200' }
-                : s === 'applied'                         ? { label: '本人確認中', cls: 'bg-blue-50 text-blue-700 border border-blue-200' }
-                : /* pending / pending_review / unknown */  { label: '審査中',     cls: 'bg-amber-50 text-amber-700 border border-amber-200' };
+                : s === 'applied'                         ? { label: '本人確認中',    cls: 'bg-blue-50 text-blue-700 border border-blue-200' }
+                : s === 'pending_review'                  ? { label: '確認中',        cls: 'bg-amber-50 text-amber-700 border border-amber-200' }
+                : /* pending / unknown */                   { label: '口座登録待ち',   cls: 'bg-orange-50 text-orange-600 border border-orange-200' };
               return (
                 <span className={`text-[10px] font-black px-2 py-1 rounded-full shrink-0 ${cfg.cls}`}>
                   {cfg.label}

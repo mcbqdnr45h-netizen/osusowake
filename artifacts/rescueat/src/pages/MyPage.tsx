@@ -470,10 +470,10 @@ export default function MyPage() {
                   {stores.map(s => {
                     const statusMap: Record<string, { label: string; cls: string }> = {
                       approved:      { label: '公開中',       cls: 'bg-emerald-100 text-emerald-700' },
-                      pending_review:{ label: '審査待ち',     cls: 'bg-amber-100 text-amber-700' },
+                      pending_review:{ label: '確認中',         cls: 'bg-amber-100 text-amber-700' },
                       applied:       { label: '口座登録済み', cls: 'bg-blue-100 text-blue-700' },
                       rejected:      { label: '却下',         cls: 'bg-red-100 text-red-700' },
-                      pending:       { label: '審査待ち',     cls: 'bg-amber-100 text-amber-700' },
+                      pending:       { label: '口座登録待ち', cls: 'bg-orange-100 text-orange-700' },
                     };
                     const st = statusMap[s.status] ?? { label: s.status, cls: 'bg-gray-100 text-gray-600' };
                     const isSelected = s.id === selectedStoreId;
@@ -531,7 +531,22 @@ export default function MyPage() {
               <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">店舗管理</p>
               <div className="bg-card rounded-2xl overflow-hidden"
                 style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
-                {(store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') && (
+                {store?.status === 'pending' && (
+                  <Link
+                    href="/store/bank-setup"
+                    className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
+                  >
+                    <div className="w-9 h-9 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center shrink-0">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-foreground text-sm">口座登録を完了してください</div>
+                      <div className="text-xs text-muted-foreground">振込先口座と本人確認の登録が必要です</div>
+                    </div>
+                    <span className="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">未完了</span>
+                  </Link>
+                )}
+                {(store?.status === 'pending_review' || store?.status === 'applied') && (
                   <Link
                     href="/store-dashboard"
                     className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
@@ -541,12 +556,12 @@ export default function MyPage() {
                     </div>
                     <div className="flex-1">
                       <div className="font-bold text-foreground text-sm">
-                        {store?.status === 'applied' ? '決済の本人確認 — 審査中' : '店舗申請 — 審査中'}
+                        {store?.status === 'applied' ? '決済の本人確認 — 審査中' : '確認中'}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {store?.status === 'applied'
                           ? '通常3〜5営業日で完了します'
-                          : '1〜2営業日以内に結果をお知らせします'}
+                          : '運営スタッフが確認中です'}
                       </div>
                     </div>
                     <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">審査中</span>
@@ -749,7 +764,23 @@ export default function MyPage() {
                   <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">店舗管理</p>
                   <div className="bg-card rounded-2xl overflow-hidden"
                     style={{ boxShadow: '0 2px 12px -2px rgba(10,8,6,0.09)' }}>
-                    {(store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') && (
+                    {store?.status === 'pending' && (
+                      <Link
+                        href="/store/bank-setup"
+                        onClick={() => setShowSettings(false)}
+                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border last:border-0"
+                      >
+                        <div className="w-9 h-9 bg-orange-100 text-orange-500 rounded-xl flex items-center justify-center shrink-0">
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-bold text-foreground text-sm">口座登録を完了してください</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">振込先口座と本人確認の登録が必要です</div>
+                        </div>
+                        <span className="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">未完了</span>
+                      </Link>
+                    )}
+                    {(store?.status === 'pending_review' || store?.status === 'applied') && (
                       <Link
                         href="/store-dashboard"
                         onClick={() => setShowSettings(false)}
@@ -760,12 +791,12 @@ export default function MyPage() {
                         </div>
                         <div className="flex-1">
                           <div className="font-bold text-foreground text-sm">
-                            {store?.status === 'applied' ? '決済の本人確認 — 審査中' : '店舗申請 — 審査中'}
+                            {store?.status === 'applied' ? '決済の本人確認 — 審査中' : '確認中'}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {store?.status === 'applied'
                               ? '通常3〜5営業日で完了します'
-                              : '1〜2営業日以内に結果をお知らせします'}
+                              : '運営スタッフが確認中です'}
                           </div>
                         </div>
                         <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">審査中</span>

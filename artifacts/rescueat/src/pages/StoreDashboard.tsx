@@ -1476,8 +1476,34 @@ export default function StoreDashboard() {
     );
   }
 
-  // ─── 未承認（管理者審査待ち）────────────────────────────────────────────
-  if (store.status === 'pending' || store.status === 'pending_review') {
+  // ─── 口座登録未完了（bank-setup誘導）────────────────────────────────────
+  if (store.status === 'pending') {
+    return (
+      <Layout>
+        <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
+          <div className="text-center max-w-sm">
+            <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-5">
+              <CreditCard className="w-10 h-10 text-orange-400" />
+            </div>
+            <h2 className="text-xl font-black mb-2">口座登録を完了してください</h2>
+            <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+              出品を開始するには、振込先口座と本人確認の登録が必要です。
+            </p>
+            <p className="text-xs text-muted-foreground mb-6">登録完了後、決済システムの確認（通常3〜5営業日）が通り次第、自動で出品が開始できます。</p>
+            <a
+              href="/store/bank-setup"
+              className="inline-flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl hover:bg-primary/90 transition-colors"
+            >
+              口座登録に進む
+            </a>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // ─── 通報フラグ（管理者確認中）────────────────────────────────────────
+  if (store.status === 'pending_review') {
     return (
       <Layout>
         <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
@@ -1485,11 +1511,11 @@ export default function StoreDashboard() {
             <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <Eye className="w-10 h-10 text-amber-500" />
             </div>
-            <h2 className="text-xl font-black mb-2">審査中</h2>
+            <h2 className="text-xl font-black mb-2">確認中</h2>
             <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
-              店舗情報を確認しています。
+              現在、運営スタッフがアカウントを確認しています。
             </p>
-            <p className="text-xs text-muted-foreground mb-6">通常1〜2営業日で審査完了後にダッシュボードがご利用いただけます。</p>
+            <p className="text-xs text-muted-foreground mb-6">完了次第ご連絡します。ご不明な点はLINEサポートへお問い合わせください。</p>
             <a
               href="/mypage"
               className="inline-flex items-center gap-2 bg-secondary text-foreground font-bold px-6 py-3 rounded-2xl hover:bg-secondary/80 transition-colors"

@@ -277,7 +277,7 @@ router.post("/stores/apply", async (req, res) => {
       imageUrl: body.imageUrl ?? null,
       phone: body.phone ?? null,
       isActive: false,
-      status: "pending_review",
+      status: "pending",
       ownerId: body.ownerId,
       // 2店舗目以降は既存のStripeアカウントIDを流用（bank-setup不要）
       stripeAccountId: existingStripeAccountId,
@@ -722,9 +722,9 @@ router.post("/stores/:storeId/reapply", async (req, res) => {
       return;
     }
 
-    // 更新可能なフィールドのみ受け取る
+    // 更新可能なフィールドのみ受け取る（管理者審査不要：直接 applied へ）
     const updateData: Record<string, unknown> = {
-      status: "pending_review",
+      status: "applied",
       rejectionReason: null,
     };
     const editableFields = ["name", "description", "address", "city", "category", "phone",
@@ -1920,8 +1920,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
   // ── STEP 1-2: Stripe アカウント作成＋口座登録（同期） ──
   try {
     // ── 即座にステータスを書いてループを防止 ──
-    // 却下済み店舗の再申請の場合は pending_review に戻す（管理者再審査待ち）
-    const newStatus = wasRejected ? "pending_review" : "applied";
+    // 管理者審査不要：却下済み再申請も含め常に applied へ
+    const newStatus = "applied";
     await db.update(storesTable).set({
       status: newStatus,
       ...(wasRejected ? { rejectionReason: null } : {}),
