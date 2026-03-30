@@ -69,7 +69,7 @@ function OwnerComment({ comment }: { comment: string }) {
   );
 }
 
-/* ── compact カード本体 ── */
+/* ── compact カード本体（HorizBagCard と同一レイアウト） ── */
 function CompactCardBody({
   bag, isSoldOut, isLowStock, favorited, onSoldOutFan,
 }: {
@@ -80,70 +80,87 @@ function CompactCardBody({
   fanBurst: boolean;
   onSoldOutFan: (e: React.MouseEvent) => void;
 }) {
-  return (
-    <div className="flex flex-col gap-0">
+  const { coords, loading: gpsLoading } = useUserLocation();
+  const distM = (coords && bag.store.lat && bag.store.lng)
+    ? haversineMeters(coords.lat, coords.lng, bag.store.lat, bag.store.lng)
+    : null;
+  const distLabel = distM != null
+    ? distM < 50 ? 'すぐそこ' : distM < 1000 ? `${Math.round(distM / 10) * 10}m` : `${(distM / 1000).toFixed(1)}km`
+    : null;
+  const distMinutes = distM != null ? Math.round(distM / 67) : 99;
 
-      {/* ① 商品タイトル — 全幅・独立行 */}
-      <h3 className={`font-bold text-[13px] leading-snug tracking-tight line-clamp-2 mb-2
+  return (
+    <div className="flex flex-col gap-[3px]">
+
+      {/* ① 店舗名（左）＋ 受取時間（右） — 同一行・絶対に重ならない */}
+      <div className="flex items-center justify-between gap-1 min-w-0">
+        <span className="text-[10px] text-muted-foreground font-medium truncate leading-none">
+          {bag.store.name}
+        </span>
+        {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
+          <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground shrink-0">
+            <Clock className="w-2.5 h-2.5 shrink-0" />
+            <span className="leading-none whitespace-nowrap">
+              {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ② 商品タイトル */}
+      <p className={`font-black text-[14px] leading-snug line-clamp-1
         ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}`}>
         {bag.title}
-      </h3>
+      </p>
 
+      {/* ③ 距離バッジ（左）＋ 価格（右） */}
       {!isSoldOut ? (
-        <>
-          {/* ② 距離バッジ — 独立行（時刻と絶対に被らない） */}
-          {bag.store.lat && bag.store.lng && (
-            <div className="mb-1">
-              <InfoDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} size="sm" />
-            </div>
-          )}
-
-          {/* ③ 受取時間 — 独立行 */}
-          {(bag.pickupStart || bag.pickupEnd) && (
-            <div className="flex items-center gap-1 mb-2.5 text-[10px] text-muted-foreground">
-              <Clock className="w-2.5 h-2.5 text-primary/60 shrink-0" />
-              <span className="font-medium leading-none">
-                {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
+        <div className="flex items-end justify-between gap-1 mt-0.5">
+          {/* 左: 残りわずか + 距離バッジ */}
+          <div className="flex flex-col gap-0.5">
+            {isLowStock && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-500 bg-rose-50
+                px-1.5 py-[2px] rounded-full ring-1 ring-rose-200/70 leading-none w-fit">
+                🔥 残り{bag.stockCount}個
               </span>
-            </div>
-          )}
-
-          {/* ④ 在庫 + 価格 — 横並び・細いボーダーで区切り */}
-          <div className="flex items-end justify-between gap-1 pt-2 border-t border-border/30">
-            <div className="flex items-center gap-0.5 text-[10px]">
-              <Gift className={`w-2.5 h-2.5 shrink-0 ${isLowStock ? 'text-rose-400' : 'text-primary/40'}`} />
-              <span className={`leading-none ${isLowStock ? 'text-rose-500 font-bold' : 'text-muted-foreground'}`}>
-                {isLowStock ? `残り${bag.stockCount}個！` : `残り${bag.stockCount}個`}
+            )}
+            {distLabel ? (
+              <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[10px] px-1.5 py-[2px] leading-none w-fit
+                ${distMinutes <= 5
+                  ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70'
+                  : distMinutes <= 15
+                  ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/70'
+                  : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/70'}`}>
+                <Navigation className="w-2.5 h-2.5 shrink-0" />
+                {distLabel}
               </span>
-            </div>
-            <div className="flex flex-col items-end shrink-0">
-              {bag.originalPrice > bag.discountedPrice && (
-                <span className="text-[9px] text-muted-foreground/40 line-through font-medium leading-none mb-[2px]">
-                  ¥{bag.originalPrice.toLocaleString()}
-                </span>
-              )}
-              <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
-                ¥{bag.discountedPrice.toLocaleString()}
-              </span>
-            </div>
+            ) : gpsLoading ? (
+              <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
+            ) : null}
           </div>
-        </>
+          {/* 右: 元値 + 販売価格 */}
+          <div className="flex flex-col items-end shrink-0">
+            {bag.originalPrice > bag.discountedPrice && (
+              <span className="text-[10px] text-muted-foreground/40 line-through font-medium leading-none mb-[1px]">
+                ¥{bag.originalPrice.toLocaleString()}
+              </span>
+            )}
+            <span className="text-[18px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+              ¥{bag.discountedPrice.toLocaleString()}
+            </span>
+          </div>
+        </div>
       ) : (
         /* 完売時 */
-        <div className="space-y-2">
-          <p className="text-[10px] text-muted-foreground/60 text-center font-medium">
-            次のおすそわけをお楽しみに 🌸
-          </p>
-          <button
-            onClick={onSoldOutFan}
-            className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-semibold
-              transition-all duration-150 tap-scale border
-              ${favorited ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-white border-rose-200/70 text-rose-500'}`}
-          >
-            <Heart className={`w-3 h-3 ${favorited ? 'fill-rose-500 stroke-rose-500' : 'fill-none stroke-rose-400'}`} />
-            {favorited ? 'お気に入り済み ✓' : '応援する'}
-          </button>
-        </div>
+        <button
+          onClick={onSoldOutFan}
+          className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-semibold
+            transition-all duration-150 tap-scale border mt-1
+            ${favorited ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-white border-rose-200/70 text-rose-500'}`}
+        >
+          <Heart className={`w-3 h-3 ${favorited ? 'fill-rose-500 stroke-rose-500' : 'fill-none stroke-rose-400'}`} />
+          {favorited ? 'お気に入り済み ✓' : '応援する'}
+        </button>
       )}
     </div>
   );
@@ -341,89 +358,129 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
             ${imgLoaded ? 'img-fade-in' : 'opacity-0'}`}
         />
 
-        {/* グラデーション（より繊細に） */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent pointer-events-none" />
+        {/* グラデーション */}
+        <div className={`absolute inset-0 pointer-events-none
+          ${compact
+            ? 'bg-gradient-to-t from-black/40 via-transparent to-transparent'
+            : 'bg-gradient-to-t from-black/65 via-black/10 to-transparent'}`} />
 
-        {/* 左上: 店舗名チップ */}
-        <div className="absolute top-2.5 left-2.5">
-          <div className="bg-white/92 backdrop-blur-sm px-2.5 py-1 rounded-full text-[11px] font-semibold
-            shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex items-center gap-1.5 text-foreground max-w-[58%]">
-            <span className="text-sm leading-none">{getCategoryIcon(bag.store.category)}</span>
-            <span className="truncate">{bag.store.name}</span>
-          </div>
-        </div>
-
-        {/* 右上: 評価バッジ・ハート（＋距離）・割引バッジ */}
-        <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1.5">
-          {/* 星評価バッジ（口コミがある場合のみ）タップで口コミ一覧を表示 */}
-          {avgRating && !isSoldOut && (
-            <button
-              type="button"
-              onClick={e => { e.preventDefault(); e.stopPropagation(); setShowReviews(true); }}
-              className="flex items-center gap-0.5 bg-emerald-500 active:bg-emerald-600 text-white font-black px-2 py-0.5 rounded-full text-[11px] shadow-[0_2px_8px_rgba(16,185,129,0.45)] backdrop-blur-sm transition-transform active:scale-95 tap-scale-sm"
-            >
-              <Star className="w-2.5 h-2.5 fill-white shrink-0" />
-              {Number(avgRating).toFixed(1)}
-            </button>
-          )}
-
-          {/* ハートボタン */}
-          <button
-            onClick={handleFavorite}
-            className={`w-8 h-8 flex items-center justify-center rounded-full
-              transition-all duration-150 tap-scale-sm
-              ${favorited
-                ? 'bg-rose-500 shadow-[0_2px_8px_rgba(239,68,68,0.35)]'
-                : 'bg-white/90 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.12)]'
-              } ${burst ? 'scale-125' : ''}`}
-            aria-label={favorited ? 'お気に入りから削除' : 'お気に入りに追加'}
-          >
-            <Heart className={`w-4 h-4 transition-all duration-150
-              ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
-          </button>
-
-          {isSoldOut ? (
-            <div className="bg-gray-800/75 text-white/85 font-bold px-2.5 py-0.5 rounded-full text-[10px] backdrop-blur-sm">
-              完売
-            </div>
-          ) : (
-            <>
-              {/* 割引バッジ（原価ありの場合のみ表示） */}
-              {discountPercent > 0 && (
-                <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
-                  ${discountPercent >= 20
-                    ? 'bg-gradient-to-r from-[#F07826] to-[#E85A0C] shadow-[0_2px_10px_rgba(240,120,38,0.45)]'
-                    : 'bg-primary shadow-[0_2px_8px_rgba(255,140,0,0.30)]'
-                  }`}>
-                  {discountPercent >= 20 && <Sparkles className="w-2.5 h-2.5 shrink-0" />}
-                  {discountPercent}% OFF
-                </div>
-              )}
-              {/* 残りわずかバッジ */}
-              {isLowStock && (
-                <div className="flex items-center gap-0.5 bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] animate-pulse shadow-[0_2px_8px_rgba(239,68,68,0.40)]">
-                  🔥 残りわずか！
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* 完売スタンプ */}
-        {isSoldOut && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="border-[3px] border-red-500/70 rounded-xl px-4 py-2 rotate-[-12deg] backdrop-blur-[1px]">
-              <span className="text-red-400/90 text-2xl font-black tracking-widest leading-none block text-center drop-shadow"
-                style={{ fontFamily: 'Outfit, sans-serif' }}>
-                完売御礼
+        {compact ? (
+          /* ─── compact モード: HorizBagCard と同じシンプルオーバーレイ ─── */
+          <>
+            {/* 左上: 割引バッジ */}
+            {!isSoldOut && discountPercent > 0 && (
+              <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-[3px] rounded-lg shadow-sm">
+                {discountPercent}% OFF
               </span>
+            )}
+            {/* 右上: 評価 + ハート */}
+            <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+              {avgRating && !isSoldOut && (
+                <button
+                  type="button"
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); setShowReviews(true); }}
+                  className="flex items-center gap-0.5 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-lg shadow-sm tap-scale-sm"
+                >
+                  <Star className="w-2 h-2 fill-white shrink-0" />
+                  {Number(avgRating).toFixed(1)}
+                </button>
+              )}
+              <button
+                onClick={handleFavorite}
+                className={`w-6 h-6 flex items-center justify-center rounded-full tap-scale-sm transition-all duration-150
+                  ${favorited
+                    ? 'bg-rose-500 shadow-[0_1px_6px_rgba(239,68,68,0.45)]'
+                    : 'bg-white/85 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.15)]'
+                  } ${burst ? 'scale-125' : ''}`}
+                aria-label={favorited ? 'お気に入りから削除' : 'お気に入りに追加'}
+              >
+                <Heart className={`w-3 h-3 transition-all duration-150
+                  ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
+              </button>
             </div>
-          </div>
+            {/* 完売オーバーレイ */}
+            {isSoldOut && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <span className="bg-white/90 text-foreground text-[10px] font-black px-2 py-1 rounded-lg">完売御礼 🌸</span>
+              </div>
+            )}
+          </>
+        ) : (
+          /* ─── 通常モード: リッチオーバーレイ ─── */
+          <>
+            {/* 左上: 店舗名チップ */}
+            <div className="absolute top-2.5 left-2.5">
+              <div className="bg-white/92 backdrop-blur-sm px-2.5 py-1 rounded-full text-[11px] font-semibold
+                shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex items-center gap-1.5 text-foreground max-w-[58%]">
+                <span className="text-sm leading-none">{getCategoryIcon(bag.store.category)}</span>
+                <span className="truncate">{bag.store.name}</span>
+              </div>
+            </div>
+            {/* 右上: 評価・ハート・割引バッジ */}
+            <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1.5">
+              {avgRating && !isSoldOut && (
+                <button
+                  type="button"
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); setShowReviews(true); }}
+                  className="flex items-center gap-0.5 bg-emerald-500 active:bg-emerald-600 text-white font-black px-2 py-0.5 rounded-full text-[11px] shadow-[0_2px_8px_rgba(16,185,129,0.45)] backdrop-blur-sm tap-scale-sm"
+                >
+                  <Star className="w-2.5 h-2.5 fill-white shrink-0" />
+                  {Number(avgRating).toFixed(1)}
+                </button>
+              )}
+              <button
+                onClick={handleFavorite}
+                className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-150 tap-scale-sm
+                  ${favorited
+                    ? 'bg-rose-500 shadow-[0_2px_8px_rgba(239,68,68,0.35)]'
+                    : 'bg-white/90 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.12)]'
+                  } ${burst ? 'scale-125' : ''}`}
+                aria-label={favorited ? 'お気に入りから削除' : 'お気に入りに追加'}
+              >
+                <Heart className={`w-4 h-4 transition-all duration-150
+                  ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
+              </button>
+              {isSoldOut ? (
+                <div className="bg-gray-800/75 text-white/85 font-bold px-2.5 py-0.5 rounded-full text-[10px] backdrop-blur-sm">
+                  完売
+                </div>
+              ) : (
+                <>
+                  {discountPercent > 0 && (
+                    <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
+                      ${discountPercent >= 20
+                        ? 'bg-gradient-to-r from-[#F07826] to-[#E85A0C] shadow-[0_2px_10px_rgba(240,120,38,0.45)]'
+                        : 'bg-primary shadow-[0_2px_8px_rgba(255,140,0,0.30)]'
+                      }`}>
+                      {discountPercent >= 20 && <Sparkles className="w-2.5 h-2.5 shrink-0" />}
+                      {discountPercent}% OFF
+                    </div>
+                  )}
+                  {isLowStock && (
+                    <div className="flex items-center gap-0.5 bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] animate-pulse shadow-[0_2px_8px_rgba(239,68,68,0.40)]">
+                      🔥 残りわずか！
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {/* 完売スタンプ */}
+            {isSoldOut && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="border-[3px] border-red-500/70 rounded-xl px-4 py-2 rotate-[-12deg] backdrop-blur-[1px]">
+                  <span className="text-red-400/90 text-2xl font-black tracking-widest leading-none block text-center drop-shadow"
+                    style={{ fontFamily: 'Outfit, sans-serif' }}>
+                    完売御礼
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* ── カード情報エリア ── */}
-      <div className={compact ? 'p-3' : 'p-4 pb-3.5'}>
+      <div className={compact ? 'px-3 pt-2 pb-3' : 'p-4 pb-3.5'}>
         {compact ? (
           <CompactCardBody
             bag={bag}
