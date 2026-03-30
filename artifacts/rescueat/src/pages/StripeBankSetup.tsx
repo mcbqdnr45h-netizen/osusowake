@@ -320,6 +320,7 @@ export default function StripeBankSetup() {
       const t = setTimeout(() => saveDraft(store.id, draftStateRef.current), 2000);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [store?.id, lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
       phone, email, dobYear, dobMonth, dobDay,
       postalCode, stateKanji, cityKanji, townKanji, line1Kanji,

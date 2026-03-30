@@ -44,7 +44,6 @@ export default function StoreDetailPublic() {
   });
 
   const { data: allBags } = useListAllBags(
-    { lat: 35.6895, lng: 139.6917, radius: 99999, limit: 100 },
     { query: { enabled: !isNaN(storeId) } }
   );
 

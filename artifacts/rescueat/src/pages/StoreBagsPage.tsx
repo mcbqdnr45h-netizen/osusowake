@@ -552,6 +552,7 @@ export default function StoreBagsPage() {
                 onDelete={handleDelete}
                 onStockAdjust={handleStockAdjust}
                 onConfirmChange={setConfirmId}
+                onEdit={() => {}}
               />
             ))}
           </div>

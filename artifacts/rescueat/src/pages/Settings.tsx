@@ -5,7 +5,7 @@ import { useUserId } from '@/hooks/use-user';
 import { useLocation, Link } from 'wouter';
 import {
   ChevronLeft, User, Camera, Bell, LogOut,
-  ChevronRight, Mail, Pencil, X,
+  ChevronRight, Mail, Pencil, X, Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';

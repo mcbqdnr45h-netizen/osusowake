@@ -306,7 +306,7 @@ function HorizScrollRow({ bags, loading, skeletonCount = 4, distMap, gpsLoading 
   bags: SurpriseBagWithStore[];
   loading: boolean;
   skeletonCount?: number;
-  distMap?: Map<string, number>;
+  distMap?: Map<number, number>;
   gpsLoading?: boolean;
 }) {
   if (!loading && bags.length === 0) return null;
@@ -315,7 +315,7 @@ function HorizScrollRow({ bags, loading, skeletonCount = 4, distMap, gpsLoading 
       {loading
         ? Array.from({ length: skeletonCount }, (_, i) => <HorizBagCardSkeleton key={i} />)
         : bags.map(bag => (
-            <HorizBagCard key={bag.id} bag={bag} distM={distMap?.get(bag.id)} gpsLoading={gpsLoading} />
+            <HorizBagCard key={String(bag.id)} bag={bag} distM={distMap?.get(bag.id)} gpsLoading={gpsLoading} />
           ))
       }
       <div className="w-1 shrink-0" />
@@ -521,8 +521,8 @@ export default function Home() {
 
   // ── ③ 現在地から近いお店 ── （距離順固定、ソート適用なし）
   const { nearbyBags, distMap } = useMemo(() => {
-    if (!userCoords) return { nearbyBags: [], distMap: new Map<string, number>() };
-    const map = new Map<string, number>();
+    if (!userCoords) return { nearbyBags: [], distMap: new Map<number, number>() };
+    const map = new Map<number, number>();
     // 全バッグの距離を計算（座標あるものすべて）
     for (const b of visibleBags) {
       if (b.store.lat != null && b.store.lng != null) {

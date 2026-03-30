@@ -363,7 +363,7 @@ export default function Orders() {
   const filtered = (reservations || []).filter(r => {
     if (filter === 'all') return true;
     if (filter === 'picked_up') return r.status === 'picked_up';
-    if (filter === 'cancelled') return r.status === 'cancelled' || r.status === 'no_show';
+    if (filter === 'cancelled') return r.status === 'cancelled' || (r.status as string) === 'no_show';
     return true;
   });
 

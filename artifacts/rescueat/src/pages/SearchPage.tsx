@@ -112,10 +112,10 @@ function StoreBottomSheet({
   const hasBags  = bagCount > 0;
 
   const distanceLabel = useMemo(() => {
-    if (!userPos || !store.latitude || !store.longitude) return null;
-    const m = calcDistanceM(userPos.lat, userPos.lng, Number(store.latitude), Number(store.longitude));
+    if (!userPos || !store.lat || !store.lng) return null;
+    const m = calcDistanceM(userPos.lat, userPos.lng, store.lat, store.lng);
     return formatDistance(m);
-  }, [userPos, store.latitude, store.longitude]);
+  }, [userPos, store.lat, store.lng]);
 
   const walkLabel = useMemo(() => {
     if (!userPos || !store.lat || !store.lng) return null;
@@ -125,8 +125,8 @@ function StoreBottomSheet({
 
   // Google Maps URL
   const mapsUrl = useMemo(() => {
-    const lat = store.lat ?? Number(store.latitude);
-    const lng = store.lng ?? Number(store.longitude);
+    const lat = store.lat;
+    const lng = store.lng;
     if (lat && lng) return `https://maps.google.com/?q=${lat},${lng}`;
     if (store.address) return `https://maps.google.com/?q=${encodeURIComponent(store.address)}`;
     return null;
@@ -625,8 +625,8 @@ export default function SearchPage() {
     // エリア絞り込み（マップ連動）
     if (areaSearchActive && mapBounds) {
       result = result.filter(b => {
-        const lat = b.store.lat ?? b.store.latitude;
-        const lng = b.store.lng ?? b.store.longitude;
+        const lat = b.store.lat;
+        const lng = b.store.lng;
         if (!lat || !lng) return false;
         const latN = Number(lat);
         const lngN = Number(lng);
@@ -638,10 +638,10 @@ export default function SearchPage() {
     // ソート（userPos = GPS ボタンで取得した現在地、Safari 対応のためボタン経由のみ）
     if (sort === 'distance' && userPos) {
       result = [...result].sort((a, b) => {
-        const aLat = a.store.lat ?? Number(a.store.latitude);
-        const aLng = a.store.lng ?? Number(a.store.longitude);
-        const bLat = b.store.lat ?? Number(b.store.latitude);
-        const bLng = b.store.lng ?? Number(b.store.longitude);
+        const aLat = a.store.lat;
+        const aLng = a.store.lng;
+        const bLat = b.store.lat;
+        const bLng = b.store.lng;
         const dA = haversineMeters(userPos.lat, userPos.lng, aLat, aLng);
         const dB = haversineMeters(userPos.lat, userPos.lng, bLat, bLng);
         return dA - dB;
@@ -1118,8 +1118,8 @@ export default function SearchPage() {
                       initial="hidden" animate="show"
                       variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}>
                       {filteredBags.map(bag => {
-                        const storeLat = bag.store.lat ?? Number(bag.store.latitude);
-                        const storeLng = bag.store.lng ?? Number(bag.store.longitude);
+                        const storeLat = bag.store.lat;
+                        const storeLng = bag.store.lng;
                         return (
                           <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
                             className="relative">

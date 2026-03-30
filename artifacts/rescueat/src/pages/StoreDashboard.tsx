@@ -192,7 +192,7 @@ function PostBagModal({
           allergyInfo: quickAllergyInfo.trim() || undefined,
           pickupNote: quickPickupNote.trim() || undefined,
           itemType: (pastBag.itemType as 'bag' | 'item') ?? 'bag',
-        },
+        } as any,
       });
       toast({ title: '出品しました！', description: `${pastBag.title} × ${qty}個` });
       onSuccess();
@@ -234,7 +234,7 @@ function PostBagModal({
           allergyInfo: form.allergyInfo.trim() || undefined,
           pickupNote: form.pickupNote.trim() || undefined,
           itemType,
-        },
+        } as any,
       });
       toast({ title: '出品しました！' });
       onSuccess();
@@ -1165,7 +1165,7 @@ export default function StoreDashboard() {
   const pendingRef      = useRef<HTMLDivElement>(null);
   const pickedUpRef     = useRef<HTMLDivElement>(null);
 
-  function scrollToSection(ref: React.RefObject<HTMLDivElement>, open?: boolean) {
+  function scrollToSection(ref: React.RefObject<HTMLDivElement | null>, open?: boolean) {
     if (open) setShowPickedUp(true);
     setTimeout(() => {
       ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });

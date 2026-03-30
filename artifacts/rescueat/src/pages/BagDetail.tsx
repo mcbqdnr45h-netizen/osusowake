@@ -354,7 +354,7 @@ export default function BagDetail() {
       data: {
         bagId: bag.id,
         quantity,
-        userId
+        userId: userId ?? ''
       }
     }, {
       onSuccess: (data) => {

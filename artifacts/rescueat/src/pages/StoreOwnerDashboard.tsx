@@ -32,6 +32,7 @@ interface StoreData {
   status: string;
   isActive: boolean;
   stripeAccountId: string | null;
+  rejectionReason?: string | null;
 }
 
 interface BagData {

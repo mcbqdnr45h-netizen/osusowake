@@ -309,7 +309,7 @@ export default function StripeKYCPage() {
     setDocError(null);
     setResult(null);
 
-    const authHeader = session?.access_token
+    const authHeader: Record<string, string> = session?.access_token
       ? { Authorization: `Bearer ${session.access_token}` } : {};
 
     try {
