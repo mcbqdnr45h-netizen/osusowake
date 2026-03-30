@@ -71,7 +71,7 @@ function OwnerComment({ comment }: { comment: string }) {
 
 /* ── compact カード本体 ── */
 function CompactCardBody({
-  bag, isSoldOut, isLowStock, favorited, fanBurst, onSoldOutFan,
+  bag, isSoldOut, isLowStock, favorited, onSoldOutFan,
 }: {
   bag: SurpriseBagWithStore;
   isSoldOut: boolean;
@@ -81,67 +81,71 @@ function CompactCardBody({
   onSoldOutFan: (e: React.MouseEvent) => void;
 }) {
   return (
-    <>
-      {/* ① タイトル（全幅・独立行） */}
-      <h3 className={`font-bold text-[13px] leading-snug tracking-tight line-clamp-2 mb-1.5
+    <div className="flex flex-col gap-0">
+
+      {/* ① 商品タイトル — 全幅・独立行 */}
+      <h3 className={`font-bold text-[13px] leading-snug tracking-tight line-clamp-2 mb-2
         ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}`}>
         {bag.title}
       </h3>
 
-      {/* ② 距離バッジ + 受取時間（タイトルの下） */}
-      {!isSoldOut && (
-        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+      {!isSoldOut ? (
+        <>
+          {/* ② 距離バッジ — 独立行（時刻と絶対に被らない） */}
           {bag.store.lat && bag.store.lng && (
-            <InfoDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} size="sm" />
-          )}
-          {(bag.pickupStart || bag.pickupEnd) && (
-            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-              <Clock className="w-2.5 h-2.5 text-primary/70 shrink-0" />
-              <span className="font-medium">{formatPickupTime(bag.pickupStart, bag.pickupEnd)}</span>
+            <div className="mb-1">
+              <InfoDistanceBadge storeLat={bag.store.lat} storeLng={bag.store.lng} size="sm" />
             </div>
           )}
-        </div>
-      )}
 
-      {/* ③ 完売 or 在庫+価格 */}
-      {isSoldOut ? (
-        <div className="space-y-2 mt-1">
-          <p className="text-[11px] text-muted-foreground/60 text-center font-medium">
+          {/* ③ 受取時間 — 独立行 */}
+          {(bag.pickupStart || bag.pickupEnd) && (
+            <div className="flex items-center gap-1 mb-2.5 text-[10px] text-muted-foreground">
+              <Clock className="w-2.5 h-2.5 text-primary/60 shrink-0" />
+              <span className="font-medium leading-none">
+                {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
+              </span>
+            </div>
+          )}
+
+          {/* ④ 在庫 + 価格 — 横並び・細いボーダーで区切り */}
+          <div className="flex items-end justify-between gap-1 pt-2 border-t border-border/30">
+            <div className="flex items-center gap-0.5 text-[10px]">
+              <Gift className={`w-2.5 h-2.5 shrink-0 ${isLowStock ? 'text-rose-400' : 'text-primary/40'}`} />
+              <span className={`leading-none ${isLowStock ? 'text-rose-500 font-bold' : 'text-muted-foreground'}`}>
+                {isLowStock ? `残り${bag.stockCount}個！` : `残り${bag.stockCount}個`}
+              </span>
+            </div>
+            <div className="flex flex-col items-end shrink-0">
+              {bag.originalPrice > bag.discountedPrice && (
+                <span className="text-[9px] text-muted-foreground/40 line-through font-medium leading-none mb-[2px]">
+                  ¥{bag.originalPrice.toLocaleString()}
+                </span>
+              )}
+              <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+                ¥{bag.discountedPrice.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* 完売時 */
+        <div className="space-y-2">
+          <p className="text-[10px] text-muted-foreground/60 text-center font-medium">
             次のおすそわけをお楽しみに 🌸
           </p>
           <button
             onClick={onSoldOutFan}
-            className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold
+            className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-semibold
               transition-all duration-150 tap-scale border
               ${favorited ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-white border-rose-200/70 text-rose-500'}`}
           >
-            <Heart className={`w-3.5 h-3.5 ${favorited ? 'fill-rose-500 stroke-rose-500' : 'fill-none stroke-rose-400'}`} />
-            {favorited ? 'お気に入り済み ✓' : 'このお店を応援'}
+            <Heart className={`w-3 h-3 ${favorited ? 'fill-rose-500 stroke-rose-500' : 'fill-none stroke-rose-400'}`} />
+            {favorited ? 'お気に入り済み ✓' : '応援する'}
           </button>
         </div>
-      ) : (
-        <div className="flex items-end justify-between gap-1 pt-1.5 border-t border-border/40">
-          {/* 左: 在庫数 */}
-          <div className="flex items-center gap-0.5 text-[10px]">
-            <Gift className={`w-2.5 h-2.5 shrink-0 ${isLowStock ? 'text-rose-400' : 'text-primary/50'}`} />
-            <span className={isLowStock ? 'text-rose-500 font-bold' : 'text-muted-foreground'}>
-              {isLowStock ? `残り${bag.stockCount}個！` : `残り${bag.stockCount}個`}
-            </span>
-          </div>
-          {/* 右: 価格 */}
-          <div className="flex flex-col items-end shrink-0">
-            {bag.originalPrice > bag.discountedPrice && (
-              <span className="text-[10px] text-muted-foreground/45 line-through font-medium leading-none mb-[2px]">
-                ¥{bag.originalPrice.toLocaleString()}
-              </span>
-            )}
-            <span className="text-[15px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
-              ¥{bag.discountedPrice.toLocaleString()}
-            </span>
-          </div>
-        </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -419,7 +423,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
       </div>
 
       {/* ── カード情報エリア ── */}
-      <div className={compact ? 'p-3 pb-2.5' : 'p-4 pb-3.5'}>
+      <div className={compact ? 'p-3' : 'p-4 pb-3.5'}>
         {compact ? (
           <CompactCardBody
             bag={bag}
@@ -471,16 +475,17 @@ export function BagCardSkeleton({ compact = false }: { compact?: boolean }) {
       style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.06), 0 1px 3px -1px rgba(10,8,6,0.03)' }}>
       <div className={`w-full skeleton-shimmer ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`} />
       {compact ? (
-        <div className="p-2 pb-1.5 space-y-1.5">
-          <div className="flex items-start justify-between gap-1.5">
-            <div className="h-3 skeleton-shimmer rounded-full flex-1" />
-            <div className="h-4 skeleton-shimmer rounded-full w-12 shrink-0" />
-          </div>
-          <div className="flex items-end justify-between gap-2">
-            <div className="space-y-1 flex-1">
-              <div className="h-2.5 skeleton-shimmer rounded-full w-16" />
-              <div className="h-2.5 skeleton-shimmer rounded-full w-12" />
-            </div>
+        <div className="p-3 flex flex-col gap-0">
+          {/* タイトル */}
+          <div className="h-3 skeleton-shimmer rounded-full w-full mb-1.5" />
+          <div className="h-3 skeleton-shimmer rounded-full w-3/4 mb-2" />
+          {/* 距離バッジ */}
+          <div className="h-4 skeleton-shimmer rounded-full w-14 mb-1" />
+          {/* 受取時間 */}
+          <div className="h-3 skeleton-shimmer rounded-full w-24 mb-3" />
+          {/* 在庫+価格 */}
+          <div className="flex items-end justify-between pt-2 border-t border-border/20">
+            <div className="h-2.5 skeleton-shimmer rounded-full w-12" />
             <div className="h-5 skeleton-shimmer rounded-full w-14" />
           </div>
         </div>
