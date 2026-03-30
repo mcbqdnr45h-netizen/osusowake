@@ -360,7 +360,7 @@ export default function OrderTicket() {
           </div>
         </div>
 
-        <div className="px-4 pt-4 space-y-3">
+        <div className="px-4 pt-4 space-y-4">
 
           {/* 案内バナー（未受取のみ） */}
           <AnimatePresence>
@@ -465,7 +465,7 @@ export default function OrderTicket() {
             {/* ミシン目 + フッター */}
             {!isCancelled && (
               <>
-                <div className="flex items-center px-3">
+                <div className="flex items-center px-3 py-3">
                   <div className="w-4 h-4 rounded-full bg-background border border-border -ml-6 shrink-0" />
                   <div className="flex-1 border-t-2 border-dashed border-border/60 mx-2" />
                   <div className="w-4 h-4 rounded-full bg-background border border-border -mr-6 shrink-0" />
