@@ -363,14 +363,18 @@ router.post("/admin/stores/batch-refresh-stripe", requireAdmin, async (req, res)
     const results = await Promise.allSettled(
       rows.map(async (row) => {
         const account = await stripe.accounts.retrieve(row.stripeAccountId!);
+        const metaFileId = (account.metadata as any)?.license_file_id;
+        const licenseFileId: string | null = metaFileId?.startsWith?.("file_") ? metaFileId : null;
+        const patch: Record<string, any> = {
+          stripeChargesEnabled: account.charges_enabled,
+          stripePayoutsEnabled: account.payouts_enabled,
+        };
+        if (licenseFileId) patch.stripeLicenseFileId = licenseFileId;
         await db
           .update(storesTable)
-          .set({
-            stripeChargesEnabled: account.charges_enabled,
-            stripePayoutsEnabled: account.payouts_enabled,
-          })
+          .set(patch as any)
           .where(eq(storesTable.id, row.id));
-        return { id: row.id, chargesEnabled: account.charges_enabled, payoutsEnabled: account.payouts_enabled };
+        return { id: row.id, chargesEnabled: account.charges_enabled, payoutsEnabled: account.payouts_enabled, licenseFileId };
       })
     );
 

@@ -1194,33 +1194,58 @@ router.post("/stores/:storeId/stripe-sync", async (req, res) => {
 
     let chargesEnabled = false;
     let payoutsEnabled = false;
+    let detailsSubmitted = false;
+    let licenseFileId: string | null = null;
     let stripeError: string | null = null;
+    let requirements: any = null;
 
     try {
       const account = await stripe.accounts.retrieve(store.stripeAccountId);
-      chargesEnabled = account.charges_enabled ?? false;
-      payoutsEnabled = account.payouts_enabled ?? false;
-      console.log(`[stripe-sync] storeId=${storeId} accountId=${store.stripeAccountId} charges=${chargesEnabled} payouts=${payoutsEnabled}`);
+      chargesEnabled    = account.charges_enabled ?? false;
+      payoutsEnabled    = account.payouts_enabled ?? false;
+      detailsSubmitted  = account.details_submitted ?? false;
+      requirements      = {
+        currentlyDue:        account.requirements?.currently_due ?? [],
+        eventuallyDue:       account.requirements?.eventually_due ?? [],
+        errors:              account.requirements?.errors ?? [],
+        disabledReason:      account.requirements?.disabled_reason ?? null,
+        pendingVerification: account.requirements?.pending_verification ?? [],
+      };
+
+      // Stripe メタデータから license_file_id を取得
+      const metaFileId = (account.metadata as any)?.license_file_id;
+      if (metaFileId?.startsWith?.("file_")) {
+        licenseFileId = metaFileId;
+      }
+
+      console.log(`[stripe-sync] storeId=${storeId} accountId=${store.stripeAccountId} charges=${chargesEnabled} payouts=${payoutsEnabled} details=${detailsSubmitted} licenseFileId=${licenseFileId}`);
     } catch (stripeErr: any) {
       // account_invalid = アカウントが存在しない or このキーからアクセス不可
       stripeError = stripeErr?.code ?? stripeErr?.type ?? "stripe_error";
       console.warn(`[stripe-sync] Stripe error for storeId=${storeId} accountId=${store.stripeAccountId}:`, stripeErr?.message);
     }
 
-    // DB に最新値を書き込む
+    // DB に最新値を書き込む（エラー時はフラグのみリセット）
+    const dbPatch: Record<string, any> = {
+      stripeChargesEnabled: stripeError ? false : chargesEnabled,
+      stripePayoutsEnabled: stripeError ? false : payoutsEnabled,
+    };
+    if (!stripeError && licenseFileId) {
+      (dbPatch as any).stripeLicenseFileId = licenseFileId;
+    }
     await db
       .update(storesTable)
-      .set({
-        stripeChargesEnabled: stripeError ? false : chargesEnabled,
-        stripePayoutsEnabled: stripeError ? false : payoutsEnabled,
-      })
+      .set(dbPatch as any)
       .where(eq(storesTable.id, storeId));
 
     res.json({
       synced: true,
-      stripeAccountId: store.stripeAccountId,
-      chargesEnabled: stripeError ? false : chargesEnabled,
-      payoutsEnabled: stripeError ? false : payoutsEnabled,
+      stripeAccountId:  store.stripeAccountId,
+      chargesEnabled:   stripeError ? false : chargesEnabled,
+      payoutsEnabled:   stripeError ? false : payoutsEnabled,
+      detailsSubmitted: stripeError ? false : detailsSubmitted,
+      licenseFileId:    stripeError ? null  : licenseFileId,
+      requirements:     stripeError ? null  : requirements,
       stripeError,
     });
   } catch (err: any) {

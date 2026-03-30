@@ -444,7 +444,22 @@ export default function AdminDashboard() {
             ? { ...s, stripe_charges_enabled: data.chargesEnabled, stripe_payouts_enabled: data.payoutsEnabled }
             : s
           ));
-          toast({ title: '✅ Stripe再同期完了', description: `決済: ${data.chargesEnabled ? '有効' : '制限中'} / 入金: ${data.payoutsEnabled ? '有効' : '停止中'}` });
+          // storeDetails も更新（license_file_id / charges / payouts）
+          setStoreDetails(prev => {
+            const existing = prev[storeId];
+            if (!existing) return prev;
+            return {
+              ...prev,
+              [storeId]: {
+                ...existing,
+                stripe_charges_enabled: data.chargesEnabled,
+                stripe_payouts_enabled: data.payoutsEnabled,
+                stripe_license_file_id: data.licenseFileId ?? existing.stripe_license_file_id,
+              },
+            };
+          });
+          const fileTag = data.licenseFileId ? ` / File: ✅ 取得済み` : '';
+          toast({ title: '✅ Stripe再同期完了', description: `決済: ${data.chargesEnabled ? '有効' : '制限中'} / 入金: ${data.payoutsEnabled ? '有効' : '停止中'}${fileTag}` });
         }
       } else {
         toast({ title: 'エラー', description: '再同期に失敗しました', variant: 'destructive' });
@@ -736,12 +751,12 @@ export default function AdminDashboard() {
                                 if (stripeErrors[store.id]) {
                                   return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300">🔴 連携エラー</span>;
                                 }
+                                // payouts_enabled=true は完全認証済み（最優先）
+                                if (payoutsOk === true) {
+                                  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Stripe有効・入金可</span>;
+                                }
                                 if (chargesOk === true) {
-                                  return (
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${payoutsOk === true ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                      {payoutsOk === true ? '✅ Stripe有効・入金可' : '⚠️ Stripe有効・入金停止'}
-                                    </span>
-                                  );
+                                  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">⚠️ Stripe有効・入金停止</span>;
                                 }
                                 if (chargesOk === false) {
                                   return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">❌ Stripe制限中</span>;
@@ -1002,8 +1017,8 @@ export default function AdminDashboard() {
                             </Link>
 
                             {/* アクションボタン */}
-                            {/* Stripe制限中の警告 */}
-                            {store.stripe_account_id && store.stripe_charges_enabled === false && (
+                            {/* Stripe制限中の警告（payouts_enabled=true なら非表示） */}
+                            {store.stripe_account_id && store.stripe_charges_enabled === false && store.stripe_payouts_enabled !== true && (
                               <div className="mb-2 flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-[11px] font-bold text-red-600">
                                 <XCircle className="w-3.5 h-3.5 shrink-0" />
                                 {stripeErrors[store.id]
@@ -1012,8 +1027,8 @@ export default function AdminDashboard() {
                                 }
                               </div>
                             )}
-                            {/* Stripe File ID 警告（営業許可証が Stripe に未送信） */}
-                            {store.stripe_account_id && storeDetails[store.id] && !storeDetails[store.id].stripe_license_file_id && (
+                            {/* Stripe File ID 警告（payouts_enabled=true or file_id 取得済みなら非表示） */}
+                            {store.stripe_account_id && storeDetails[store.id] && !storeDetails[store.id].stripe_license_file_id && store.stripe_payouts_enabled !== true && (
                               <div className="mb-2 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-[11px] font-bold text-amber-700">
                                 <FileWarning className="w-3.5 h-3.5 shrink-0" />
                                 ⚠️ 営業許可証が Stripe に未送信です（stripe-sync ボタンで再送信可能）
