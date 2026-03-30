@@ -1297,6 +1297,7 @@ export default function StoreDashboard() {
             description: `決済: ${data.chargesEnabled ? '有効' : '制限中'} / 入金: ${data.payoutsEnabled ? '有効' : '停止中'}`,
           });
           queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/connect/balance`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/connect/status`] });
         }
       } else {
         toast({ title: 'エラー', description: '再同期に失敗しました', variant: 'destructive' });

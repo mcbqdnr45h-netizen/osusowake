@@ -559,7 +559,7 @@ export default function StoreOwnerDashboard() {
 
         {/* ── Stripe 認証バナー ── */}
         <AnimatePresence>
-          {connectStatus !== null && !(connectStatus.detailsSubmitted && connectStatus.chargesEnabled) && (() => {
+          {connectStatus !== null && !(connectStatus.detailsSubmitted && connectStatus.chargesEnabled) && !connectStatus.payoutsEnabled && (() => {
             const reqs = connectStatus.requirements;
             const currentlyDue = reqs?.currentlyDue ?? [];
             const errors = reqs?.errors ?? [];
