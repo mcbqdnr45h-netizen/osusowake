@@ -78,7 +78,7 @@ export default function Login() {
       }
       navigate('/store/dashboard');
     } else {
-      const { error: err, role, isAdmin: adminFlag } = await signIn(email, password);
+      const { error: err, role, isAdmin: adminFlag, requiresMfa } = await signIn(email, password);
       setIsLoading(false);
       if (err) {
         setError(err);
@@ -90,8 +90,9 @@ export default function Login() {
         setShakeKey(k => k + 1);
         return;
       }
-      // 管理者がユーザータブでログイン → ユーザーモードフラグをセット
-      if (adminFlag) sessionStorage.setItem('adminUserMode', 'true');
+      // 管理者: MFA モーダルが出るのでここでは navigate しない
+      if (requiresMfa) return;
+      // 一般ユーザーはホームへ
       navigate('/');
     }
   }

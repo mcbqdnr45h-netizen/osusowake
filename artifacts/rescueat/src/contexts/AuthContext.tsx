@@ -8,9 +8,12 @@ interface AuthContextValue {
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
+  pendingAdminMfa: boolean;
   signUp: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signUpAsStore: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
-  signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null; isAdmin?: boolean }>;
+  signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null; isAdmin?: boolean; requiresMfa?: boolean }>;
+  sendAdminMfa: () => Promise<{ error: string | null }>;
+  verifyAdminMfa: (code: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resetPasswordForEmail: (email: string) => Promise<{ error: string | null }>;
@@ -33,11 +36,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]       = useState<User | null>(null);
   const [profile, setProfile] = useState<PublicUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin]     = useState(false);
+  const [isLoading, setIsLoading]         = useState(true);
+  const [isAdmin, setIsAdmin]             = useState(false);
+  const [pendingAdminMfa, setPendingAdminMfa] = useState(false);
   const isAdminRef    = useRef(false);
   const fetchingRef   = useRef(false);
   const adminLoginAt  = useRef<number | null>(null);
+
+  // MFA 検証済みか sessionStorage で確認（同一タブのページ更新では再要求しない）
+  function isMfaVerifiedInSession(): boolean {
+    const ts = sessionStorage.getItem('adminMfaVerifiedAt');
+    if (!ts) return false;
+    return Date.now() - Number(ts) < ADMIN_SESSION_TIMEOUT_MS;
+  }
 
   // 管理者セッションタイムアウト監視（2時間で自動ログアウト）
   useEffect(() => {
@@ -119,12 +130,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(sess);
         setUser(sess?.user ?? null);
         if (sess?.user) {
-          // セッション復元時も管理者チェック（サーバー API 経由）
+          // セッション復元時: 管理者チェック + MFA 検証確認
           if (sess.access_token) {
             const adminCheck = await checkIsAdmin(sess.access_token);
-            isAdminRef.current = adminCheck;
-            setIsAdmin(adminCheck);
-            if (adminCheck) adminLoginAt.current = Date.now();
+            if (adminCheck) {
+              if (isMfaVerifiedInSession()) {
+                // 同一タブ内で MFA 検証済み → そのまま管理者として続行
+                isAdminRef.current = true;
+                setIsAdmin(true);
+                adminLoginAt.current = Date.now();
+              } else {
+                // MFA 未検証 → ページ更新や新しいタブでは再認証を要求、OTP も自動送信
+                setPendingAdminMfa(true);
+                fetch(`${getApiBase()}/api/auth/admin-otp/send`, {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${sess.access_token}` },
+                }).catch(() => {});
+              }
+            }
           }
           await fetchProfile(sess.user.id);
         }
@@ -286,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchingRef.current = true;
 
     let role: string | null = forceRole ?? 'customer';
+    let requiresMfaFlag = false;
     try {
       if (data.user && data.session?.access_token) {
         const token = data.session.access_token;
@@ -293,9 +317,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // ── 管理者チェック（サーバー API 経由・メールをバンドルに露出させない）──
         const adminVerified = await checkIsAdmin(token);
-        isAdminRef.current = adminVerified;
-        setIsAdmin(adminVerified);
-        if (adminVerified) adminLoginAt.current = Date.now();
+        // 管理者の場合: isAdmin はまだ true にしない（MFA 完了後に設定）
+        if (adminVerified) {
+          requiresMfaFlag = true;
+          setPendingAdminMfa(true);
+          // OTP メール送信
+          try {
+            await fetch(`${apiBase}/api/auth/admin-otp/send`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          } catch { /* メール送信エラーは UI 側で再送できるため無視 */ }
+        }
 
         // ── ロール確定（サーバー経由で RLS バイパス・クロスログイン防止）───────
         // desiredRole: store タブ → 'store_owner', user タブ → 'customer'
@@ -386,16 +419,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fetchingRef.current = false;
     }
 
-    return { error: null, role, isAdmin: isAdminRef.current };
+    return { error: null, role, isAdmin: isAdminRef.current, requiresMfa: requiresMfaFlag };
+  }
+
+  // ── OTP メール送信（管理者が MFA 待機中に呼ぶ）────────────────────────────
+  async function sendAdminMfa(): Promise<{ error: string | null }> {
+    const token = session?.access_token;
+    if (!token) return { error: 'セッションが無効です' };
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/admin-otp/send`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        return { error: d?.message ?? 'コードの送信に失敗しました' };
+      }
+      return { error: null };
+    } catch {
+      return { error: 'ネットワークエラーが発生しました' };
+    }
+  }
+
+  // ── OTP コード検証（成功で isAdmin=true を確定）──────────────────────────
+  async function verifyAdminMfa(code: string): Promise<{ error: string | null }> {
+    const token = session?.access_token;
+    if (!token) return { error: 'セッションが無効です' };
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/admin-otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) return { error: d?.message ?? '認証に失敗しました' };
+
+      // MFA 成功 → isAdmin を確定し、sessionStorage に記録
+      isAdminRef.current = true;
+      setIsAdmin(true);
+      setPendingAdminMfa(false);
+      adminLoginAt.current = Date.now();
+      sessionStorage.setItem('adminMfaVerifiedAt', Date.now().toString());
+      return { error: null };
+    } catch {
+      return { error: 'ネットワークエラーが発生しました' };
+    }
   }
 
   async function signOut() {
     sessionStorage.removeItem('adminUserMode');
+    sessionStorage.removeItem('adminMfaVerifiedAt');
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
     setSession(null);
     setIsAdmin(false);
+    setPendingAdminMfa(false);
     isAdminRef.current = false;
     adminLoginAt.current = null;
   }
@@ -422,7 +501,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, isLoading, isAdmin, signUp, signUpAsStore, signIn, signOut, refreshProfile, resetPasswordForEmail }}>
+    <AuthContext.Provider value={{ user, profile, session, isLoading, isAdmin, pendingAdminMfa, signUp, signUpAsStore, signIn, sendAdminMfa, verifyAdminMfa, signOut, refreshProfile, resetPasswordForEmail }}>
       {children}
     </AuthContext.Provider>
   );

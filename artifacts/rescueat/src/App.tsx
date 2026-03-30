@@ -7,6 +7,7 @@ import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { MyStoresProvider, useMyStoresContext } from "@/contexts/MyStoresContext";
 import { ProtectedRoute, GuestRoute, GuestWallRoute } from "@/components/ProtectedRoute";
+import { AdminMfaModal } from "@/components/AdminMfaModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import { useAppSettings } from "@/hooks/use-app-settings";
@@ -367,6 +368,7 @@ function App() {
                   <AnimatedRoutes />
                 </MaintenanceGate>
               </WouterRouter>
+              <AdminMfaModal />
               <Toaster />
             </TooltipProvider>
           </FavoritesProvider>

@@ -2,6 +2,54 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
+import { Resend } from "resend";
+
+// ── 管理者 OTP ストア（インメモリ） ──────────────────────────────────────────
+interface OtpEntry {
+  code:      string;
+  expiresAt: number;
+  attempts:  number;
+}
+const adminOtpStore = new Map<string, OtpEntry>();
+
+function generateOtp(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function buildAdminOtpHtml(code: string): string {
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>管理者ログイン確認</title></head>
+<body style="margin:0;padding:0;background:#F5F5F3;font-family:'Hiragino Kaku Gothic Pro','Yu Gothic UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F5F3;padding:40px 16px;">
+<tr><td align="center">
+<table width="480" cellpadding="0" cellspacing="0"
+  style="max-width:480px;width:100%;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.09);">
+  <tr><td style="background:linear-gradient(135deg,#7C3AED,#4F46E5);padding:32px 40px;text-align:center;">
+    <div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:-0.5px;">🛡️ Osusowake</div>
+    <div style="color:rgba(255,255,255,0.80);font-size:13px;margin-top:6px;">管理者ログイン確認コード</div>
+  </td></tr>
+  <tr><td style="padding:40px 40px 32px;">
+    <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.7;">
+      管理者ダッシュボード（神モード）へのログインが検出されました。<br>
+      以下の確認コードを入力してください。
+    </p>
+    <div style="background:#F3F0FF;border:2px solid #7C3AED;border-radius:16px;padding:28px;text-align:center;margin-bottom:24px;">
+      <div style="font-size:13px;color:#6B21A8;font-weight:700;letter-spacing:2px;margin-bottom:12px;">確認コード</div>
+      <div style="font-size:48px;font-weight:900;color:#4F46E5;letter-spacing:12px;font-feature-settings:'tnum';">${code}</div>
+    </div>
+    <p style="margin:0 0 8px;color:#6B7280;font-size:13px;">⏱ このコードは <strong>10分間</strong> 有効です。</p>
+    <p style="margin:0;color:#EF4444;font-size:13px;font-weight:700;">⚠️ このコードを他人と共有しないでください。</p>
+  </td></tr>
+  <tr><td style="background:#F9F9F7;padding:20px 40px;text-align:center;border-top:1px solid #E5E7EB;">
+    <p style="margin:0;color:#9CA3AF;font-size:11px;">このメールに心当たりがない場合は、即座にパスワードを変更してください。</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
 
 // 管理者メールはサーバーサイドのみで保持（JS バンドルに露出させない）
 const ADMIN_EMAIL_B64 = "eXV1aGkwMTI1NDE2QGljbG91ZC5jb20=";
@@ -247,13 +295,99 @@ router.post("/auth/cleanup-user", async (req: Request, res: Response) => {
 });
 
 // ── GET /auth/is-admin ────────────────────────────────────────────────────────
-// 現在の JWT トークンが管理者かを返す（管理者メールをクライアントに露出させない）
 router.get("/auth/is-admin", async (req: Request, res: Response) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) { res.json({ isAdmin: false }); return; }
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !user) { res.json({ isAdmin: false }); return; }
   res.json({ isAdmin: isAdminEmail(user.email) });
+});
+
+// ── POST /auth/admin-otp/send ─────────────────────────────────────────────────
+// 管理者メールに 6桁 OTP を送信する
+router.post("/auth/admin-otp/send", async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
+
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !user || !isAdminEmail(user.email)) {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const email = user.email!;
+
+  // 前回コードが有効かつ 30秒以内の再送信はブロック
+  const existing = adminOtpStore.get(email);
+  if (existing && existing.expiresAt > Date.now() + (10 * 60 * 1000 - 30 * 1000)) {
+    res.status(429).json({ error: "too_soon", message: "30秒後に再送信できます" }); return;
+  }
+
+  const code = generateOtp();
+  adminOtpStore.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000, attempts: 0 });
+
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    console.error("[admin-otp/send] RESEND_API_KEY not set");
+    res.status(500).json({ error: "mail_config" }); return;
+  }
+
+  try {
+    const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
+    const resend = new Resend(resendKey);
+    await resend.emails.send({
+      from:    `Osusowake 事務局 <${fromDomain}>`,
+      to:      email,
+      subject: "【Osusowake管理者】ログイン確認コード",
+      html:    buildAdminOtpHtml(code),
+    });
+    console.log(`[admin-otp/send] OTP sent to admin`);
+    res.json({ ok: true });
+  } catch (err: any) {
+    adminOtpStore.delete(email);
+    console.error("[admin-otp/send] Resend error:", err?.message);
+    res.status(500).json({ error: "mail_send_failed", message: err?.message });
+  }
+});
+
+// ── POST /auth/admin-otp/verify ───────────────────────────────────────────────
+// OTP コードを検証する
+router.post("/auth/admin-otp/verify", async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
+
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !user || !isAdminEmail(user.email)) {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const { code } = req.body as { code?: string };
+  if (!code?.trim()) { res.status(400).json({ error: "code_required" }); return; }
+
+  const email = user.email!;
+  const entry = adminOtpStore.get(email);
+
+  if (!entry) {
+    res.status(400).json({ error: "no_otp", message: "コードが送信されていません。再送信してください" }); return;
+  }
+  if (Date.now() > entry.expiresAt) {
+    adminOtpStore.delete(email);
+    res.status(400).json({ error: "expired", message: "コードの有効期限が切れました。再送信してください" }); return;
+  }
+
+  entry.attempts++;
+  if (entry.attempts > 5) {
+    adminOtpStore.delete(email);
+    res.status(429).json({ error: "too_many_attempts", message: "試行回数が上限を超えました。再ログインしてください" }); return;
+  }
+
+  if (entry.code !== code.trim()) {
+    const left = 5 - entry.attempts;
+    res.status(400).json({ error: "invalid_code", message: `コードが正しくありません（残り ${left} 回）`, attemptsLeft: left }); return;
+  }
+
+  adminOtpStore.delete(email);
+  console.log("[admin-otp/verify] Admin MFA verified successfully");
+  res.json({ ok: true, verifiedAt: Date.now() });
 });
 
 export default router;
