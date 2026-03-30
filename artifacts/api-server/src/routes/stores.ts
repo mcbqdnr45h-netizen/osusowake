@@ -1965,7 +1965,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
               settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
               ...(businessType === "company" ? { company: step1CompanyPayload } : {}),
             },
-            { idempotencyKey: `store-${storeId}-account-create` }
+            { idempotencyKey: `store-${storeId}-account-create-${businessType}` }
           ),
           "accounts.create"
         );
@@ -2142,6 +2142,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         percent_ownership: 100,
         title:             k.representativeTitle?.trim() || "代表取締役",
       };
+      // Stripe JP: 代表者の政治的関与を明示（未設定だと KYC pending になる場合がある）
+      repPayload.political_exposure = "none";
 
       console.log(`📤 [bank-setup] STEP4b person payload: ${JSON.stringify(repPayload, null, 2)}`);
       try {

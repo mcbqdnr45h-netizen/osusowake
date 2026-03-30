@@ -18,9 +18,11 @@ interface AdminStore {
   lng: number;
   imageUrl: string | null;
   phone: string | null;
-  status: 'pending' | 'approved' | 'rejected' | 'pending_review';
+  status: 'pending' | 'applied' | 'approved' | 'rejected' | 'pending_review';
   createdAt: string;
   totalBagsAvailable: number;
+  stripeAccountId: string | null;
+  stripeChargesEnabled: boolean;
 }
 
 interface AdminReport {
@@ -84,13 +86,14 @@ const REPORT_TYPE_LABELS: Record<string, string> = {
 };
 
 const STATUS_CONFIG = {
-  pending: { label: '審査待ち', bg: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-400' },
-  approved: { label: '公開中', bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
-  rejected: { label: '非公開', bg: 'bg-red-100 text-red-800 border-red-200', dot: 'bg-red-500' },
-  pending_review: { label: '要確認', bg: 'bg-orange-100 text-orange-800 border-orange-200', dot: 'bg-orange-500' },
+  pending:        { label: '口座登録待ち', bg: 'bg-orange-100 text-orange-800 border-orange-200', dot: 'bg-orange-400' },
+  applied:        { label: 'KYC申請中',   bg: 'bg-blue-100 text-blue-800 border-blue-200',       dot: 'bg-blue-400' },
+  approved:       { label: '公開中',       bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
+  rejected:       { label: '非公開',       bg: 'bg-red-100 text-red-800 border-red-200',          dot: 'bg-red-500' },
+  pending_review: { label: '要確認',       bg: 'bg-orange-100 text-orange-800 border-orange-200', dot: 'bg-orange-500' },
 };
 
-type StoreFilter = 'approved' | 'rejected' | 'pending_review' | 'all';
+type StoreFilter = 'approved' | 'applied' | 'pending' | 'rejected' | 'pending_review' | 'all';
 type ViewTab = 'stores' | 'reports';
 
 export default function AdminVerifyShops() {
@@ -139,8 +142,10 @@ export default function AdminVerifyShops() {
 
   const filtered = stores?.filter(s => filter === 'all' ? true : s.status === filter) ?? [];
   const counts = {
-    approved: stores?.filter(s => s.status === 'approved').length ?? 0,
-    rejected: stores?.filter(s => s.status === 'rejected').length ?? 0,
+    approved:       stores?.filter(s => s.status === 'approved').length ?? 0,
+    applied:        stores?.filter(s => s.status === 'applied').length ?? 0,
+    pending:        stores?.filter(s => s.status === 'pending').length ?? 0,
+    rejected:       stores?.filter(s => s.status === 'rejected').length ?? 0,
     pending_review: stores?.filter(s => s.status === 'pending_review').length ?? 0,
     total: stores?.length ?? 0,
   };
@@ -170,21 +175,35 @@ export default function AdminVerifyShops() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-2 mb-5">
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-            <div className="text-2xl font-black text-emerald-700">{counts.approved}</div>
-            <div className="text-[10px] font-bold text-emerald-600 mt-0.5">公開中</div>
+        <div className="grid grid-cols-5 gap-1.5 mb-5">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2 text-center">
+            <div className="text-xl font-black text-emerald-700">{counts.approved}</div>
+            <div className="text-[9px] font-bold text-emerald-600 mt-0.5">公開中</div>
           </div>
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-            <div className="text-2xl font-black text-red-700">{counts.rejected}</div>
-            <div className="text-[10px] font-bold text-red-600 mt-0.5">非公開</div>
-          </div>
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center relative">
-            <div className="text-2xl font-black text-orange-700">{counts.pending_review}</div>
-            <div className="text-[10px] font-bold text-orange-600 mt-0.5">要確認</div>
-            {counts.pending_review > 0 && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-pulse" />
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-2 text-center relative">
+            <div className="text-xl font-black text-blue-700">{counts.applied}</div>
+            <div className="text-[9px] font-bold text-blue-600 mt-0.5">KYC審査中</div>
+            {counts.applied > 0 && (
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse" />
             )}
+          </div>
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-2 text-center relative">
+            <div className="text-xl font-black text-orange-700">{counts.pending}</div>
+            <div className="text-[9px] font-bold text-orange-600 mt-0.5">口座未登録</div>
+            {counts.pending > 0 && (
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse" />
+            )}
+          </div>
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-2 text-center relative">
+            <div className="text-xl font-black text-orange-700">{counts.pending_review}</div>
+            <div className="text-[9px] font-bold text-orange-600 mt-0.5">要確認</div>
+            {counts.pending_review > 0 && (
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse" />
+            )}
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-xl p-2 text-center">
+            <div className="text-xl font-black text-red-700">{counts.rejected}</div>
+            <div className="text-[9px] font-bold text-red-600 mt-0.5">非公開</div>
           </div>
         </div>
 
@@ -216,17 +235,24 @@ export default function AdminVerifyShops() {
             {/* Filter Tabs */}
             <div className="flex bg-muted/50 p-1 rounded-xl mb-5 shadow-inner gap-1 overflow-x-auto">
               {([
-                { key: 'all', label: `全て (${counts.total})` },
-                { key: 'pending_review', label: `要確認 (${counts.pending_review})` },
-                { key: 'approved', label: `公開中 (${counts.approved})` },
-                { key: 'rejected', label: `非公開 (${counts.rejected})` },
-              ] as { key: StoreFilter; label: string }[]).map(tab => (
+                { key: 'all',           label: `全て (${counts.total})` },
+                { key: 'applied',       label: `KYC審査中 (${counts.applied})`,   urgent: counts.applied > 0 },
+                { key: 'pending',       label: `口座未登録 (${counts.pending})`,   urgent: false },
+                { key: 'pending_review',label: `要確認 (${counts.pending_review})`, urgent: counts.pending_review > 0 },
+                { key: 'approved',      label: `公開中 (${counts.approved})` },
+                { key: 'rejected',      label: `非公開 (${counts.rejected})` },
+              ] as { key: StoreFilter; label: string; urgent?: boolean }[]).map(tab => (
                 <button
                   key={tab.key}
                   onClick={() => setFilter(tab.key)}
-                  className={`shrink-0 px-3 py-2 text-xs font-bold rounded-lg transition-all ${filter === tab.key ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                  className={`shrink-0 px-3 py-2 text-xs font-bold rounded-lg transition-all relative ${
+                    filter === tab.key ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                  }`}
                 >
                   {tab.label}
+                  {tab.urgent && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full" />
+                  )}
                 </button>
               ))}
             </div>
@@ -240,7 +266,9 @@ export default function AdminVerifyShops() {
                 <AlertCircle className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-muted-foreground font-medium">
                   {filter === 'pending_review' ? '要確認の店舗はありません'
-                    : filter === 'rejected' ? '非公開の店舗はありません'
+                    : filter === 'rejected'     ? '非公開の店舗はありません'
+                    : filter === 'applied'      ? 'KYC審査中の店舗はありません'
+                    : filter === 'pending'      ? '口座登録待ちの店舗はありません'
                     : '店舗が見つかりません'}
                 </p>
               </div>
@@ -313,6 +341,25 @@ export default function AdminVerifyShops() {
                               <CheckCircle className="w-4 h-4" /> 問題なし・継続
                             </button>
                           </div>
+                        </div>
+                      )}
+
+                      {store.status === 'applied' && (
+                        <div className="px-4 py-3 bg-blue-50 border-t border-blue-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-blue-600" />
+                            <span className="text-xs font-bold text-blue-700">Stripe KYC 審査中 — 完了で自動公開</span>
+                          </div>
+                          {store.stripeAccountId && (
+                            <span className="text-[10px] text-blue-500 font-mono">{store.stripeAccountId.slice(0, 14)}…</span>
+                          )}
+                        </div>
+                      )}
+
+                      {store.status === 'pending' && (
+                        <div className="px-4 py-3 bg-orange-50 border-t border-orange-100 flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-orange-600" />
+                          <span className="text-xs font-bold text-orange-700">口座登録が未完了です</span>
                         </div>
                       )}
 
