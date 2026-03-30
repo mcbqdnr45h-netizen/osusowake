@@ -215,10 +215,12 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
     const autoApprove = (await getSetting('auto_approve_stripe_verified')) === 'true';
 
     // ── 自動承認モード ON → 審査待ちなら即承認 ──────────────────────────────
-    if (autoApprove && (store.status === 'pending_review' || store.status === 'pending')) {
+    // 'applied' = 口座登録済みでStripe審査待ち（最も一般的なケース）
+    // 'pending' / 'pending_review' = 旧ステータス互換
+    if (autoApprove && (store.status === 'applied' || store.status === 'pending_review' || store.status === 'pending')) {
       await db
         .update(storesTable)
-        .set({ status: 'approved' as any, isActive: true })
+        .set({ status: 'approved' as any, isActive: true, stripeChargesEnabled: true })
         .where(eq(storesTable.id, store.id));
 
       console.log(`[stripe-webhook] ✅ 自動承認: store ${store.id} (${store.name})`);
@@ -256,6 +258,12 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
       res.json({ received: true, action: "auto_approved", storeId: store.id });
       return;
     }
+
+    // ── charges_enabled を DB に反映（自動承認ON/OFF共通） ─────────────────
+    await db
+      .update(storesTable)
+      .set({ stripeChargesEnabled: true })
+      .where(eq(storesTable.id, store.id));
 
     // ── 自動承認 OFF → 管理者に承認依頼メール（重複送信防止）───────────────
     const alreadySent = (store as any).stripeKycAdminEmailSent === true;
