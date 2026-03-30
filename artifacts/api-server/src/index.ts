@@ -299,6 +299,27 @@ async function runMigrations() {
     `);
     console.log('[migration] app_settings table ✅');
 
+    // ── ヒール: KYC完了済み(stripe_charges_enabled=true)なのに applied のまま残っている店舗を自動承認 ──
+    // auto_approve_stripe_verified が ON の場合に限り実行（冪等・何度実行しても安全）
+    try {
+      const healResult = await client.query(`
+        UPDATE stores
+        SET status = 'approved', is_active = true
+        WHERE status = 'applied'
+          AND stripe_charges_enabled = true
+          AND (SELECT value FROM app_settings WHERE key = 'auto_approve_stripe_verified') = 'true'
+        RETURNING id, name;
+      `);
+      if (healResult.rows.length > 0) {
+        const healed = healResult.rows.map((r: { id: number; name: string }) => `${r.id}:${r.name}`).join(', ');
+        console.log(`[migration] heal auto-approved ${healResult.rows.length} stuck stores: ${healed} ✅`);
+      } else {
+        console.log('[migration] heal: no stuck stores to approve ✅');
+      }
+    } catch (e) {
+      console.warn('[migration] heal skipped:', (e as Error).message?.split('\n')[0]);
+    }
+
     // ── stores.stripe_kyc_admin_email_sent 列 ─────────────────────────────────
     await client.query(`
       DO $$ BEGIN
