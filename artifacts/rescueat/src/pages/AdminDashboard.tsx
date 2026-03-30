@@ -710,7 +710,6 @@ export default function AdminDashboard() {
                 if (f.key === 'suspended')      return stores.filter(s => s.status === 'suspended' || s.status === 'rejected' || (s.status === 'approved' && !s.is_active)).length;
                 return stores.length;
               })();
-              void cnt;
               return (
                 <button key={f.key} onClick={() => { setStoreFilter(f.key); setShowAllStores(false); }}
                   className={`relative px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${storeFilter === f.key ? 'bg-foreground text-background' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
