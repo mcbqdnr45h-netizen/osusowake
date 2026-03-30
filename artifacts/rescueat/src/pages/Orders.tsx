@@ -282,12 +282,12 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
             <div className="flex items-end justify-between mt-6 pt-4 border-t-2 border-gray-800">
               <div className="font-sans text-xs text-gray-700 space-y-0.5">
                 <p className="font-bold text-sm text-gray-900">{storeName}</p>
-                <p className="text-gray-500">〒530-0001 大阪府大阪市北区（例）</p>
-                <p className="text-gray-500">TEL: 06-0000-0000（例）</p>
-                <p className="text-gray-500 mt-1">
-                  <span className="font-bold text-gray-700">適格請求書発行事業者</span><br />
-                  登録番号: T1234567890123（プレースホルダー）
-                </p>
+                {reservation.store?.address && (
+                  <p className="text-gray-500">{reservation.store.address}</p>
+                )}
+                {reservation.store?.phone && (
+                  <p className="text-gray-500">TEL: {reservation.store.phone}</p>
+                )}
               </div>
 
               {/* 電子印鑑（CSSで再現） */}
@@ -319,7 +319,8 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
 
             {/* ── フッター ─────────────── */}
             <p className="text-center text-[9px] text-gray-400 font-sans mt-4">
-              本書は電子領収書です。印刷してご使用いただけます。
+              本書はアプリ内「購入履歴」から発行した電子領収書です。<br />
+              印刷またはPDFとして保存してご使用ください。<br />
               Osusowake — お店の余ったおいしさを、あなたへ。
             </p>
           </div>
@@ -486,6 +487,12 @@ export default function Orders() {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="font-black text-foreground">¥{r.totalPrice.toLocaleString()}</span>
+                            {status === 'picked_up' && (
+                              <span className="flex items-center gap-0.5 bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full border border-primary/20">
+                                <Receipt className="w-3 h-3" />
+                                領収書
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
