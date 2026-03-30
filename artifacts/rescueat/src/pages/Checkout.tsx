@@ -116,7 +116,7 @@ export default function Checkout() {
       }
 
       const { url } = await res.json();
-      if (!url) throw new Error('Stripe URLが取得できませんでした');
+      if (!url) throw new Error('決済ページのURLが取得できませんでした');
 
       window.location.replace(url);
     } catch (err: any) {
@@ -264,14 +264,14 @@ export default function Checkout() {
               </div>
               <div>
                 <div className="font-bold">クレジットカード / その他</div>
-                <div className="text-xs text-muted-foreground">Stripe Checkout で安全に決済</div>
+                <div className="text-xs text-muted-foreground">安全な外部決済ページへ</div>
               </div>
               <div className="absolute top-0 right-0 bottom-0 w-1 bg-primary" />
             </div>
 
             <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
               <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <p>決済はStripeの安全なページで処理されます。カード情報が当アプリに保存されることはありません。</p>
+              <p>決済は世界標準のセキュアなシステムで処理されます。カード情報が当アプリに保存されることはありません。</p>
             </div>
           </motion.div>
 
@@ -289,7 +289,7 @@ export default function Checkout() {
               {isRedirecting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Stripeへ移動中...
+                  安全なページへ移動中...
                 </>
               ) : expired ? (
                 <>
@@ -299,14 +299,14 @@ export default function Checkout() {
               ) : (
                 <>
                   <ExternalLink className="w-5 h-5" />
-                  ¥{reservation.totalPrice.toLocaleString()} を Stripe で支払う
+                  購入を確定する（¥{reservation.totalPrice.toLocaleString()}）
                 </>
               )}
             </button>
 
             {!expired && (
               <p className="text-center text-[11px] text-muted-foreground mt-2.5">
-                Stripeのテスト環境です。カード番号: 4242 4242 4242 4242
+                テスト環境です。カード番号: 4242 4242 4242 4242
               </p>
             )}
           </motion.div>

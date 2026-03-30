@@ -275,7 +275,7 @@ function AddCardForm({ onSave, onCancel }: {
       {/* Security note */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-xl px-3 py-2">
         <Lock className="w-3.5 h-3.5 shrink-0 text-primary" />
-        カード情報はStripeにより安全にトークン化されます。サーバーには保存されません。
+        カード情報は安全にトークン化されます。当アプリのサーバーには保存されません。
       </div>
 
       <button
@@ -403,7 +403,7 @@ export default function PaymentMethods() {
                 { icon: <Lock className="w-3.5 h-3.5" />, label: 'PCI DSS準拠', sub: '最高水準のセキュリティ' },
                 { icon: <Wifi className="w-3.5 h-3.5" />, label: 'SSL/TLS暗号化', sub: '全通信を暗号化' },
                 { icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'カード番号不保持', sub: 'サーバー非保存' },
-                { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: 'Stripe利用', sub: '世界標準の決済基盤' },
+                { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: '国際認定基盤', sub: '世界標準の決済システム' },
               ].map(({ icon, label, sub }) => (
                 <div key={label} className="flex items-start gap-2 bg-white dark:bg-slate-800 rounded-xl p-2.5">
                   <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">

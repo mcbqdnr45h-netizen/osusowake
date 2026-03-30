@@ -175,7 +175,7 @@ export default function SignUp() {
               <ul className="space-y-1.5">
                 {[
                   '余剰食品を手軽に出品・管理',
-                  '売上は毎週月曜に自動振込（Stripe Connect）',
+                  '売上は毎週月曜に自動振込',
                   'プラットフォーム手数料は25%のみ',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-foreground font-medium">
@@ -325,7 +325,7 @@ export default function SignUp() {
             {isStore && (
               <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
                 <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-                <span>登録情報はStripeとの連携に使用されます。第三者への提供はありません。</span>
+                <span>登録情報は決済システムとの連携に使用されます。第三者への提供はありません。</span>
               </div>
             )}
 
