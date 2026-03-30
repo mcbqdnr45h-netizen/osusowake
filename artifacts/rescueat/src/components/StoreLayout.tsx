@@ -57,15 +57,20 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
             <NotificationsBell />
 
             {/* ステータスバッジ */}
-            {store && (
-              <span className={`text-[10px] font-black px-2 py-1 rounded-full shrink-0 ${
-                store.status === 'approved'
-                  ? 'bg-green-50 text-green-700 border border-green-200'
-                  : 'bg-amber-50 text-amber-700 border border-amber-200'
-              }`}>
-                {store.status === 'approved' ? '✓ 承認済み' : '審査中'}
-              </span>
-            )}
+            {store && (() => {
+              const s = store.status;
+              const cfg =
+                s === 'approved'                          ? { label: '✓ 承認済み', cls: 'bg-green-50 text-green-700 border border-green-200' }
+                : s === 'rejected'                        ? { label: '❌ 却下',    cls: 'bg-red-50 text-red-600 border border-red-200' }
+                : s === 'suspended'                       ? { label: '停止中',     cls: 'bg-gray-100 text-gray-500 border border-gray-200' }
+                : s === 'applied'                         ? { label: '本人確認中', cls: 'bg-blue-50 text-blue-700 border border-blue-200' }
+                : /* pending / pending_review / unknown */  { label: '審査中',     cls: 'bg-amber-50 text-amber-700 border border-amber-200' };
+              return (
+                <span className={`text-[10px] font-black px-2 py-1 rounded-full shrink-0 ${cfg.cls}`}>
+                  {cfg.label}
+                </span>
+              );
+            })()}
           </div>
         </header>
       )}

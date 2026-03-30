@@ -12,7 +12,7 @@ import {
 import {
   Plus, Minus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
-  History, CreditCard, Zap, Pencil, Trash2, Save, Store,
+  History, CreditCard, Zap, Pencil, Trash2, Save, Store, XCircle,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1422,6 +1422,60 @@ export default function StoreDashboard() {
     );
   }
 
+  // ─── 却下 ────────────────────────────────────────────────────────────
+  if (store.status === 'rejected') {
+    return (
+      <Layout>
+        <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
+          <div className="text-center max-w-sm">
+            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
+              <XCircle className="w-10 h-10 text-red-400" />
+            </div>
+            <h2 className="text-xl font-black mb-2">店舗申請が却下されました</h2>
+            <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+              {store.rejectionReason
+                ? `却下理由：${store.rejectionReason}`
+                : '申請内容を再確認のうえ、再申請してください。'}
+            </p>
+            <p className="text-xs text-muted-foreground mb-6">ご不明な点はLINEサポートまでお問い合わせください。</p>
+            <a
+              href="/store/bank-setup"
+              className="inline-flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl hover:bg-primary/90 transition-colors"
+            >
+              再申請する
+            </a>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // ─── 口座登録済み・Stripe KYC審査待ち ─────────────────────────────────
+  if (store.status === 'applied') {
+    return (
+      <Layout>
+        <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
+          <div className="text-center max-w-sm">
+            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-5">
+              <Clock className="w-10 h-10 text-blue-400" />
+            </div>
+            <h2 className="text-xl font-black mb-2">決済の本人確認中</h2>
+            <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+              口座情報を受け付けました。決済システムによる本人確認がバックグラウンドで進行中です。
+            </p>
+            <p className="text-xs text-muted-foreground mb-6">通常3〜5営業日で完了します。完了次第、自動で出品が開始できるようになります。</p>
+            <a
+              href="/mypage"
+              className="inline-flex items-center gap-2 bg-secondary text-foreground font-bold px-6 py-3 rounded-2xl hover:bg-secondary/80 transition-colors"
+            >
+              マイページへ
+            </a>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   // ─── 未承認（管理者審査待ち）────────────────────────────────────────────
   if (store.status === 'pending' || store.status === 'pending_review') {
     return (
@@ -1435,7 +1489,7 @@ export default function StoreDashboard() {
             <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
               店舗情報を確認しています。
             </p>
-            <p className="text-xs text-muted-foreground mb-6">審査完了後にダッシュボードがご利用いただけます。</p>
+            <p className="text-xs text-muted-foreground mb-6">通常1〜2営業日で審査完了後にダッシュボードがご利用いただけます。</p>
             <a
               href="/mypage"
               className="inline-flex items-center gap-2 bg-secondary text-foreground font-bold px-6 py-3 rounded-2xl hover:bg-secondary/80 transition-colors"
