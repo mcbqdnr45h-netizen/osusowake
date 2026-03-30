@@ -216,9 +216,9 @@ router.post("/stores/:storeId/bags", async (req, res) => {
   try {
     const { storeId } = CreateBagParams.parse(req.params);
 
-    // 店舗が approved でない場合はバッグ作成をブロック
+    // 店舗が approved かつ Stripe 連携済みでないとバッグ作成をブロック
     const [storeCheck] = await db
-      .select({ status: storesTable.status })
+      .select({ status: storesTable.status, stripeAccountId: storesTable.stripeAccountId })
       .from(storesTable)
       .where(eq(storesTable.id, storeId))
       .limit(1);
@@ -227,6 +227,9 @@ router.post("/stores/:storeId/bags", async (req, res) => {
     }
     if (storeCheck.status !== "approved") {
       return res.status(403).json({ error: "store_not_approved", message: "店舗が承認されていないためバッグを出品できません" });
+    }
+    if (!storeCheck.stripeAccountId) {
+      return res.status(403).json({ error: "stripe_not_connected", message: "Stripe決済が未連携のため出品できません。銀行口座の登録を完了してください。" });
     }
 
     const body = CreateBagBody.parse(req.body);
@@ -401,15 +404,19 @@ router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
       return;
     }
 
-    // 公開ON操作の場合：店舗が approved でないとブロック
+    // 公開ON操作の場合：承認済み かつ Stripe 連携済みでないとブロック
     if (body.isActive === true) {
       const [storeCheck] = await db
-        .select({ status: storesTable.status })
+        .select({ status: storesTable.status, stripeAccountId: storesTable.stripeAccountId })
         .from(storesTable)
         .where(eq(storesTable.id, storeId))
         .limit(1);
       if (!storeCheck || storeCheck.status !== "approved") {
         res.status(403).json({ error: "store_not_approved", message: "店舗が承認されていないためバッグを公開できません" });
+        return;
+      }
+      if (!storeCheck.stripeAccountId) {
+        res.status(403).json({ error: "stripe_not_connected", message: "Stripe決済が未連携のため公開できません。銀行口座の登録を完了してください。" });
         return;
       }
     }

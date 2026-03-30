@@ -1027,8 +1027,13 @@ export default function AdminDashboard() {
                                 }
                               </div>
                             )}
-                            {/* Stripe File ID 警告（payouts_enabled=true or file_id 取得済みなら非表示） */}
-                            {store.stripe_account_id && storeDetails[store.id] && !storeDetails[store.id].stripe_license_file_id && store.stripe_payouts_enabled !== true && (
+                            {/* Stripe File ID 警告
+                                非表示条件:
+                                  - payouts_enabled = true（Stripe審査通過）
+                                  - または charges_enabled = true（決済有効 = Stripe書類送信済み）
+                                  - または store が approved かつ charges_enabled = true
+                            */}
+                            {store.stripe_account_id && storeDetails[store.id] && !storeDetails[store.id].stripe_license_file_id && store.stripe_payouts_enabled !== true && store.stripe_charges_enabled !== true && (
                               <div className="mb-2 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-[11px] font-bold text-amber-700">
                                 <FileWarning className="w-3.5 h-3.5 shrink-0" />
                                 ⚠️ 営業許可証が Stripe に未送信です（stripe-sync ボタンで再送信可能）
