@@ -3,6 +3,7 @@ import { db, pool } from "@workspace/db";
 import { storesTable, notificationsTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { Resend } from "resend";
+import { sendStoreApprovalEmail } from "../utils/emails";
 
 const router = Router();
 
@@ -236,6 +237,25 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         });
       } catch (e) {
         console.error("[stripe-webhook] notification insert error:", e);
+      }
+
+      // ── 店舗オーナーに承認メール送信（approval_email_sent フラグで重複防止）──
+      if (!(store as any).approvalEmailSent) {
+        try {
+          const ownerRow = await pool.query<{ email: string }>(
+            `SELECT email FROM users WHERE id = $1 LIMIT 1`,
+            [store.ownerId],
+          );
+          const ownerEmail = ownerRow.rows[0]?.email;
+          if (ownerEmail) {
+            const sent = await sendStoreApprovalEmail({ ownerEmail, storeName: store.name });
+            if (sent) {
+              await db.execute(sql`UPDATE stores SET approval_email_sent = true WHERE id = ${store.id}`);
+            }
+          }
+        } catch (e) {
+          console.error("[stripe-webhook] 店舗承認メール送信エラー:", e);
+        }
       }
 
       // 自動承認の場合でも管理者にメール送信（KYC完了記録として）
