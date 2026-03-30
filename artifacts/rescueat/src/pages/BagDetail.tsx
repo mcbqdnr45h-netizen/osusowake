@@ -412,7 +412,7 @@ export default function BagDetail() {
         )}
       </AnimatePresence>
 
-      <div className="relative max-w-3xl mx-auto md:py-8 md:px-4">
+      <div className="relative w-full max-w-3xl mx-auto md:py-8 md:px-4">
 
         {/* Mobile Header Back Button */}
         <div className="absolute top-4 left-4 z-50 md:hidden">

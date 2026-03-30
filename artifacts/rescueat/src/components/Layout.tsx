@@ -264,7 +264,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
       </header>}
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
-      <main className="flex-1 min-h-0 w-full relative flex flex-col overflow-x-hidden">
+      <main className="flex-1 min-h-0 w-full relative flex flex-col">
         <AnimatePresence mode="wait">
           <motion.div
             key={location}
@@ -272,7 +272,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
             transition={{ duration: 0.20, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 flex flex-col"
+            className="flex-1 flex flex-col w-full min-w-0"
           >
             {children}
           </motion.div>
