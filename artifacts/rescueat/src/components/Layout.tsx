@@ -22,7 +22,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   const [location] = useLocation();
   const { isApprovedOwner } = useMyStore();
   const { currentStore: activeStore, stores: ownerStores } = useMyStoresContext();
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +37,6 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   useEffect(() => { setMenuOpen(false); }, [location]);
 
   const isStoreOwner = profile?.role === 'store_owner';
-  const { isAdmin } = useAuth();
 
   const storeNavItems = [
     { href: '/store/dashboard', icon: Store,     label: '出品管理', isUser: false },
