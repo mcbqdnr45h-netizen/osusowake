@@ -13,6 +13,7 @@ export type MyStore = {
   ownerId: string | null;
   stripeAccountId: string | null;
   stripeChargesEnabled: boolean | null;
+  stripePayoutsEnabled: boolean | null;
   imageUrl: string | null;
   description: string | null;
   openTime: string | null;

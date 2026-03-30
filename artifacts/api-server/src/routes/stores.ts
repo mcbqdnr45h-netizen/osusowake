@@ -49,6 +49,7 @@ const storeSelectFields = {
   createdAt: storesTable.createdAt,
   stripeAccountId: storesTable.stripeAccountId,
   stripeChargesEnabled: storesTable.stripeChargesEnabled,
+  stripePayoutsEnabled: storesTable.stripePayoutsEnabled,
   holiday: storesTable.holiday,
   pickupHours: storesTable.pickupHours,
   rejectionReason: storesTable.rejectionReason,

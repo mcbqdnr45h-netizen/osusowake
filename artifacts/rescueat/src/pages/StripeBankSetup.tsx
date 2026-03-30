@@ -697,7 +697,7 @@ export default function StripeBankSetup() {
           </div>
         </div>
 
-        {/* トップバナー：却下時は赤い却下理由バナー、通常時は審査通過バナー */}
+        {/* トップバナー：却下→赤 / Stripe入金有効→お祝い / それ以外→次のステップ案内 */}
         {store.status === 'rejected' ? (
           <motion.div
             initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
@@ -718,7 +718,8 @@ export default function StripeBankSetup() {
               </p>
             </div>
           </motion.div>
-        ) : (
+        ) : store.stripePayoutsEnabled === true ? (
+          /* ✅ Stripe の payouts_enabled が true の場合のみお祝い表示 */
           <motion.div
             initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, type: 'spring', stiffness: 200, damping: 20 }}
@@ -734,12 +735,37 @@ export default function StripeBankSetup() {
                 </div>
                 <div>
                   <p className="text-white/80 text-[11px] font-bold tracking-widest uppercase leading-none mb-0.5">CONGRATULATIONS</p>
-                  <p className="text-white font-black text-lg leading-tight">審査が通過しました！</p>
+                  <p className="text-white font-black text-lg leading-tight">Stripe審査が完了しました！</p>
                 </div>
               </div>
               <p className="text-white/90 text-sm leading-relaxed">
-                おめでとうございます🎊 以下の情報を登録して、<strong className="text-white">おすそわけ袋の出品</strong>を始めましょう。
+                おめでとうございます🎊 売上の受け取りが有効になりました。<strong className="text-white">おすそわけ袋の出品</strong>を始めましょう。
               </p>
+            </div>
+          </motion.div>
+        ) : (
+          /* 📋 Stripe審査が完了するまでは次のステップ案内を表示 */
+          <motion.div
+            initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, type: 'spring', stiffness: 200, damping: 20 }}
+            className="rounded-2xl mb-5 overflow-hidden border border-orange-200"
+            style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)' }}
+          >
+            <div className="px-5 py-3 flex items-center gap-2" style={{ background: 'linear-gradient(90deg, #FF8C00 0%, #FF6B00 100%)' }}>
+              <FileText className="w-4 h-4 text-white shrink-0" />
+              <p className="text-white font-black text-sm">STEP 2 ／ 口座・本人確認の登録</p>
+            </div>
+            <div className="px-5 py-4 space-y-2">
+              <p className="text-sm font-black text-orange-900">基本情報の入力が完了しました</p>
+              <p className="text-xs text-orange-700 leading-relaxed">
+                次に、<strong>口座情報・本人確認書類・営業許可証</strong>を登録してください。登録後にStripeの審査が行われ、審査が通ると売上の受け取りが可能になります。
+              </p>
+              <div className="flex items-start gap-2 pt-1">
+                <span className="text-orange-400 text-xs mt-0.5">⚠️</span>
+                <p className="text-[11px] text-orange-600 leading-relaxed">
+                  この画面で登録が完了するまで、出品した商品の売上は受け取れません。必ず最後まで入力して送信してください。
+                </p>
+              </div>
             </div>
           </motion.div>
         )}
