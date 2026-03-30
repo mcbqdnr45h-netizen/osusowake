@@ -216,9 +216,13 @@ router.post("/stores/:storeId/bags", async (req, res) => {
   try {
     const { storeId } = CreateBagParams.parse(req.params);
 
-    // 店舗が approved かつ Stripe 連携済みでないとバッグ作成をブロック
+    // 店舗が approved かつ Stripe 連携・KYC完了済みでないとバッグ作成をブロック
     const [storeCheck] = await db
-      .select({ status: storesTable.status, stripeAccountId: storesTable.stripeAccountId })
+      .select({
+        status: storesTable.status,
+        stripeAccountId: storesTable.stripeAccountId,
+        stripeChargesEnabled: storesTable.stripeChargesEnabled,
+      })
       .from(storesTable)
       .where(eq(storesTable.id, storeId))
       .limit(1);
@@ -229,7 +233,10 @@ router.post("/stores/:storeId/bags", async (req, res) => {
       return res.status(403).json({ error: "store_not_approved", message: "店舗が承認されていないためバッグを出品できません" });
     }
     if (!storeCheck.stripeAccountId) {
-      return res.status(403).json({ error: "stripe_not_connected", message: "Stripe決済が未連携のため出品できません。銀行口座の登録を完了してください。" });
+      return res.status(403).json({ error: "stripe_not_connected", message: "銀行口座の登録が完了していないため出品できません。口座情報を登録してください。" });
+    }
+    if (!storeCheck.stripeChargesEnabled) {
+      return res.status(403).json({ error: "kyc_pending", message: "決済の本人確認が完了していないため出品できません。審査通過後（通常3〜5営業日）に出品が開始できます。" });
     }
 
     const body = CreateBagBody.parse(req.body);

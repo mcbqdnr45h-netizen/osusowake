@@ -5,7 +5,7 @@ import { StoreSelector } from '@/components/StoreSelector';
 import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
 import {
   Plus, Minus, Package2, AlertCircle, Loader2,
-  ChevronUp, ChevronDown, Zap,
+  ChevronUp, ChevronDown, Zap, Lock, Clock,
 } from 'lucide-react';
 import { ImageUpload } from '@/components/ImageUpload';
 import { CategoryPicker } from '@/components/CategoryPicker';
@@ -225,12 +225,31 @@ export default function StoreBagsPage() {
     return 0;
   });
 
+  // KYC（決済本人確認）が完了していない場合は出品をブロック
+  const kycPending = store && store.stripeChargesEnabled !== true;
+
   return (
     <StoreLayout>
       <div className="max-w-2xl mx-auto w-full px-4 py-5 space-y-5">
 
         {/* ── 複数店舗セレクター ── */}
         {stores.length > 1 && <StoreSelector />}
+
+        {/* ── KYC審査中バナー ── */}
+        {kycPending && (
+          <div className="flex gap-3 items-start bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <div className="mt-0.5 shrink-0 bg-amber-100 rounded-full p-1.5">
+              <Clock className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-800">決済の本人確認が審査中です</p>
+              <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                口座登録後、決済システムによる本人確認が完了するまで出品できません。
+                通常3〜5営業日で完了します。審査通過後に自動で出品が解除されます。
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ── ヘッダー ── */}
         <div className="flex items-center justify-between">
@@ -241,10 +260,15 @@ export default function StoreBagsPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowForm(v => !v)}
-            className="flex items-center gap-2 bg-primary text-white font-black text-sm px-4 py-2.5 rounded-xl shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all"
+            onClick={() => !kycPending && setShowForm(v => !v)}
+            disabled={!!kycPending}
+            className={`flex items-center gap-2 font-black text-sm px-4 py-2.5 rounded-xl transition-all ${
+              kycPending
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95'
+            }`}
           >
-            <Plus className="w-4 h-4" />
+            {kycPending ? <Lock className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             新規出品
           </button>
         </div>
