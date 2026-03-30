@@ -6,6 +6,7 @@ import { SurpriseBagWithStore } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
+import { formatPickupTime } from '@/lib/utils';
 import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
 import { useToast } from '@/hooks/use-toast';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
@@ -304,7 +305,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Clock className="w-2.5 h-2.5 text-primary/70 shrink-0" />
                       <span className="font-medium truncate">
-                        {bag.pickupStart}{bag.pickupEnd ? `〜${bag.pickupEnd}` : ''}
+                        {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
                       </span>
                     </div>
                   )}
@@ -343,7 +344,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
             <div className="flex items-center justify-between mb-3 gap-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 px-2.5 py-1.5 rounded-lg">
                 <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="font-semibold">受取 {bag.pickupStart}{bag.pickupEnd ? ` 〜 ${bag.pickupEnd}` : '〜'}</span>
+                <span className="font-semibold">受取 {formatPickupTime(bag.pickupStart, bag.pickupEnd)}</span>
               </div>
               <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg
                 ${isLowStock

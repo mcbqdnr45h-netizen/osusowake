@@ -5,6 +5,7 @@ import { useUserId } from '@/hooks/use-user';
 import { useAuth } from '@/contexts/AuthContext';
 import { useListReservations, useCancelReservation } from '@workspace/api-client-react';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
+import { formatPickupTime } from '@/lib/utils';
 import { ja } from 'date-fns/locale';
 import { Ticket, Clock, Star, PenLine, X, CheckCircle2, CreditCard, Ban, Trash2, Package, AlertCircle } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
@@ -313,7 +314,7 @@ export default function MyReservations() {
                                 {(res.bag?.pickupStart || res.bag?.pickupEnd) && (
                                   <p className="text-[10px] text-muted-foreground/60 mt-0.5 flex items-center gap-0.5">
                                     <Clock className="w-2.5 h-2.5 shrink-0" />
-                                    <span className="truncate">受取 {res.bag.pickupStart}–{res.bag.pickupEnd}</span>
+                                    <span className="truncate">{formatPickupTime(res.bag.pickupStart, res.bag.pickupEnd, res.createdAt)}</span>
                                   </p>
                                 )}
 

@@ -5,6 +5,7 @@ import {
   ChevronRight, Home, Copy, Check, Sparkles, Receipt,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatPickupTime } from '@/lib/utils';
 import confetti from 'canvas-confetti';
 
 
@@ -180,7 +181,7 @@ export default function CheckoutSuccess() {
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">受取時間</p>
                   <p className="font-black text-foreground text-base text-amber-700">
-                    {receipt.pickupStart}{receipt.pickupEnd ? ` 〜 ${receipt.pickupEnd}` : ''}
+                    {formatPickupTime(receipt.pickupStart, receipt.pickupEnd)}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">この時間内にお受取りください</p>
                 </div>

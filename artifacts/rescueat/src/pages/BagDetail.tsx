@@ -3,6 +3,7 @@ import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon } from '@/lib/category-utils';
+import { formatPickupTime } from '@/lib/utils';
 import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
@@ -522,7 +523,7 @@ export default function BagDetail() {
                 {bag.pickupStart && (
                   <span className="inline-flex items-center gap-1.5 bg-secondary text-foreground font-semibold text-xs px-3 py-1.5 rounded-full">
                     <Clock className="w-3.5 h-3.5 text-primary" />
-                    受取 {bag.pickupStart}{bag.pickupEnd ? `〜${bag.pickupEnd}` : '〜'}
+                    受取 {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
                   </span>
                 )}
                 {bag.store.lat && bag.store.lng && userCoords && (() => {
