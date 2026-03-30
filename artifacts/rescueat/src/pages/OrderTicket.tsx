@@ -65,34 +65,34 @@ function SixDigitCode({ code }: { code: string }) {
   const second = digits.slice(3, 6);
 
   return (
-    <div className="flex items-center justify-center gap-3 select-none">
+    <div className="flex items-center justify-center gap-2 select-none w-full max-w-full">
       {/* 前3桁 */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-1">
         {first.split('').map((d, i) => (
           <motion.div
             key={`a${i}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.06 }}
-            className="w-11 h-14 bg-primary/10 border-2 border-primary/25 rounded-xl flex items-center justify-center"
+            className="w-8 h-11 bg-primary/10 border-2 border-primary/25 rounded-xl flex items-center justify-center"
           >
-            <span className="font-mono font-black text-3xl text-primary tracking-tight">{d}</span>
+            <span className="font-mono font-black text-[22px] text-primary tracking-tight">{d}</span>
           </motion.div>
         ))}
       </div>
       {/* セパレーター */}
-      <span className="text-3xl font-black text-primary/30 mb-1">–</span>
+      <span className="text-lg font-black text-primary/30 mb-0.5 shrink-0">–</span>
       {/* 後3桁 */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-1">
         {second.split('').map((d, i) => (
           <motion.div
             key={`b${i}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: (i + 3) * 0.06 }}
-            className="w-11 h-14 bg-primary/10 border-2 border-primary/25 rounded-xl flex items-center justify-center"
+            className="w-8 h-11 bg-primary/10 border-2 border-primary/25 rounded-xl flex items-center justify-center"
           >
-            <span className="font-mono font-black text-3xl text-primary tracking-tight">{d}</span>
+            <span className="font-mono font-black text-[22px] text-primary tracking-tight">{d}</span>
           </motion.div>
         ))}
       </div>
@@ -323,7 +323,7 @@ export default function OrderTicket() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-md mx-auto pb-10">
+      <div className="max-w-md mx-auto pb-10 overflow-x-hidden w-full">
 
         {/* ヘッダー */}
         <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/40"
