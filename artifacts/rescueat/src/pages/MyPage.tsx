@@ -391,7 +391,7 @@ export default function MyPage() {
               <div className="flex-1 min-w-0">
                 <p className="font-black text-foreground text-base">申請受付完了 — 審査中</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  口座・本人確認情報を受け付けました。Stripeの審査がバックグラウンドで進行中です。
+                  口座・本人確認情報を受け付けました。決済システムの審査がバックグラウンドで進行中です。通常3〜5営業日で完了します。
                 </p>
               </div>
               <span className="ml-auto text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded-full shrink-0">審査中</span>
@@ -540,8 +540,14 @@ export default function MyPage() {
                       <Clock className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-bold text-foreground text-sm">店舗申請 — 審査中</div>
-                      <div className="text-xs text-muted-foreground">1〜2営業日以内に結果をお知らせします</div>
+                      <div className="font-bold text-foreground text-sm">
+                        {store?.status === 'applied' ? '決済の本人確認 — 審査中' : '店舗申請 — 審査中'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {store?.status === 'applied'
+                          ? '通常3〜5営業日で完了します'
+                          : '1〜2営業日以内に結果をお知らせします'}
+                      </div>
                     </div>
                     <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">審査中</span>
                   </Link>
@@ -753,8 +759,14 @@ export default function MyPage() {
                           <Clock className="w-4 h-4" />
                         </div>
                         <div className="flex-1">
-                          <div className="font-bold text-foreground text-sm">店舗申請 — 審査中</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">1〜2営業日以内に結果をお知らせします</div>
+                          <div className="font-bold text-foreground text-sm">
+                            {store?.status === 'applied' ? '決済の本人確認 — 審査中' : '店舗申請 — 審査中'}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {store?.status === 'applied'
+                              ? '通常3〜5営業日で完了します'
+                              : '1〜2営業日以内に結果をお知らせします'}
+                          </div>
                         </div>
                         <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">審査中</span>
                       </Link>
