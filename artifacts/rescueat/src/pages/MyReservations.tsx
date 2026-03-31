@@ -7,7 +7,7 @@ import { useListReservations, useCancelReservation } from '@workspace/api-client
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { formatPickupTime } from '@/lib/utils';
 import { ja } from 'date-fns/locale';
-import { Ticket, Clock, Star, PenLine, X, CheckCircle2, CreditCard, Ban, Trash2, Package, AlertCircle } from 'lucide-react';
+import { Ticket, Clock, Star, PenLine, X, CheckCircle2, CreditCard, Ban, Trash2, Package, AlertCircle, RefreshCcw } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -35,7 +35,10 @@ function isPickupExpired(pickupEnd?: string | null, createdAt?: string): boolean
   const h = parseInt(hStr ?? '0', 10);
   const m = parseInt(mStr ?? '0', 10);
   if (isNaN(h) || isNaN(m)) return false;
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+  // "00:00" は深夜0時（翌日開始）を意味するので翌日の 00:00 として扱う
+  const end = (h === 0 && m === 0)
+    ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0)
+    : new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
   return now > end;
 }
 
@@ -362,14 +365,26 @@ export default function MyReservations() {
                                       )
                                     )}
                                     {showDismiss && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setConfirmingId(res.id)}
-                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
-                                      >
-                                        <X className="w-3 h-3" />
-                                        削除
-                                      </button>
+                                      <>
+                                        {/* 再購入ボタン */}
+                                        {(res.bag?.id ?? res.bagId) && (
+                                          <Link href={`/bags/${res.bag?.id ?? res.bagId}`}>
+                                            <span className="inline-flex items-center gap-1.5 bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-primary/20 active:scale-95 transition-transform cursor-pointer">
+                                              <RefreshCcw className="w-3 h-3" />
+                                              再購入する
+                                            </span>
+                                          </Link>
+                                        )}
+                                        {/* 削除ボタン */}
+                                        <button
+                                          type="button"
+                                          onClick={() => setConfirmingId(res.id)}
+                                          className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                                        >
+                                          <X className="w-3 h-3" />
+                                          削除
+                                        </button>
+                                      </>
                                     )}
                                   </div>
                                 )}
