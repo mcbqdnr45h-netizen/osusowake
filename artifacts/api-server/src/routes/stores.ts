@@ -1975,7 +1975,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
                 url: businessUrl,
                 product_description: kycData.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
                 ...(businessType === "company"
-                  ? { name: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト" }
+                  ? { name: kycData.companyNameKanji?.trim() || store.name || (isTestKeyStep1 ? "株式会社テスト" : undefined) }
                   : {}),
               },
               // JP では service_agreement: 'full' が必須
@@ -2009,6 +2009,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
     } else {
       console.log(`[bank-setup] STEP1 Updating existing Stripe Account ${accountId}… businessType=${businessType}`);
+      const isTestKeyStep1Upd = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
       const step1UpdPayload: Record<string, any> = {
         business_type:    businessType,
         business_profile: {
@@ -2016,14 +2017,13 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
           url: businessUrl,
           product_description: kycData.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
           ...(businessType === "company"
-            ? { name: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト" }
+            ? { name: kycData.companyNameKanji?.trim() || store.name || (isTestKeyStep1Upd ? "株式会社テスト" : undefined) }
             : {}),
         },
         tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
         settings:       { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
       };
       if (businessType === "company") {
-        const isTestKeyStep1Upd = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
         // ⚠️ JP では company.structure を送ると全値エラーになるため省略
         // テストモードのみ偽値フォールバックを使用
         step1UpdPayload.company = {
@@ -2089,7 +2089,9 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       product_description: k.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
     };
     if (businessType === "company") {
-      bizProfile.name = k.companyNameKanji?.trim() || store.name || "株式会社テスト";
+      const isTestKeyBizProfile = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
+      const bpName = k.companyNameKanji?.trim() || store.name || (isTestKeyBizProfile ? "株式会社テスト" : undefined);
+      if (bpName) bizProfile.name = bpName;
     }
 
     const step4Payload: Record<string, any> = {
