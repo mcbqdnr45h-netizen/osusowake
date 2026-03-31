@@ -1566,8 +1566,9 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       }
       if (representative.phone?.trim()) indiv.phone = toE164Japan(representative.phone);
       if (representative.email?.trim()) indiv.email = representative.email;
-      // JP 個人事業主必須: マイナンバーと PEP 区分
-      indiv.id_number          = "000000000000";
+      // JP 個人事業主: 政治的関与は常に送信。id_number はテストモード専用の偽値のみ
+      const isTestKeyKyc = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
+      if (isTestKeyKyc) indiv.id_number = "000000000000";
       indiv.political_exposure = "none";
 
       if (Object.keys(indiv).length > 0) updateParams["individual"] = indiv;
@@ -1955,8 +1956,9 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       // ⚠️ JP では company.structure を送ると全値エラーになるため省略
       const isTestKeyStep1 = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
       const step1CompanyPayload: Record<string, any> = businessType === "company" ? {
-        name_kanji: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト",
-        name_kana:  kycData.companyNameKana?.trim()  || "テスト",
+        // テストモードのみ偽値フォールバックを使用。本番では必ずフォーム入力値を使う
+        name_kanji: kycData.companyNameKanji?.trim() || store.name || (isTestKeyStep1 ? "株式会社テスト" : undefined),
+        name_kana:  kycData.companyNameKana?.trim()  || (isTestKeyStep1 ? "テスト" : undefined),
         // company.name（ラテン文字）は Stripe JP で必須
         name: kycData.companyNameLatin?.trim() || (isTestKeyStep1 ? "Kabushiki Gaisha Test" : undefined),
       } : {};
@@ -2021,10 +2023,12 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         settings:       { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
       };
       if (businessType === "company") {
+        const isTestKeyStep1Upd = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
         // ⚠️ JP では company.structure を送ると全値エラーになるため省略
+        // テストモードのみ偽値フォールバックを使用
         step1UpdPayload.company = {
-          name_kanji: kycData.companyNameKanji?.trim() || store.name || "株式会社テスト",
-          name_kana:  kycData.companyNameKana?.trim()  || "テスト",
+          name_kanji: kycData.companyNameKanji?.trim() || store.name || (isTestKeyStep1Upd ? "株式会社テスト" : undefined),
+          name_kana:  kycData.companyNameKana?.trim()  || (isTestKeyStep1Upd ? "テスト" : undefined),
         };
       }
       try {
@@ -2097,10 +2101,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 
     if (businessType === "company") {
       const isTestKeyStep4 = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
-      const companyNameFallback = store.name ?? "株式会社テスト";
       const companyObj: Record<string, any> = {
-        name_kanji: k.companyNameKanji?.trim() || companyNameFallback,
-        name_kana:  k.companyNameKana?.trim()  || companyNameFallback,
+        // 本番では必ずフォーム入力値を使う。テストモードのみ偽値フォールバックを許可
+        name_kanji: k.companyNameKanji?.trim() || store.name || (isTestKeyStep4 ? "株式会社テスト" : undefined),
+        name_kana:  k.companyNameKana?.trim()  || (isTestKeyStep4 ? "カブシキガイシャテスト" : undefined),
       };
       // company.name（ラテン文字社名）は Stripe JP で必須。未入力時はテストモードのみフォールバック
       companyObj.name = k.companyNameLatin?.trim() || (isTestKeyStep4 ? "Kabushiki Gaisha Test" : undefined);
@@ -2111,7 +2115,9 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
       step4Payload.company = companyObj;
     } else {
-      indiv.id_number          = "000000000000";
+      const isTestKeyStep4 = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
+      // id_number はテストモード専用の偽値。本番では書類審査に委ねるため送信しない
+      if (isTestKeyStep4) indiv.id_number = "000000000000";
       indiv.political_exposure = "none";
       if (Object.keys(indiv).length > 0) step4Payload.individual = indiv;
     }
@@ -2456,6 +2462,11 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
   const stripeKey = process.env["STRIPE_SECRET_KEY"];
   if (!stripeKey) return res.status(503).json({ error: "stripe_not_configured" });
 
+  // ⚠️ このルートはダミーデータを送信するためテストモード専用
+  if (!stripeKey.startsWith("sk_test_")) {
+    return res.status(403).json({ error: "forbidden", message: "fill-requirements はテストモードでのみ使用可能です" });
+  }
+
   const [store] = await db
     .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId, name: storesTable.name })
     .from(storesTable)
@@ -2561,8 +2572,8 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
     } else {
       // ─── 個人事業主: individual キーに送る ───
       const indiv: Record<string, any> = {};
-      if (due.some(f => f.includes("individual.id_number"))) {
-        indiv.id_number = "000000000000";  // マイナンバー（テスト）
+      if (due.some(f => f.includes("individual.id_number")) && stripeKey.startsWith("sk_test_")) {
+        indiv.id_number = "000000000000";  // マイナンバー（テストモード専用）
       }
       if (due.some(f => f.includes("individual.political_exposure"))) {
         indiv.political_exposure = "none";
@@ -2591,10 +2602,10 @@ router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
       }
       if (Object.keys(indiv).length > 0) payload.individual = indiv;
 
-      // id_number と political_exposure は requirements に出なくても常に送る（JP 個人必須）
+      // political_exposure は常に送る。id_number はテストモードのみ（本番では書類審査）
       payload.individual = {
         ...(payload.individual ?? {}),
-        id_number:          "000000000000",
+        ...(stripeKey.startsWith("sk_test_") ? { id_number: "000000000000" } : {}),
         political_exposure: "none",
       };
     }
