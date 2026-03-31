@@ -1966,7 +1966,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
               settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
               ...(businessType === "company" ? { company: step1CompanyPayload } : {}),
             },
-            { idempotencyKey: `store-${storeId}-account-create-${businessType}` }
+            { idempotencyKey: `store-${storeId}-account-create-${businessType}-${crypto.randomUUID()}` }
           ),
           "accounts.create"
         );
