@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import {
   ChevronDown, ChevronUp, ChevronLeft, HelpCircle,
@@ -257,34 +257,14 @@ function FaqSectionBlock({ section }: { section: FaqSection }) {
   );
 }
 
-type TabId = 'user' | 'store';
-
 export default function HelpPage() {
   const { profile } = useAuth();
 
-  // URL パラメータ ?mode=store でタブを自動切り替え
-  // 例: 店舗ダッシュボードから /help?mode=store でリンク
+  // URL パラメータ ?mode=store で強制的に店舗向けを表示（店舗ダッシュボードからのリンク用）
   const urlMode = new URLSearchParams(window.location.search).get('mode');
 
-  // ロールベースのデフォルトタブ決定
-  // 1. URLパラメータ優先
-  // 2. store_owner ロールなら店舗タブ
-  // 3. それ以外はユーザータブ
-  const defaultTab: TabId = (() => {
-    if (urlMode === 'store') return 'store';
-    if (urlMode === 'user') return 'user';
-    if (profile?.role === 'store_owner') return 'store';
-    return 'user';
-  })();
-
-  const [activeTab, setActiveTab] = useState<TabId>(defaultTab);
-
-  // プロフィールの読み込みが完了したら再評価
-  useEffect(() => {
-    if (!urlMode && profile?.role === 'store_owner') {
-      setActiveTab('store');
-    }
-  }, [profile?.role, urlMode]);
+  // ロール判定: store_owner または ?mode=store → 店舗向けのみ表示
+  const isStoreMode = urlMode === 'store' || profile?.role === 'store_owner';
 
   return (
     <Layout showBottomNav>
@@ -311,37 +291,28 @@ export default function HelpPage() {
           </div>
         </div>
 
-        {/* タブ切り替え */}
-        <div className="flex bg-secondary rounded-2xl p-1 mb-5 gap-1">
-          {([
-            { id: 'user',  label: '👤 ユーザー向け' },
-            { id: 'store', label: '🏪 店舗向け' },
-          ] as { id: TabId; label: string }[]).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${
-                activeTab === tab.id
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* ロール別ラベル（タブなし）*/}
+        <div className="flex items-center gap-2 mb-5">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black ${
+            isStoreMode
+              ? 'bg-primary/10 text-primary'
+              : 'bg-sky-100 text-sky-700'
+          }`}>
+            {isStoreMode ? '🏪 店舗オーナー向け' : '👤 ユーザー向け'}
+          </div>
         </div>
 
         {/* FAQ コンテンツ */}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={activeTab}
+            key={isStoreMode ? 'store' : 'user'}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
             className="space-y-4"
           >
-            {activeTab === 'user'
+            {!isStoreMode
               ? USER_FAQ_SECTIONS.map(s => <FaqSectionBlock key={s.id} section={s} />)
               : (
                 <>

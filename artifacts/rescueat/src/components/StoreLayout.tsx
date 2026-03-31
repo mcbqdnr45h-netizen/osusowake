@@ -58,7 +58,7 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
 
             {/* ステータスバッジ */}
             {store && (() => {
-              const s = store.status;
+              const s = store.status as string;
               const cfg =
                 s === 'approved'                          ? { label: '✓ 承認済み', cls: 'bg-green-50 text-green-700 border border-green-200' }
                 : s === 'rejected'                        ? { label: '❌ 却下',    cls: 'bg-red-50 text-red-600 border border-red-200' }
