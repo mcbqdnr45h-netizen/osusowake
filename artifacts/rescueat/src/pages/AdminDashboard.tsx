@@ -7,7 +7,7 @@ import {
   ShieldCheck, TrendingUp, Users, Store, Clock, CheckCircle, XCircle,
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench, CreditCard,
-  LogOut, ExternalLink, Package, Receipt, Flag, MapPin, Trash2, FileWarning,
+  LogOut, ExternalLink, Package, Receipt, Flag, MapPin, Trash2, FileWarning, Link2 as LinkIcon,
 } from 'lucide-react';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 
@@ -260,6 +260,10 @@ export default function AdminDashboard() {
   const [lightboxImg, setLightboxImg]     = useState<string | null>(null);
   const [syncingStripe, setSyncingStripe] = useState<number | null>(null);
   const [stripeErrors, setStripeErrors]   = useState<Record<number, string | null>>({});
+  // ── Stripe アカウント手動リンク（孤立アカウント修復） ──
+  const [linkStripeDialog, setLinkStripeDialog] = useState<{ storeId: number; storeName: string } | null>(null);
+  const [linkStripeInput,  setLinkStripeInput]  = useState('');
+  const [linkStripeLoading, setLinkStripeLoading] = useState(false);
 
   const token = session?.access_token;
 
@@ -468,6 +472,34 @@ export default function AdminDashboard() {
       toast({ title: 'エラー', description: 'サーバーへの接続に失敗しました', variant: 'destructive' });
     } finally {
       setSyncingStripe(null);
+    }
+  }
+
+  async function linkStripeAccount() {
+    if (!linkStripeDialog || !linkStripeInput.startsWith('acct_')) return;
+    setLinkStripeLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/stores/${linkStripeDialog.storeId}/link-stripe-account`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ stripeAccountId: linkStripeInput.trim() }),
+      });
+      if (res.ok) {
+        setStores(prev => prev.map(s => s.id === linkStripeDialog.storeId
+          ? { ...s, stripe_account_id: linkStripeInput.trim() } : s));
+        toast({ title: '✅ Stripe IDをリンクしました', description: `店舗 #${linkStripeDialog.storeId} → ${linkStripeInput.trim()}` });
+        setLinkStripeDialog(null);
+        setLinkStripeInput('');
+        // 続けてStripe情報を再同期
+        await syncStripeForStore(linkStripeDialog.storeId);
+      } else {
+        const err = await res.json();
+        toast({ title: 'エラー', description: err.message ?? 'リンクに失敗しました', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'エラー', description: 'サーバーへの接続に失敗しました', variant: 'destructive' });
+    } finally {
+      setLinkStripeLoading(false);
     }
   }
 
@@ -1082,6 +1114,19 @@ export default function AdminDashboard() {
                                 </button>
                               </div>
                             )}
+                            {/* Stripe ID 手動リンク — stripe_account_id が未設定の店舗向け */}
+                            {!store.stripe_account_id && (
+                              <div className="mb-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setLinkStripeDialog({ storeId: store.id, storeName: store.name }); setLinkStripeInput(''); }}
+                                  className="w-full flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold text-xs py-2 rounded-xl transition-colors border border-violet-200"
+                                >
+                                  <LinkIcon className="w-3.5 h-3.5" />
+                                  Stripe IDを手動リンク（孤立アカウント修復）
+                                </button>
+                              </div>
+                            )}
                             <div className="flex gap-2 flex-wrap">
                               {isStorePending && (
                                 <>
@@ -1663,6 +1708,61 @@ export default function AdminDashboard() {
             </motion.div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* ── Stripe ID 手動リンク モーダル ───────────────────────────────── */}
+      <AnimatePresence>
+        {linkStripeDialog && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={() => setLinkStripeDialog(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <LinkIcon className="w-5 h-5 text-violet-600" />
+                <h2 className="font-black text-gray-900 text-base">Stripe ID 手動リンク</h2>
+              </div>
+              <p className="text-xs text-gray-500 mb-1 font-medium">店舗名</p>
+              <p className="text-sm font-bold text-gray-800 mb-4 truncate">{linkStripeDialog.storeName}</p>
+              <p className="text-xs text-gray-500 mb-2 leading-relaxed">
+                bank-setup の途中でエラーが起きて Stripe アカウントが孤立した場合、<br/>
+                Stripe ダッシュボードから該当アカウントの ID（<code className="text-violet-700">acct_...</code>）をコピーして入力してください。
+              </p>
+              <input
+                type="text"
+                value={linkStripeInput}
+                onChange={e => setLinkStripeInput(e.target.value)}
+                placeholder="acct_1TGtRJGp2d1GdBCz"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 mb-4"
+              />
+              {linkStripeInput && !linkStripeInput.startsWith('acct_') && (
+                <p className="text-xs text-red-500 mb-3">acct_ で始まるIDを入力してください</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLinkStripeDialog(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={linkStripeAccount}
+                  disabled={linkStripeLoading || !linkStripeInput.startsWith('acct_')}
+                  className="flex-1 py-2.5 rounded-xl bg-violet-600 text-white font-bold text-sm hover:bg-violet-700 transition-colors disabled:opacity-40"
+                >
+                  {linkStripeLoading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'リンクして同期'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

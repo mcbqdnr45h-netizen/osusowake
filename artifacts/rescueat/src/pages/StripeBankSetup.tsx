@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'wouter';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +11,27 @@ import {
   Camera, ImageIcon, BadgeCheck,
 } from 'lucide-react';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
+// ── Stripe インスタンスはコンポーネント内でバックエンドの公開鍵を取得してから初期化する
+// （テスト/本番の鍵の不一致を防ぐため、モジュールレベルでの事前ロードは行わない）
+let _cachedStripePromise: Promise<Stripe | null> | null = null;
+async function getStripeInstance(): Promise<Stripe | null> {
+  if (_cachedStripePromise) return _cachedStripePromise;
+  _cachedStripePromise = (async () => {
+    try {
+      const res = await fetch('/api/stripe/public-config');
+      if (!res.ok) throw new Error(`/api/stripe/public-config returned ${res.status}`);
+      const data = await res.json() as { publishableKey: string; mode: string };
+      if (!data.publishableKey) throw new Error('Stripe公開鍵が設定されていません（STRIPE_PUBLISHABLE_KEY を設定してください）');
+      console.log(`[StripeBankSetup] Stripe mode=${data.mode} pk=${data.publishableKey.slice(0, 12)}...`);
+      return await loadStripe(data.publishableKey);
+    } catch (e) {
+      console.error('[StripeBankSetup] Stripe公開鍵の取得に失敗:', e);
+      _cachedStripePromise = null; // 次回リトライを許可
+      return null;
+    }
+  })();
+  return _cachedStripePromise;
+}
 
 // ── 画像圧縮（本人確認書類用 — Stripe送信前に軽量化）────────────────────────────
 async function compressIdImage(dataUrl: string, maxPx = 1280, quality = 0.82): Promise<string> {
@@ -455,10 +475,10 @@ export default function StripeBankSetup() {
     }, 30_000);
 
     try {
-      // ① Stripe.js で銀行口座トークン生成
+      // ① Stripe.js で銀行口座トークン生成（バックエンドと同じ公開鍵を使用）
       setSubmitStatus('Stripe に接続中...');
-      const stripe = await stripePromise;
-      if (!stripe) throw new Error('Stripeの読み込みに失敗しました。ページを再読み込みしてください。');
+      const stripe = await getStripeInstance();
+      if (!stripe) throw new Error('Stripeの読み込みに失敗しました。STRIPE_PUBLISHABLE_KEY の設定を確認してください。');
 
       const routingNumber = bankCode.trim().padStart(4, '0') + branchCode.trim().padStart(3, '0');
       // Stripe JP は半角カタカナを要求するため自動変換

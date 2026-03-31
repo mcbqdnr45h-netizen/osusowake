@@ -900,8 +900,30 @@ router.post("/admin/stores/batch-patch-stripe-license", requireAdmin, async (_re
   }
 });
 
-// ── POST /admin/stores/:storeId/fix-stripe-business-name ───────────────────────
-// Stripeアカウントの business_profile.name を正しいオーナー名に修正
+// ─── Stripe アカウント手動リンク（孤立アカウント修復用） ────────────────────
+// PATCH /api/admin/stores/:storeId/link-stripe-account
+// 既存の Stripe Connect アカウントを店舗 DB レコードに紐付ける。
+// bank-setup 途中でエラーが起きてアカウントが孤立した際の修復用。
+router.patch("/admin/stores/:storeId/link-stripe-account", requireAdmin, async (req, res) => {
+  try {
+    const storeId = Number(req.params.storeId);
+    if (isNaN(storeId)) return res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
+    const { stripeAccountId } = req.body as { stripeAccountId?: string };
+    if (!stripeAccountId?.startsWith("acct_")) {
+      return res.status(400).json({ error: "bad_request", message: "stripeAccountId は acct_ で始まる必要があります" });
+    }
+    const [store] = await db.select({ id: storesTable.id }).from(storesTable).where(eq(storesTable.id, storeId));
+    if (!store) return res.status(404).json({ error: "not_found", message: "店舗が見つかりません" });
+
+    await db.update(storesTable).set({ stripeAccountId }).where(eq(storesTable.id, storeId));
+    console.log(`[admin/link-stripe-account] ✅ storeId=${storeId} → stripeAccountId=${stripeAccountId}`);
+    res.json({ ok: true, storeId, stripeAccountId });
+  } catch (err: any) {
+    console.error("[admin/link-stripe-account]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 router.post("/admin/stores/:storeId/fix-stripe-business-name", requireAdmin, async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);

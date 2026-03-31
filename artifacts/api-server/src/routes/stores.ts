@@ -26,6 +26,22 @@ function toE164Japan(phone: string): string {
 
 const router: IRouter = Router();
 
+// ─── GET /api/stripe/public-config ───────────────────────────────────────────
+// フロントエンドが Stripe.js をロードするために必要な公開鍵を返す。
+// STRIPE_PUBLISHABLE_KEY 環境変数を設定することで
+// バックエンドの STRIPE_SECRET_KEY と必ず同じモード（test/live）になる。
+router.get("/stripe/public-config", (_req, res) => {
+  const pk = process.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
+  const secretKey = process.env["STRIPE_SECRET_KEY"] ?? "";
+  const mode: "test" | "live" = secretKey.startsWith("sk_live_") ? "live" : "test";
+  if (!pk) {
+    // 未設定の場合でも mode だけは返す（フロントエンドで警告表示に使う）
+    res.status(503).json({ error: "stripe_not_configured", mode, publishableKey: "" });
+    return;
+  }
+  res.json({ publishableKey: pk, mode });
+});
+
 const storeSelectFields = {
   id: storesTable.id,
   name: storesTable.name,
