@@ -7,7 +7,7 @@ import { useMyStores } from '@/hooks/use-my-stores';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
-  FileCheck, ShieldCheck,
+  ShieldCheck,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -74,11 +74,6 @@ export default function StoreOnboarding() {
   const [imagePreview, setImagePreview] = useState('');
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
-  // 営業許可証
-  const [licenseImageBase64, setLicenseImageBase64] = useState('');
-  const [licensePreview, setLicensePreview] = useState('');
-  const [licenseNumber, setLicenseNumber] = useState('');
-
   const obDraft = loadOnboardingDraft();
   const [form, setForm] = useState({
     name:          obDraft.name     ?? '',
@@ -119,11 +114,10 @@ export default function StoreOnboarding() {
     if (!form.city.trim())                      updated.push('市区町村が未入力です。');
     if (!form.phone.trim())                     updated.push('店舗電話番号が未入力です。');
     if (!form.category)                         updated.push('ジャンルが未選択です。');
-    if (!licenseImageBase64)                    updated.push('営業許可証の写真が必要です。');
     if (!pledgeSigned)                          updated.push('利用規約への同意が未完了です。');
     setValidationWarnings(updated);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.imageUrl, form.name, form.address, form.city, form.phone, form.category, licenseImageBase64, pledgeSigned]);
+  }, [form.imageUrl, form.name, form.address, form.city, form.phone, form.category, pledgeSigned]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -139,12 +133,6 @@ export default function StoreOnboarding() {
     const compressed = await compressImage(f);
     setForm(prev => ({ ...prev, imageUrl: compressed }));
     setImagePreview(compressed);
-  };
-
-  const handleLicenseFile = async (f: File) => {
-    const compressed = await compressImage(f, 1600, 0.85);
-    setLicenseImageBase64(compressed);
-    setLicensePreview(compressed);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -174,7 +162,6 @@ export default function StoreOnboarding() {
     if (!form.city.trim())                      warnings.push('市区町村が未入力です。');
     if (!form.phone.trim())                     warnings.push('店舗電話番号が未入力です。');
     if (!form.category)                         warnings.push('ジャンルが未選択です。');
-    if (!licenseImageBase64) warnings.push('営業許可証の写真が必要です。');
     if (!pledgeSigned)                          warnings.push('利用規約への同意が未完了です。');
     setValidationWarnings(warnings);
     if (warnings.length > 0) return;
@@ -204,8 +191,6 @@ export default function StoreOnboarding() {
           lat: pinPos?.lat ?? null,
           lng: pinPos?.lng ?? null,
           pledgeSigned: true,
-          licenseImageBase64: licenseImageBase64 || null,
-          licenseNumber: licenseNumber.trim() || null,
         }),
       });
 
@@ -471,60 +456,6 @@ export default function StoreOnboarding() {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* ── 営業許可証セクション ── */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center gap-2 mb-1">
-              <FileCheck className="w-4 h-4 text-amber-700 shrink-0" />
-              <span className="text-sm font-black text-amber-800">
-                この店舗の営業許可証 <span className="text-destructive">*</span>
-              </span>
-            </div>
-            <p className="text-xs text-amber-700 leading-relaxed">
-              食品衛生法に基づく営業許可証を撮影してアップロードしてください。
-              店舗ごとに許可証が異なるため、この店舗専用のものが必要です。
-            </p>
-
-            {/* 許可証番号（任意） */}
-            <input
-              type="text"
-              value={licenseNumber}
-              onChange={e => setLicenseNumber(e.target.value)}
-              className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-300 focus:border-amber-400 outline-none"
-              placeholder="許可証番号（任意）例: 第○○○号"
-            />
-
-            {/* アップロードエリア */}
-            <label className="block cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={e => e.target.files?.[0] && handleLicenseFile(e.target.files[0])}
-              />
-              <div className={`relative w-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 overflow-hidden transition-all min-h-[120px]
-                ${licensePreview
-                  ? 'border-emerald-400 bg-emerald-50/50'
-                  : 'border-amber-300 bg-white hover:border-amber-400'}`}
-              >
-                {licensePreview ? (
-                  <>
-                    <img src={licensePreview} alt="営業許可証" className="w-full max-h-48 object-contain p-2" />
-                    <div className="absolute top-2 right-2 bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <FileCheck className="w-3 h-3" /> アップロード済み
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-xl">📋</div>
-                    <span className="text-xs font-bold text-amber-700">タップして営業許可証を追加</span>
-                    <span className="text-[10px] text-amber-600/70">JPG・PNG対応</span>
-                  </>
-                )}
-              </div>
-            </label>
-
           </div>
 
           {/* 誓約チェック */}
