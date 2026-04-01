@@ -652,7 +652,7 @@ export default function StripeBankSetup() {
           {!store.stripeAccountId && (
             <div className="text-left bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 space-y-2 w-full">
               <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">⏱️ 審査期間：通常 1〜3営業日</p>
-              <p className="text-xs text-orange-700 leading-relaxed">書類に不備がある場合はStripeからメールが届きます。</p>
+              <p className="text-xs text-orange-700 leading-relaxed">審査結果（承認・修正依頼ともに）は<strong>Osusowake事務局</strong>よりメールでご連絡します。</p>
               <div className="border-t border-orange-200 pt-2">
                 <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">💰 振込：毎週月曜日（初回は約7営業日後）</p>
               </div>
@@ -702,8 +702,7 @@ export default function StripeBankSetup() {
               <div>
                 <p className="text-sm font-black text-orange-900">審査期間の目安</p>
                 <p className="text-xs text-orange-700 leading-relaxed mt-0.5">
-                  通常<strong>1〜3営業日</strong>で審査が完了します。審査中は出品機能が制限されますが、商品登録や店舗設定は引き続き行えます。
-                  書類に不備がある場合はStripeからメールが届きます。
+                  通常<strong>1〜3営業日</strong>で審査が完了します。審査結果（承認・修正依頼ともに）は<strong>Osusowake事務局</strong>よりメールでご連絡します。
                 </p>
               </div>
             </div>

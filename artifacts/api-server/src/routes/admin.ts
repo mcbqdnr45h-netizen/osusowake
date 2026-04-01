@@ -425,7 +425,7 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
         read: false,
       }).catch(() => {});
 
-      // オーナーへの承認メール
+      // オーナーへの承認メール（Osusowake事務局から）
       const resendApiKey = process.env.RESEND_API_KEY;
       if (resendApiKey) {
         try {
@@ -436,28 +436,42 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
           const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
           if (ownerEmail) {
             await resend.emails.send({
-              from: `Osusowake <${fromDomain}>`,
+              from: `Osusowake事務局 <${fromDomain}>`,
               to: ownerEmail,
-              subject: `【Osusowake】${updated.name}の審査が完了しました`,
+              subject: `【Osusowake】${updated.name}の審査が完了しました 🎉`,
               html: `
 <!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">
-<div style="max-width:560px;margin:32px auto;background:#fff;border-radius:20px;overflow:hidden;">
-<div style="background:linear-gradient(135deg,#F26419,#d44a00);padding:40px 32px;text-align:center;">
-  <div style="font-size:48px;margin-bottom:12px;">🎉</div>
-  <h1 style="color:#fff;font-size:22px;font-weight:900;margin:0;">審査が完了しました！</h1>
-</div>
-<div style="padding:32px;">
-  <p style="font-size:15px;line-height:1.7;color:#333;margin:0 0 24px;">
-    <strong>${updated.name}</strong> オーナー様<br><br>
-    おすそわけの審査が完了しました。今すぐバッグを出品して、食品ロス削減に貢献しましょう！
-  </p>
-  <div style="text-align:center;">
-    <a href="${appUrl}/store/dashboard" style="display:inline-block;background:linear-gradient(135deg,#F26419,#d44a00);color:#fff;font-size:16px;font-weight:900;padding:16px 48px;border-radius:14px;text-decoration:none;">
-      ダッシュボードへ →
-    </a>
+<body style="margin:0;padding:0;background:#fff8f0;font-family:'Helvetica Neue',Arial,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(242,100,25,0.10);">
+  <div style="background:linear-gradient(135deg,#F26419 0%,#F6AE2D 100%);padding:44px 32px 36px;text-align:center;">
+    <div style="font-size:52px;margin-bottom:14px;">🎉</div>
+    <h1 style="color:#fff;font-size:24px;font-weight:900;margin:0 0 8px;letter-spacing:-0.5px;">おめでとうございます！</h1>
+    <p style="color:rgba(255,255,255,0.9);font-size:14px;margin:0;">審査が通過しました</p>
   </div>
-</div>
+  <div style="padding:36px 32px;">
+    <p style="font-size:15px;line-height:1.8;color:#333;margin:0 0 20px;">
+      <strong>${updated.name}</strong> オーナー様<br><br>
+      この度はOsusowakeにご参加いただき、ありがとうございます。<br>
+      審査が完了し、<strong style="color:#F26419;">本日よりおすそわけバッグの出品が可能</strong>になりました！<br><br>
+      地域の食品ロス削減に、ぜひご一緒しましょう。応援しています 🧡
+    </p>
+    <div style="background:#fff8f0;border-radius:16px;padding:20px 24px;margin:0 0 28px;">
+      <p style="font-size:13px;font-weight:900;color:#F26419;margin:0 0 10px;">🏪 次のステップ</p>
+      <p style="font-size:13px;color:#555;line-height:1.7;margin:0;">
+        ① ストアダッシュボードから銀行口座を登録する<br>
+        ② 口座審査が完了したら（通常1〜3営業日）出品開始！<br>
+        ③ 審査完了のご連絡はOsusowake事務局よりお送りします
+      </p>
+    </div>
+    <div style="text-align:center;">
+      <a href="${appUrl}/store/dashboard" style="display:inline-block;background:linear-gradient(135deg,#F26419,#F6AE2D);color:#fff;font-size:16px;font-weight:900;padding:18px 52px;border-radius:16px;text-decoration:none;letter-spacing:0.5px;">
+        ダッシュボードへ進む →
+      </a>
+    </div>
+    <p style="font-size:12px;color:#aaa;margin:28px 0 0;text-align:center;">
+      Osusowake事務局 ｜ ご不明な点はアプリ内LINEサポートへ
+    </p>
+  </div>
 </div>
 </body></html>`.trim(),
             });
@@ -509,6 +523,75 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
       .where(eq(storesTable.id, storeId))
       .returning();
     if (!updated) { res.status(404).json({ error: "not_found" }); return; }
+
+    // オーナーへの却下通知（アプリ内 + メール）
+    if (updated.ownerId) {
+      await db.insert(notificationsTable).values({
+        userId: updated.ownerId,
+        type: "store_rejected",
+        title: "📋 申請内容についてご連絡があります",
+        body: `${updated.name} の申請について、Osusowake事務局よりご連絡があります。アプリをご確認ください。`,
+        read: false,
+      }).catch(() => {});
+
+      // 却下メール（Osusowake事務局から）
+      const resendApiKey = process.env.RESEND_API_KEY;
+      if (resendApiKey) {
+        try {
+          const resend = new Resend(resendApiKey);
+          const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
+          const { data: ownerAuth } = await supabaseAdmin.auth.admin.getUserById(updated.ownerId);
+          const ownerEmail = ownerAuth?.user?.email;
+          const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
+          const reason = rejectionReason?.trim() ?? "申請内容に確認が必要な点がございました。";
+          if (ownerEmail) {
+            await resend.emails.send({
+              from: `Osusowake事務局 <${fromDomain}>`,
+              to: ownerEmail,
+              subject: `【Osusowake】${updated.name}の申請についてご連絡`,
+              html: `
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#fff8f0;font-family:'Helvetica Neue',Arial,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+  <div style="background:linear-gradient(135deg,#F26419 0%,#F6AE2D 100%);padding:44px 32px 36px;text-align:center;">
+    <div style="font-size:52px;margin-bottom:14px;">📋</div>
+    <h1 style="color:#fff;font-size:22px;font-weight:900;margin:0 0 8px;">申請内容についてご連絡</h1>
+    <p style="color:rgba(255,255,255,0.9);font-size:14px;margin:0;">Osusowake事務局</p>
+  </div>
+  <div style="padding:36px 32px;">
+    <p style="font-size:15px;line-height:1.8;color:#333;margin:0 0 20px;">
+      <strong>${updated.name}</strong> オーナー様<br><br>
+      この度はOsusowakeへご申請いただき、誠にありがとうございます。<br>
+      事務局にて内容を確認しましたところ、いくつかご確認いただきたい点がございました。
+    </p>
+    <div style="background:#fff3cd;border-left:4px solid #F6AE2D;border-radius:0 12px 12px 0;padding:16px 20px;margin:0 0 24px;">
+      <p style="font-size:13px;font-weight:900;color:#856404;margin:0 0 8px;">📝 事務局からのメッセージ</p>
+      <p style="font-size:14px;color:#333;line-height:1.7;margin:0;">${reason}</p>
+    </div>
+    <p style="font-size:14px;line-height:1.8;color:#555;margin:0 0 24px;">
+      修正・再申請いただければ、改めて事務局にて確認いたします。<br>
+      ご不明な点がございましたら、アプリ内のLINEサポートよりお気軽にご連絡ください。<br>
+      引き続きよろしくお願いいたします 🧡
+    </p>
+    <div style="text-align:center;">
+      <a href="${appUrl}/bank-setup" style="display:inline-block;background:linear-gradient(135deg,#F26419,#F6AE2D);color:#fff;font-size:15px;font-weight:900;padding:16px 48px;border-radius:16px;text-decoration:none;">
+        再申請する →
+      </a>
+    </div>
+    <p style="font-size:12px;color:#aaa;margin:28px 0 0;text-align:center;">
+      Osusowake事務局 ｜ ご不明な点はアプリ内LINEサポートへ
+    </p>
+  </div>
+</div>
+</body></html>`.trim(),
+            });
+          }
+        } catch (mailErr: any) {
+          console.warn("[admin/reject] メール送信エラー:", mailErr?.message);
+        }
+      }
+    }
+
     res.json({ ok: true, store: updated });
   } catch (err: any) {
     res.status(500).json({ error: "internal_error", message: err?.message });
