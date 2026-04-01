@@ -658,6 +658,7 @@ export const CreatePaymentIntentBody = zod.object({
   reservationId: zod.number(),
   bagId: zod.number().optional(),
   quantity: zod.number().optional(),
+  userId: zod.string().optional(),
 });
 
 export const CreatePaymentIntentResponse = zod.object({

@@ -135,6 +135,10 @@ router.post("/payment/create-intent", async (req, res) => {
       try {
         const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
+        // Stripe Customer 取得/作成（保存カードの自動表示のため）
+        const userId = body.userId;
+        const customerId = userId ? await getOrCreateStripeCustomer(stripe, userId) : null;
+
         // Stripeダッシュボードのメタデータで「どの店舗の売上か」を判別可能にする
         // store_id / store_name を必ず付与することで、1アカウント多店舗でも識別できる
         const feeMetadata = {
@@ -151,6 +155,8 @@ router.post("/payment/create-intent", async (req, res) => {
           amount:   total,
           currency: "jpy",
           metadata: feeMetadata,
+          // カスタマーを指定 → 次回以降は保存済みカードが自動表示される
+          ...(customerId ? { customer: customerId, setup_future_usage: "off_session" } : {}),
         };
 
         let intent;
