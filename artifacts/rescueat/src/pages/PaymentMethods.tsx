@@ -1,90 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, CreditCard, Plus, Trash2, CheckCircle2,
-  ShieldCheck, Lock, Wifi, Star, X, Eye, EyeOff, AlertCircle,
+  ChevronLeft, CreditCard, Trash2, CheckCircle2,
+  ShieldCheck, Lock, Wifi, Star, RefreshCw, Info,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useUserId } from '@/hooks/use-user';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SavedCard {
   id: string;
-  brand: 'visa' | 'mastercard' | 'amex' | 'other';
+  brand: string;
   last4: string;
-  expMonth: string;
-  expYear: string;
-  holderName: string;
+  expMonth: number;
+  expYear: number;
   isDefault: boolean;
 }
 
-const BRAND_META: Record<SavedCard['brand'], { label: string; color: string; textColor: string; logo: string }> = {
-  visa: { label: 'Visa', color: 'from-blue-700 to-blue-900', textColor: 'text-blue-100', logo: 'VISA' },
-  mastercard: { label: 'Mastercard', color: 'from-orange-600 to-red-700', textColor: 'text-orange-100', logo: 'MC' },
-  amex: { label: 'Amex', color: 'from-sky-500 to-sky-700', textColor: 'text-sky-100', logo: 'AMEX' },
-  other: { label: 'Card', color: 'from-slate-600 to-slate-800', textColor: 'text-slate-100', logo: '💳' },
+const BRAND_META: Record<string, { label: string; color: string; textColor: string }> = {
+  visa:       { label: 'Visa',       color: 'from-blue-700 to-blue-900',   textColor: 'text-blue-100'   },
+  mastercard: { label: 'Mastercard', color: 'from-orange-600 to-red-700',  textColor: 'text-orange-100' },
+  amex:       { label: 'Amex',       color: 'from-sky-500 to-sky-700',     textColor: 'text-sky-100'    },
+  jcb:        { label: 'JCB',        color: 'from-green-600 to-green-800', textColor: 'text-green-100'  },
+  discover:   { label: 'Discover',   color: 'from-orange-400 to-orange-600', textColor: 'text-orange-100' },
+  unionpay:   { label: 'UnionPay',   color: 'from-red-600 to-red-800',     textColor: 'text-red-100'    },
 };
 
-function detectBrand(num: string): SavedCard['brand'] {
-  if (num.startsWith('4')) return 'visa';
-  if (num.startsWith('5')) return 'mastercard';
-  if (num.startsWith('3')) return 'amex';
-  return 'other';
+function getBrandMeta(brand: string) {
+  return BRAND_META[brand] ?? { label: brand.toUpperCase(), color: 'from-slate-600 to-slate-800', textColor: 'text-slate-100' };
 }
 
-function formatCardNumber(val: string) {
-  return val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-}
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
-function formatExpiry(val: string) {
-  const digits = val.replace(/\D/g, '').slice(0, 4);
-  if (digits.length >= 3) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return digits;
-}
-
-const STORAGE_KEY = (uid: string) => `rescueat_cards_${uid}`;
-
-function useCards(userId: string) {
-  const raw = localStorage.getItem(STORAGE_KEY(userId));
-  const [cards, setCards] = useState<SavedCard[]>(raw ? JSON.parse(raw) : [
-    {
-      id: 'demo-1',
-      brand: 'visa',
-      last4: '4242',
-      expMonth: '12',
-      expYear: '27',
-      holderName: 'GUEST USER',
-      isDefault: true,
-    }
-  ]);
-  function persist(next: SavedCard[]) {
-    setCards(next);
-    localStorage.setItem(STORAGE_KEY(userId), JSON.stringify(next));
-  }
-  return { cards, persist };
-}
-
-function CreditCardWidget({ card, onSetDefault, onDelete }: {
+function CreditCardWidget({ card, onDelete, deleting }: {
   card: SavedCard;
-  onSetDefault: () => void;
   onDelete: () => void;
+  deleting: boolean;
 }) {
-  const meta = BRAND_META[card.brand];
+  const meta = getBrandMeta(card.brand);
+  const expYearFull = card.expYear > 100 ? card.expYear : 2000 + card.expYear;
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      exit={{ opacity: 0, y: -10, scale: 0.95 }}
       className="relative"
     >
-      {/* Card visual */}
       <div className={`bg-gradient-to-br ${meta.color} rounded-2xl p-5 shadow-lg relative overflow-hidden`}>
-        {/* Decorative circles */}
         <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/5 rounded-full" />
         <div className="absolute -bottom-8 -left-6 w-36 h-36 bg-white/5 rounded-full" />
-        {/* Contactless icon */}
         <Wifi className="absolute top-4 right-4 w-5 h-5 text-white/60 rotate-90" />
 
         <div className="flex items-start justify-between mb-6">
@@ -96,239 +62,94 @@ function CreditCardWidget({ card, onSetDefault, onDelete }: {
           )}
         </div>
 
-        {/* Card number */}
         <p className="text-white/40 text-sm tracking-[0.3em] mb-4 font-mono">
           **** **** **** {card.last4}
         </p>
 
         <div className="flex justify-between items-end">
           <div>
-            <p className="text-white/50 text-[10px] uppercase tracking-widest mb-0.5">Card Holder</p>
-            <p className="text-white font-bold text-sm tracking-wider">{card.holderName}</p>
+            <p className="text-white/50 text-[10px] uppercase tracking-widest mb-0.5">Stripe Saved</p>
+            <p className="text-white font-bold text-sm tracking-wider">安全に保存済み</p>
           </div>
           <div className="text-right">
             <p className="text-white/50 text-[10px] uppercase tracking-widest mb-0.5">Expires</p>
-            <p className="text-white font-bold text-sm">{card.expMonth}/{card.expYear}</p>
+            <p className="text-white font-bold text-sm">{String(card.expMonth).padStart(2,'0')}/{String(expYearFull).slice(-2)}</p>
           </div>
         </div>
       </div>
 
-      {/* Actions below card */}
       <div className="flex gap-2 mt-3">
-        {!card.isDefault && (
-          <button
-            onClick={onSetDefault}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-primary text-primary text-sm font-bold hover:bg-primary/5 transition-colors"
-          >
-            <Star className="w-3.5 h-3.5" />
-            メインに設定
-          </button>
-        )}
-        {card.isDefault && (
+        {card.isDefault ? (
           <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-bold">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            現在のメインカード
+            次回の支払いで自動使用
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-secondary/70 text-muted-foreground text-sm font-medium">
+            保存済みカード
           </div>
         )}
         <button
           onClick={onDelete}
-          className="w-11 h-11 flex items-center justify-center rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/5 transition-colors shrink-0"
+          disabled={deleting}
+          className="w-11 h-11 flex items-center justify-center rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/5 transition-colors shrink-0 disabled:opacity-50"
         >
-          <Trash2 className="w-4 h-4" />
+          {deleting
+            ? <div className="w-4 h-4 border-2 border-destructive/40 border-t-destructive rounded-full animate-spin" />
+            : <Trash2 className="w-4 h-4" />}
         </button>
       </div>
     </motion.div>
   );
 }
 
-function AddCardForm({ onSave, onCancel }: {
-  onSave: (card: Omit<SavedCard, 'id' | 'isDefault'>) => void;
-  onCancel: () => void;
-}) {
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
-  const [holderName, setHolderName] = useState('');
-  const [showCvc, setShowCvc] = useState(false);
-  const [tokenizing, setTokenizing] = useState(false);
-  const [error, setError] = useState('');
-
-  const brand = detectBrand(cardNumber.replace(/\s/g, ''));
-  const meta = BRAND_META[brand];
-  const rawNum = cardNumber.replace(/\s/g, '');
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    if (rawNum.length < 16) return setError('カード番号を正しく入力してください');
-    if (expiry.length < 5) return setError('有効期限を正しく入力してください');
-    if (cvc.length < 3) return setError('CVCを正しく入力してください');
-    if (!holderName.trim()) return setError('カード名義を入力してください');
-
-    setTokenizing(true);
-    await new Promise(res => setTimeout(res, 1800));
-
-    const [expM, expY] = expiry.split('/');
-    onSave({
-      brand,
-      last4: rawNum.slice(-4),
-      expMonth: expM,
-      expYear: expY,
-      holderName: holderName.toUpperCase(),
-    });
-  }
-
-  return (
-    <motion.form
-      onSubmit={handleSubmit}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4"
-    >
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="font-black text-foreground">新しいカードを追加</h3>
-        <button type="button" onClick={onCancel} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Brand preview */}
-      {rawNum.length > 0 && (
-        <div className={`bg-gradient-to-br ${meta.color} rounded-xl px-4 py-2 flex items-center gap-2`}>
-          <span className="text-white font-black text-sm">{meta.label}</span>
-          <span className="text-white/60 text-xs font-mono ml-auto">**** **** **** {rawNum.slice(-4) || '????'}</span>
-        </div>
-      )}
-
-      {/* Card number */}
-      <div>
-        <label className="text-xs font-bold text-muted-foreground block mb-1.5">カード番号</label>
-        <div className="relative">
-          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            inputMode="numeric"
-            value={cardNumber}
-            onChange={e => setCardNumber(formatCardNumber(e.target.value))}
-            placeholder="1234 5678 9012 3456"
-            className="w-full bg-secondary/50 border border-border rounded-xl pl-9 pr-4 py-3 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {/* Expiry */}
-        <div>
-          <label className="text-xs font-bold text-muted-foreground block mb-1.5">有効期限</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={expiry}
-            onChange={e => setExpiry(formatExpiry(e.target.value))}
-            placeholder="MM/YY"
-            className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-          />
-        </div>
-        {/* CVC */}
-        <div>
-          <label className="text-xs font-bold text-muted-foreground block mb-1.5">CVC</label>
-          <div className="relative">
-            <input
-              type={showCvc ? 'text' : 'password'}
-              inputMode="numeric"
-              value={cvc}
-              onChange={e => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="•••"
-              className="w-full bg-secondary/50 border border-border rounded-xl pl-4 pr-9 py-3 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-            />
-            <button
-              type="button"
-              onClick={() => setShowCvc(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            >
-              {showCvc ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Holder name */}
-      <div>
-        <label className="text-xs font-bold text-muted-foreground block mb-1.5">カード名義（半角ローマ字）</label>
-        <input
-          type="text"
-          value={holderName}
-          onChange={e => setHolderName(e.target.value.toUpperCase())}
-          placeholder="TARO YAMADA"
-          className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 text-sm font-mono uppercase text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-        />
-      </div>
-
-      {error && (
-        <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 rounded-xl px-3 py-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
-      )}
-
-      {/* Security note */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded-xl px-3 py-2">
-        <Lock className="w-3.5 h-3.5 shrink-0 text-primary" />
-        カード情報は安全にトークン化されます。当アプリのサーバーには保存されません。
-      </div>
-
-      <button
-        type="submit"
-        disabled={tokenizing}
-        className="w-full py-3.5 bg-foreground text-background rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-foreground/90 transition-colors disabled:opacity-70"
-      >
-        {tokenizing ? (
-          <>
-            <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin" />
-            安全に処理中...
-          </>
-        ) : (
-          <>
-            <ShieldCheck className="w-4 h-4" />
-            カードを追加する
-          </>
-        )}
-      </button>
-    </motion.form>
-  );
-}
-
 export default function PaymentMethods() {
-  const userId = useUserId() || '';
+  const { session } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { cards, persist } = useCards(userId);
-  const [showForm, setShowForm] = useState(false);
+  const [cards, setCards] = useState<SavedCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  function handleSetDefault(id: string) {
-    persist(cards.map(c => ({ ...c, isDefault: c.id === id })));
-    toast({ title: 'メインカードを変更しました' });
-  }
-
-  function handleDelete(id: string) {
-    const next = cards.filter(c => c.id !== id);
-    if (next.length > 0 && !next.some(c => c.isDefault)) {
-      next[0].isDefault = true;
+  const fetchCards = useCallback(async () => {
+    if (!session?.access_token) { setLoading(false); return; }
+    try {
+      setLoading(true);
+      const res = await fetch(`${BASE}/api/payment/methods`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCards(data.methods ?? []);
+      }
+    } catch {
+      // ネットワークエラー時は空のまま
+    } finally {
+      setLoading(false);
     }
-    persist(next);
-    toast({ title: 'カードを削除しました' });
-  }
+  }, [session?.access_token]);
 
-  function handleSave(card: Omit<SavedCard, 'id' | 'isDefault'>) {
-    const newCard: SavedCard = {
-      ...card,
-      id: crypto.randomUUID(),
-      isDefault: cards.length === 0,
-    };
-    persist([...cards, newCard]);
-    setShowForm(false);
-    toast({ title: 'カードを追加しました', description: `**** ${newCard.last4}` });
+  useEffect(() => { fetchCards(); }, [fetchCards]);
+
+  async function handleDelete(methodId: string) {
+    if (!session?.access_token) return;
+    setDeletingId(methodId);
+    try {
+      const res = await fetch(`${BASE}/api/payment/methods/${methodId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        setCards(prev => prev.filter(c => c.id !== methodId));
+        toast({ title: 'カードを削除しました' });
+      } else {
+        toast({ title: '削除に失敗しました', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: '削除に失敗しました', variant: 'destructive' });
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -343,57 +164,85 @@ export default function PaymentMethods() {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <div>
-            <h1 className="text-xl font-black text-foreground leading-tight">支払い管理センター</h1>
+          <div className="flex-1">
+            <h1 className="text-xl font-black text-foreground leading-tight">支払い管理</h1>
             <p className="text-xs text-muted-foreground">Payment Methods</p>
           </div>
+          <button
+            onClick={fetchCards}
+            disabled={loading}
+            className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         <div className="px-4 pt-5 space-y-4">
+
+          {/* お知らせ: カードはStripeが管理 */}
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3">
+            <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-black text-blue-800 mb-0.5">カードは支払い時に自動保存されます</p>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                初回購入時に「このカードを保存する」を選ぶと、次回から入力なしでワンタップ決済できます。カード情報はStripeのセキュアなサーバーで管理されます。
+              </p>
+            </div>
+          </div>
+
           {/* Cards list */}
-          <AnimatePresence mode="popLayout">
-            {cards.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="bg-secondary/50 rounded-2xl p-8 text-center"
-              >
-                <CreditCard className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-bold text-muted-foreground text-sm">登録済みカードがありません</p>
-                <p className="text-xs text-muted-foreground mt-1">下のボタンからカードを追加してください</p>
-              </motion.div>
-            ) : (
-              cards.map(card => (
-                <CreditCardWidget
-                  key={card.id}
-                  card={card}
-                  onSetDefault={() => handleSetDefault(card.id)}
-                  onDelete={() => handleDelete(card.id)}
-                />
-              ))
-            )}
-          </AnimatePresence>
-
-          {/* Add card form */}
-          <AnimatePresence>
-            {showForm && (
-              <AddCardForm onSave={handleSave} onCancel={() => setShowForm(false)} />
-            )}
-          </AnimatePresence>
-
-          {/* Add card button */}
-          {!showForm && (
-            <motion.button
-              layout
-              onClick={() => setShowForm(true)}
-              className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all font-bold text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              新しいカードを追加
-            </motion.button>
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2].map(i => (
+                <div key={i} className="h-40 bg-secondary/50 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <AnimatePresence mode="popLayout">
+              {cards.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="bg-secondary/50 rounded-2xl p-10 text-center"
+                >
+                  <CreditCard className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                  <p className="font-bold text-muted-foreground text-sm">保存済みカードがありません</p>
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                    購入時に「このカードを保存する」を<br />選ぶと、ここに表示されます
+                  </p>
+                </motion.div>
+              ) : (
+                cards.map(card => (
+                  <CreditCardWidget
+                    key={card.id}
+                    card={card}
+                    onDelete={() => handleDelete(card.id)}
+                    deleting={deletingId === card.id}
+                  />
+                ))
+              )}
+            </AnimatePresence>
           )}
 
+          {/* 使い方説明 */}
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <p className="text-xs font-black text-foreground">💡 2回目以降の支払いの流れ</p>
+            {[
+              { step: '1', text: '商品ページから「予約する」をタップ' },
+              { step: '2', text: '「お支払い」画面で決済ボタンをタップ' },
+              { step: '3', text: 'Stripeの画面に保存済みカードが自動表示' },
+              { step: '4', text: '確認して「支払う」→ 完了！カード入力不要' },
+            ].map(({ step, text }) => (
+              <div key={step} className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[11px] font-black shrink-0">
+                  {step}
+                </div>
+                <p className="text-xs text-muted-foreground">{text}</p>
+              </div>
+            ))}
+          </div>
+
           {/* Security badges */}
-          <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 mt-6">
+          <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <ShieldCheck className="w-4 h-4 text-slate-500" />
               <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Security</span>
@@ -402,7 +251,7 @@ export default function PaymentMethods() {
               {[
                 { icon: <Lock className="w-3.5 h-3.5" />, label: 'PCI DSS準拠', sub: '最高水準のセキュリティ' },
                 { icon: <Wifi className="w-3.5 h-3.5" />, label: 'SSL/TLS暗号化', sub: '全通信を暗号化' },
-                { icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'カード番号不保持', sub: 'サーバー非保存' },
+                { icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'カード番号不保持', sub: 'Stripeが安全に管理' },
                 { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: '国際認定基盤', sub: '世界標準の決済システム' },
               ].map(({ icon, label, sub }) => (
                 <div key={label} className="flex items-start gap-2 bg-white dark:bg-slate-800 rounded-xl p-2.5">

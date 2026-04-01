@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { reservationsTable, surpriseBagsTable, storesTable, cartReservationsTable, notificationsTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { sendWebPushToUser } from "../lib/push.js";
+import { supabaseAdmin } from "../lib/supabase.js";
 import {
   CreatePaymentIntentBody,
   ConfirmPaymentBody,
@@ -52,6 +53,35 @@ function calcFees(totalAmountJpy: number): {
   const stripeFee          = Math.round(totalAmountJpy * STRIPE_FEE_RATE);            // Step 2
   const shopTransferAmount = (totalAmountJpy - platformRevenue) - stripeFee;          // Step 3
   return { platformRevenue, stripeFee, shopTransferAmount };
+}
+
+/**
+ * StripeのCustomerを取得または新規作成し、IDをSupabaseユーザーメタデータに保存する
+ * カードの2回目以降自動入力（Saved Payment Methods）に使用
+ */
+async function getOrCreateStripeCustomer(stripe: any, userId: string): Promise<string | null> {
+  try {
+    const { data: { user }, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (error || !user) return null;
+
+    const existingId = (user.user_metadata as any)?.stripe_customer_id as string | undefined;
+    if (existingId) return existingId;
+
+    const customer = await stripe.customers.create({
+      email: user.email ?? undefined,
+      metadata: { supabase_user_id: userId },
+    });
+
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: { ...(user.user_metadata as any), stripe_customer_id: customer.id },
+    });
+
+    console.log(`[getOrCreateStripeCustomer] created customer ${customer.id} for user ${userId}`);
+    return customer.id;
+  } catch (e) {
+    console.error("[getOrCreateStripeCustomer] error:", e);
+    return null;
+  }
 }
 
 /** Stripe Connect エラーかどうか判定 */
@@ -411,8 +441,20 @@ router.post("/checkout/session", async (req, res) => {
     //
     // ※ application_fee_amount も transfer_data も使わない
     //    → 自動送金は発生しない → 二重送金なし → マイナス処理なし
+
+    // ── Stripe Customer の取得または作成（カード2回目以降の自動入力のため）──
+    const customerId = userId ? await getOrCreateStripeCustomer(stripe, userId) : null;
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      // カスタマーを指定すれば保存済みカードが自動表示される
+      ...(customerId
+        ? { customer: customerId }
+        : { customer_creation: "always" }),
+      // ✅ 「このカードを保存する」チェックボックスを表示 → 次回以降は入力不要
+      saved_payment_method_options: {
+        payment_method_save: "enabled",
+      },
       line_items: [
         {
           price_data: {
@@ -674,6 +716,78 @@ router.get("/checkout/verify", async (req, res) => {
   } catch (err) {
     console.error("Verify error:", err);
     res.status(500).json({ error: "verify_error", message: "Failed to verify session" });
+  }
+});
+
+// ─── 保存済み支払い方法一覧 ────────────────────────────────────────────────
+router.get("/payment/methods", async (req, res) => {
+  try {
+    const authHeader = req.headers["authorization"] ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
+
+    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !user) { res.status(401).json({ error: "unauthorized" }); return; }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) { res.json({ methods: [] }); return; }
+
+    const customerId = (user.user_metadata as any)?.stripe_customer_id as string | undefined;
+    if (!customerId) { res.json({ methods: [] }); return; }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    // デフォルトの支払い方法を確認
+    const customer = await stripe.customers.retrieve(customerId) as any;
+    const defaultMethodId = customer?.invoice_settings?.default_payment_method as string | undefined;
+
+    const methods = await stripe.paymentMethods.list({ customer: customerId, type: "card" });
+
+    res.json({
+      methods: methods.data.map((m) => ({
+        id: m.id,
+        brand: m.card!.brand,
+        last4: m.card!.last4,
+        expMonth: m.card!.exp_month,
+        expYear: m.card!.exp_year,
+        isDefault: defaultMethodId ? m.id === defaultMethodId : false,
+      })),
+    });
+  } catch (err) {
+    console.error("[payment/methods] error:", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ─── 保存済み支払い方法の削除 ───────────────────────────────────────────────
+router.delete("/payment/methods/:methodId", async (req, res) => {
+  try {
+    const authHeader = req.headers["authorization"] ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
+
+    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !user) { res.status(401).json({ error: "unauthorized" }); return; }
+
+    const { methodId } = req.params;
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) { res.status(503).json({ error: "stripe_not_configured" }); return; }
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+
+    // 支払い方法が本当にこのユーザーのものか確認
+    const method = await stripe.paymentMethods.retrieve(methodId);
+    const customerId = (user.user_metadata as any)?.stripe_customer_id as string | undefined;
+    if (method.customer !== customerId) {
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
+
+    await stripe.paymentMethods.detach(methodId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[payment/methods/delete] error:", err);
+    res.status(500).json({ error: "server_error" });
   }
 });
 

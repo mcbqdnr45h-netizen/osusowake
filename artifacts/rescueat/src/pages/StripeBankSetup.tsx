@@ -644,11 +644,20 @@ export default function StripeBankSetup() {
           <h2 className="text-xl font-black text-gray-900 mb-2">
             {store.stripeAccountId ? '口座登録が完了しています' : '申請を受け付けました'}
           </h2>
-          <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+          <p className="text-sm text-gray-500 mb-4 leading-relaxed">
             {store.stripeAccountId
               ? '口座・本人確認情報の登録が完了しています。'
-              : '口座・本人確認情報の申請を受け付けました。\nStripeの審査はバックグラウンドで進行中です。'}
+              : '口座・本人確認情報の申請を受け付けました。'}
           </p>
+          {!store.stripeAccountId && (
+            <div className="text-left bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 space-y-2 w-full">
+              <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">⏱️ 審査期間：通常 1〜3営業日</p>
+              <p className="text-xs text-orange-700 leading-relaxed">書類に不備がある場合はStripeからメールが届きます。</p>
+              <div className="border-t border-orange-200 pt-2">
+                <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">💰 振込：毎週月曜日（初回は約7営業日後）</p>
+              </div>
+            </div>
+          )}
           <button onClick={() => navigate('/mypage')}
             className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl w-full">
             マイページへ
@@ -683,12 +692,33 @@ export default function StripeBankSetup() {
             <CheckCircle2 className="w-12 h-12 text-green-500" />
           </div>
           <h2 className="text-2xl font-black text-gray-900 mb-2">登録完了！</h2>
-          <p className="text-sm text-gray-500 leading-relaxed mb-2">
+          <p className="text-sm text-gray-500 leading-relaxed mb-4">
             口座情報・本人確認書類・代表者情報をすべてStripeへ送信しました。
           </p>
-          <p className="text-xs text-gray-400 leading-relaxed mb-8">
-            Stripeの審査はバックグラウンドで進行します。審査が通過次第、出品の売上を受け取れるようになります。
-          </p>
+          {/* 審査期間・振込スケジュール */}
+          <div className="text-left bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0">⏱️</span>
+              <div>
+                <p className="text-sm font-black text-orange-900">審査期間の目安</p>
+                <p className="text-xs text-orange-700 leading-relaxed mt-0.5">
+                  通常<strong>1〜3営業日</strong>で審査が完了します。審査中は出品機能が制限されますが、商品登録や店舗設定は引き続き行えます。
+                  書類に不備がある場合はStripeからメールが届きます。
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-orange-200" />
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0">💰</span>
+              <div>
+                <p className="text-sm font-black text-orange-900">売上の振込スケジュール</p>
+                <p className="text-xs text-orange-700 leading-relaxed mt-0.5">
+                  審査通過後、<strong>初回振込は最初の売上から約7営業日後</strong>となります。
+                  2回目以降は<strong>毎週月曜日</strong>に、2営業日以上前の売上が自動的に口座へ振り込まれます。
+                </p>
+              </div>
+            </div>
+          </div>
           <button
             onClick={() => navigate('/mypage')}
             className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black text-base rounded-2xl shadow-lg active:scale-[0.98] transition-transform"
@@ -780,7 +810,14 @@ export default function StripeBankSetup() {
               <p className="text-xs text-orange-700 leading-relaxed">
                 次に、<strong>口座情報・本人確認書類・営業許可証</strong>を登録してください。登録後にStripeの審査が行われ、審査が通ると売上の受け取りが可能になります。
               </p>
-              <div className="flex items-start gap-2 pt-1">
+              <div className="flex items-start gap-2 pt-1 bg-orange-100/60 rounded-xl p-2">
+                <span className="text-orange-500 text-sm mt-0.5">⏱️</span>
+                <div>
+                  <p className="text-[11px] font-black text-orange-800">審査期間：通常 1〜3営業日</p>
+                  <p className="text-[11px] text-orange-600 leading-relaxed mt-0.5">振込：初回は約7営業日後 / 2回目以降は毎週月曜日</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
                 <span className="text-orange-400 text-xs mt-0.5">⚠️</span>
                 <p className="text-[11px] text-orange-600 leading-relaxed">
                   この画面で登録が完了するまで、出品した商品の売上は受け取れません。必ず最後まで入力して送信してください。
