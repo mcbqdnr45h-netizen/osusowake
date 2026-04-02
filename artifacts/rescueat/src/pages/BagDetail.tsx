@@ -446,25 +446,13 @@ export default function BagDetail() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
             <div className="absolute bottom-6 left-6 right-6">
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-medium border border-white/30 flex items-center gap-1.5">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <span className="bg-white/15 backdrop-blur-md text-white/90 px-3 py-1 rounded-full text-xs font-light border border-white/20 flex items-center gap-1.5 tracking-wide">
                   <span>{getCategoryIcon(bag.store.category)}</span>
                   {bag.store.name}
                 </span>
-                {/* 徒歩時間バッジ */}
-                {bag.store.lat && bag.store.lng && userCoords && (() => {
-                  const meters  = haversineMeters(userCoords.lat, userCoords.lng, bag.store.lat!, bag.store.lng!);
-                  const minutes = metersToWalkMinutes(meters);
-                  const color   = minutes <= 5 ? 'text-green-300' : minutes <= 15 ? 'text-orange-300' : 'text-sky-300';
-                  return (
-                    <span className={`bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-bold border border-white/20 flex items-center gap-1.5 ${color}`}>
-                      <Navigation className="w-3.5 h-3.5" />
-                      {formatDistanceLabel(meters)}
-                    </span>
-                  );
-                })()}
               </div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold text-white mb-2 leading-tight">
+              <h1 className="text-2xl md:text-3xl font-light text-white mb-2 leading-relaxed tracking-wide">
                 {bag.title}
               </h1>
             </div>
@@ -505,63 +493,64 @@ export default function BagDetail() {
             <div>
               {/* 価格行 */}
               <div className="flex items-baseline gap-3 flex-wrap">
-                {/* メイン価格：¥ を小さく、数字を大きく */}
+                {/* メイン価格：落ち着いたブラウン */}
                 <div className="flex items-baseline gap-0.5">
-                  <span className="text-2xl font-semibold text-slate-400 dark:text-slate-500 leading-none">¥</span>
-                  <span className="text-5xl font-black text-slate-800 dark:text-slate-100 leading-none tracking-tight tabular-nums">
+                  <span className="text-xl font-light text-[#8B5E3C] dark:text-[#C4956A] leading-none">¥</span>
+                  <span className="text-5xl font-semibold text-[#8B5E3C] dark:text-[#C4956A] leading-none tracking-tight tabular-nums">
                     {bag.discountedPrice.toLocaleString()}
                   </span>
                 </div>
                 {bag.originalPrice > bag.discountedPrice && (
                   <div className="flex flex-col gap-0.5 pb-1">
-                    <span className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wide">通常価格</span>
-                    <span className="text-sm text-muted-foreground/70 line-through font-medium">
+                    <span className="text-[10px] text-muted-foreground/40 font-light uppercase tracking-wide">通常価格</span>
+                    <span className="text-sm text-muted-foreground/40 line-through font-light">
                       ¥{bag.originalPrice.toLocaleString()}
                     </span>
                   </div>
                 )}
                 {discountPercent > 0 && (
-                  <span className="pb-1 bg-primary/10 text-primary font-black text-sm px-3 py-1 rounded-full border border-primary/20">
+                  <span className="pb-1 bg-[#8B5E3C]/10 text-[#8B5E3C] dark:text-[#C4956A] font-medium text-xs px-3 py-1 rounded-md border border-[#8B5E3C]/20 tracking-wide">
                     {discountPercent}% OFF
                   </span>
                 )}
               </div>
 
               {/* ステータスバー */}
-              <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
                 {isSoldOut ? (
-                  <span className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground font-bold text-xs px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center gap-1.5 bg-muted/60 text-muted-foreground font-medium text-xs px-3 py-1.5 rounded-md">
                     完売しました
                   </span>
                 ) : (
-                  <span className={`inline-flex items-center gap-1.5 font-bold text-xs px-3 py-1.5 rounded-full ${
+                  <span className={`inline-flex items-center gap-1.5 font-medium text-xs px-3 py-1.5 rounded-md ${
                     bag.stockCount <= 2
-                      ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+                      ? 'bg-[#6B2B2B]/10 text-[#6B2B2B] dark:bg-red-950/40 dark:text-red-300'
                       : bag.stockCount <= 5
-                      ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
-                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-500'
+                      ? 'bg-[#7C4A1E]/10 text-[#7C4A1E] dark:bg-orange-950/40 dark:text-orange-300'
+                      : 'bg-[#3D5A47]/10 text-[#3D5A47] dark:bg-emerald-950/40 dark:text-emerald-400'
                   }`}>
-                    {bag.stockCount <= 2 ? '🔥' : bag.stockCount <= 5 ? '⚡' : '✅'} 残り{bag.stockCount}個
+                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 shrink-0" />
+                    残り{bag.stockCount}個
                   </span>
                 )}
                 {bag.pickupStart && (
-                  <span className="inline-flex items-center gap-1.5 bg-secondary text-foreground font-semibold text-xs px-3 py-1.5 rounded-full">
-                    <Clock className="w-3.5 h-3.5 text-primary" />
+                  <span className="inline-flex items-center gap-1.5 bg-[#3D5A47]/8 text-[#3D5A47] dark:text-emerald-400 font-medium text-xs px-3 py-1.5 rounded-md border border-[#3D5A47]/15">
+                    <Clock className="w-3 h-3" />
                     受取 {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
                   </span>
                 )}
-                {bag.store.lat && bag.store.lng && userCoords && (() => {
-                  const meters  = haversineMeters(userCoords.lat, userCoords.lng, bag.store.lat!, bag.store.lng!);
-                  const minutes = metersToWalkMinutes(meters);
-                  const colorCls = minutes <= 5 ? 'text-emerald-700 bg-emerald-100' : minutes <= 15 ? 'text-orange-700 bg-orange-100' : 'text-foreground bg-secondary';
-                  return (
-                    <span className={`inline-flex items-center gap-1.5 font-semibold text-xs px-3 py-1.5 rounded-full ${colorCls}`}>
-                      <Navigation className="w-3.5 h-3.5" />
-                      {formatDistanceLabel(meters)}
-                    </span>
-                  );
-                })()}
               </div>
+
+              {/* 徒歩距離（バッジではなく小テキストで） */}
+              {bag.store.lat && bag.store.lng && userCoords && (() => {
+                const meters  = haversineMeters(userCoords.lat, userCoords.lng, bag.store.lat!, bag.store.lng!);
+                return (
+                  <p className="mt-2 text-xs text-muted-foreground/60 flex items-center gap-1 font-light">
+                    <Navigation className="w-3 h-3" />
+                    {formatDistanceLabel(meters)}
+                  </p>
+                );
+              })()}
             </div>
 
             <hr className="border-border" />
@@ -853,33 +842,33 @@ export default function BagDetail() {
         >
           <div className="px-4 pt-4 max-w-3xl mx-auto"><div className="flex items-center gap-4">
 
-            <div className="bg-secondary rounded-2xl flex items-center p-1 h-14 border border-border/50">
+            <div className="bg-secondary/60 rounded-xl flex items-center p-1 h-14 border border-border/40">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 disabled={quantity <= 1 || isUnavailable}
-                className="w-12 h-full flex items-center justify-center rounded-xl text-foreground hover:bg-background disabled:opacity-50 transition-colors tap-scale"
+                className="w-12 h-full flex items-center justify-center rounded-lg text-foreground/70 hover:bg-background disabled:opacity-30 transition-colors tap-scale"
               >
-                <Minus className="w-5 h-5" />
+                <Minus className="w-4 h-4" />
               </button>
-              <div className="w-10 text-center font-bold text-lg select-none">
+              <div className="w-10 text-center font-medium text-base select-none text-foreground">
                 {quantity}
               </div>
               <button
                 onClick={() => setQuantity(Math.min(bag.stockCount, quantity + 1))}
                 disabled={quantity >= bag.stockCount || isUnavailable}
-                className="w-12 h-full flex items-center justify-center rounded-xl text-foreground hover:bg-background disabled:opacity-50 transition-colors tap-scale"
+                className="w-12 h-full flex items-center justify-center rounded-lg text-foreground/70 hover:bg-background disabled:opacity-30 transition-colors tap-scale"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
               </button>
             </div>
 
             <button
               onClick={handleReserve}
               disabled={isUnavailable || createReservation.isPending}
-              className={`flex-1 h-14 rounded-2xl font-bold text-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2
+              className={`flex-1 h-14 rounded-xl font-medium text-base tracking-wide shadow-md transition-all duration-200 flex items-center justify-center gap-2
                 ${isUnavailable
                   ? 'bg-muted text-muted-foreground shadow-none cursor-not-allowed'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-1 hover:shadow-primary/30 active:translate-y-0 active:shadow-sm'
+                  : 'bg-[#B5390B] text-white hover:bg-[#9E3009] hover:-translate-y-0.5 hover:shadow-[#B5390B]/30 active:translate-y-0 active:shadow-sm'
                 }`}
             >
               {createReservation.isPending ? (
