@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useLocation } from 'wouter';
 import type { AppSettings } from '@/hooks/use-app-settings';
 
 interface Props {
@@ -8,6 +9,17 @@ interface Props {
 
 export default function MaintenancePage({ settings }: Props) {
   const lines = settings.maintenance_message.split('\n');
+  const [tapCount, setTapCount] = useState(0);
+  const [, navigate] = useLocation();
+
+  const handleLogoTap = () => {
+    const next = tapCount + 1;
+    setTapCount(next);
+    if (next >= 5) {
+      navigate('/login');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex flex-col items-center justify-center px-6 py-16 text-center">
       <motion.div
@@ -19,7 +31,8 @@ export default function MaintenancePage({ settings }: Props) {
         <motion.div
           animate={{ rotate: [0, -8, 8, -8, 0] }}
           transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-          className="text-7xl mb-8 select-none"
+          className="text-7xl mb-8 select-none cursor-default"
+          onClick={handleLogoTap}
         >
           🍱
         </motion.div>
@@ -51,6 +64,12 @@ export default function MaintenancePage({ settings }: Props) {
             ご不便をおかけして申し訳ありません
           </p>
         </div>
+
+        {tapCount >= 3 && tapCount < 5 && (
+          <p className="mt-6 text-[11px] text-muted-foreground/50">
+            あと{5 - tapCount}回タップで管理者ログイン
+          </p>
+        )}
       </motion.div>
     </div>
   );

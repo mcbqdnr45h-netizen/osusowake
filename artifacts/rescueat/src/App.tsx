@@ -352,15 +352,17 @@ function RoleReconciler() {
 
 function MaintenanceGate({ children }: { children: React.ReactNode }) {
   const { settings, isMaintenanceMode } = useAppSettings();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isLoading: authLoading } = useAuth();
   const [location] = useLocation();
 
   const isAdminRoute = location === '/admin' || location.startsWith('/admin/');
+  const isLoginRoute = location === '/login' || location === '/store/login';
 
-  if (isMaintenanceMode && !isAdmin && !isAdminRoute) {
-    return <MaintenancePage settings={settings} />;
+  // auth ロード中 or 管理者ルート or ログインページ は常に表示
+  if (!isMaintenanceMode || authLoading || isAdmin || isAdminRoute || isLoginRoute) {
+    return <>{children}</>;
   }
-  return <>{children}</>;
+  return <MaintenancePage settings={settings} />;
 }
 
 function App() {
