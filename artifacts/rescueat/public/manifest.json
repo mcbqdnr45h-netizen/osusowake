@@ -1,20 +1,20 @@
 {
-  "name": "Osusowake - おすそ分けアプリ",
+  "name": "Osusowake - おすそわけアプリ",
   "short_name": "Osusowake",
-  "description": "お近くのお店からお得なおすそ分けバッグをゲットしよう",
+  "description": "お近くのお店からお得なおすそわけバッグをゲットしよう",
   "start_url": "/rescueat/",
   "scope": "/rescueat/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#FF8C00",
+  "background_color": "#FBFBFA",
+  "theme_color": "#F26419",
   "orientation": "portrait-primary",
   "lang": "ja",
   "icons": [
     {
-      "src": "/rescueat/opengraph.jpg",
-      "sizes": "1200x630",
-      "type": "image/jpeg",
-      "purpose": "any"
+      "src": "/rescueat/images/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [

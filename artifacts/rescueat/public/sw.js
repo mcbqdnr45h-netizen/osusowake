@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tabelosu-v1';
+const CACHE_NAME = 'osusowake-v2';
 const BASE = '/rescueat';
 
 const PRECACHE_URLS = [
@@ -45,13 +45,13 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   let payload;
-  try { payload = event.data.json(); } catch { payload = { title: 'OsusOwake', body: event.data.text() }; }
+  try { payload = event.data.json(); } catch { payload = { title: 'Osusowake', body: event.data.text() }; }
 
   const options = {
     body: payload.body || 'お知らせがあります',
-    icon: `${BASE}/icons/icon-192.png`,
-    badge: `${BASE}/icons/icon-192.png`,
-    tag: payload.tag || 'tabelosu',
+    icon: `${BASE}/images/logo.png`,
+    badge: `${BASE}/images/logo.png`,
+    tag: payload.tag || 'osusowake',
     data: { url: payload.url || `${BASE}/` },
     actions: [
       { action: 'open', title: 'アプリを開く' },
@@ -61,7 +61,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'OsusOwake', options)
+    self.registration.showNotification(payload.title || 'Osusowake', options)
   );
 });
 
