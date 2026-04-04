@@ -21,6 +21,23 @@ import { useUserId } from '@/hooks/use-user';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 import { useAppSettings } from '@/hooks/use-app-settings';
 
+// ─── 日次シードシャッフル ─────────────────────────────────────────────────
+// 毎日異なる順番になるが、同じ日の中はリフレッシュしても同じ順番を維持する
+function getDailySeed(): number {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const a = [...arr];
+  let s = seed;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = ((s * 1664525 + 1013904223) | 0) >>> 0;
+    const j = s % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // ─── カテゴリーピル ────────────────────────────────────────────────────────
 const SCROLL_CATS = [
   { label: 'すべて',        value: 'all',           emoji: '✨' },
@@ -507,17 +524,26 @@ export default function Home() {
     return applySortKey(result);
   }, [visibleBags, searchQuery, activeCategory, applySortKey]);
 
-  // ── ① もうすぐ終わるおすそわけ ──
-  const urgentBags = useMemo(
-    () => applySortKey(sortedVisibleBags.filter(b => b.stockCount > 0 && b.stockCount < 5)).slice(0, 8),
-    [sortedVisibleBags, applySortKey]
-  );
+  // 日次シードは1日中固定（ページリフレッシュしても同じ順番）
+  const dailySeed = useMemo(() => getDailySeed(), []);
 
-  // ── ② 今日のおすすめ ──
-  const recommendedBags = useMemo(
-    () => applySortKey(sortedVisibleBags.filter(b => b.stockCount > 0)).slice(0, 8),
-    [sortedVisibleBags, applySortKey]
-  );
+  // ── ① もうすぐ終わるおすそわけ ── 受付終了時刻が早い順（最も急ぎの商品を前に）
+  const urgentBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => b.stockCount > 0 && b.stockCount < 5);
+    if (sortKey === 'default') {
+      return [...filtered].sort((a, b) => (a.pickupEnd || '99:99').localeCompare(b.pickupEnd || '99:99')).slice(0, 8);
+    }
+    return applySortKey(filtered).slice(0, 8);
+  }, [sortedVisibleBags, applySortKey, sortKey]);
+
+  // ── ② 今日のおすすめ ── デフォルト時は日次シードシャッフルで全店舗公平に露出
+  const recommendedBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => b.stockCount > 0);
+    if (sortKey === 'default') {
+      return seededShuffle(filtered, dailySeed).slice(0, 8);
+    }
+    return applySortKey(filtered).slice(0, 8);
+  }, [sortedVisibleBags, applySortKey, sortKey, dailySeed]);
 
   // ── ③ 現在地から近いお店 ── （距離順固定、ソート適用なし）
   const { nearbyBags, distMap } = useMemo(() => {

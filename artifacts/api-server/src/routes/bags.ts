@@ -140,7 +140,8 @@ router.get("/bags", async (_req, res) => {
         eq(surpriseBagsTable.isActive, true),
         sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true`,
         notExpiredCondition,
-      ));
+      ))
+      .orderBy(surpriseBagsTable.id);
 
     const result = bags.map(({ storeAvgRating, storeReviewCount, ...b }) => ({
       ...b,
