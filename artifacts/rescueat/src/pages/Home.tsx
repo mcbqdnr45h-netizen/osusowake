@@ -894,7 +894,15 @@ export default function Home() {
                       title="もうすぐ終わるおすそわけ"
                       count={!isLoadingBags ? urgentBags.length : undefined}
                     />
-                    <HorizScrollRow bags={urgentBags} loading={isLoadingBags} distMap={distMap} gpsLoading={gpsLoading} />
+                    {isLoadingBags ? (
+                      <div className="grid grid-cols-2 gap-2 px-4">
+                        {[1, 2].map(i => <BagCardSkeleton key={i} compact />)}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 px-4">
+                        {urgentBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -906,7 +914,15 @@ export default function Home() {
                       title="今日のおすすめ"
                       count={!isLoadingBags ? recommendedBags.length : undefined}
                     />
-                    <HorizScrollRow bags={recommendedBags} loading={isLoadingBags} distMap={distMap} gpsLoading={gpsLoading} />
+                    {isLoadingBags ? (
+                      <div className="grid grid-cols-2 gap-2 px-4">
+                        {[1, 2].map(i => <BagCardSkeleton key={i} compact />)}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 px-4">
+                        {recommendedBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
+                      </div>
+                    )}
                   </div>
                 )}
 
