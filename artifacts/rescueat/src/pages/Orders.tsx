@@ -457,7 +457,7 @@ export default function Orders() {
                     onClick={() => setSelectedId(r.id)}
                     className="w-full bg-card border border-border rounded-2xl p-4 text-left hover:bg-secondary/30 active:scale-[0.99] transition-all shadow-sm"
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-center gap-3">
                       {/* Store image */}
                       <div className="w-12 h-12 bg-muted rounded-xl overflow-hidden shrink-0">
                         <img
@@ -468,36 +468,34 @@ export default function Orders() {
                       </div>
 
                       {/* Main info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 overflow-hidden">
-                            <p className="font-black text-sm text-foreground truncate">{r.store?.name || '店舗不明'}</p>
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">{r.bag?.title || 'おすそわけバッグ'}</p>
-                          </div>
-                          <div className={`flex items-center gap-1 ${meta.bg} ${meta.color} px-2 py-1 rounded-full text-[10px] font-black shrink-0 whitespace-nowrap`}>
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        {/* Row 1: store name + badge */}
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="font-black text-sm text-foreground truncate flex-1 min-w-0">{r.store?.name || '店舗不明'}</p>
+                          <span className={`flex items-center gap-0.5 ${meta.bg} ${meta.color} px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 whitespace-nowrap`}>
                             {meta.icon}
                             {meta.label}
-                          </div>
+                          </span>
                         </div>
-
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        {/* Row 2: bag title */}
+                        <p className="text-xs text-muted-foreground truncate">{r.bag?.title || 'おすそわけバッグ'}</p>
+                        {/* Row 3: date + price + chevron */}
+                        <div className="flex items-center mt-2 gap-2">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                             <Store className="w-3 h-3" />
                             <span>{formatDateShort(r.createdAt)}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-foreground">¥{r.totalPrice.toLocaleString()}</span>
-                            {status === 'picked_up' && (
-                              <span className="flex items-center gap-0.5 bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full border border-primary/20">
-                                <Receipt className="w-3 h-3" />
-                                領収書
-                              </span>
-                            )}
-                          </div>
+                          <div className="flex-1" />
+                          {status === 'picked_up' && (
+                            <span className="flex items-center gap-0.5 bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full border border-primary/20 shrink-0">
+                              <Receipt className="w-3 h-3" />
+                              領収書
+                            </span>
+                          )}
+                          <span className="font-black text-foreground text-sm shrink-0">¥{r.totalPrice.toLocaleString()}</span>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                         </div>
                       </div>
-
-                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
                     </div>
                   </motion.button>
                 );
