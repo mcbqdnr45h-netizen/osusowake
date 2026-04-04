@@ -25,18 +25,16 @@ export function formatPickupTime(
   const base     = refDate ? new Date(refDate) : new Date();
   const baseStr  = base.toLocaleDateString('ja-JP', { ...jstOpts, year:'numeric', month:'2-digit', day:'2-digit' });
 
-  let prefix: string;
-  if (baseStr === todayStr) {
-    prefix = '今日';
-  } else {
-    const m = base.toLocaleDateString('ja-JP', { ...jstOpts, month: 'numeric' });
-    const d = base.toLocaleDateString('ja-JP', { ...jstOpts, day: 'numeric' });
-    const w = WEEKDAY[base.getDay()];
-    prefix = `${m}/${d}(${w})`;
-  }
-
   const time = start
     ? (end ? `${start}〜${end}` : start)
     : `〜${end}`;
-  return `${prefix} ${time}`;
+
+  if (baseStr === todayStr) {
+    return time;
+  }
+
+  const m = base.toLocaleDateString('ja-JP', { ...jstOpts, month: 'numeric' });
+  const d = base.toLocaleDateString('ja-JP', { ...jstOpts, day: 'numeric' });
+  const w = WEEKDAY[base.getDay()];
+  return `${m}/${d}(${w}) ${time}`;
 }
