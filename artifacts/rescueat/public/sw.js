@@ -1,4 +1,4 @@
-const CACHE_NAME = 'osusowake-v2';
+const CACHE_NAME = 'osusowake-v3';
 const BASE = '/rescueat';
 
 const PRECACHE_URLS = [

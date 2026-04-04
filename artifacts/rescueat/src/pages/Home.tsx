@@ -151,10 +151,11 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       onClick={e => isSoldOut && e.preventDefault()}
-      className={`group block relative w-52 shrink-0 rounded-2xl overflow-hidden bg-card
+      className={`group block relative rounded-2xl overflow-hidden bg-card
         shadow-[0_2px_12px_rgba(0,0,0,0.10)] border border-border/30
         tap-scale transition-all duration-200
         ${isSoldOut ? 'opacity-55 grayscale cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.13)]'}`}
+      style={{ flex: '0 0 13rem', width: '13rem', minWidth: '13rem', maxWidth: '13rem' }}
     >
       {/* ── 画像エリア（h-24 に縮小） ── */}
       <div className="relative w-full h-24 overflow-hidden bg-muted">
@@ -282,7 +283,8 @@ function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; d
 
 function HorizBagCardSkeleton() {
   return (
-    <div className="w-52 shrink-0 rounded-2xl overflow-hidden border border-border/30 bg-card shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+    <div className="rounded-2xl overflow-hidden border border-border/30 bg-card shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
+      style={{ flex: '0 0 13rem', width: '13rem', minWidth: '13rem', maxWidth: '13rem' }}>
       <div className="w-full h-24 skeleton-shimmer" />
       <div className="px-3 pt-2 pb-2.5 flex flex-col gap-[3px]">
         {/* サブ行: 店舗名 + 受取時間 */}
