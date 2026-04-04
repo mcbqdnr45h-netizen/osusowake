@@ -244,7 +244,7 @@ function StoreBottomSheet({
                     )}
                     {walkLabel && (
                       <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
-                        徒歩{walkLabel}
+                        {walkLabel}
                       </span>
                     )}
                   </div>
