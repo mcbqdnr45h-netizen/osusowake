@@ -934,7 +934,9 @@ export default function Home() {
                       title="現在地から近いお店"
                       count={nearbyBags.length}
                     />
-                    <HorizScrollRow bags={nearbyBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
+                    <div className="grid grid-cols-2 gap-2 px-4">
+                      {nearbyBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
+                    </div>
                   </div>
                 )}
 
@@ -946,7 +948,9 @@ export default function Home() {
                       title="今夜の受け取り（17〜24時）"
                       count={eveningBags.length}
                     />
-                    <HorizScrollRow bags={eveningBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
+                    <div className="grid grid-cols-2 gap-2 px-4">
+                      {eveningBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
+                    </div>
                   </div>
                 )}
 
