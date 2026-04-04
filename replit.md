@@ -15,8 +15,10 @@
 - **Payments**: Stripe（STRIPE_SECRET_KEY設定時）、未設定時はモック決済
 - **Validation**: Zod, drizzle-zod
 - **Font**: Noto Sans JP (body) + Outfit (display)
-- **Color**: #FF8C00 サンセットオレンジ
+- **Color**: #F26419 テラコッタオレンジ / #F6AE2D ハニーアクセント / #FBFBFA オフホワイト背景
 - **PWA**: manifest.json + sw.js (プッシュ通知対応、本番デプロイ後有効)
+- **CSS Utilities**: skeleton-shimmer, img-fade-in, hide-scrollbar, scroll-snap-x, tap-scale, hover-lift (index.css)
+- **Accessibility**: prefers-reduced-motion 対応済み (img-fade-in, scroll-snap無効化)
 
 ## Features
 

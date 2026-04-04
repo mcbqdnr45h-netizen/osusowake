@@ -553,11 +553,11 @@ export default function BagDetail() {
               })()}
             </div>
 
-            <hr className="border-border" />
+            <hr className="border-border/50" />
 
             {/* Description */}
             <div>
-              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+              <h3 className="font-black text-lg mb-3 flex items-center gap-2">
                 <Info className="w-5 h-5 text-primary" /> バッグの内容
               </h3>
               <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
@@ -571,7 +571,7 @@ export default function BagDetail() {
               )}
             </div>
 
-            <hr className="border-border" />
+            <hr className="border-border/50" />
 
             {/* ── 店舗情報（完全版）──────────────────────────────── */}
             <div>

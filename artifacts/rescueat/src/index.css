@@ -276,6 +276,14 @@
     scroll-behavior: smooth;
   }
 
+  .scroll-snap-x {
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scroll-snap-x > * {
+    scroll-snap-align: start;
+  }
+
   .tap-scale {
     @apply transition-all duration-150 ease-out;
     @apply active:scale-[0.97] active:opacity-85;
@@ -351,6 +359,24 @@
   );
   background-size: 1200px 100%;
   animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ─── Image fade-in ────────────────────────────────────── */
+.img-fade-in {
+  animation: fadeIn 0.35s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .img-fade-in { animation: none; opacity: 1; }
+  .scroll-snap-x { scroll-snap-type: none; }
+}
+
+/* ─── Hide scrollbar (cross-browser) ───────────────────── */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ─── Auth dot-pattern background ───────────────────────── */

@@ -503,8 +503,8 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                       <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full border-2 border-white" />
                     )}
                   </div>
-                  <span className={`text-[9.5px] font-bold leading-none transition-colors duration-200
-                    ${isActive ? 'text-primary' : 'text-muted-foreground/50'}`}>
+                  <span className={`text-[10px] font-bold leading-none transition-colors duration-200
+                    ${isActive ? 'text-primary' : 'text-muted-foreground/60'}`}>
                     {item.label}
                   </span>
                 </Link>

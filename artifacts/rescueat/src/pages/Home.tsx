@@ -310,10 +310,16 @@ function SectionHeader({ icon, title, count }: {
   icon: React.ReactNode; title: string; count?: number;
 }) {
   return (
-    <div className="flex items-center gap-1.5 px-4 mb-2">
-      {icon}
-      <span className="text-[13px] font-black text-foreground">{title}</span>
-      {count != null && <span className="text-[10px] text-muted-foreground ml-auto">{count}件</span>}
+    <div className="flex items-center gap-2 px-4 mb-2.5">
+      <div className="flex items-center gap-1.5">
+        {icon}
+        <span className="text-[13px] font-black text-foreground tracking-tight">{title}</span>
+      </div>
+      {count != null && (
+        <span className="text-[10px] text-muted-foreground/70 font-bold bg-secondary px-1.5 py-0.5 rounded-full ml-1">
+          {count}件
+        </span>
+      )}
     </div>
   );
 }
@@ -328,14 +334,14 @@ function HorizScrollRow({ bags, loading, skeletonCount = 4, distMap, gpsLoading 
 }) {
   if (!loading && bags.length === 0) return null;
   return (
-    <div className="flex gap-2 overflow-x-auto hide-scrollbar px-3 pr-5 pb-1">
+    <div className="flex gap-2.5 overflow-x-auto hide-scrollbar scroll-snap-x px-4 pb-1">
       {loading
         ? Array.from({ length: skeletonCount }, (_, i) => <HorizBagCardSkeleton key={i} />)
         : bags.map(bag => (
             <HorizBagCard key={String(bag.id)} bag={bag} distM={distMap?.get(bag.id)} gpsLoading={gpsLoading} />
           ))
       }
-      <div className="w-1 shrink-0" />
+      <div className="w-2 shrink-0" />
     </div>
   );
 }

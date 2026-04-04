@@ -1658,7 +1658,7 @@ export default function StoreDashboard() {
           >
             <p className="text-2xl font-black text-primary">{activeBags.length}</p>
             <p className="text-[10px] font-bold text-muted-foreground mt-0.5">出品中</p>
-            <p className="text-[9px] text-orange-400 mt-0.5 font-medium">タップで確認 →</p>
+            <p className="text-[10px] text-orange-500/70 mt-1 font-bold">確認 →</p>
           </button>
 
           {/* 本日の予約 → 受取予定セクション */}
@@ -1668,7 +1668,7 @@ export default function StoreDashboard() {
           >
             <p className="text-2xl font-black text-blue-600">{todayPending.length}</p>
             <p className="text-[10px] font-bold text-muted-foreground mt-0.5">本日の予約</p>
-            <p className="text-[9px] text-blue-400 mt-0.5 font-medium">タップで確認 →</p>
+            <p className="text-[10px] text-blue-500/70 mt-1 font-bold">確認 →</p>
           </button>
 
           {/* 本日受取済 → 受取済みセクション（展開して表示） */}
@@ -1678,7 +1678,7 @@ export default function StoreDashboard() {
           >
             <p className="text-2xl font-black text-green-600">{todayPickedUp.length}</p>
             <p className="text-[10px] font-bold text-muted-foreground mt-0.5">本日受取済</p>
-            <p className="text-[9px] text-green-400 mt-0.5 font-medium">タップで確認 →</p>
+            <p className="text-[10px] text-green-500/70 mt-1 font-bold">確認 →</p>
           </button>
         </div>
 
