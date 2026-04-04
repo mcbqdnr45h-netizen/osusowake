@@ -8,7 +8,7 @@ import {
   ArrowUpDown, MapPin, Clock, Package, ChevronRight, ShoppingBag, Navigation2,
   Croissant, Utensils, Coffee, ShoppingCart, Store as StoreIcon,
   Candy, Wheat, Sparkles, History, RefreshCw, Loader2, PackageOpen, Navigation,
-  RotateCcw, Apple, Fish, UtensilsCrossed, GlassWater, Gift, ExternalLink,
+  RotateCcw, Apple, Fish, UtensilsCrossed, GlassWater, Gift,
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
@@ -221,65 +221,51 @@ function StoreBottomSheet({
             </div>
           </div>
 
-          {/* 住所 + 距離 */}
-          <div className="px-4 space-y-2 mb-3">
-            <div className="flex items-start gap-2 flex-wrap">
-              <div className="flex items-start gap-1.5 flex-1 min-w-0">
-                <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                {mapsUrl ? (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-primary underline underline-offset-2 decoration-primary/40 leading-relaxed tap-opacity"
-                  >
-                    <span className="leading-relaxed">{store.address || '地図で見る'}</span>
-                    <ExternalLink className="w-3 h-3 shrink-0 text-primary/60" />
-                  </a>
-                ) : (
-                  <span className="text-xs text-muted-foreground leading-relaxed">{store.address || '住所未設定'}</span>
+          {/* 住所 + 距離 + 地図ボタン（1行にまとめ） */}
+          <div className="px-4 mb-3">
+            <div className="flex items-center gap-3">
+              {/* 住所 + 距離情報 */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-[2px] shrink-0" />
+                  <span className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                    {store.address || '住所未設定'}
+                  </span>
+                </div>
+                {(distanceLabel || walkLabel) && (
+                  <div className="flex items-center gap-1.5 mt-1 pl-5">
+                    {distanceLabel && (
+                      <span className="inline-flex items-center gap-0.5 text-[11px] font-black text-primary whitespace-nowrap">
+                        <Navigation2 className="w-2.5 h-2.5" />{distanceLabel}
+                      </span>
+                    )}
+                    {distanceLabel && walkLabel && (
+                      <span className="text-[10px] text-muted-foreground/50">·</span>
+                    )}
+                    {walkLabel && (
+                      <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
+                        徒歩{walkLabel}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {distanceLabel && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    <Navigation2 className="w-2.5 h-2.5" />{distanceLabel}
-                  </span>
-                )}
-                {walkLabel && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-black text-sky-600 bg-sky-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    <Navigation className="w-2.5 h-2.5" />{walkLabel}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* 外部リンクボタン群 */}
-            {mapsUrl && (
-              <div className="flex gap-2">
+              {/* 地図ボタン（1つだけ） */}
+              {mapsUrl && (
                 <a
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 bg-sky-50 border border-sky-200 text-sky-700 font-black text-[11px] px-3 py-2 rounded-xl tap-scale"
+                  className="flex items-center gap-1.5 shrink-0 bg-secondary border border-border text-foreground font-black text-[12px] px-3.5 py-2 rounded-2xl tap-scale hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
                 >
-                  <Navigation className="w-3.5 h-3.5 shrink-0" />
-                  ナビ
-                  <ExternalLink className="w-2.5 h-2.5 text-sky-400" />
+                  <Navigation2 className="w-3.5 h-3.5 shrink-0" />
+                  地図で開く
                 </a>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address || store.name)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-black text-[11px] px-3 py-2 rounded-xl tap-scale"
-                >
-                  <MapPin className="w-3.5 h-3.5 shrink-0" />
-                  地図で見る
-                  <ExternalLink className="w-2.5 h-2.5 text-emerald-400" />
-                </a>
-              </div>
-            )}
+              )}
+            </div>
+          </div>
 
+          <div className="px-4 mb-3">
             <div className="flex items-center gap-2">
               {hasBags ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black text-white"
