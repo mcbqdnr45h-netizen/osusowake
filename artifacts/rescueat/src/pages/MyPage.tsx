@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
 import { useListReservations } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft, AlertTriangle, Trash2 } from 'lucide-react';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +52,8 @@ export default function MyPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // スクロールロック
   useEffect(() => {
@@ -79,6 +81,24 @@ export default function MyPage() {
   async function handleLogout() {
     await signOut();
     navigate('/welcome');
+  }
+
+  async function handleDeleteAccount() {
+    if (!session?.access_token) return;
+    setDeletingAccount(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/user/account`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) throw new Error('delete failed');
+      await signOut();
+      navigate('/welcome');
+    } catch {
+      setDeletingAccount(false);
+      setShowDeleteConfirm(false);
+      alert('アカウントの削除に失敗しました。しばらくしてから再試行してください。');
+    }
   }
 
   const isStoreOwner = profile?.role === 'store_owner';
@@ -899,12 +919,24 @@ export default function MyPage() {
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3.5 py-3.5 px-4 hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-left text-destructive"
+                    className="w-full flex items-center gap-3.5 py-3.5 px-4 hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-left text-destructive border-b border-border"
                   >
                     <div className="w-9 h-9 bg-destructive/10 text-destructive rounded-xl flex items-center justify-center shrink-0">
                       <LogOut className="w-4 h-4" />
                     </div>
                     <div className="flex-1 font-bold text-sm">ログアウト</div>
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full flex items-center gap-3.5 py-3.5 px-4 hover:bg-rose-50 active:bg-rose-100 transition-colors text-left"
+                  >
+                    <div className="w-9 h-9 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-sm text-rose-600">アカウントを削除する</div>
+                      <div className="text-[10px] text-rose-400 mt-0.5">退会・すべてのデータが削除されます</div>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -931,10 +963,79 @@ export default function MyPage() {
     </AnimatePresence>
   );
 
+  const deleteConfirmModal = (
+    <AnimatePresence>
+      {showDeleteConfirm && (
+        <>
+          <motion.div
+            key="delete-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px]"
+            onClick={() => !deletingAccount && setShowDeleteConfirm(false)}
+          />
+          <motion.div
+            key="delete-dialog"
+            initial={{ opacity: 0, scale: 0.92, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 16 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+            className="fixed left-4 right-4 z-[61] bg-background rounded-3xl overflow-hidden"
+            style={{
+              top: '50%',
+              transform: 'translateY(-50%)',
+              boxShadow: '0 8px 48px rgba(0,0,0,0.22)',
+            }}
+          >
+            <div className="p-6 flex flex-col items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center">
+                <AlertTriangle className="w-7 h-7 text-rose-600" />
+              </div>
+              <div className="text-center">
+                <h3 className="font-bold text-foreground text-lg leading-tight">アカウントを削除しますか？</h3>
+                <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+                  この操作は取り消せません。<br />
+                  予約・お気に入り・購入履歴など<br />
+                  すべてのデータが完全に削除されます。
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-border">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deletingAccount}
+                className="w-full py-4 text-sm font-bold text-foreground border-b border-border hover:bg-secondary/50 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="w-full py-4 text-sm font-bold text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deletingAccount ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                    削除中...
+                  </>
+                ) : (
+                  '削除する'
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <>
       <Layout>{pageContent}</Layout>
       {settingsSheet}
+      {deleteConfirmModal}
     </>
   );
 }
