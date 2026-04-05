@@ -3,22 +3,18 @@ import { Layout } from '@/components/Layout';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, useListReservations, SurpriseBagWithStore } from '@workspace/api-client-react';
 import {
-  Search, Store, MapPin, Zap, Flame, Moon, Navigation, Navigation2,
+  Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
   Globe, Clock, ArrowLeft, ShoppingBag, Megaphone, Star,
 } from 'lucide-react';
 import { NotificationsBell } from '@/components/NotificationsBell';
-import { StoreReviewSheet } from '@/components/StoreReviewSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
-import { useFavorites } from '@/contexts/FavoritesContext';
-import { Heart } from 'lucide-react';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
-import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 import { useAppSettings } from '@/hooks/use-app-settings';
 
 // ─── 日次シードシャッフル ─────────────────────────────────────────────────
@@ -126,186 +122,6 @@ function CategoryPills({
   );
 }
 
-// ─── 横スクロールカード ────────────────────────────────────────────────────
-function HorizBagCard({ bag, distM, gpsLoading }: { bag: SurpriseBagWithStore; distM?: number; gpsLoading?: boolean }) {
-  const { isFavorite, toggle } = useFavorites();
-  const { user } = useAuth();
-  const isSoldOut   = bag.stockCount <= 0;
-  const discountPct = bag.originalPrice > 0
-    ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
-    : 0;
-  const isLowStock  = bag.stockCount > 0 && bag.stockCount < 3;
-  const favorited   = isFavorite(bag.store.id);
-  const [loaded, setLoaded] = useState(false);
-  const [showNudge, setShowNudge] = useState(false);
-  const [showReviews, setShowReviews] = useState(false);
-  const imgSrc = bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category);
-  const avgRating = (bag.store as any).avgRating as string | number | null | undefined;
-  const reviewCount = (bag.store as any).reviewCount as number | undefined;
-
-  const distLabel = distM != null
-    ? distM < 50 ? 'すぐそこ' : distM < 1000 ? `${Math.round(distM / 10) * 10}m` : `${(distM / 1000).toFixed(1)}km`
-    : null;
-
-  return (<>
-    <Link
-      href={isSoldOut ? '#' : `/bags/${bag.id}`}
-      onClick={e => isSoldOut && e.preventDefault()}
-      className={`group block relative rounded-2xl overflow-hidden bg-card
-        shadow-[0_2px_12px_rgba(0,0,0,0.10)] border border-border/30
-        tap-scale transition-all duration-200
-        ${isSoldOut ? 'opacity-55 grayscale cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.13)]'}`}
-      style={{ flex: '0 0 13rem', width: '13rem', minWidth: '13rem', maxWidth: '13rem' }}
-    >
-      {/* ── 画像エリア（h-24 に縮小） ── */}
-      <div className="relative w-full h-24 overflow-hidden bg-muted">
-        {!loaded && <div className="absolute inset-0 skeleton-shimmer" />}
-        <img
-          src={imgSrc} alt={bag.store.name} loading="lazy" decoding="async"
-          onLoad={() => setLoaded(true)}
-          className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105
-            ${loaded ? 'img-fade-in' : 'opacity-0'}`}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-
-        {/* 割引バッジ（左上） */}
-        {!isSoldOut && discountPct > 0 && (
-          <span className="absolute top-1.5 left-1.5 bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-sm">
-            {discountPct}% OFF
-          </span>
-        )}
-
-        {/* ハート + 評価（右上） */}
-        <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1">
-          {avgRating && !isSoldOut && (
-            <button
-              type="button"
-              onClick={e => { e.preventDefault(); e.stopPropagation(); setShowReviews(true); }}
-              className="flex items-center gap-0.5 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-lg shadow-sm"
-            >
-              <Star className="w-2 h-2 fill-white shrink-0" />
-              {Number(avgRating).toFixed(1)}
-            </button>
-          )}
-          <button
-            onClick={e => { e.preventDefault(); e.stopPropagation(); if (!user) { setShowNudge(true); return; } toggle(bag.store.id); }}
-            className={`w-6 h-6 rounded-full flex items-center justify-center tap-scale-sm
-              ${favorited ? 'bg-rose-500 shadow-[0_1px_6px_rgba(239,68,68,0.45)]' : 'bg-white/85 backdrop-blur-sm shadow-[0_1px_4px_rgba(0,0,0,0.15)]'}`}
-            aria-label="お気に入り"
-          >
-            <Heart className={`w-3 h-3 ${favorited ? 'fill-white stroke-white' : 'fill-none stroke-rose-400'}`} />
-          </button>
-        </div>
-
-        {isSoldOut && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <span className="bg-white/90 text-foreground text-[10px] font-black px-2 py-1 rounded-lg">完売御礼 🌸</span>
-          </div>
-        )}
-      </div>
-
-      {/* ── テキストエリア ── */}
-      <div className="px-3 pt-2 pb-2.5 flex flex-col gap-[3px]">
-
-        {/* サブ行: 店舗名（左）＋ 受取時間（右） */}
-        <div className="flex items-center justify-between gap-1">
-          <span className="text-[10px] text-muted-foreground font-medium truncate leading-none">
-            {bag.store.name}
-          </span>
-          {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
-            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground shrink-0">
-              <Clock className="w-2.5 h-2.5 shrink-0" />
-              <span className="leading-none">{formatPickupTime(bag.pickupStart, bag.pickupEnd)}</span>
-            </div>
-          )}
-        </div>
-
-        {/* メイン: 商品名（太字・大きめ） */}
-        <p className="font-black text-[14px] leading-snug line-clamp-1 text-foreground">
-          {bag.title}
-        </p>
-
-        {/* 下段: バッジ（左）＋ 価格（右） */}
-        {!isSoldOut && (
-          <div className="flex items-end justify-between gap-1 mt-0.5">
-            {/* 左: 残り個数 + 距離バッジ */}
-            <div className="flex flex-wrap gap-1 items-center">
-              {isLowStock && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-500 bg-rose-50 px-1.5 py-[2px] rounded-full ring-1 ring-rose-200/70 leading-none">
-                  🔥 残り{bag.stockCount}個
-                </span>
-              )}
-              {distLabel ? (
-                <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[10px] px-1.5 py-[2px] leading-none
-                  ${(() => {
-                    const min = distM != null ? Math.round(distM / 67) : 99;
-                    return min <= 5
-                      ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70'
-                      : min <= 15
-                      ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/70'
-                      : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/70';
-                  })()}`}>
-                  <Navigation className="w-2.5 h-2.5 shrink-0" />
-                  {distLabel}
-                </span>
-              ) : gpsLoading ? (
-                <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
-              ) : null}
-            </div>
-
-            {/* 右: 元値 + 販売価格 */}
-            <div className="flex flex-col items-end shrink-0">
-              {bag.originalPrice > bag.discountedPrice && (
-                <span className="text-[10px] text-muted-foreground/40 line-through font-medium leading-none mb-[1px]">
-                  ¥{bag.originalPrice.toLocaleString()}
-                </span>
-              )}
-              <span className="text-[18px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
-                ¥{bag.discountedPrice.toLocaleString()}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-    </Link>
-    <LoginNudgeSheet isOpen={showNudge} onClose={() => setShowNudge(false)} reason="favorite" />
-    {showReviews && avgRating && (
-      <StoreReviewSheet
-        storeId={bag.store.id}
-        storeName={bag.store.name}
-        avgRating={Number(avgRating)}
-        reviewCount={reviewCount ?? 0}
-        onClose={() => setShowReviews(false)}
-      />
-    )}
-  </>);
-}
-
-function HorizBagCardSkeleton() {
-  return (
-    <div className="rounded-2xl overflow-hidden border border-border/30 bg-card shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
-      style={{ flex: '0 0 13rem', width: '13rem', minWidth: '13rem', maxWidth: '13rem' }}>
-      <div className="w-full h-24 skeleton-shimmer" />
-      <div className="px-3 pt-2 pb-2.5 flex flex-col gap-[3px]">
-        {/* サブ行: 店舗名 + 受取時間 */}
-        <div className="flex items-center justify-between gap-1">
-          <div className="h-2.5 skeleton-shimmer rounded-full w-20" />
-          <div className="h-2.5 skeleton-shimmer rounded-full w-12" />
-        </div>
-        {/* 商品名 */}
-        <div className="h-3.5 skeleton-shimmer rounded-full w-4/5 mt-0.5" />
-        {/* 下段: バッジ + 価格 */}
-        <div className="flex items-end justify-between gap-1 mt-1">
-          <div className="h-[18px] skeleton-shimmer rounded-full w-16" />
-          <div className="flex flex-col items-end gap-[2px]">
-            <div className="h-2.5 skeleton-shimmer rounded-full w-10" />
-            <div className="h-[18px] skeleton-shimmer rounded-full w-14" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── セクション共通ヘッダー ────────────────────────────────────────────────
 function SectionHeader({ icon, title, count }: {
@@ -327,20 +143,24 @@ function SectionHeader({ icon, title, count }: {
 }
 
 // ─── 横スクロールラッパー ─────────────────────────────────────────────────
-function HorizScrollRow({ bags, loading, skeletonCount = 4, distMap, gpsLoading }: {
+function HorizScrollRow({ bags, loading, skeletonCount = 4 }: {
   bags: SurpriseBagWithStore[];
   loading: boolean;
   skeletonCount?: number;
-  distMap?: Map<number, number>;
-  gpsLoading?: boolean;
 }) {
   if (!loading && bags.length === 0) return null;
   return (
-    <div className="flex gap-2.5 overflow-x-auto hide-scrollbar scroll-snap-x px-4 pb-1">
+    <div className="flex flex-row flex-nowrap gap-2 overflow-x-auto hide-scrollbar px-4 pb-1">
       {loading
-        ? Array.from({ length: skeletonCount }, (_, i) => <HorizBagCardSkeleton key={i} />)
+        ? Array.from({ length: skeletonCount }, (_, i) => (
+            <div key={i} className="shrink-0 w-[calc(50vw-20px)]">
+              <BagCardSkeleton compact />
+            </div>
+          ))
         : bags.map(bag => (
-            <HorizBagCard key={String(bag.id)} bag={bag} distM={distMap?.get(bag.id)} gpsLoading={gpsLoading} />
+            <div key={String(bag.id)} className="shrink-0 w-[calc(50vw-20px)]">
+              <BagCard bag={bag} compact />
+            </div>
           ))
       }
       <div className="w-2 shrink-0" />
@@ -962,7 +782,7 @@ export default function Home() {
                       title="料理・お惣菜"
                       count={mealsBags.length}
                     />
-                    <HorizScrollRow bags={mealsBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={mealsBags} loading={false} />
                   </div>
                 )}
 
@@ -974,7 +794,7 @@ export default function Home() {
                       title="パン・スイーツ"
                       count={bakeryBags.length}
                     />
-                    <HorizScrollRow bags={bakeryBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={bakeryBags} loading={false} />
                   </div>
                 )}
 
@@ -986,7 +806,7 @@ export default function Home() {
                       title="食材・その他"
                       count={ingredientBags.length}
                     />
-                    <HorizScrollRow bags={ingredientBags} loading={false} distMap={distMap} gpsLoading={gpsLoading} />
+                    <HorizScrollRow bags={ingredientBags} loading={false} />
                   </div>
                 )}
 
