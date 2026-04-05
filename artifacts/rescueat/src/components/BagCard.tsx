@@ -332,7 +332,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       className={[
-        'group block relative rounded-2xl overflow-hidden bg-card',
+        'group block w-full relative rounded-2xl overflow-hidden bg-card',
         'transition-all duration-250 ease-out',
         isSoldOut
           ? 'opacity-50 cursor-not-allowed grayscale'

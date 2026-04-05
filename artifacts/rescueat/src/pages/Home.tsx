@@ -150,20 +150,20 @@ function HorizScrollRow({ bags, loading, skeletonCount = 4 }: {
 }) {
   if (!loading && bags.length === 0) return null;
   return (
-    <div className="flex flex-row flex-nowrap gap-2 overflow-x-auto hide-scrollbar px-4 pb-1">
+    <div className="flex flex-row flex-nowrap overflow-x-auto hide-scrollbar gap-2 px-4 pb-1">
       {loading
         ? Array.from({ length: skeletonCount }, (_, i) => (
-            <div key={i} className="shrink-0 w-[calc(50vw-20px)]">
+            <div key={i} className="shrink-0 w-[160px]">
               <BagCardSkeleton compact />
             </div>
           ))
         : bags.map(bag => (
-            <div key={String(bag.id)} className="shrink-0 w-[calc(50vw-20px)]">
+            <div key={String(bag.id)} className="shrink-0 w-[160px]">
               <BagCard bag={bag} compact />
             </div>
           ))
       }
-      <div className="w-2 shrink-0" />
+      <div className="w-3 shrink-0" />
     </div>
   );
 }
