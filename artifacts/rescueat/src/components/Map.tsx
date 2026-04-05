@@ -314,6 +314,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           zoom: zoom ?? 14,
           disableDefaultUI: true,
           zoomControl: false,
+          mapTypeControl: true,
+          mapTypeControlOptions: {
+            style: (gMaps as any).MapTypeControlStyle.DROPDOWN_MENU,
+            mapTypeIds: ['roadmap', 'satellite', 'hybrid'],
+            position: (gMaps as any).ControlPosition.TOP_RIGHT,
+          },
           gestureHandling: 'greedy',
           styles: MAP_STYLES,
           clickableIcons: false,
