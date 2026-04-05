@@ -286,7 +286,7 @@ export default function Checkout() {
   const handleCancel = async () => {
     try {
       await cancelMutation.mutateAsync({ reservationId });
-      toast({ title: 'キャンセルしました', description: '仮押さえを解除しました。' });
+      toast({ title: 'キャンセルしました', description: '仮押さえを解除しました。', duration: 2000 });
       navigate(`${BASE}/`);
     } catch {
       toast({ title: 'キャンセルに失敗しました', description: 'もう一度お試しください。', variant: 'destructive' });
