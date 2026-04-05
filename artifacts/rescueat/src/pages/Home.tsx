@@ -714,15 +714,7 @@ export default function Home() {
                       title="もうすぐ終わるおすそわけ"
                       count={!isLoadingBags ? urgentBags.length : undefined}
                     />
-                    {isLoadingBags ? (
-                      <div className="grid grid-cols-2 gap-2 px-4">
-                        {[1, 2].map(i => <BagCardSkeleton key={i} compact />)}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2 px-4">
-                        {urgentBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
-                      </div>
-                    )}
+                    <HorizScrollRow bags={urgentBags.slice(0, 6)} loading={isLoadingBags} />
                   </div>
                 )}
 
@@ -734,15 +726,7 @@ export default function Home() {
                       title="今日のおすすめ"
                       count={!isLoadingBags ? recommendedBags.length : undefined}
                     />
-                    {isLoadingBags ? (
-                      <div className="grid grid-cols-2 gap-2 px-4">
-                        {[1, 2].map(i => <BagCardSkeleton key={i} compact />)}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2 px-4">
-                        {recommendedBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
-                      </div>
-                    )}
+                    <HorizScrollRow bags={recommendedBags.slice(0, 6)} loading={isLoadingBags} />
                   </div>
                 )}
 
@@ -754,9 +738,7 @@ export default function Home() {
                       title="現在地から近いお店"
                       count={nearbyBags.length}
                     />
-                    <div className="grid grid-cols-2 gap-2 px-4">
-                      {nearbyBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
-                    </div>
+                    <HorizScrollRow bags={nearbyBags.slice(0, 6)} loading={false} />
                   </div>
                 )}
 
@@ -768,9 +750,7 @@ export default function Home() {
                       title="今夜の受け取り（17〜24時）"
                       count={eveningBags.length}
                     />
-                    <div className="grid grid-cols-2 gap-2 px-4">
-                      {eveningBags.slice(0, 4).map(bag => <BagCard key={bag.id} bag={bag} compact />)}
-                    </div>
+                    <HorizScrollRow bags={eveningBags.slice(0, 6)} loading={false} />
                   </div>
                 )}
 
