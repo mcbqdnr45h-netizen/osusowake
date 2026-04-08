@@ -84,12 +84,7 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
           center,
           zoom: hasInitial ? 16 : 12,
           disableDefaultUI: true,
-          mapTypeControl: true,
-          mapTypeControlOptions: {
-            style: (gm as any).MapTypeControlStyle.DEFAULT,
-            mapTypeIds: ['roadmap', 'satellite'],
-            position: (gm as any).ControlPosition.TOP_RIGHT,
-          },
+          mapTypeControl: false,
           gestureHandling: 'greedy',
           clickableIcons: false,
           styles: [

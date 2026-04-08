@@ -3,7 +3,7 @@ import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markercluste
 import type { Renderer, Cluster, ClusterStats } from '@googlemaps/markerclusterer';
 import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
-import { LocateFixed, AlertTriangle } from 'lucide-react';
+import { LocateFixed, AlertTriangle, Layers } from 'lucide-react';
 
 import { loadGoogleMapsScript } from '@/lib/maps-loader';
 import { updateCachedCoords, TAKATSUKI_STATION } from '@/hooks/use-user-location';
@@ -193,8 +193,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const onMapIdleRef            = useRef(onMapIdle);
   const isFirstIdleRef          = useRef(true);
 
-  const [status,    setStatus]  = useState<'loading' | 'ready' | 'error'>('loading');
-  const [locating,  setLocating]= useState(false);
+  const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>('loading');
+  const [locating,        setLocating]       = useState(false);
+  const [mapType,         setMapType]        = useState<'roadmap' | 'satellite'>('roadmap');
+  const [showMapTypePick, setShowMapTypePick]= useState(false);
   const [userPos,   setUserPos] = useState<{ lat: number; lng: number } | null>(
     userPosition ? { lat: userPosition[0], lng: userPosition[1] } : null
   );
@@ -314,12 +316,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           zoom: zoom ?? 14,
           disableDefaultUI: true,
           zoomControl: false,
-          mapTypeControl: true,
-          mapTypeControlOptions: {
-            style: (gMaps as any).MapTypeControlStyle.DEFAULT,
-            mapTypeIds: ['roadmap', 'satellite'],
-            position: (gMaps as any).ControlPosition.TOP_RIGHT,
-          },
+          mapTypeControl: false,
           gestureHandling: 'greedy',
           styles: MAP_STYLES,
           clickableIcons: false,
@@ -489,6 +486,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
   }
 
+  // ── マップタイプ切替 ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || status !== 'ready') return;
+    map.setMapTypeId(mapType);
+    // satellite では styles が無効化されるので、roadmap 復帰時のみスタイルを再適用
+    if (mapType === 'roadmap') {
+      map.setOptions({ styles: MAP_STYLES });
+    } else {
+      map.setOptions({ styles: [] });
+    }
+  }, [mapType, status]);
+
   // ── 表示範囲内のアクティブ店舗数（凡例カウント）─────────────────────────────
   // 「おすそわけ受付中 ○店」はオレンジ（在庫あり + 受取時間内）の店舗のみ数える
   const visibleListingCount = useMemo(() => {
@@ -520,6 +530,83 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       {status === 'ready' && (
         <>
+          {/* レイヤー切替ボタン + ピッカー */}
+          <div className="absolute top-3 right-3 z-20">
+            <button
+              onClick={() => setShowMapTypePick(v => !v)}
+              aria-label="地図タイプを切替"
+              className={`w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-all duration-150 border ${
+                mapType === 'satellite'
+                  ? 'bg-primary border-primary text-white'
+                  : 'bg-white border-gray-200/80 text-gray-600'
+              }`}
+              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+            >
+              <Layers className="w-5 h-5" strokeWidth={1.8} />
+            </button>
+
+            {showMapTypePick && (
+              <>
+                {/* 背景クリックで閉じる */}
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowMapTypePick(false)}
+                />
+                {/* ピッカーカード */}
+                <div
+                  className="absolute top-12 right-0 z-20 bg-white rounded-2xl p-2 flex gap-2"
+                  style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.14)', minWidth: 168 }}
+                >
+                  {/* 地図 */}
+                  <button
+                    onClick={() => { setMapType('roadmap'); setShowMapTypePick(false); }}
+                    className={`flex flex-col items-center gap-1.5 p-1.5 rounded-xl flex-1 transition-all ${
+                      mapType === 'roadmap' ? 'ring-2 ring-primary' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    {/* サムネイル（道路地図イメージ） */}
+                    <div className="w-16 h-11 rounded-lg overflow-hidden border border-gray-100 relative bg-[#f2f0eb]">
+                      <div className="absolute inset-0" style={{
+                        backgroundImage: `
+                          linear-gradient(#d6d0c7 1px, transparent 1px),
+                          linear-gradient(90deg, #d6d0c7 1px, transparent 1px)
+                        `,
+                        backgroundSize: '12px 12px',
+                      }} />
+                      <div className="absolute top-2 left-1 right-1 h-1 rounded bg-white/80" />
+                      <div className="absolute top-5 left-3 right-3 h-0.5 rounded bg-white/60" />
+                      <div className="absolute top-8 left-1 right-2 h-1 rounded bg-white/70" />
+                    </div>
+                    <span className={`text-[11px] font-bold ${mapType === 'roadmap' ? 'text-primary' : 'text-gray-600'}`}>地図</span>
+                  </button>
+
+                  {/* 航空写真 */}
+                  <button
+                    onClick={() => { setMapType('satellite'); setShowMapTypePick(false); }}
+                    className={`flex flex-col items-center gap-1.5 p-1.5 rounded-xl flex-1 transition-all ${
+                      mapType === 'satellite' ? 'ring-2 ring-primary' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    {/* サムネイル（航空写真イメージ） */}
+                    <div className="w-16 h-11 rounded-lg overflow-hidden border border-gray-100 relative bg-[#3a5a3c]">
+                      <div className="absolute inset-0" style={{
+                        background: `
+                          radial-gradient(circle at 30% 40%, #2d4a2e 25%, transparent 26%),
+                          radial-gradient(circle at 70% 30%, #1e3d1f 20%, transparent 21%),
+                          radial-gradient(circle at 50% 70%, #3a5a3c 30%, transparent 31%),
+                          linear-gradient(135deg, #3a5a3c, #2a4a2c, #4a6a4e)
+                        `,
+                      }} />
+                      <div className="absolute bottom-1 left-1 right-2 h-1 rounded-sm bg-[#8a7a5a]/60" />
+                      <div className="absolute top-3 left-4 right-1 h-0.5 rounded-sm bg-[#6a5a4a]/40" />
+                    </div>
+                    <span className={`text-[11px] font-bold ${mapType === 'satellite' ? 'text-primary' : 'text-gray-600'}`}>航空写真</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* カスタムズームボタン */}
           <div className="absolute bottom-[124px] right-3 z-10 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
             style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
