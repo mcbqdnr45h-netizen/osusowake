@@ -539,7 +539,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           <button
             onClick={handleLocate}
             aria-label={locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地を表示'}
-            className={`absolute bottom-20 right-3 z-10 w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
+            className={`absolute bottom-20 right-2 z-10 w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
               ${userPos
                 ? 'bg-white border border-primary/25 text-primary'
                 : 'bg-white border border-gray-200/80 text-gray-500'
