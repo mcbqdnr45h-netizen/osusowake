@@ -272,66 +272,51 @@ export default function MyPage() {
             className="relative overflow-hidden mb-0"
             style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)' }}
           >
-            {/* 背景装飾円 */}
-            <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full" />
-            <div className="absolute -bottom-3 -left-3 w-16 h-16 bg-white/5 rounded-full" />
+            {/* 背景装飾 */}
+            <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
 
-            <div className="relative px-4 pt-2.5 pb-2">
-              {/* 達成回数バッジ */}
-              <div className="flex items-center justify-end mb-1">
-                <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full">
-                  <Star className="w-3 h-3 text-yellow-200 fill-yellow-200" />
-                  <span className="text-white text-[11px] font-black">{pickedUpCount}回</span>
+            <div className="relative px-4 py-3 flex items-center gap-4">
+              {/* 左：メイン数値 */}
+              <div className="flex-1 min-w-0">
+                <p className="text-white/70 text-[10px] font-medium">食品ロス削減量</p>
+                <div className="flex items-end gap-1 mt-0.5">
+                  <span className="text-2xl font-black text-white leading-none">{foodSavedKg}</span>
+                  <span className="text-white/90 text-xs font-bold mb-0.5">kg</span>
                 </div>
-              </div>
-
-              {/* メインメッセージ */}
-              <div className="mb-0">
-                <p className="text-white/80 text-[10px] font-medium mb-0">
-                  あなたはこれまでに
-                </p>
-                <div className="flex items-end gap-1.5">
-                  <span className="text-3xl font-black text-white leading-none">{foodSavedKg}</span>
-                  <span className="text-white text-sm font-bold mb-0.5">kg</span>
-                  <span className="text-white/80 text-[11px] font-bold mb-0.5">の食品ロスを防ぎました</span>
-                </div>
-              </div>
-
-              {/* 称賛メッセージ */}
-              <div className="bg-white/15 backdrop-blur-sm rounded-xl px-3 py-1.5 mt-1.5">
-                <p className="text-white font-black text-[11px] text-center">
+                <p className="text-white/80 text-[10px] font-medium mt-0.5">
                   {pickedUpCount === 0
-                    ? '🌟 最初のおすそわけで街が変わりはじめる！'
+                    ? '🌟 最初のおすそわけで街が変わる'
                     : pickedUpCount < 5
-                    ? '🌾 素敵なスタートです！続けてみましょう'
+                    ? '🌾 素敵なスタート！続けよう'
                     : pickedUpCount < 15
-                    ? '🌿 ナイスおすそわけ！街が育っています'
-                    : '🏆 すごい！あなたは街の守護者です'
+                    ? '🌿 街が育っています'
+                    : '🏆 あなたは街の守護者です'
                   }
                 </p>
               </div>
-            </div>
 
-            {/* 3統計バー */}
-            <div className="bg-black/10 px-4 py-1.5 flex items-center justify-around border-t border-white/10">
-              <div className="text-center">
-                <div className="text-white font-black text-sm leading-none">{pickedUpCount}</div>
-                <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
-                  <ShoppingBag className="w-3 h-3" />おすそわけ回数
+              {/* 右：3統計縦並び */}
+              <div className="flex gap-3 shrink-0">
+                <div className="text-center">
+                  <div className="text-white font-black text-sm leading-none">{pickedUpCount}</div>
+                  <div className="text-white/60 text-[9px] mt-0.5 flex flex-col items-center gap-0.5">
+                    <ShoppingBag className="w-2.5 h-2.5" />
+                    <span>回数</span>
+                  </div>
                 </div>
-              </div>
-              <div className="w-px h-5 bg-white/20" />
-              <div className="text-center">
-                <div className="text-white font-black text-sm leading-none">{foodSavedKg}</div>
-                <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
-                  <Scale className="w-3 h-3" />削減食品量 (kg)
+                <div className="text-center">
+                  <div className="text-white font-black text-sm leading-none">{foodSavedKg}</div>
+                  <div className="text-white/60 text-[9px] mt-0.5 flex flex-col items-center gap-0.5">
+                    <Scale className="w-2.5 h-2.5" />
+                    <span>kg</span>
+                  </div>
                 </div>
-              </div>
-              <div className="w-px h-5 bg-white/20" />
-              <div className="text-center">
-                <div className="text-white font-black text-sm leading-none">{co2Saved}</div>
-                <div className="text-white/70 text-[10px] font-bold mt-0.5 flex items-center gap-0.5">
-                  <Leaf className="w-3 h-3" />CO2削減 (kg)
+                <div className="text-center">
+                  <div className="text-white font-black text-sm leading-none">{co2Saved}</div>
+                  <div className="text-white/60 text-[9px] mt-0.5 flex flex-col items-center gap-0.5">
+                    <Leaf className="w-2.5 h-2.5" />
+                    <span>CO₂</span>
+                  </div>
                 </div>
               </div>
             </div>

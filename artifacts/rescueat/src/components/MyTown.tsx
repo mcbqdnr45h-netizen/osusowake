@@ -1056,69 +1056,101 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
   const gameFont = { fontFamily: "'Outfit', 'Noto Sans JP', sans-serif" };
 
   // ── Info panel ─────────────────────────────────────────────────────────
-  const infoPanel = (
-    <div className={fullPage ? 'px-4 pt-4 pb-5' : 'px-3 pt-1.5 pb-2'}>
-      <div className="flex items-center justify-between mb-1.5 gap-2">
-        <div className="flex-1 min-w-0">
-          <motion.div
+  const infoPanelCompact = (
+    <div className="px-3 py-2.5">
+      {/* Row 1: town name + level badge + stage number */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[12px] font-black text-foreground" style={gameFont}>🏘️ マイタウン</span>
+          <motion.span
             key={stage}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4 }}
-            className="flex items-center gap-1 mb-0.5 flex-wrap"
+            initial={{ scale: 1.3, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+            className="bg-primary text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none"
+            style={gameFont}
           >
-            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wide"
-              style={gameFont}>
-              Lv.{stage}
-            </span>
-            <span className={`font-black text-primary ${fullPage ? 'text-sm' : 'text-[11px]'}`} style={gameFont}>
-              {title}
-            </span>
-          </motion.div>
-          <h3 className={`font-black text-foreground flex items-center gap-1 ${fullPage ? 'text-lg' : 'text-[13px]'}`}
-            style={gameFont}>
-            🏘️ マイタウン
-          </h3>
-          <p className={`text-muted-foreground mt-0 leading-snug ${fullPage ? 'text-sm' : 'text-[10px]'}`}>
-            {stageInfo.description}
-          </p>
+            Lv.{stage}
+          </motion.span>
+          <span className="text-primary text-[10px] font-bold truncate" style={gameFont}>{title}</span>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide">STAGE</div>
-          <motion.div
+        <div className="flex items-baseline gap-0.5 shrink-0 ml-2">
+          <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide mr-0.5">STAGE</span>
+          <motion.span
             key={stage}
-            initial={{ scale: 1.5, opacity: 0 }}
+            initial={{ scale: 1.4, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className={`font-black text-primary leading-none ${fullPage ? 'text-5xl' : 'text-3xl'}`}
+            className="text-lg font-black text-primary leading-none"
             style={gameFont}
           >
             {stage}
-          </motion.div>
-          <div className="text-[8px] text-muted-foreground">/ {MAX_STAGE}</div>
+          </motion.span>
+          <span className="text-[9px] text-muted-foreground font-bold">/{MAX_STAGE}</span>
         </div>
       </div>
 
+      {/* Row 2: progress + next stage */}
+      {!isMax ? (
+        <div className="mt-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: 'linear-gradient(90deg, #4ade80, #22c55e)' }}
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.max(3, progressPct)}%` }}
+                transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }}
+              />
+            </div>
+            <span className="text-[10px] text-muted-foreground shrink-0 font-medium">
+              {nextStage!.icon} {nextStage!.name} まであと<span className="font-black text-foreground">{nextStage!.minCount - purchaseCount}</span>回
+            </span>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+            ✨ <span className="text-foreground/70">{nextStage!.benefit}</span>
+          </p>
+        </div>
+      ) : (
+        <p className="text-[10px] font-bold text-emerald-600 mt-1.5" style={gameFont}>
+          🌟 最高ステージ達成！{stageInfo.benefit}
+        </p>
+      )}
+    </div>
+  );
+
+  // ── Full-page info panel ─────────────────────────────────────────────────
+  const infoPanelFull = (
+    <div className="px-4 pt-4 pb-5">
+      <div className="flex items-center justify-between mb-1.5 gap-2">
+        <div className="flex-1 min-w-0">
+          <motion.div key={stage} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}
+            className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wide" style={gameFont}>Lv.{stage}</span>
+            <span className="font-black text-primary text-sm" style={gameFont}>{title}</span>
+          </motion.div>
+          <h3 className="font-black text-foreground text-lg flex items-center gap-1" style={gameFont}>🏘️ マイタウン</h3>
+          <p className="text-muted-foreground text-sm mt-0 leading-snug">{stageInfo.description}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide">STAGE</div>
+          <motion.div key={stage} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            className="font-black text-primary leading-none text-5xl" style={gameFont}>{stage}</motion.div>
+          <div className="text-[8px] text-muted-foreground">/ {MAX_STAGE}</div>
+        </div>
+      </div>
       {!isMax ? (
         <>
           <div className="mb-1.5">
             <div className="flex items-center justify-between mb-0.5">
-              <span className={`text-muted-foreground font-medium ${fullPage ? 'text-xs' : 'text-[10px]'}`}>
-                次: {nextStage!.icon} {nextStage!.name}
-              </span>
-              <span className={`font-black text-foreground ${fullPage ? 'text-xs' : 'text-[10px]'}`}>
-                あと {nextStage!.minCount - purchaseCount}回
-              </span>
+              <span className="text-muted-foreground font-medium text-xs">次: {nextStage!.icon} {nextStage!.name}</span>
+              <span className="font-black text-foreground text-xs">あと {nextStage!.minCount - purchaseCount}回</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`flex-1 relative bg-secondary rounded-full overflow-hidden ${fullPage ? 'h-4' : 'h-2.5'}`}>
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: 'linear-gradient(90deg, #4ade80, #22c55e, #16a34a)' }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.max(4, progressPct)}%` }}
-                  transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }}
-                />
+              <div className="flex-1 relative bg-secondary rounded-full overflow-hidden h-4">
+                <motion.div className="h-full rounded-full" style={{ background: 'linear-gradient(90deg, #4ade80, #22c55e, #16a34a)' }}
+                  initial={{ width: 0 }} animate={{ width: `${Math.max(4, progressPct)}%` }} transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }} />
                 <div className="absolute inset-y-0 left-0 right-0 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none" />
               </div>
               <div className="flex flex-col items-center shrink-0 opacity-35">
@@ -1128,27 +1160,24 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
             </div>
           </div>
           <motion.div className="bg-secondary/60 rounded-xl px-2.5 py-1.5" whileTap={{ scale: 0.97 }}>
-            <p className={`text-muted-foreground leading-snug ${fullPage ? 'text-sm' : 'text-[10px]'}`}>
+            <p className="text-muted-foreground leading-snug text-sm">
               あと <span className="font-black text-foreground" style={gameFont}>{nextStage!.minCount - purchaseCount}回</span> おすそわけすると「{nextStage!.name}」に進化！🌿
             </p>
-            <p className={`text-primary font-bold mt-0.5 flex items-center gap-1 ${fullPage ? 'text-sm' : 'text-[10px]'}`}>
-              <span>✨</span>
-              <span className="text-foreground font-semibold">{nextStage!.benefit}</span>
+            <p className="text-primary font-bold mt-0.5 flex items-center gap-1 text-sm">
+              <span>✨</span><span className="text-foreground font-semibold">{nextStage!.benefit}</span>
             </p>
           </motion.div>
         </>
       ) : (
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl px-4 py-3 text-center">
-          <p className={`font-black text-emerald-700 dark:text-emerald-400 ${fullPage ? 'text-base' : 'text-sm'}`} style={gameFont}>
-            🌟 最高ステージ達成！フードロス・ヒーロー
-          </p>
-          <p className={`text-emerald-600 dark:text-emerald-500 mt-1 ${fullPage ? 'text-sm' : 'text-xs'}`}>
-            {stageInfo.benefit}
-          </p>
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl px-4 py-3 text-center">
+          <p className="font-black text-emerald-700 text-base" style={gameFont}>🌟 最高ステージ達成！フードロス・ヒーロー</p>
+          <p className="text-emerald-600 mt-1 text-sm">{stageInfo.benefit}</p>
         </div>
       )}
     </div>
   );
+
+  const infoPanel = fullPage ? infoPanelFull : infoPanelCompact;
 
   // ── Full-page mode ──────────────────────────────────────────────────────
   if (fullPage) {
@@ -1187,8 +1216,8 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
         transition={{ duration: 0.5 }}
         className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3"
       >
-        <div className="relative overflow-hidden" style={{ aspectRatio: '360 / 180' }}>
-          <TownScene stage={stage} purchaseCount={purchaseCount} showLevelUp={showParticles} />
+        <div className="relative overflow-hidden" style={{ height: 130 }}>
+          <TownScene stage={stage} purchaseCount={purchaseCount} showLevelUp={showParticles} fillHeight />
           <LevelUpParticles active={showParticles} />
         </div>
         {infoPanel}
