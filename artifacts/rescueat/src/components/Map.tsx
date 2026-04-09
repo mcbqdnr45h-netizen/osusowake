@@ -195,7 +195,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>('loading');
   const [locating,        setLocating]       = useState(false);
-  const [mapType,         setMapType]        = useState<'roadmap' | 'satellite'>('roadmap');
+  const [mapType,         setMapType]        = useState<'roadmap' | 'satellite'>(
+    () => (localStorage.getItem('osusowake_map_type') as 'roadmap' | 'satellite') ?? 'roadmap'
+  );
   const [showMapTypePick, setShowMapTypePick]= useState(false);
   const [userPos,   setUserPos] = useState<{ lat: number; lng: number } | null>(
     userPosition ? { lat: userPosition[0], lng: userPosition[1] } : null
@@ -488,6 +490,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   // ── マップタイプ切替 ─────────────────────────────────────────────────────────
   useEffect(() => {
+    localStorage.setItem('osusowake_map_type', mapType);
     const map = mapRef.current;
     if (!map || status !== 'ready') return;
     map.setMapTypeId(mapType);
