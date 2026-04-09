@@ -312,7 +312,6 @@ function RoleReconciler() {
     if (fixedRef.current) return;
 
     fixedRef.current = true;
-    console.log('[RoleReconciler] 🔧 store あり・role=customer → fix-owner-role 実行 userId=', user.id);
 
     const doFix = async () => {
       try {
@@ -322,7 +321,6 @@ function RoleReconciler() {
           body: JSON.stringify({ ownerId: user.id }),
         });
         if (res.ok) {
-          console.log('[RoleReconciler] ✅ fix-owner-role 成功 → プロフィール再取得');
           await refreshProfile();
         } else {
           console.warn('[RoleReconciler] fix-owner-role HTTP error:', res.status);

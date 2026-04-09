@@ -145,7 +145,6 @@ export default function StoreOnboarding() {
 
     // 追加モードでない場合のみ、既存店舗があればリダイレクト（再送信ガード）
     if (!isAddMode && existingStore && !storeLoading) {
-      console.log('[StoreOnboarding] existing store detected before submit → redirect');
       if (existingStore.stripeAccountId) {
         navigate('/store/dashboard');
       } else {
@@ -223,7 +222,6 @@ export default function StoreOnboarding() {
 
       if (isInherited) {
         // Stripe引き継ぎ → bank-setup スキップ → マイページへ
-        console.log('[StoreOnboarding] ✅ 追加店舗登録成功（引き継ぎ） id=', responseBody.id, '→ /mypage');
         toast({
           title: '店舗を追加しました',
           description: '審査が完了するまでお待ちください。',
@@ -231,7 +229,6 @@ export default function StoreOnboarding() {
         navigate('/mypage');
       } else {
         // 初回登録 → bank-setup へ
-        console.log('[StoreOnboarding] ✅ 登録成功 id=', responseBody.id, '→ /store/bank-setup');
         navigate('/store/bank-setup');
       }
     } catch (err: unknown) {
@@ -243,7 +240,6 @@ export default function StoreOnboarding() {
           const check = await fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
           if (check.ok) {
             const checkStore = await check.json().catch(() => null);
-            console.log('[StoreOnboarding] タイムアウト後、店舗確認 OK → 遷移');
             clearOnboardingDraft();
             refetchStores();
             if (isInherited) {

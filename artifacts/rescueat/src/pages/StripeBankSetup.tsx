@@ -22,7 +22,6 @@ async function getStripeInstance(): Promise<Stripe | null> {
       if (!res.ok) throw new Error(`/api/stripe/public-config returned ${res.status}`);
       const data = await res.json() as { publishableKey: string; mode: string };
       if (!data.publishableKey) throw new Error('Stripe公開鍵が設定されていません（STRIPE_PUBLISHABLE_KEY を設定してください）');
-      console.log(`[StripeBankSetup] Stripe mode=${data.mode} pk=${data.publishableKey.slice(0, 12)}...`);
       return await loadStripe(data.publishableKey);
     } catch (e) {
       console.error('[StripeBankSetup] Stripe公開鍵の取得に失敗:', e);
@@ -470,7 +469,6 @@ export default function StripeBankSetup() {
     abortRef.current = controller;
     // APIが早期にレスポンスを返すので30秒で十分
     const timeoutId = setTimeout(() => {
-      console.log('[StripeBankSetup] ⏱ 30秒タイムアウト — 処理中としてマイページへ遷移');
       controller.abort();
     }, 30_000);
 
@@ -483,7 +481,6 @@ export default function StripeBankSetup() {
       const routingNumber = bankCode.trim().padStart(4, '0') + branchCode.trim().padStart(3, '0');
       // Stripe JP は半角カタカナを要求するため自動変換
       const holderNameHalf = toHalfWidthKana(holderName.trim());
-      console.log('[StripeBankSetup] createToken params:', { routingNumber, accountNumber: accountNumber.trim(), holderNameHalf });
       const result = await (stripe as any).createToken('bank_account', {
         country: 'JP', currency: 'jpy',
         routing_number: routingNumber,
@@ -499,7 +496,6 @@ export default function StripeBankSetup() {
 
       // ② 全データを一括送信（口座登録 + KYC + 書類アップロード + DB approved 更新）
       setSubmitStatus('登録情報をサーバーに送信中...');
-      console.log(`[StripeBankSetup] POST /api/stores/${store.id}/connect/bank-setup 開始`);
 
       const res = await fetch(`/api/stores/${store.id}/connect/bank-setup`, {
         method: 'POST',
@@ -548,7 +544,6 @@ export default function StripeBankSetup() {
       });
       clearTimeout(timeoutId);
 
-      console.log(`[StripeBankSetup] レスポンス受信: status=${res.status}`);
       const data = await res.json();
       if (!res.ok) {
         const hint = data.param ? `（項目: ${data.param}）` : '';
@@ -558,7 +553,6 @@ export default function StripeBankSetup() {
 
       // ③ 完了 → 下書き削除・プロフィール更新・マイページへ
       setSubmitStatus('登録完了！');
-      console.log('[StripeBankSetup] ✅ 登録成功 → /mypage へ遷移');
       if (store?.id) clearDraft(store.id);
       try { await refreshProfile(); } catch (_) {}
       try { await refetch(); } catch (_) {}
@@ -567,7 +561,6 @@ export default function StripeBankSetup() {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
         // タイムアウト → ステータスは applied 更新済みなのでマイページへ
-        console.log('[StripeBankSetup] AbortError (タイムアウト) → /mypage へ遷移');
         setSubmitStatus('処理完了！');
         if (store?.id) clearDraft(store.id);
         try { await refreshProfile(); } catch (_) {}

@@ -53,12 +53,10 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
 
     let alive = true;
     let resizeTimer: ReturnType<typeof setTimeout> | undefined;
-    console.log('[PlaceSearchMap] loading Google Maps script…');
 
     loadGoogleMapsScript()
       .then(() => {
         if (!alive) return;
-        console.log('[PlaceSearchMap] script ready, google.maps available:', !!(window as any).google?.maps);
 
         const gm = (window as any).google.maps as typeof google.maps;
         if (!gm || !mapDivRef.current || !inputRef.current) {
@@ -73,10 +71,8 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
           console.warn('[PlaceSearchMap] container width=0, waiting for layout...');
           requestAnimationFrame(() => {
             if (!alive || !mapDivRef.current) return;
-            console.log('[PlaceSearchMap] container size after rAF:', mapDivRef.current.offsetWidth, mapDivRef.current.offsetHeight);
           });
         } else {
-          console.log('[PlaceSearchMap] container size:', mapDivRef.current.offsetWidth, mapDivRef.current.offsetHeight);
         }
 
         const center = hasInitial ? { lat: lat!, lng: lng! } : OSAKA;
@@ -147,7 +143,6 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
         });
 
         if (gm.places?.Autocomplete) {
-          console.log('[PlaceSearchMap] Places.Autocomplete available ✅');
           const ac = new gm.places.Autocomplete(inputRef.current!, {
             types: ['establishment', 'geocode'],
             componentRestrictions: { country: 'jp' },

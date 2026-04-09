@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "koBsM6_VP42bBnwjfOPv9"
+uri = "file://artifacts/rescueat/resources/icon.png"
+type = "image"
+title = "osusowake-icon-minimal"
+
+[[generated]]
+id = "dt96ToDSR8ergjLrVAKR1"
+uri = "file://artifacts/rescueat/resources/splash.png"
+type = "image"
+title = "osusowake-splash-screen"

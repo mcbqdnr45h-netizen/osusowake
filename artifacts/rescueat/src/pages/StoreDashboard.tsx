@@ -1137,7 +1137,6 @@ export default function StoreDashboard() {
     if (storeLoading) return;
     if (!store && !storeFetchError) {
       // 店舗未登録
-      console.log('[StoreDashboard] no store found → /store-onboarding');
       navigate('/store-onboarding', { replace: true });
       return;
     }

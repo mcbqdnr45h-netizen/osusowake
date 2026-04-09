@@ -396,7 +396,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               display_name: prof.display_name ?? null,
               created_at: data.user.created_at,
             });
-            console.log('[AuthContext] profile set:', prof.email, 'role:', sessionRole);
           } else {
             // プロフィールが存在しない場合（まれ）
             role = forceRole ?? 'customer';
