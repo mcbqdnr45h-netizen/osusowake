@@ -54,7 +54,7 @@ export function AuthShell({
       />
 
       {/* ── ヘッダー ── */}
-      <div className="relative z-10 flex items-center px-6 pt-12 pb-2">
+      <div className="relative z-10 flex items-center px-6 pt-safe-or-5 pb-2">
         <Link href={backHref}>
           <motion.button
             whileHover={{ scale: 1.06, backgroundColor: 'rgba(255,255,255,0.96)' }}
