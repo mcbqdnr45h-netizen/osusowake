@@ -1216,7 +1216,7 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
         transition={{ duration: 0.5 }}
         className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3"
       >
-        <div className="relative overflow-hidden" style={{ height: 130 }}>
+        <div className="relative overflow-hidden" style={{ height: 180 }}>
           <TownScene stage={stage} purchaseCount={purchaseCount} showLevelUp={showParticles} fillHeight />
           <LevelUpParticles active={showParticles} />
         </div>
