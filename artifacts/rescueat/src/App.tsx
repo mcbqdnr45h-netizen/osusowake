@@ -1,6 +1,6 @@
 import React, { Suspense, useRef } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
@@ -115,23 +115,18 @@ const queryClient = new QueryClient({
   },
 });
 
-// ── 起動時プリフェッチ：マップ表示を即座にするためキャッシュを先読み ────────
-function Prefetcher() {
-  const qc = useQueryClient();
-  useEffect(() => {
-    qc.prefetchQuery({
-      queryKey: getListStoresQueryKey(),
-      queryFn: ({ signal }) => listStores(undefined, { signal }),
-      staleTime: 1000 * 60 * 2,
-    });
-    qc.prefetchQuery({
-      queryKey: getListAllBagsQueryKey(),
-      queryFn: ({ signal }) => listAllBags({ signal }),
-      staleTime: 1000 * 60 * 2,
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return null;
-}
+// ── 起動時プリフェッチ：Reactレンダリングより前にフェッチ開始（最速） ─────
+// コンポーネントマウントを待たずモジュール初期化時点でリクエストを発行する
+queryClient.prefetchQuery({
+  queryKey: getListStoresQueryKey(),
+  queryFn: () => listStores(),
+  staleTime: 1000 * 60 * 2,
+});
+queryClient.prefetchQuery({
+  queryKey: getListAllBagsQueryKey(),
+  queryFn: () => listAllBags(),
+  staleTime: 1000 * 60 * 2,
+});
 
 // ── ページ遷移ローディングオーバーレイ ──────────────────────────────────────
 function PageTransitionOverlay() {
@@ -385,7 +380,6 @@ function MaintenanceGate({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Prefetcher />
       <AuthProvider>
         <MyStoresProvider>
           <FavoritesProvider>
