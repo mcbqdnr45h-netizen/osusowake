@@ -1413,10 +1413,9 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
       interval: string; weekly_anchor?: string; monthly_anchor?: number; delay_days?: number;
     } | null;
 
-    // Stripe JP は決済から7日間の保留期間がある（schedule.delay_days は payout 設定値、
-    // 実際の pending→available 期間は balance transactions の available_on で確認できる）
-    // pending 残高があり available が 0 の場合、最新の available_on を取得して正確な振込日を計算
-    let actualDelayDays = schedule?.delay_days ?? 7; // JP Stripe default = 7 calendar days
+    // Stripe JP は決済から7日間の保留期間がある（schedule.delay_days は payout 設定値で別物）
+    // balance transactions の available_on から実際の保留日数・振込可能日を取得する
+    let actualDelayDays = 7; // JP Stripe default = 7 calendar days
     let pendingAvailableOn: Date | null = null;
 
     if (pending > 0) {
@@ -1425,15 +1424,20 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
           { limit: 10, type: "payment" },
           { stripeAccount: store.stripeAccountId }
         );
-        // 最も遅い available_on を取得
         for (const tx of txList.data) {
           if (tx.available_on) {
             const d = new Date(tx.available_on * 1000);
+            // 最も遅い available_on を振込可能日として採用
             if (!pendingAvailableOn || d > pendingAvailableOn) pendingAvailableOn = d;
+            // 最初の取引から実際の保留日数を計算
+            if (tx.created) {
+              const days = Math.round((tx.available_on - tx.created) / 86400);
+              if (days > 0) actualDelayDays = days;
+            }
           }
         }
       } catch {
-        // 取得失敗時はデフォルト delay_days を使用
+        // 取得失敗時はデフォルト 7 を使用
       }
     }
 
