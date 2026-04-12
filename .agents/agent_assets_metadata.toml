@@ -42,6 +42,36 @@ uri = "file://attached_assets/generated_images/logo_5_bento.png"
 type = "image"
 title = "osusowake logo bento"
 
+[[generated]]
+id = "UChM9-cCLF7MFGINO9e6M"
+uri = "file://attached_assets/generated_images/logo_pro_1.png"
+type = "image"
+title = "pro logo bag leaf"
+
+[[generated]]
+id = "BpGrGxytJWbZADIrV2YmK"
+uri = "file://attached_assets/generated_images/logo_pro_2.png"
+type = "image"
+title = "pro logo abstract overlap"
+
+[[generated]]
+id = "Z3r6TWmn440yU56Bfwr2z"
+uri = "file://attached_assets/generated_images/logo_pro_3.png"
+type = "image"
+title = "pro logo monoline hand"
+
+[[generated]]
+id = "zzKhmVsWZubLbwnMCVvmn"
+uri = "file://attached_assets/generated_images/logo_pro_4.png"
+type = "image"
+title = "pro logo hex cutlery"
+
+[[generated]]
+id = "IwRctG0J7dksR5wY11kZo"
+uri = "file://attached_assets/generated_images/logo_pro_5.png"
+type = "image"
+title = "pro logo circle mon"
+
 [[outputs]]
 id = "XN11RfSgppjHcJSklu5R2"
 uri = "file://attached_assets/generated_images/logo_1_bag.png"
@@ -71,3 +101,33 @@ id = "BmXv7u_CK6UT6kYLr-Jb2"
 uri = "file://attached_assets/generated_images/logo_5_bento.png"
 type = "image"
 title = "案⑤：お弁当＋スパークル — お弁当から食材が飛び出す元気なデザイン"
+
+[[outputs]]
+id = "OFSfFnouaZVFcFWodwA_r"
+uri = "file://attached_assets/generated_images/logo_pro_1.png"
+type = "image"
+title = "案① バッグ×リーフ — 袋のシルエットから葉が生える。食品レスキュー×エコを表現"
+
+[[outputs]]
+id = "iOgAvoUIGGK4GRCLEgTkR"
+uri = "file://attached_assets/generated_images/logo_pro_2.png"
+type = "image"
+title = "案② 重なる2つの円 — オレンジ×ゴールドが交わる。「おすそわけ＝シェア」を抽象表現"
+
+[[outputs]]
+id = "rzUrEA-PDPz1TB8kBVbsN"
+uri = "file://attached_assets/generated_images/logo_pro_3.png"
+type = "image"
+title = "案③ 一筆書きの手×器 — 1本の線で手と食器を同時に表現。洗練されたモノライン"
+
+[[outputs]]
+id = "Lfl6o_ym2fz8rurVGAG8H"
+uri = "file://attached_assets/generated_images/logo_pro_4.png"
+type = "image"
+title = "案④ ヘキサゴンバッジ — フォーク×スプーンを幾何学的に。無印やユニクロ的な日本のモダン"
+
+[[outputs]]
+id = "5jSJ2NtlSQ9ruA0gqXMap"
+uri = "file://attached_assets/generated_images/logo_pro_5.png"
+type = "image"
+title = "案⑤ 家紋スタイル — 日本の紋章デザインをベースにした大胆なネガティブスペース"
