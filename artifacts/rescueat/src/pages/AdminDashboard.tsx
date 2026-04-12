@@ -475,6 +475,27 @@ export default function AdminDashboard() {
     }
   }
 
+  async function disconnectStripe(storeId: number, storeName: string) {
+    if (!confirm(`「${storeName}」のStripe口座連携を解除しますか？\n\nオーナーが再登録するまで売上の受け取りが停止します。`)) return;
+    const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+    try {
+      const res = await fetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, { method: 'POST' });
+      if (res.ok) {
+        setStores(prev => prev.map(s => s.id === storeId ? { ...s, stripe_account_id: null, stripe_charges_enabled: false, stripe_payouts_enabled: false } : s));
+        setStoreDetails(prev => {
+          const existing = prev[storeId];
+          if (!existing) return prev;
+          return { ...prev, [storeId]: { ...existing, stripe_account_id: null, stripe_charges_enabled: false, stripe_payouts_enabled: false, stripe_license_file_id: null } };
+        });
+        toast({ title: '✅ Stripe連携を解除しました', description: 'オーナーのマイページに口座再登録の案内が表示されます' });
+      } else {
+        toast({ title: 'エラー', description: '解除に失敗しました', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'エラー', description: 'サーバーへの接続に失敗しました', variant: 'destructive' });
+    }
+  }
+
   async function linkStripeAccount() {
     if (!linkStripeDialog || !linkStripeInput.startsWith('acct_')) return;
     setLinkStripeLoading(true);
@@ -1103,18 +1124,27 @@ export default function AdminDashboard() {
                             )}
                             {/* Stripe再同期ボタン */}
                             {store.stripe_account_id && (
-                              <div className="mb-2">
+                              <div className="mb-2 flex gap-2">
                                 <button
                                   type="button"
                                   onClick={() => syncStripeForStore(store.id)}
                                   disabled={syncingStripe === store.id}
-                                  className="w-full flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs py-2 rounded-xl transition-colors border border-blue-200 disabled:opacity-50"
+                                  className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs py-2 rounded-xl transition-colors border border-blue-200 disabled:opacity-50"
                                 >
                                   {syncingStripe === store.id
                                     ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                     : <RefreshCw className="w-3.5 h-3.5" />
                                   }
-                                  Stripe情報を再同期
+                                  Stripe再同期
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => disconnectStripe(store.id, store.name)}
+                                  className="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs py-2 px-3 rounded-xl transition-colors border border-red-200"
+                                  title="口座変更・再連携のために使用"
+                                >
+                                  <LinkIcon className="w-3.5 h-3.5" />
+                                  口座リセット
                                 </button>
                               </div>
                             )}
