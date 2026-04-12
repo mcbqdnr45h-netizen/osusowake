@@ -1769,7 +1769,7 @@ export default function StoreDashboard() {
                     <div>
                       <p className="text-xs text-amber-700 font-bold">保留中とは？</p>
                       <p className="text-[11px] text-amber-600 leading-relaxed mt-0.5">
-                        決済から{balanceData.delayDays ?? 4}営業日後に「振込可能」へ移動します。振込可能になった次の月曜日に振込されます。
+                        決済から{balanceData.delayDays ?? 7}日後に「振込可能」へ移動します。振込可能になった次の月曜日に振込されます。
                       </p>
                     </div>
                   </div>

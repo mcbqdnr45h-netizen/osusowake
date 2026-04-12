@@ -1408,28 +1408,58 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
     const pending   = balance.pending.reduce((s, b) => s + b.amount, 0);
     const available = balance.available.reduce((s, b) => s + b.amount, 0);
 
-    // 次回ペイアウト日を計算（週次・月曜なら次の月曜）
+    // 次回ペイアウト日を計算
     const schedule = (account.settings as any)?.payouts?.schedule as {
       interval: string; weekly_anchor?: string; monthly_anchor?: number; delay_days?: number;
     } | null;
 
+    // Stripe JP は決済から7日間の保留期間がある（schedule.delay_days は payout 設定値、
+    // 実際の pending→available 期間は balance transactions の available_on で確認できる）
+    // pending 残高があり available が 0 の場合、最新の available_on を取得して正確な振込日を計算
+    let actualDelayDays = schedule?.delay_days ?? 7; // JP Stripe default = 7 calendar days
+    let pendingAvailableOn: Date | null = null;
+
+    if (pending > 0) {
+      try {
+        const txList = await stripe.balanceTransactions.list(
+          { limit: 10, type: "payment" },
+          { stripeAccount: store.stripeAccountId }
+        );
+        // 最も遅い available_on を取得
+        for (const tx of txList.data) {
+          if (tx.available_on) {
+            const d = new Date(tx.available_on * 1000);
+            if (!pendingAvailableOn || d > pendingAvailableOn) pendingAvailableOn = d;
+          }
+        }
+      } catch {
+        // 取得失敗時はデフォルト delay_days を使用
+      }
+    }
+
+    // 基準日：pending のみなら available_on（Stripe実測値）、それ以外は今日
+    const now = new Date(Date.now() + 9 * 60 * 60 * 1000); // JST
+    const baseDate = (pending > 0 && available === 0 && pendingAvailableOn)
+      ? new Date(pendingAvailableOn.getTime() + 9 * 60 * 60 * 1000) // available_on → JST
+      : (pending > 0 && available === 0)
+        ? new Date(now.getTime() + actualDelayDays * 24 * 60 * 60 * 1000) // fallback
+        : now;
+
     let nextPayoutDate: string | null = null;
     if (schedule?.interval === "weekly" && schedule.weekly_anchor) {
       const dayMap: Record<string, number> = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 0 };
-      const anchor = dayMap[schedule.weekly_anchor] ?? 1;
-      const now    = new Date(Date.now() + 9 * 60 * 60 * 1000); // JST
-      const today  = now.getDay();
-      let diff     = anchor - today;
+      const anchor    = dayMap[schedule.weekly_anchor] ?? 1;
+      const baseDay   = baseDate.getDay();
+      let diff        = anchor - baseDay;
       if (diff <= 0) diff += 7;
-      const next = new Date(now.getTime() + diff * 24 * 60 * 60 * 1000);
+      const next = new Date(baseDate.getTime() + diff * 24 * 60 * 60 * 1000);
       nextPayoutDate = next.toISOString().slice(0, 10);
     } else if (schedule?.interval === "monthly" && schedule.monthly_anchor) {
-      const now  = new Date(Date.now() + 9 * 60 * 60 * 1000);
-      const year = now.getFullYear();
-      const month = now.getMonth();
+      const year   = baseDate.getFullYear();
+      const month  = baseDate.getMonth();
       const anchor = schedule.monthly_anchor;
       let next = new Date(year, month, anchor);
-      if (next <= now) next = new Date(year, month + 1, anchor);
+      if (next <= baseDate) next = new Date(year, month + 1, anchor);
       nextPayoutDate = next.toISOString().slice(0, 10);
     }
 
@@ -1443,7 +1473,7 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
       chargesEnabled: account.charges_enabled,
       payoutSchedule: schedule,
       nextPayoutDate,
-      delayDays:     schedule?.delay_days ?? 4,
+      delayDays:     actualDelayDays,
     });
   } catch (err: any) {
     console.error("[balance] error:", err?.message);
