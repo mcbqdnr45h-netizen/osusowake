@@ -782,12 +782,39 @@ export default function StripeKYCPage() {
 
           {/* ① 事業形態 */}
           <Section title="事業形態" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
+            {/* 既存Stripeアカウントがある場合：業種変更不可の注意 */}
+            {store?.stripeAccountId && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-3 flex items-start gap-2">
+                <TriangleAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black text-amber-800">業種はStripe連携時に固定されます</p>
+                  <p className="text-[10px] text-amber-700 mt-0.5 leading-snug">
+                    変更が必要な場合は再連携が必要です。
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+                      await fetch(`${BASE}/api/stores/${store.id}/stripe-disconnect`, { method: 'POST' });
+                      navigate('/store/bank-setup');
+                    }}
+                    className="mt-1.5 text-[10px] font-black text-amber-700 underline underline-offset-2"
+                  >
+                    口座を再連携して業種を変更する →
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               {(['individual', 'company'] as const).map(t => (
-                <button key={t} type="button" onClick={() => setBusinessType(t)}
+                <button key={t} type="button"
+                  onClick={() => {
+                    if (store?.stripeAccountId) return;
+                    setBusinessType(t);
+                  }}
                   className={`py-3 rounded-xl font-bold text-sm border-2 transition-all ${
                     businessType === t ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500'
-                  }`}>
+                  } ${store?.stripeAccountId ? 'opacity-70 cursor-not-allowed' : ''}`}>
                   {t === 'individual' ? '👤 個人事業主' : '🏢 法人'}
                 </button>
               ))}
