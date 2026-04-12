@@ -936,7 +936,11 @@ export default function AdminDashboard() {
                                         ) : (
                                           <div className="flex items-start justify-between gap-2">
                                             <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5 min-w-[72px]">Stripe File ID</span>
-                                            <span className="text-[11px] text-amber-600 font-semibold">❌ 未提出（Stripe未送信）</span>
+                                            {(d.stripe_charges_enabled && d.stripe_payouts_enabled) ? (
+                                              <span className="text-[11px] text-muted-foreground">—（DB未記録・決済は有効）</span>
+                                            ) : (
+                                              <span className="text-[11px] text-amber-600 font-semibold">❌ 未提出（Stripe未送信）</span>
+                                            )}
                                           </div>
                                         )}
 
