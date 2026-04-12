@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "koBsM6_VP42bBnwjfOPv9"
@@ -12,3 +11,63 @@ id = "dt96ToDSR8ergjLrVAKR1"
 uri = "file://artifacts/rescueat/resources/splash.png"
 type = "image"
 title = "osusowake-splash-screen"
+
+[[generated]]
+id = "VHIXTu5L2fjUOoCWiK9_e"
+uri = "file://attached_assets/generated_images/logo_1_bag.png"
+type = "image"
+title = "osusowake logo bag"
+
+[[generated]]
+id = "jNU06cc6I10ulGZ17aOad"
+uri = "file://attached_assets/generated_images/logo_2_hands.png"
+type = "image"
+title = "osusowake logo hands"
+
+[[generated]]
+id = "eFFppW8DfShzCrMe-BVW2"
+uri = "file://attached_assets/generated_images/logo_3_onigiri.png"
+type = "image"
+title = "osusowake logo onigiri"
+
+[[generated]]
+id = "KpF_42KpJp0I5zJIQiutf"
+uri = "file://attached_assets/generated_images/logo_4_emblem.png"
+type = "image"
+title = "osusowake logo emblem"
+
+[[generated]]
+id = "p6JUYqotx0IA-vHCkuQRc"
+uri = "file://attached_assets/generated_images/logo_5_bento.png"
+type = "image"
+title = "osusowake logo bento"
+
+[[outputs]]
+id = "XN11RfSgppjHcJSklu5R2"
+uri = "file://attached_assets/generated_images/logo_1_bag.png"
+type = "image"
+title = "案①：笑顔のバッグ — おすそわけ袋がキャラクター化。ハートが浮かんで温かみがある"
+
+[[outputs]]
+id = "5Du1c9mIQ2rjXITZgN2fA"
+uri = "file://attached_assets/generated_images/logo_2_hands.png"
+type = "image"
+title = "案②：手渡し — 2つの手が袋を受け渡す。「シェア」の意味を直接表現"
+
+[[outputs]]
+id = "hYiAEmDUU8O5iYIBJxZSC"
+uri = "file://attached_assets/generated_images/logo_3_onigiri.png"
+type = "image"
+title = "案③：おにぎり＋ハート — 和食の象徴・おにぎりにハートを込めた日本らしいデザイン"
+
+[[outputs]]
+id = "LYxd469jj5uh3Y8eCnvdt"
+uri = "file://attached_assets/generated_images/logo_4_emblem.png"
+type = "image"
+title = "案④：食品エンブレム — 食材が円を描くシール型。安心感・信頼感のある雰囲気"
+
+[[outputs]]
+id = "BmXv7u_CK6UT6kYLr-Jb2"
+uri = "file://attached_assets/generated_images/logo_5_bento.png"
+type = "image"
+title = "案⑤：お弁当＋スパークル — お弁当から食材が飛び出す元気なデザイン"
