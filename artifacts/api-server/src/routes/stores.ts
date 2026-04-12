@@ -1174,6 +1174,33 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
   }
 });
 
+// ─── Stripe アカウント切断（再連携用） ────────────────────────────────────────
+// POST /api/stores/:storeId/stripe-disconnect
+// stripeAccountId を NULL にリセットして、オーナーが新しい口座で再連携できるようにする
+router.post("/stores/:storeId/stripe-disconnect", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) return res.status(400).json({ error: "bad_request" });
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) return res.status(404).json({ error: "not_found" });
+
+    // DB のみリセット（既存の Stripe アカウントはそのまま残す）
+    await db.update(storesTable)
+      .set({ stripeAccountId: null } as any)
+      .where(eq(storesTable.id, storeId));
+
+    res.json({ ok: true, message: "Stripe account disconnected. Please reconnect." });
+  } catch (err: any) {
+    console.error("[stripe-disconnect] error:", err?.message);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
 // ─── Stripe 強制再同期 ────────────────────────────────────────────────────────
 // POST /api/stores/:storeId/stripe-sync
 // Stripe API から最新ステータスを取得して DB を上書きする（管理者・オーナー両用）

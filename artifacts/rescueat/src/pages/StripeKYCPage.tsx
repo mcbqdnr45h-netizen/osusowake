@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
@@ -219,6 +219,71 @@ export default function StripeKYCPage() {
   const [docBackDone, setDocBackDone]         = useState(false);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef  = useRef<HTMLInputElement>(null);
+  const saveTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── ドラフト永続化：他のアプリに移動しても入力内容を保持 ────────────────
+  const KYC_DRAFT_KEY = `osusowake_kyc_draft_${store?.id ?? 'pending'}`;
+
+  // マウント時に保存済みドラフトを復元
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KYC_DRAFT_KEY) ?? localStorage.getItem('osusowake_kyc_draft_pending');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.businessType)       setBusinessType(d.businessType);
+      if (d.lastNameKanji)      setLastNameKanji(d.lastNameKanji);
+      if (d.firstNameKanji)     setFirstNameKanji(d.firstNameKanji);
+      if (d.lastNameKana)       setLastNameKana(d.lastNameKana);
+      if (d.firstNameKana)      setFirstNameKana(d.firstNameKana);
+      if (d.phone)              setPhone(d.phone);
+      if (d.email)              setEmail(d.email);
+      if (d.dobYear)            setDobYear(d.dobYear);
+      if (d.dobMonth)           setDobMonth(d.dobMonth);
+      if (d.dobDay)             setDobDay(d.dobDay);
+      if (d.postalCode)         setPostalCode(d.postalCode);
+      if (d.stateKanji)         setStateKanji(d.stateKanji);
+      if (d.cityKanji)          setCityKanji(d.cityKanji);
+      if (d.townKanji)          setTownKanji(d.townKanji);
+      if (d.line1Kanji)         setLine1Kanji(d.line1Kanji);
+      if (d.stateKana)          setStateKana(d.stateKana);
+      if (d.cityKana)           setCityKana(d.cityKana);
+      if (d.townKana)           setTownKana(d.townKana);
+      if (d.line1Kana)          setLine1Kana(d.line1Kana);
+      if (d.companyNameKanji)   setCompanyNameKanji(d.companyNameKanji);
+      if (d.companyNameKana)    setCompanyNameKana(d.companyNameKana);
+      if (d.companyNameLatin)   setCompanyNameLatin(d.companyNameLatin);
+      if (d.companyStructure)   setCompanyStructure(d.companyStructure);
+      if (d.productDescription) setProductDescription(d.productDescription);
+      if (d.businessUrl)        setBusinessUrl(d.businessUrl);
+    } catch (_) {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [KYC_DRAFT_KEY]);
+
+  // 値変化時に500ms後に自動保存（debounced）
+  useEffect(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(KYC_DRAFT_KEY, JSON.stringify({
+          businessType, lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
+          phone, email, dobYear, dobMonth, dobDay,
+          postalCode, stateKanji, cityKanji, townKanji, line1Kanji,
+          stateKana, cityKana, townKana, line1Kana,
+          companyNameKanji, companyNameKana, companyNameLatin, companyStructure,
+          productDescription, businessUrl,
+        }));
+      } catch (_) {}
+    }, 500);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    businessType, lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
+    phone, email, dobYear, dobMonth, dobDay,
+    postalCode, stateKanji, cityKanji, townKanji, line1Kanji,
+    stateKana, cityKana, townKana, line1Kana,
+    companyNameKanji, companyNameKana, companyNameLatin, companyStructure,
+    productDescription, businessUrl,
+  ]);
 
   type KYCResult = {
     kycComplete: boolean;
@@ -399,7 +464,8 @@ export default function StripeKYCPage() {
         else setDocError(`書類（裏面）のアップロードに失敗しました: ${d.message ?? ''}`);
       }
 
-      // ── 成功 → refetch してマイページを即時更新 ──
+      // ── 成功 → ドラフト削除 + refetch ──
+      try { localStorage.removeItem(KYC_DRAFT_KEY); localStorage.removeItem('osusowake_kyc_draft_pending'); } catch (_) {}
       await refetch();
       setResult(kycData);
     } catch (err: any) {

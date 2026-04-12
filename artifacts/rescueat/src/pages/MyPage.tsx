@@ -432,10 +432,26 @@ export default function MyPage() {
             </div>
           );
           return (
-            <div className="mb-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-              <p className="text-xs font-black text-red-800 flex-1">❌ Stripe連携に問題があります</p>
-              <span className="text-[9px] font-black bg-red-200 text-red-800 px-2 py-0.5 rounded-full shrink-0">要確認</span>
+            <div className="mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                <p className="text-xs font-black text-red-800 flex-1">❌ Stripe口座の再連携が必要です</p>
+                <span className="text-[9px] font-black bg-red-200 text-red-800 px-2 py-0.5 rounded-full shrink-0">要再連携</span>
+              </div>
+              <p className="text-[10px] text-red-700 leading-snug">
+                登録済みのStripeアカウントにアクセスできません。口座情報を再度登録してください。
+              </p>
+              <button
+                onClick={async () => {
+                  if (!storeId) return;
+                  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+                  await fetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, { method: 'POST' });
+                  navigate('/store/bank-setup');
+                }}
+                className="w-full py-1.5 text-[11px] font-black bg-red-600 text-white rounded-lg"
+              >
+                口座を再連携する →
+              </button>
             </div>
           );
         })()}
