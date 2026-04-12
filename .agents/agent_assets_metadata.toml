@@ -72,6 +72,36 @@ uri = "file://attached_assets/generated_images/logo_pro_5.png"
 type = "image"
 title = "pro logo circle mon"
 
+[[generated]]
+id = "pl0IZGWsGOGbBBOUj1oMA"
+uri = "file://attached_assets/generated_images/logo_elite_1.png"
+type = "image"
+title = "elite 3d sphere logo"
+
+[[generated]]
+id = "HMYUHd19FXHsneVdABJqi"
+uri = "file://attached_assets/generated_images/logo_elite_2.png"
+type = "image"
+title = "elite flame leaf logo"
+
+[[generated]]
+id = "f84Ky6NsBjhPFL_tr5zij"
+uri = "file://attached_assets/generated_images/logo_elite_3.png"
+type = "image"
+title = "elite food bowl photo"
+
+[[generated]]
+id = "dAuyjfDVnZS58YIho6Ki6"
+uri = "file://attached_assets/generated_images/logo_elite_4.png"
+type = "image"
+title = "elite petal rosette logo"
+
+[[generated]]
+id = "S8CCti6ymAueZ87SCXrNt"
+uri = "file://attached_assets/generated_images/logo_elite_5.png"
+type = "image"
+title = "elite ribbon hands logo"
+
 [[outputs]]
 id = "XN11RfSgppjHcJSklu5R2"
 uri = "file://attached_assets/generated_images/logo_1_bag.png"
@@ -131,3 +161,33 @@ id = "5jSJ2NtlSQ9ruA0gqXMap"
 uri = "file://attached_assets/generated_images/logo_pro_5.png"
 type = "image"
 title = "案⑤ 家紋スタイル — 日本の紋章デザインをベースにした大胆なネガティブスペース"
+
+[[outputs]]
+id = "3zooDIwo9MPKmtVckR8p0"
+uri = "file://attached_assets/generated_images/logo_elite_1.png"
+type = "image"
+title = "案① 3Dスフィア — メタリックな球体にバッグ型のカットアウト。内側から温かい光"
+
+[[outputs]]
+id = "9mBcxWxsawkQlFlexHsd2"
+uri = "file://attached_assets/generated_images/logo_elite_2.png"
+type = "image"
+title = "案② 炎×葉×人 — 炸から金へのグラデーション。喜び・生命力・食を一体化"
+
+[[outputs]]
+id = "Ky9QemLHKTu8KQ348ebib"
+uri = "file://attached_assets/generated_images/logo_elite_3.png"
+type = "image"
+title = "案③ フードボウル — 上からのシネマライティング。食材が曼荷羅状に並ぶ写真品質"
+
+[[outputs]]
+id = "lpHtwXnJLHN15McyIvJBK"
+uri = "file://attached_assets/generated_images/logo_elite_4.png"
+type = "image"
+title = "案④ 花弁ロゼット — 半透明の花弁が重なる。折り紙×ステンドグラス風"
+
+[[outputs]]
+id = "AT1JgrpQAhZXZh5vXvMo5"
+uri = "file://attached_assets/generated_images/logo_elite_5.png"
+type = "image"
+title = "案⑤ リボンハンズ — リボンが両手を形成。深紅から金へのラグジュアリーなグラデーション"
