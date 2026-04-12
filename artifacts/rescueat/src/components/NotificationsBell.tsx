@@ -40,6 +40,7 @@ function NotificationItem({ n, onRead }: { n: AppNotification; onRead: (id: numb
 export function NotificationsBell() {
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({ right: 0 });
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,6 +52,21 @@ export function NotificationsBell() {
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
+
+  // ポップアップがビューポート左端を超えないよう位置を調整
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const popupWidth = 320; // w-80
+    const margin = 8;
+    const leftEdge = rect.right - popupWidth;
+    if (leftEdge < margin) {
+      // 右にずらして左端がmargin以上になるようにする
+      setPopupStyle({ right: -(margin - leftEdge) });
+    } else {
+      setPopupStyle({ right: 0 });
+    }
+  }, [open]);
 
   return (
     <div className="relative" ref={ref}>
@@ -75,7 +91,8 @@ export function NotificationsBell() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 z-50 overflow-hidden"
+            style={popupStyle}
+            className="absolute top-11 w-80 bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 z-50 overflow-hidden"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <p className="font-black text-sm text-gray-900">お知らせ</p>
