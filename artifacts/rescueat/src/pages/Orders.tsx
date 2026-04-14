@@ -274,7 +274,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
               </div>
               <div className="flex justify-between">
                 <span>お支払い方法</span>
-                <span className="font-bold text-gray-800">クレジットカード（Stripe）</span>
+                <span className="font-bold text-gray-800">クレジットカード</span>
               </div>
             </div>
 

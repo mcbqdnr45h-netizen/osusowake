@@ -430,7 +430,7 @@ export default function StripeBankSetup() {
   const missingFields: string[] = [];
   if (businessType === 'company' && !companyNameKanji.trim()) missingFields.push('法人名（漢字）');
   if (businessType === 'company' && !companyNameKana.trim())  missingFields.push('法人名（カナ）');
-  if (businessType === 'company' && !companyNameLatin.trim()) missingFields.push('法人名（ローマ字）— Stripe必須');
+  if (businessType === 'company' && !companyNameLatin.trim()) missingFields.push('法人名（ローマ字）— 必須');
   if (businessType === 'company' && companyTaxId.replace(/-/g, '').length !== 13) missingFields.push(`法人番号（13桁で入力 — 現在${companyTaxId.replace(/-/g, '').length}桁）`);
   if (!lastNameKanji.trim() || !firstNameKanji.trim()) missingFields.push('代表者氏名（漢字）');
   if (!lastNameKana.trim()   || !firstNameKana.trim())  missingFields.push('代表者氏名（カタカナ）');
@@ -474,7 +474,7 @@ export default function StripeBankSetup() {
 
     try {
       // ① Stripe.js で銀行口座トークン生成（バックエンドと同じ公開鍵を使用）
-      setSubmitStatus('Stripe に接続中...');
+      setSubmitStatus('決済サーバーに接続中...');
       const stripe = await getStripeInstance();
       if (!stripe) throw new Error('Stripeの読み込みに失敗しました。STRIPE_PUBLISHABLE_KEY の設定を確認してください。');
 
@@ -665,7 +665,7 @@ export default function StripeBankSetup() {
     <div className="mx-4 mt-4 mb-0 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
       <span className="text-amber-500 text-xl mt-0.5">⚠️</span>
       <div>
-        <p className="text-sm font-bold text-amber-800">Stripe 情報が不完全です</p>
+        <p className="text-sm font-bold text-amber-800">決済情報が不完全です</p>
         <p className="text-xs text-amber-700 mt-1 leading-relaxed">
           前回の登録で一部の情報が送信されませんでした。フォームを再入力して再送信してください。
         </p>
@@ -686,7 +686,7 @@ export default function StripeBankSetup() {
           </div>
           <h2 className="text-2xl font-black text-gray-900 mb-2">登録完了！</h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-4">
-            口座情報・本人確認書類・代表者情報をすべてStripeへ送信しました。
+            口座情報・本人確認書類・代表者情報をすべて送信しました。
           </p>
           {/* 審査期間・振込スケジュール */}
           <div className="text-left bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 space-y-3">
@@ -756,7 +756,7 @@ export default function StripeBankSetup() {
                 {store.rejectionReason ?? '口座情報または本人確認情報に不備があります。下記フォームで修正して再申請してください。'}
               </p>
               <p className="text-xs text-red-400 mt-3 leading-relaxed">
-                下記フォームで<strong className="text-red-500">Stripe口座情報を再入力</strong>して送信してください。送信後、管理者が再審査します。
+                下記フォームで<strong className="text-red-500">口座情報を再入力</strong>して送信してください。送信後、管理者が再審査します。
               </p>
             </div>
           </motion.div>
@@ -777,7 +777,7 @@ export default function StripeBankSetup() {
                 </div>
                 <div>
                   <p className="text-white/80 text-[11px] font-bold tracking-widest uppercase leading-none mb-0.5">CONGRATULATIONS</p>
-                  <p className="text-white font-black text-lg leading-tight">Stripe審査が完了しました！</p>
+                  <p className="text-white font-black text-lg leading-tight">審査が完了しました！</p>
                 </div>
               </div>
               <p className="text-white/90 text-sm leading-relaxed">
@@ -800,7 +800,7 @@ export default function StripeBankSetup() {
             <div className="px-5 py-4 space-y-2">
               <p className="text-sm font-black text-orange-900">基本情報の入力が完了しました</p>
               <p className="text-xs text-orange-700 leading-relaxed">
-                次に、<strong>口座情報・本人確認書類・営業許可証</strong>を登録してください。登録後にStripeの審査が行われ、審査が通ると売上の受け取りが可能になります。
+                次に、<strong>口座情報・本人確認書類・営業許可証</strong>を登録してください。登録後に審査が行われ、審査が通ると売上の受け取りが可能になります。
               </p>
               <div className="flex items-start gap-2 pt-1 bg-orange-100/60 rounded-xl p-2">
                 <span className="text-orange-500 text-sm mt-0.5">⏱️</span>
@@ -823,7 +823,7 @@ export default function StripeBankSetup() {
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-5 flex gap-3">
           <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
           <p className="text-sm text-blue-700 leading-relaxed">
-            口座・本人確認情報はStripeのセキュアなサーバーで直接処理されます。Osusowakeのサーバーには口座番号は一切保存されません。
+            口座・本人確認情報は安全なサーバーで直接処理されます。Osusowakeのサーバーには口座番号は一切保存されません。
           </p>
         </div>
 
@@ -859,8 +859,8 @@ export default function StripeBankSetup() {
             </div>
             <p className="text-xs text-gray-400 mt-2">
               {businessType === 'individual'
-                ? '個人事業主として Stripe に登録されます。マイナンバー等の個人情報が必要です。'
-                : '法人として Stripe に登録されます。法人名（登記簿上の名称）と代表者情報が必要です。'}
+                ? '個人事業主として登録されます。マイナンバー等の個人情報が必要です。'
+                : '法人として登録されます。法人名（登記簿上の名称）と代表者情報が必要です。'}
             </p>
           </FormSection>
 
@@ -875,7 +875,7 @@ export default function StripeBankSetup() {
                 <input type="text" value={companyNameKana} onChange={e => setCompanyNameKana(e.target.value)}
                   placeholder="カブシキガイシャ〇〇フード" required={businessType === 'company'} className={inputClass} />
               </Field>
-              <Field label="法人名（ローマ字・英語）" required hint="Stripeの必須項目。例：Kabushiki Gaisha XX Food">
+              <Field label="法人名（ローマ字・英語）" required hint="必須項目。例：Kabushiki Gaisha XX Food">
                 <input type="text" value={companyNameLatin} onChange={e => setCompanyNameLatin(e.target.value)}
                   placeholder="Kabushiki Gaisha XX Food" required={businessType === 'company'} className={inputClass} />
               </Field>
@@ -1282,7 +1282,7 @@ export default function StripeBankSetup() {
 
           <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 pb-4">
             <ShieldCheck className="w-4 h-4" />
-            <span>情報はStripeのサーバーで安全に処理されます</span>
+            <span>情報は安全なサーバーで処理されます</span>
           </div>
         </form>
       </div>

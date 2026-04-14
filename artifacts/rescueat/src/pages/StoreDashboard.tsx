@@ -1288,11 +1288,11 @@ export default function StoreDashboard() {
       if (res.ok) {
         if (data.stripeError) {
           setStripeError(data.stripeError);
-          toast({ title: '⚠️ Stripe連携エラーを検出しました', description: `エラーコード: ${data.stripeError}`, variant: 'destructive' });
+          toast({ title: '⚠️ 決済連携エラーを検出しました', description: `エラーコード: ${data.stripeError}`, variant: 'destructive' });
         } else {
           setStripeError(null);
           toast({
-            title: '✅ Stripe情報を更新しました',
+            title: '✅ 決済情報を更新しました',
             description: `決済: ${data.chargesEnabled ? '有効' : '制限中'} / 入金: ${data.payoutsEnabled ? '有効' : '停止中'}`,
           });
           queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/connect/balance`] });
@@ -1698,7 +1698,7 @@ export default function StoreDashboard() {
             {stripeStatus?.requirements && (
               <div className="mb-3 rounded-xl border border-border/60 bg-secondary/20 p-3 space-y-1.5">
                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                  <span>📡</span> Stripe 最新ステータス（ライブ）
+                  <span>📡</span> 決済 最新ステータス（ライブ）
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stripeStatus.chargesEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
@@ -1803,7 +1803,7 @@ export default function StoreDashboard() {
               <div className="mt-2 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
                 <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs font-black text-red-700">🔴 Stripe連携エラー</p>
+                  <p className="text-xs font-black text-red-700">🔴 決済連携エラー</p>
                   <p className="text-[11px] text-red-600 mt-0.5">エラーコード: {stripeError}</p>
                   <p className="text-[11px] text-red-500 mt-0.5">サポートまでお問い合わせください: hello.osusowake@gmail.com</p>
                 </div>
@@ -1819,7 +1819,7 @@ export default function StoreDashboard() {
             >
               {syncingStripe
                 ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />同期中…</>
-                : <><RefreshCw className="w-3.5 h-3.5" />Stripe情報を最新に更新する</>
+                : <><RefreshCw className="w-3.5 h-3.5" />決済情報を最新に更新する</>
               }
             </button>
           </div>

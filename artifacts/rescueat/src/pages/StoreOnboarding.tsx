@@ -429,7 +429,7 @@ export default function StoreOnboarding() {
               inputMode="tel"
             />
             <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              この店舗専用の電話番号です。Stripeの決済審査・トラブル対応に使用されます。
+              この店舗専用の電話番号です。決済審査・トラブル対応に使用されます。
             </p>
           </div>
 

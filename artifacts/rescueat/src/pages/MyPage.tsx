@@ -235,7 +235,7 @@ export default function MyPage() {
                   {profile?.role === 'store_owner' && store?.name ? (
                     isApprovedOwner ? (
                       <p className="text-xs text-green-600 font-bold mt-1 flex items-center gap-1">
-                        ✅ Stripe連携済み・公式パートナー
+                        ✅ 決済連携済み・公式パートナー
                       </p>
                     ) : (
                       <p className="text-xs text-amber-600 font-bold mt-1">公式パートナー（審査中）</p>
@@ -435,11 +435,11 @@ export default function MyPage() {
             <div className="mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 space-y-2">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                <p className="text-xs font-black text-red-800 flex-1">❌ Stripe口座の再連携が必要です</p>
+                <p className="text-xs font-black text-red-800 flex-1">❌ 決済口座の再連携が必要です</p>
                 <span className="text-[9px] font-black bg-red-200 text-red-800 px-2 py-0.5 rounded-full shrink-0">要再連携</span>
               </div>
               <p className="text-[10px] text-red-700 leading-snug">
-                登録済みのStripeアカウントにアクセスできません。口座情報を再度登録してください。
+                登録済みの決済アカウントにアクセスできません。口座情報を再度登録してください。
               </p>
               <button
                 onClick={async () => {
@@ -601,7 +601,7 @@ export default function MyPage() {
                       <div className="text-xs text-muted-foreground">
                         {store.rejectionReason
                           ? `理由：${store.rejectionReason.slice(0, 30)}${store.rejectionReason.length > 30 ? '…' : ''}`
-                          : 'Stripe口座を再設定して再申請する'}
+                          : '決済口座を再設定して再申請する'}
                       </div>
                     </div>
                     <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">再申請</span>
@@ -834,7 +834,7 @@ export default function MyPage() {
                         </div>
                         <div className="flex-1">
                           <div className="font-bold text-foreground text-sm">店舗申請が却下されました</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">Stripe口座を再設定して再申請する</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">決済口座を再設定して再申請する</div>
                         </div>
                         <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">再申請</span>
                       </Link>
