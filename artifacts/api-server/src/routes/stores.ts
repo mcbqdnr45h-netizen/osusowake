@@ -1420,25 +1420,51 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
 
     if (pending > 0) {
       try {
+        // Separate C&T 方式では connected account の balancetransaction は type="transfer"
+        // direct charge 方式では type="payment" → 両方まとめて取得する
         const txList = await stripe.balanceTransactions.list(
-          { limit: 10, type: "payment" },
+          { limit: 20 },
           { stripeAccount: store.stripeAccountId }
         );
         for (const tx of txList.data) {
-          if (tx.available_on) {
-            const d = new Date(tx.available_on * 1000);
-            // 最も遅い available_on を振込可能日として採用
-            if (!pendingAvailableOn || d > pendingAvailableOn) pendingAvailableOn = d;
-            // 最初の取引から実際の保留日数を計算
-            if (tx.created) {
-              const days = Math.round((tx.available_on - tx.created) / 86400);
-              if (days > 0) actualDelayDays = days;
-            }
+          if (!tx.available_on) continue;
+          // payment / transfer いずれも対象
+          if (tx.type !== "payment" && tx.type !== "transfer" && tx.type !== "payout") continue;
+          const d = new Date(tx.available_on * 1000);
+          if (!pendingAvailableOn || d > pendingAvailableOn) pendingAvailableOn = d;
+          if (tx.created) {
+            const days = Math.round((tx.available_on - tx.created) / 86400);
+            if (days > 0) actualDelayDays = days;
           }
         }
       } catch {
         // 取得失敗時はデフォルト 7 を使用
       }
+    }
+
+    // プラットフォームから connected account への送金履歴（Separate C&T 方式の診断用）
+    let platformTransfers: Array<{ id: string; amount: number; createdDate: string; available_on: string | null }> = [];
+    try {
+      const txfList = await stripe.transfers.list({ destination: store.stripeAccountId, limit: 5 });
+      for (const t of txfList.data) {
+        // 対応する balance transaction から available_on を取得
+        let availOn: string | null = null;
+        try {
+          if (t.balance_transaction) {
+            const btId = typeof t.balance_transaction === "string" ? t.balance_transaction : (t.balance_transaction as any).id;
+            const bt = await stripe.balanceTransactions.retrieve(btId, { stripeAccount: store.stripeAccountId });
+            availOn = bt.available_on ? new Date(bt.available_on * 1000).toISOString().slice(0, 10) : null;
+          }
+        } catch { /* 取得失敗は無視 */ }
+        platformTransfers.push({
+          id:          t.id,
+          amount:      t.amount,
+          createdDate: new Date(t.created * 1000).toISOString().slice(0, 10),
+          available_on: availOn,
+        });
+      }
+    } catch {
+      // 取得失敗は非致命的
     }
 
     // 基準日：pending のみなら available_on（Stripe実測値）、それ以外は今日
@@ -1496,6 +1522,7 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
       nextPayoutDate,
       delayDays:     actualDelayDays,
       recentPayouts,
+      platformTransfers,
     });
   } catch (err: any) {
     console.error("[balance] error:", err?.message);

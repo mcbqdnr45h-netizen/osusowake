@@ -1821,6 +1821,40 @@ export default function StoreDashboard() {
                     💳 振込済みの売上は上記「振込履歴」に表示されます。銀行口座への着金は振込日から1〜2営業日後が目安です。
                   </p>
                 )}
+
+                {/* プラットフォームからの送金があるのに残高¥0 → 送金されたが反映待ち or 送金なし */}
+                {(() => {
+                  const transfers = balanceData.platformTransfers as Array<{ id: string; amount: number; createdDate: string; available_on: string | null }> | undefined;
+                  if (!transfers || transfers.length === 0) {
+                    // 送金履歴なし・残高¥0 → 売上確認ページから確認するよう案内
+                    return balanceData.pending === 0 && balanceData.available === 0 && (!balanceData.recentPayouts || balanceData.recentPayouts.length === 0) ? (
+                      <p className="text-[11px] text-muted-foreground bg-secondary/40 rounded-xl px-3 py-2">
+                        売上がある場合は「決済情報を最新に更新する」をタップしてください。改善しない場合はLINEサポートへご連絡ください。
+                      </p>
+                    ) : null;
+                  }
+                  // 送金履歴あり → 保留中に表示されるまでの説明
+                  if (balanceData.pending === 0 && balanceData.available === 0) {
+                    return (
+                      <div className="border-t border-border/40 pt-2 mt-1 space-y-1.5">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wide">Osusowakeからの送金</p>
+                        {transfers.map(t => (
+                          <div key={t.id} className="flex items-center justify-between">
+                            <span className="text-[11px] text-muted-foreground">
+                              {t.createdDate.replace(/-/g, '/')} 送金済み
+                              {t.available_on && <span className="ml-1 text-amber-600">→ {t.available_on.replace(/-/g, '/')} 振込可能予定</span>}
+                            </span>
+                            <span className="text-[11px] font-bold text-amber-700">¥{t.amount.toLocaleString()}</span>
+                          </div>
+                        ))}
+                        <p className="text-[10px] text-amber-700 leading-relaxed">
+                          ⏳ 送金から7日後に「振込可能」へ移動します。残高の更新には少し時間がかかる場合があります。
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
 
