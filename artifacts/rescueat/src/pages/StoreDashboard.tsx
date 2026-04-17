@@ -1842,23 +1842,11 @@ export default function StoreDashboard() {
                         </div>
                       )}
 
-                      {/* ケース②: Osusowakeからの送金はあるが、まだ銀行振込になっていない */}
+                      {/* ケース②: まだ銀行振込は発生していないが売上はある（保留中の説明） */}
                       {!hasActivePayouts && transfers.length > 0 && balanceData.pending === 0 && balanceData.available === 0 && (
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wide">Osusowakeからの送金</p>
-                          {transfers.map(t => (
-                            <div key={t.id} className="flex items-center justify-between">
-                              <span className="text-[11px] text-muted-foreground">
-                                {t.createdDate.replace(/-/g, '/')} 送金済み
-                                {t.available_on && <span className="ml-1 text-amber-600">→ {t.available_on.replace(/-/g, '/')} 振込可能予定</span>}
-                              </span>
-                              <span className="text-[11px] font-bold text-amber-700">¥{t.amount.toLocaleString()}</span>
-                            </div>
-                          ))}
-                          <p className="text-[10px] text-amber-700 leading-relaxed">
-                            ⏳ 振込可能日になると保留中から移動し、次の月曜日に銀行へ振り込まれます。
-                          </p>
-                        </div>
+                        <p className="text-[11px] text-muted-foreground bg-secondary/40 rounded-xl px-3 py-2">
+                          ⏳ 売上は確認できています。振込可能日（保留期間終了後）の次の月曜日に銀行口座へ振り込まれます。
+                        </p>
                       )}
 
                       {/* ケース③: 送金履歴も振込履歴もなく残高¥0（送金漏れの可能性） */}
