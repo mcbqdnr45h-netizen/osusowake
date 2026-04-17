@@ -1467,6 +1467,23 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
       nextPayoutDate = next.toISOString().slice(0, 10);
     }
 
+    // 最近の振込履歴（最大5件）
+    let recentPayouts: Array<{ id: string; amount: number; arrivalDate: string; status: string }> = [];
+    try {
+      const payoutList = await stripe.payouts.list(
+        { limit: 5 },
+        { stripeAccount: store.stripeAccountId }
+      );
+      recentPayouts = payoutList.data.map((p) => ({
+        id:          p.id,
+        amount:      p.amount,
+        arrivalDate: new Date(p.arrival_date * 1000).toISOString().slice(0, 10),
+        status:      p.status, // paid / pending / in_transit / canceled / failed
+      }));
+    } catch {
+      // 振込履歴の取得失敗は非致命的
+    }
+
     res.json({
       connected:     true,
       accountId:     store.stripeAccountId,
@@ -1478,6 +1495,7 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
       payoutSchedule: schedule,
       nextPayoutDate,
       delayDays:     actualDelayDays,
+      recentPayouts,
     });
   } catch (err: any) {
     console.error("[balance] error:", err?.message);

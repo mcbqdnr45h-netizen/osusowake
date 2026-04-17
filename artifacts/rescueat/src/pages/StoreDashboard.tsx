@@ -1791,6 +1791,36 @@ export default function StoreDashboard() {
                     </span>
                   )}
                 </div>
+
+                {/* 振込履歴 */}
+                {balanceData.recentPayouts && balanceData.recentPayouts.length > 0 && (
+                  <div className="border-t border-border/40 pt-2 mt-1">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wide mb-1.5">振込履歴</p>
+                    <div className="space-y-1">
+                      {balanceData.recentPayouts.map((p: { id: string; amount: number; arrivalDate: string; status: string }) => (
+                        <div key={p.id} className="flex items-center justify-between">
+                          <span className="text-[11px] text-muted-foreground">
+                            {p.arrivalDate.replace(/-/g, '/')}
+                            {p.status === 'in_transit' && <span className="ml-1 text-amber-500">（送金中）</span>}
+                            {p.status === 'pending'    && <span className="ml-1 text-amber-500">（処理中）</span>}
+                            {p.status === 'failed'     && <span className="ml-1 text-red-500">（失敗）</span>}
+                          </span>
+                          <span className={`text-[11px] font-bold ${p.status === 'paid' ? 'text-green-700' : p.status === 'failed' ? 'text-red-600' : 'text-amber-700'}`}>
+                            ¥{p.amount.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 残高¥0だが振込履歴がある場合のメッセージ */}
+                {balanceData.pending === 0 && balanceData.available === 0
+                  && balanceData.recentPayouts && balanceData.recentPayouts.some((p: { status: string }) => p.status === 'paid') && (
+                  <p className="text-[11px] text-muted-foreground bg-secondary/40 rounded-xl px-3 py-2">
+                    💳 振込済みの売上は上記「振込履歴」に表示されます。銀行口座への着金は振込日から1〜2営業日後が目安です。
+                  </p>
+                )}
               </div>
             )}
 
