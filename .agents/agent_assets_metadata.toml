@@ -191,3 +191,9 @@ id = "AT1JgrpQAhZXZh5vXvMo5"
 uri = "file://attached_assets/generated_images/logo_elite_5.png"
 type = "image"
 title = "案⑤ リボンハンズ — リボンが両手を形成。深紅から金へのラグジュアリーなグラデーション"
+
+[[outputs]]
+id = "w_B0eGXNEmnXaBTHaCsJy"
+uri = "file://screenshots/logo-variants-all.jpg"
+type = "image"
+title = "ロゴ カラーバリエーション 5案"
