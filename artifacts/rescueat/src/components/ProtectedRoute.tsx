@@ -30,26 +30,26 @@ function GuestPlaceholderScreen() {
 
   return (
     <Layout showBottomNav>
-      <div className="min-h-[calc(100dvh-64px)] flex flex-col items-center justify-center bg-background px-6 pb-10">
+      <div className="h-[calc(100dvh-64px)] flex flex-col items-center justify-center bg-background px-6 overflow-hidden">
         {/* イラスト */}
-        <div className="w-24 h-24 bg-primary/10 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
-          <ShoppingBag className="w-12 h-12 text-primary" />
+        <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 shadow-inner shrink-0">
+          <ShoppingBag className="w-8 h-8 text-primary" />
         </div>
 
         {/* キャッチコピー */}
-        <h1 className="text-2xl font-black text-foreground text-center mb-2 leading-tight">
+        <h1 className="text-xl font-black text-foreground text-center mb-1.5 leading-tight">
           ログインして<br />すべての機能を使おう
         </h1>
-        <p className="text-sm text-muted-foreground text-center leading-relaxed mb-8 max-w-xs">
+        <p className="text-xs text-muted-foreground text-center leading-relaxed mb-5 max-w-xs">
           Osusowake アカウントを作成すると、お得なおすそわけバッグを購入・管理できます。
         </p>
 
         {/* 機能リスト */}
-        <div className="w-full max-w-sm space-y-2.5 mb-8">
+        <div className="w-full max-w-sm space-y-2 mb-5">
           {features.map(({ icon: Icon, label, desc }) => (
-            <div key={label} className="flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3">
-              <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                <Icon className="w-4.5 h-4.5 text-primary" />
+            <div key={label} className="flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-2.5">
+              <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                <Icon className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground leading-tight">{label}</p>
@@ -60,16 +60,16 @@ function GuestPlaceholderScreen() {
         </div>
 
         {/* ボタン */}
-        <div className="w-full max-w-sm space-y-3">
+        <div className="w-full max-w-sm space-y-2.5">
           <button
             onClick={() => navigate('/login')}
-            className="w-full bg-primary text-white font-black py-4 rounded-2xl text-base shadow-lg shadow-primary/25 active:scale-[0.98] transition-transform"
+            className="w-full bg-primary text-white font-black py-3.5 rounded-2xl text-base shadow-lg shadow-primary/25 active:scale-[0.98] transition-transform"
           >
             ログインする
           </button>
           <button
             onClick={() => navigate('/signup')}
-            className="w-full border-2 border-border text-foreground font-bold py-3.5 rounded-2xl text-sm hover:bg-secondary/50 active:scale-[0.98] transition-all"
+            className="w-full border-2 border-border text-foreground font-bold py-3 rounded-2xl text-sm hover:bg-secondary/50 active:scale-[0.98] transition-all"
           >
             新規登録（無料）
           </button>
@@ -78,7 +78,7 @@ function GuestPlaceholderScreen() {
         {/* 閲覧に戻る */}
         <button
           onClick={() => navigate('/')}
-          className="mt-5 text-xs text-muted-foreground underline underline-offset-2"
+          className="mt-4 text-xs text-muted-foreground underline underline-offset-2"
         >
           ログインせずに店舗を見る
         </button>
