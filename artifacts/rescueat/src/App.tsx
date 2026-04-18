@@ -162,12 +162,11 @@ function PageTransitionOverlay() {
                 className="absolute inset-0 rounded-2xl blur-xl"
                 style={{ background: 'radial-gradient(circle, rgba(232,120,108,0.55) 0%, transparent 70%)' }}
               />
-              <div
-                className="relative w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #EF8478 0%, #D8655C 100%)' }}
-              >
-                <span className="text-white font-black text-xl" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em' }}>Ow</span>
-              </div>
+              <img
+                src="/rescueat/images/logo.jpg"
+                alt="Osusowake"
+                className="relative w-14 h-14 rounded-2xl object-cover"
+              />
             </div>
           </motion.div>
         </motion.div>

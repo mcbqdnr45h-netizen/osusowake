@@ -43,9 +43,7 @@ export default function Welcome() {
       <header className="relative z-10 px-5 sm:px-7 pt-12 sm:pt-14 flex items-center">
         <motion.div custom={0} variants={rise} initial="hidden" animate="show"
           className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-[11px] bg-white/25 border border-white/40 flex items-center justify-center">
-            <span className="text-white font-black text-[12px] tracking-tight">Ow</span>
-          </div>
+          <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-9 h-9 rounded-[11px] object-cover" />
           <span className="font-black text-[20px] tracking-[-0.03em] leading-none">
             <span className="text-white">Osus</span><span className="text-amber-200">Owake</span>
           </span>

@@ -94,12 +94,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-              <div
-                className="w-8 h-8 rounded-[10px] flex items-center justify-center shadow-sm transition-transform duration-200 group-hover:scale-105"
-                style={{ background: 'linear-gradient(145deg, #F07826 0%, #E85A0C 100%)', boxShadow: '0 2px 8px rgba(242,100,25,0.30)' }}
-              >
-                <span className="text-white font-black text-[11px] leading-none tracking-tight">Ow</span>
-              </div>
+              <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-8 h-8 rounded-[10px] object-cover shadow-sm transition-transform duration-200 group-hover:scale-105" />
               <span className="leading-none font-black text-[19px]" style={{ letterSpacing: '-0.04em' }}>
                 <span className="text-foreground">Osus</span><span className="text-primary">Owake</span>
               </span>
@@ -292,12 +287,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
               {/* Brand column */}
               <div className="col-span-1">
                 <div className="flex items-center gap-2.5 mb-3">
-                  <div
-                    className="w-7 h-7 rounded-[8px] flex items-center justify-center shrink-0"
-                    style={{ background: 'linear-gradient(145deg, #F07826 0%, #E85A0C 100%)', boxShadow: '0 2px 6px rgba(242,100,25,0.28)' }}
-                  >
-                    <span className="text-white font-black text-[10px] leading-none">Ow</span>
-                  </div>
+                  <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-7 h-7 rounded-[8px] object-cover shrink-0" />
                   <span className="font-black text-[17px]" style={{ letterSpacing: '-0.03em' }}>
                     <span className="text-foreground">Osus</span><span className="text-primary">Owake</span>
                   </span>
