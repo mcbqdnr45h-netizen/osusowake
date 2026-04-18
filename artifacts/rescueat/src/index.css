@@ -65,8 +65,8 @@
   --popover-foreground: 20 8% 16%;
   --popover-border: 30 12% 90%;
 
-  /* ─── プライマリ（#F26419 テラコッタ） ──────── */
-  --primary: 21 89% 52%;
+  /* ─── プライマリ（#E8786C サーモンコーラル） ── */
+  --primary: 6 73% 67%;
   --primary-foreground: 0 0% 100%;
 
   /* ─── セカンダリ ─────────────────────────────── */
@@ -77,9 +77,9 @@
   --muted: 30 12% 93%;
   --muted-foreground: 25 6% 52%;
 
-  /* ─── アクセント（#F6AE2D ハニー） ──────────── */
-  --accent: 39 92% 57%;
-  --accent-foreground: 30 60% 12%;
+  /* ─── アクセント（#44A836 ロゴグリーン） ────── */
+  --accent: 113 51% 44%;
+  --accent-foreground: 0 0% 100%;
 
   /* ─── デストラクティブ ───────────────────────── */
   --destructive: 4 74% 52%;
@@ -88,7 +88,7 @@
   /* ─── ボーダー・入力 ─────────────────────────── */
   --border: 30 10% 88%;
   --input: 30 10% 88%;
-  --ring: 21 89% 52%;
+  --ring: 6 73% 67%;
 
   /* ─── 丸み ───────────────────────────────────── */
   --radius: 0.875rem;
@@ -116,19 +116,19 @@
   --popover: 20 20% 10%;
   --popover-foreground: 30 12% 95%;
   --popover-border: 20 20% 17%;
-  --primary: 21 85% 57%;
+  --primary: 6 70% 72%;
   --primary-foreground: 0 0% 100%;
   --secondary: 20 20% 17%;
   --secondary-foreground: 30 12% 95%;
   --muted: 20 20% 17%;
   --muted-foreground: 30 10% 58%;
-  --accent: 39 88% 60%;
-  --accent-foreground: 20 30% 8%;
+  --accent: 113 55% 50%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 4 70% 57%;
   --destructive-foreground: 0 0% 100%;
   --border: 20 20% 18%;
   --input: 20 20% 18%;
-  --ring: 21 85% 57%;
+  --ring: 6 70% 72%;
 
   --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.18);
   --shadow-xs:  0 1px 3px 0 rgba(0,0,0,0.22), 0 1px 2px -1px rgba(0,0,0,0.16);
@@ -235,18 +235,18 @@
 
   /* ── プライマリグラデーションボタン（標準） ── */
   .btn-primary {
-    background: linear-gradient(180deg, #F07826 0%, #E85A0C 100%);
-    box-shadow: 0 4px 16px rgba(242, 100, 25, 0.28);
+    background: linear-gradient(180deg, #EF8478 0%, #D8655C 100%);
+    box-shadow: 0 4px 16px rgba(232, 120, 108, 0.28);
     @apply text-white font-black rounded-2xl transition-all duration-150;
   }
   .btn-primary:hover {
-    background: linear-gradient(180deg, #F58030 0%, #E85A0C 100%);
-    box-shadow: 0 6px 24px rgba(242, 100, 25, 0.36);
+    background: linear-gradient(180deg, #F48D82 0%, #D8655C 100%);
+    box-shadow: 0 6px 24px rgba(232, 120, 108, 0.36);
     transform: translateY(-1px);
   }
   .btn-primary:active {
     transform: scale(0.97);
-    box-shadow: 0 2px 8px rgba(242, 100, 25, 0.20);
+    box-shadow: 0 2px 8px rgba(232, 120, 108, 0.20);
   }
 }
 
@@ -381,6 +381,6 @@
 
 /* ─── Auth dot-pattern background ───────────────────────── */
 .auth-bg-dots {
-  background-image: radial-gradient(circle, rgba(242, 100, 25, 0.08) 1.2px, transparent 1.2px);
+  background-image: radial-gradient(circle, rgba(232, 120, 108, 0.08) 1.2px, transparent 1.2px);
   background-size: 22px 22px;
 }

@@ -603,7 +603,7 @@ export default function StripeBankSetup() {
           </p>
           {fetchError ? (
             <button onClick={refetch}
-              className="bg-orange-500 text-white font-bold px-6 py-3 rounded-2xl w-full mb-3">
+              className="bg-primary text-white font-bold px-6 py-3 rounded-2xl w-full mb-3">
               再読み込み
             </button>
           ) : null}

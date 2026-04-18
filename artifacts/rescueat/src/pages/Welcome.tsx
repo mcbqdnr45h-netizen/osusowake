@@ -31,7 +31,7 @@ export default function Welcome() {
   const signupHref = redirect ? `/signup?redirect=${encodeURIComponent(redirect)}` : '/signup';
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[#FF8C00] relative overflow-hidden">
+    <div className="min-h-dvh flex flex-col bg-[#E8786C] relative overflow-hidden">
 
       {/* 背景テクスチャ（控えめ） */}
       <div className="absolute inset-0 pointer-events-none">
@@ -85,7 +85,7 @@ export default function Welcome() {
         {/* CTA */}
         <motion.div custom={3} variants={rise} initial="hidden" animate="show" className="space-y-3">
           <Link href={signupHref}>
-            <button className="w-full bg-white text-[#FF8C00] font-black text-[16px] sm:text-[17px] py-[16px] sm:py-[17px] rounded-2xl shadow-lg shadow-black/15 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+            <button className="w-full bg-white text-[#E8786C] font-black text-[16px] sm:text-[17px] py-[16px] sm:py-[17px] rounded-2xl shadow-lg shadow-black/15 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
               はじめる（無料）
               <ArrowRight className="w-5 h-5" strokeWidth={3} />
             </button>
