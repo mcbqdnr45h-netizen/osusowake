@@ -1124,6 +1124,75 @@ function ReservationCard({
   );
 }
 
+// ─── Stripe コード → 日本語変換 ──────────────────────────────────────────────
+function translateStripeRequirement(key: string): string {
+  const map: Record<string, string> = {
+    'individual.verification.document': '本人確認書類（運転免許証・マイナンバーカード等）',
+    'individual.verification.additional_document': '追加書類（営業許可証等）',
+    'individual.first_name_kana': '氏名（カナ・名）',
+    'individual.last_name_kana': '氏名（カナ・姓）',
+    'individual.first_name_kanji': '氏名（漢字・名）',
+    'individual.last_name_kanji': '氏名（漢字・姓）',
+    'individual.dob.day': '生年月日（日）',
+    'individual.dob.month': '生年月日（月）',
+    'individual.dob.year': '生年月日（年）',
+    'individual.address_kanji.line1': '住所（漢字・番地）',
+    'individual.address_kanji.city': '住所（漢字・市区町村）',
+    'individual.address_kanji.state': '住所（漢字・都道府県）',
+    'individual.address_kanji.postal_code': '郵便番号',
+    'individual.address_kana.line1': '住所（カナ・番地）',
+    'individual.address_kana.city': '住所（カナ・市区町村）',
+    'individual.address_kana.state': '住所（カナ・都道府県）',
+    'individual.phone': '電話番号',
+    'individual.email': 'メールアドレス',
+    'individual.id_number': 'マイナンバー',
+    'external_account': '銀行口座情報',
+    'tos_acceptance.date': '利用規約への同意',
+    'tos_acceptance.ip': '利用規約への同意（IP）',
+    'business_profile.mcc': '業種コード',
+    'business_profile.url': 'ウェブサイトURL',
+    'company.name': '法人名',
+    'company.tax_id': '法人番号',
+  };
+  return map[key] ?? key;
+}
+
+function translateStripeDisabledReason(reason: string | null): string {
+  if (!reason) return '';
+  const map: Record<string, string> = {
+    'requirements.past_due': '提出期限超過（必要書類の提出が遅延しています）',
+    'requirements.pending_verification': '書類審査中',
+    'listed': '制限対象リストに登録されています',
+    'under_review': 'Stripeによる審査中',
+    'other': 'その他の理由',
+    'action_required.requested_capabilities': '必要な機能の申請が必要です',
+  };
+  return map[reason] ?? reason;
+}
+
+function translateStripeErrorCode(code: string): string {
+  const map: Record<string, string> = {
+    'verification_document_dob_mismatch': '書類の生年月日が登録情報と一致しません',
+    'verification_document_name_mismatch': '書類の氏名が登録情報と一致しません',
+    'verification_document_address_mismatch': '書類の住所が登録情報と一致しません',
+    'verification_document_id_number_mismatch': '書類の番号が登録情報と一致しません',
+    'verification_document_expired': '書類の有効期限が切れています',
+    'verification_document_not_readable': '書類が読み取れません（再撮影してください）',
+    'verification_document_not_uploaded': '書類がアップロードされていません',
+    'verification_document_photo_mismatch': '書類の写真が一致しません',
+    'verification_document_type_not_supported': 'この書類の種類は対応していません',
+    'verification_document_corrupt': '書類ファイルが破損しています',
+    'verification_failed_keyed_identity': '本人確認情報の照合に失敗しました',
+    'verification_failed_name_match': '氏名の照合に失敗しました',
+    'invalid_address_city_state_postal_code': '住所の市区町村・都道府県・郵便番号が無効です',
+    'invalid_dob_age_under_18': '代表者が18歳未満のため登録できません',
+    'invalid_phone_number': '電話番号が無効です',
+    'bank_account_unusable': '銀行口座が使用できません',
+    'bank_account_unverified': '銀行口座の確認が取れていません',
+  };
+  return map[code] ?? code;
+}
+
 // ─── メインページ ─────────────────────────────────────────────────────────
 export default function StoreDashboard() {
   const queryClient = useQueryClient();
@@ -1761,7 +1830,7 @@ export default function StoreDashboard() {
                     <AlertCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
                     <div>
                       <p className="text-[10px] font-black text-red-700">アカウント停止理由</p>
-                      <p className="text-[10px] text-red-600 font-mono">{stripeStatus.requirements.disabledReason}</p>
+                      <p className="text-[10px] text-red-600">{translateStripeDisabledReason(stripeStatus.requirements.disabledReason)}</p>
                     </div>
                   </div>
                 )}
@@ -1770,7 +1839,7 @@ export default function StoreDashboard() {
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
                     <p className="text-[10px] font-black text-amber-800 mb-1">⚠️ 提出が必要な書類 ({stripeStatus.requirements.currentlyDue.length}件)</p>
                     {stripeStatus.requirements.currentlyDue.map((item, i) => (
-                      <p key={i} className="text-[10px] text-amber-700 font-mono leading-relaxed">{item}</p>
+                      <p key={i} className="text-[10px] text-amber-700 leading-relaxed">・{translateStripeRequirement(item)}</p>
                     ))}
                   </div>
                 ) : (
@@ -1781,15 +1850,21 @@ export default function StoreDashboard() {
                   <div className="bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
                     <p className="text-[10px] font-black text-red-800 mb-1">🚫 エラー ({stripeStatus.requirements.errors.length}件)</p>
                     {stripeStatus.requirements.errors.map((e, i) => (
-                      <p key={i} className="text-[10px] text-red-700 font-mono">[{e.code}] {e.requirement}</p>
+                      <div key={i} className="mt-1">
+                        <p className="text-[10px] text-red-700 font-black">・{translateStripeRequirement(e.requirement)}</p>
+                        <p className="text-[10px] text-red-600 ml-2">{translateStripeErrorCode(e.code)}</p>
+                      </div>
                     ))}
                   </div>
                 )}
 
                 {stripeStatus.requirements.pendingVerification.length > 0 && (
-                  <p className="text-[10px] text-blue-600 font-semibold">
-                    🔄 審査中: {stripeStatus.requirements.pendingVerification.join(', ')}
-                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-2">
+                    <p className="text-[10px] font-black text-blue-800 mb-1">🔄 審査中（Stripeが確認中）</p>
+                    {stripeStatus.requirements.pendingVerification.map((item, i) => (
+                      <p key={i} className="text-[10px] text-blue-700 leading-relaxed">・{translateStripeRequirement(item)}</p>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

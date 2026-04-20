@@ -39,6 +39,12 @@ export default function MyPage() {
     connected: boolean;
     chargesEnabled?: boolean;
     payoutsEnabled?: boolean;
+    requirements?: {
+      currentlyDue: string[];
+      pendingVerification: string[];
+      errors: { code: string; requirement: string }[];
+      disabledReason: string | null;
+    };
   } | null>({
     queryKey: [`/api/stores/${storeId}/connect/status`],
     queryFn: async () => {
@@ -447,22 +453,43 @@ export default function MyPage() {
               <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">有効</span>
             </div>
           );
-          if (chargesOk && !payoutsOk) return (
-            <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <p className="text-xs font-black text-amber-800 flex-1">⚠️ 決済受付中・入金一時停止</p>
-                <span className="text-[9px] font-black bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full shrink-0">入金停止</span>
+          if (chargesOk && !payoutsOk) {
+            // pending_verification に書類が含まれていれば審査中 → ボタン不要
+            const pending = stripeStatus?.requirements?.pendingVerification ?? [];
+            const docUnderReview = pending.some(k =>
+              k.includes('verification') || k.includes('document') || k.includes('individual')
+            );
+            return (
+              <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <p className="text-xs font-black text-amber-800 flex-1">⚠️ 決済受付中・入金一時停止</p>
+                  <span className="text-[9px] font-black bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full shrink-0">入金停止</span>
+                </div>
+                {docUnderReview ? (
+                  <>
+                    <p className="text-[10px] text-amber-700 leading-snug">
+                      本人確認書類はStripeに提出済みです。審査完了後（通常1〜3営業日）に入金が再開されます。
+                    </p>
+                    <div className="flex items-center gap-1.5 bg-amber-100 rounded-lg px-2 py-1.5">
+                      <span className="text-amber-600 text-sm">🔄</span>
+                      <p className="text-[10px] font-black text-amber-800">書類審査中です。しばらくお待ちください。</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[10px] text-amber-700 leading-snug">Stripeより本人確認書類の提出が必要です。このまま放置すると決済も停止されます。</p>
+                    <button
+                      onClick={() => navigate('/store/bank-setup')}
+                      className="w-full py-1.5 text-[11px] font-black bg-amber-600 text-white rounded-lg"
+                    >
+                      本人確認書類を提出する →
+                    </button>
+                  </>
+                )}
               </div>
-              <p className="text-[10px] text-amber-700 leading-snug">Stripeより本人確認書類の提出が必要です。このまま放置すると決済も停止されます。</p>
-              <button
-                onClick={() => navigate('/store/bank-setup')}
-                className="w-full py-1.5 text-[11px] font-black bg-amber-600 text-white rounded-lg"
-              >
-                本人確認書類を提出する →
-              </button>
-            </div>
-          );
+            );
+          }
           return (
             <div className="mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 space-y-2">
               <div className="flex items-center gap-2">
