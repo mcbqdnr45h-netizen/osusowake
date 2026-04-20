@@ -320,6 +320,27 @@ async function runMigrations() {
       console.warn('[migration] heal skipped:', (e as Error).message?.split('\n')[0]);
     }
 
+    // ── ヒール: stripe_charges_enabled=false なのに applied のまま残っている店舗を pending に戻す ──
+    // webhook が届かなかった場合の安全網
+    try {
+      const revertResult = await client.query(`
+        UPDATE stores
+        SET status = 'pending'
+        WHERE status = 'applied'
+          AND stripe_account_id IS NOT NULL
+          AND stripe_charges_enabled = false
+        RETURNING id, name;
+      `);
+      if (revertResult.rows.length > 0) {
+        const reverted = revertResult.rows.map((r: { id: number; name: string }) => `${r.id}:${r.name}`).join(', ');
+        console.log(`[migration] heal reverted ${revertResult.rows.length} stuck-applied→pending stores: ${reverted} ✅`);
+      } else {
+        console.log('[migration] heal: no stuck applied→pending stores ✅');
+      }
+    } catch (e) {
+      console.warn('[migration] heal revert skipped:', (e as Error).message?.split('\n')[0]);
+    }
+
     // ── stores.stripe_kyc_admin_email_sent 列 ─────────────────────────────────
     await client.query(`
       DO $$ BEGIN
