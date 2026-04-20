@@ -412,10 +412,14 @@ router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
       return;
     }
 
-    // 公開ON操作の場合：承認済み かつ Stripe 連携済みでないとブロック
+    // 公開ON操作の場合：承認済み かつ Stripe 連携・KYC完了済みでないとブロック
     if (body.isActive === true) {
       const [storeCheck] = await db
-        .select({ status: storesTable.status, stripeAccountId: storesTable.stripeAccountId })
+        .select({
+          status: storesTable.status,
+          stripeAccountId: storesTable.stripeAccountId,
+          stripeChargesEnabled: storesTable.stripeChargesEnabled,
+        })
         .from(storesTable)
         .where(eq(storesTable.id, storeId))
         .limit(1);
@@ -425,6 +429,10 @@ router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
       }
       if (!storeCheck.stripeAccountId) {
         res.status(403).json({ error: "stripe_not_connected", message: "Stripe決済が未連携のため公開できません。銀行口座の登録を完了してください。" });
+        return;
+      }
+      if (!storeCheck.stripeChargesEnabled) {
+        res.status(403).json({ error: "kyc_pending", message: "決済の本人確認が完了していないため公開できません。Stripe審査通過後に出品が開始できます。" });
         return;
       }
     }

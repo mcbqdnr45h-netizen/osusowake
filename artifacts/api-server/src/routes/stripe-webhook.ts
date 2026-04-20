@@ -198,6 +198,16 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
   console.log(`[stripe-webhook] account.updated: ${account.id}, charges_enabled=${account.charges_enabled}, disabled_reason=${account.requirements?.disabled_reason ?? 'none'}`);
 
   if (!account.charges_enabled) {
+    // charges 無効 → 必ずDBの stripeChargesEnabled を false に更新してから詳細処理
+    try {
+      await db
+        .update(storesTable)
+        .set({ stripeChargesEnabled: false })
+        .where(eq(storesTable.stripeAccountId, account.id));
+    } catch (dbErr: any) {
+      console.error('[stripe-webhook] stripeChargesEnabled=false 更新失敗:', dbErr?.message);
+    }
+
     // charges 無効 + past_due がある → Stripe が本人確認エラーを検出した可能性
     const pastDue = account.requirements?.past_due ?? [];
     const disabledReason = account.requirements?.disabled_reason ?? '';
