@@ -1292,6 +1292,11 @@ router.get("/stores/:storeId/connect/account-data", async (req, res) => {
         url: biz?.url ?? '',
       },
       bankAccount,
+      // 不備フィールド（フロント側でこれらは空欄にする）
+      rejectedFields: [
+        ...(account.requirements?.currently_due  ?? []),
+        ...(account.requirements?.errors?.map((e: any) => e.requirement) ?? []),
+      ],
     });
   } catch (err: any) {
     if (err?.code === "account_invalid" || err?.statusCode === 404) {
