@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
+import logoUrl from '@/lib/logo';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,7 +44,7 @@ export default function Welcome() {
       <header className="relative z-10 px-5 sm:px-7 pt-12 sm:pt-14 flex items-center">
         <motion.div custom={0} variants={rise} initial="hidden" animate="show"
           className="flex items-center gap-2.5">
-          <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-9 h-9 rounded-[11px] object-cover" />
+          <img src={logoUrl} alt="Osusowake" className="w-9 h-9 rounded-[11px] object-cover" />
           <span className="font-black text-[20px] tracking-[-0.03em] leading-none">
             <span className="text-white">Osus</span><span className="text-amber-200">Owake</span>
           </span>

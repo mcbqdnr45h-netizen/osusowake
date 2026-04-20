@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
+import logoUrl from '@/lib/logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyStoresContext } from '@/contexts/MyStoresContext';
 import { Loader2, Package, Heart, User, ShoppingBag } from 'lucide-react';
@@ -9,7 +10,7 @@ function AuthLoadingScreen() {
   return (
     <div className="min-h-dvh flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-16 h-16 rounded-2xl object-cover shadow-md" />
+        <img src={logoUrl} alt="Osusowake" className="w-16 h-16 rounded-2xl object-cover shadow-md" />
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground font-medium">読み込み中...</p>
       </div>

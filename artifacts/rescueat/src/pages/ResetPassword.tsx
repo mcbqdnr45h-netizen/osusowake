@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabase';
+import logoUrl from '@/lib/logo';
 import { motion } from 'framer-motion';
 import { Lock, CheckCircle, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 
@@ -116,7 +117,7 @@ export default function ResetPassword() {
       >
         {/* ロゴ */}
         <div className="text-center mb-8 flex flex-col items-center gap-2">
-          <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-12 h-12 rounded-[14px] object-cover shadow-sm" />
+          <img src={logoUrl} alt="Osusowake" className="w-12 h-12 rounded-[14px] object-cover shadow-sm" />
           <div>
             <p className="text-3xl font-black text-primary tracking-tight">Osusowake</p>
             <p className="text-xs text-muted-foreground mt-1">食品ロスをなくす、おすそわけマーケット</p>

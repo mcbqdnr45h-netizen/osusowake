@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
+import logoUrl from '@/lib/logo';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, Store, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -127,7 +128,7 @@ export default function Login() {
             >
               {isStore
                 ? <Store className="w-6 h-6 text-primary" />
-                : <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-10 h-10 rounded-xl object-cover" />
+                : <img src={logoUrl} alt="Osusowake" className="w-10 h-10 rounded-xl object-cover" />
               }
             </div>
             <h1 className="text-[30px] font-black text-foreground leading-tight" style={{ letterSpacing: '-0.03em' }}>

@@ -1,5 +1,6 @@
 import React, { Suspense, useRef } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import logoUrl from "@/lib/logo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -163,7 +164,7 @@ function PageTransitionOverlay() {
                 style={{ background: 'radial-gradient(circle, rgba(232,120,108,0.55) 0%, transparent 70%)' }}
               />
               <img
-                src="/rescueat/images/logo.jpg"
+                src={logoUrl}
                 alt="Osusowake"
                 className="relative w-14 h-14 rounded-2xl object-cover"
               />
