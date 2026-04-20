@@ -1722,6 +1722,7 @@ export default function StoreDashboard() {
         )}
 
         {/* ── 大きなCTAボタン ── */}
+        <div className="pt-3">
         {(() => {
           const stripeBlocked =
             stripeStatus !== undefined &&
@@ -1763,6 +1764,7 @@ export default function StoreDashboard() {
             </>
           );
         })()}
+        </div>
 
         {/* ── クイックサマリー（タップで各セクションへジャンプ）── */}
         <div className="grid grid-cols-3 gap-3">
