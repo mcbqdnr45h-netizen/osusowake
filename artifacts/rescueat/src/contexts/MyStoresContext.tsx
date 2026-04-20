@@ -14,6 +14,7 @@ export type MyStore = {
   stripeAccountId: string | null;
   stripeChargesEnabled: boolean | null;
   stripePayoutsEnabled: boolean | null;
+  stripeNeedsBankReregister: boolean | null;
   imageUrl: string | null;
   description: string | null;
   openTime: string | null;

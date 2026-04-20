@@ -275,7 +275,9 @@ export default function AdminVerifyShops() {
             ) : (
               <div className="space-y-3">
                 {filtered.map(store => {
-                  const statusCfg = STATUS_CONFIG[store.status] ?? STATUS_CONFIG.approved;
+                  const statusCfg = store.status === 'pending'
+                    ? { ...STATUS_CONFIG.pending, label: store.stripeAccountId ? '本人確認待ち' : '口座未登録' }
+                    : STATUS_CONFIG[store.status] ?? STATUS_CONFIG.approved;
                   const isProcessing = rejectMutation.isPending || reactivateMutation.isPending || dismissMutation.isPending;
                   const storeReports = reportsByStore[store.id] ?? [];
                   return (

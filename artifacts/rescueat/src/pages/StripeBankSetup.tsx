@@ -442,7 +442,8 @@ export default function StripeBankSetup() {
   if (!cityKanji.trim() || !townKanji.trim())           missingFields.push('住所（市区町村・町名）漢字');
   if (!cityKana.trim()  || !townKana.trim())            missingFields.push('住所（市区町村・町名）カナ');
   if (productDescription.trim().length < 10)            missingFields.push(`事業内容の説明（現在${productDescription.trim().length}文字 / 10文字以上必要）`);
-  const bankAlreadyRegistered = !!store?.stripeAccountId;
+  // 口座登録済み && Stripeから「external_account再登録が必要」フラグが立っていない場合のみスキップ
+  const bankAlreadyRegistered = !!store?.stripeAccountId && !store?.stripeNeedsBankReregister;
   if (!bankAlreadyRegistered) {
     if (!bankName.trim())        missingFields.push('銀行名');
     if (bankCode.length !== 4)   missingFields.push(`銀行コード（${bankCode.length}桁 → 4桁で入力）`);

@@ -494,7 +494,9 @@ export default function MyPage() {
                       pending_review:{ label: '確認中',         cls: 'bg-amber-100 text-amber-700' },
                       applied:       { label: '口座登録済み', cls: 'bg-blue-100 text-blue-700' },
                       rejected:      { label: '却下',         cls: 'bg-red-100 text-red-700' },
-                      pending:       { label: '口座登録待ち', cls: 'bg-orange-100 text-orange-700' },
+                      pending:       s.stripeAccountId
+                        ? { label: '本人確認が必要', cls: 'bg-amber-100 text-amber-700' }
+                        : { label: 'セットアップ未完了', cls: 'bg-orange-100 text-orange-700' },
                     };
                     const st = statusMap[s.status] ?? { label: s.status, cls: 'bg-gray-100 text-gray-600' };
                     const isSelected = s.id === selectedStoreId;
@@ -561,8 +563,12 @@ export default function MyPage() {
                       <CreditCard className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-bold text-foreground text-sm">口座登録を完了してください</div>
-                      <div className="text-xs text-muted-foreground">振込先口座と本人確認の登録が必要です</div>
+                      <div className="font-bold text-foreground text-sm">
+                        {store?.stripeAccountId ? '本人確認情報を修正してください' : '口座・本人確認の登録が必要です'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {store?.stripeAccountId ? '口座は登録済みです。本人確認情報のみ再送信してください' : '振込先口座と本人確認の登録が必要です'}
+                      </div>
                     </div>
                     <span className="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">未完了</span>
                   </Link>
@@ -795,8 +801,12 @@ export default function MyPage() {
                           <CreditCard className="w-4 h-4" />
                         </div>
                         <div className="flex-1">
-                          <div className="font-bold text-foreground text-sm">口座登録を完了してください</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">振込先口座と本人確認の登録が必要です</div>
+                          <div className="font-bold text-foreground text-sm">
+                            {store?.stripeAccountId ? '本人確認情報を修正してください' : '口座・本人確認の登録が必要です'}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {store?.stripeAccountId ? '口座は登録済みです。本人確認情報のみ再送信してください' : '振込先口座と本人確認の登録が必要です'}
+                          </div>
                         </div>
                         <span className="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">未完了</span>
                       </Link>

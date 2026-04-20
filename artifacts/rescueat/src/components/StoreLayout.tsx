@@ -65,7 +65,9 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
                 : s === 'suspended'                       ? { label: '停止中',     cls: 'bg-gray-100 text-gray-500 border border-gray-200' }
                 : s === 'applied'                         ? { label: '本人確認中',    cls: 'bg-blue-50 text-blue-700 border border-blue-200' }
                 : s === 'pending_review'                  ? { label: '確認中',        cls: 'bg-amber-50 text-amber-700 border border-amber-200' }
-                : /* pending / unknown */                   { label: '口座登録待ち',   cls: 'bg-orange-50 text-orange-600 border border-orange-200' };
+                : store?.stripeAccountId
+                  ? { label: '本人確認が必要', cls: 'bg-amber-50 text-amber-700 border border-amber-200' }
+                  : { label: 'セットアップ未完了', cls: 'bg-orange-50 text-orange-600 border border-orange-200' };
               return (
                 <span className={`text-[10px] font-black px-2 py-1 rounded-full shrink-0 ${cfg.cls}`}>
                   {cfg.label}

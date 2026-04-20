@@ -215,7 +215,12 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
           const store = storeRows[0];
           // applied 状態で KYC エラーが来た → pending に戻して再入力を促す
           if (store.status === 'applied') {
-            await db.update(storesTable).set({ status: 'pending' }).where(eq(storesTable.id, store.id));
+            // external_account が past_due に含まれている → 口座の再登録も必要
+            const needsBankReregister = pastDue.some(f => f === 'external_account' || f.startsWith('external_account'));
+            await db.update(storesTable).set({
+              status: 'pending',
+              stripeNeedsBankReregister: needsBankReregister || false,
+            }).where(eq(storesTable.id, store.id));
             console.log(`[stripe-webhook] ⚠️  KYC requirements error — store ${store.id} reverted to pending. past_due: ${pastDue.join(', ')}`);
 
             // 店舗オーナーに通知

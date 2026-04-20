@@ -451,6 +451,20 @@ async function runMigrations() {
     await client.query(`ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY`);
     console.log('[migration] admin_audit_log table ✅');
 
+    // ── stores.stripe_needs_bank_reregister 列 ─────────────────────────────────
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='stores'
+            AND column_name='stripe_needs_bank_reregister'
+        ) THEN
+          ALTER TABLE stores ADD COLUMN stripe_needs_bank_reregister BOOLEAN DEFAULT false;
+        END IF;
+      END $$;
+    `);
+    console.log('[migration] stores.stripe_needs_bank_reregister ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

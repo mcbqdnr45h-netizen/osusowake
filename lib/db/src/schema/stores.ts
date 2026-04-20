@@ -66,6 +66,8 @@ export const storesTable = pgTable("stores", {
   stripeKycAdminEmailSent: boolean("stripe_kyc_admin_email_sent").notNull().default(false),
   // Stripe Files API でアップロードした営業許可証のファイルID（file_...）
   stripeLicenseFileId: text("stripe_license_file_id"),
+  // Stripe の past_due に external_account が含まれている場合に true → 口座の再登録が必要
+  stripeNeedsBankReregister: boolean("stripe_needs_bank_reregister").default(false),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });

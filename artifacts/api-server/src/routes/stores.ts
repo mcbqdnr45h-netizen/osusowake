@@ -67,6 +67,7 @@ const storeSelectFields = {
   stripeAccountId: storesTable.stripeAccountId,
   stripeChargesEnabled: storesTable.stripeChargesEnabled,
   stripePayoutsEnabled: storesTable.stripePayoutsEnabled,
+  stripeNeedsBankReregister: storesTable.stripeNeedsBankReregister,
   holiday: storesTable.holiday,
   pickupHours: storesTable.pickupHours,
   rejectionReason: storesTable.rejectionReason,
@@ -1917,7 +1918,7 @@ router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
     if (kycComplete) {
       await db
         .update(storesTable)
-        .set({ status: "applied" })
+        .set({ status: "applied", stripeNeedsBankReregister: false })
         .where(eq(storesTable.id, storeId));
       console.log(`✅ Store ${storeId} status → 'applied' (doc upload cleared currently_due — awaiting admin approval)`);
     }
@@ -2567,7 +2568,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     } catch (bgErr: any) {
       console.error(`❌ [bank-setup] BG error:`, bgErr?.message ?? bgErr);
       try {
-        await db.update(storesTable).set({ status: "applied" }).where(eq(storesTable.id, storeId));
+        await db.update(storesTable).set({ status: "applied", stripeNeedsBankReregister: false }).where(eq(storesTable.id, storeId));
       } catch (_) {}
       // フォールバック: role 更新を試みる
       if (store.ownerId) {
