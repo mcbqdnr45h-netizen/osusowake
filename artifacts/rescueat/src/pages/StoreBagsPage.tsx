@@ -245,7 +245,7 @@ export default function StoreBagsPage() {
               <p className="text-sm font-bold text-amber-800">決済の本人確認が審査中です</p>
               <p className="text-xs text-amber-700 mt-1 leading-relaxed">
                 口座登録後、決済システムによる本人確認が完了するまで出品できません。
-                通常3〜5営業日で完了します。審査通過後に自動で出品が解除されます。
+                早ければ数時間で完了します。審査通過後すぐに自動で出品が開始されます。
               </p>
             </div>
           </div>

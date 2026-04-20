@@ -187,11 +187,69 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
     charges_enabled: boolean;
     details_submitted: boolean;
     payouts_enabled: boolean;
+    requirements?: {
+      past_due?: string[];
+      currently_due?: string[];
+      disabled_reason?: string | null;
+      errors?: { code: string; reason: string; requirement: string }[];
+    };
   };
 
-  console.log(`[stripe-webhook] account.updated: ${account.id}, charges_enabled=${account.charges_enabled}`);
+  console.log(`[stripe-webhook] account.updated: ${account.id}, charges_enabled=${account.charges_enabled}, disabled_reason=${account.requirements?.disabled_reason ?? 'none'}`);
 
   if (!account.charges_enabled) {
+    // charges 無効 + past_due がある → Stripe が本人確認エラーを検出した可能性
+    const pastDue = account.requirements?.past_due ?? [];
+    const disabledReason = account.requirements?.disabled_reason ?? '';
+    const isRequirementsIssue = pastDue.length > 0 || disabledReason === 'requirements.past_due';
+
+    if (isRequirementsIssue) {
+      try {
+        const storeRows = await db
+          .select({ id: storesTable.id, name: storesTable.name, ownerId: storesTable.ownerId, status: storesTable.status })
+          .from(storesTable)
+          .where(eq(storesTable.stripeAccountId, account.id))
+          .limit(1);
+
+        if (storeRows.length > 0) {
+          const store = storeRows[0];
+          // applied 状態で KYC エラーが来た → pending に戻して再入力を促す
+          if (store.status === 'applied') {
+            await db.update(storesTable).set({ status: 'pending' }).where(eq(storesTable.id, store.id));
+            console.log(`[stripe-webhook] ⚠️  KYC requirements error — store ${store.id} reverted to pending. past_due: ${pastDue.join(', ')}`);
+
+            // 店舗オーナーに通知
+            try {
+              const missingLabels = pastDue.slice(0, 5).map(f => {
+                if (f.includes('address')) return '住所';
+                if (f.includes('dob')) return '生年月日';
+                if (f.includes('first_name') || f.includes('last_name')) return '氏名';
+                if (f.includes('phone')) return '電話番号';
+                if (f.includes('email')) return 'メールアドレス';
+                if (f.includes('verification') || f.includes('document')) return '本人確認書類';
+                return f;
+              }).filter((v, i, a) => a.indexOf(v) === i);
+
+              await db.insert(notificationsTable).values({
+                userId: store.ownerId,
+                type: 'store_action_required',
+                title: '⚠️ 本人確認情報の再入力が必要です',
+                body: `決済システムによる審査で確認が必要な項目があります（${missingLabels.join('・')}など）。店舗ダッシュボードから再登録してください。`,
+                read: false,
+              });
+            } catch (notifErr) {
+              console.error('[stripe-webhook] notification insert error:', notifErr);
+            }
+
+            res.json({ received: true, action: 'reverted_to_pending', storeId: store.id, past_due: pastDue });
+            return;
+          }
+        }
+      } catch (err: any) {
+        console.error('[stripe-webhook] requirements error handling failed:', err?.message);
+      }
+    }
+
     res.json({ received: true, charges_enabled: false, handled: false });
     return;
   }

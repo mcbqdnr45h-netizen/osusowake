@@ -1462,7 +1462,7 @@ export default function StoreDashboard() {
             <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
               口座情報を受け付けました。決済システムによる本人確認がバックグラウンドで進行中です。
             </p>
-            <p className="text-xs text-muted-foreground mb-6">通常3〜5営業日で完了します。完了次第、自動で出品が開始できるようになります。</p>
+            <p className="text-xs text-muted-foreground mb-6">早ければ数時間で完了します。審査通過後すぐに自動で出品が開始できます。</p>
             <a
               href="/mypage"
               className="inline-flex items-center gap-2 bg-secondary text-foreground font-bold px-6 py-3 rounded-2xl hover:bg-secondary/80 transition-colors"
@@ -1488,7 +1488,7 @@ export default function StoreDashboard() {
             <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
               出品を開始するには、振込先口座と本人確認の登録が必要です。
             </p>
-            <p className="text-xs text-muted-foreground mb-6">登録完了後、決済システムの確認（通常3〜5営業日）が通り次第、自動で出品が開始できます。</p>
+            <p className="text-xs text-muted-foreground mb-6">登録完了後、決済システムの確認が通り次第すぐに自動で出品が開始できます。早ければ数時間で完了します。</p>
             <a
               href="/store/bank-setup"
               className="inline-flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl hover:bg-primary/90 transition-colors"

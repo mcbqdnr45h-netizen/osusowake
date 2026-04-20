@@ -396,7 +396,7 @@ export default function MyPage() {
               <div className="flex-1 min-w-0">
                 <p className="font-black text-foreground text-base">申請受付完了 — 審査中</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  口座・本人確認情報を受け付けました。決済システムの審査がバックグラウンドで進行中です。通常3〜5営業日で完了します。
+                  口座・本人確認情報を受け付けました。決済システムの審査がバックグラウンドで進行中です。早ければ数時間で完了します。
                 </p>
               </div>
               <span className="ml-auto text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded-full shrink-0">審査中</span>
@@ -581,7 +581,7 @@ export default function MyPage() {
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {store?.status === 'applied'
-                          ? '通常3〜5営業日で完了します'
+                          ? '早ければ数時間で完了します'
                           : '運営スタッフが確認中です'}
                       </div>
                     </div>
@@ -816,7 +816,7 @@ export default function MyPage() {
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {store?.status === 'applied'
-                              ? '通常3〜5営業日で完了します'
+                              ? '早ければ数時間で完了します'
                               : '運営スタッフが確認中です'}
                           </div>
                         </div>
