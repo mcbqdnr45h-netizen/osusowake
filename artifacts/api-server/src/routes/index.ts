@@ -85,12 +85,29 @@ router.post("/auth/forgot-password", async (req, res) => {
     });
 
     if (sendError) {
-      console.error("[forgot-password] Resend send error:", sendError);
-      res.status(500).json({ error: "send_error", message: "メールの送信に失敗しました。しばらくしてからお試しください。" });
+      console.warn("[forgot-password] Resend failed (domain not verified), falling back to Supabase email");
+      // Resend ドメイン未認証時は Supabase 標準メールでフォールバック
+      const { error: fallbackErr } = await supabaseAnon.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: finalRedirectTo || undefined,
+      });
+      if (fallbackErr) {
+        // レート制限の場合は "しばらく待ってから" メッセージ
+        const isRateLimit = fallbackErr.message?.includes("after") || fallbackErr.message?.includes("seconds") || fallbackErr.status === 429;
+        console.error("[forgot-password] Supabase fallback error:", fallbackErr.message);
+        res.status(500).json({
+          error: "send_error",
+          message: isRateLimit
+            ? "送信が完了するまで少し時間をおいてから再試行してください（60秒以上）"
+            : "メールの送信に失敗しました。しばらくしてからお試しください。",
+        });
+        return;
+      }
+      console.log("[forgot-password] fallback email sent via Supabase to:", email.trim());
+      res.json({ ok: true });
       return;
     }
 
-    console.log("[forgot-password] email sent to:", email.trim());
+    console.log("[forgot-password] branded email sent to:", email.trim());
     res.json({ ok: true });
   } catch (err: any) {
     console.error("[forgot-password] error:", err);
