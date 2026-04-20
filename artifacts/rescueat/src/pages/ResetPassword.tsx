@@ -18,27 +18,42 @@ export default function ResetPassword() {
   useEffect(() => {
     let cancelled = false;
 
-    // ① 既存セッションを即時確認（SDKがhashを処理済みの場合）
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function init() {
+      // ① PKCE フロー: URL に ?code= がある場合はセッション交換
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get('code');
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!cancelled && data?.session?.user && !error) {
+          setLinkStatus('ready');
+          return;
+        }
+      }
+
+      // ② 既存セッションを確認（SDK がハッシュを処理済みの場合）
+      const { data: { session } } = await supabase.auth.getSession();
       if (!cancelled && session?.user) {
         setLinkStatus('ready');
+        return;
       }
-    });
+    }
 
-    // ② PASSWORD_RECOVERY イベントを待つ
+    init();
+
+    // ③ PASSWORD_RECOVERY / SIGNED_IN イベントを待つ（implicit フロー）
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      if (event === 'PASSWORD_RECOVERY' && session?.user) {
+      if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session?.user) {
         setLinkStatus('ready');
       }
     });
 
-    // ③ 4秒待っても ready にならなければ failed に
+    // ④ 10秒待っても ready にならなければ failed に（モバイルは遅いため長めに）
     const timeout = setTimeout(() => {
       if (!cancelled) {
         setLinkStatus(prev => prev === 'checking' ? 'failed' : prev);
       }
-    }, 4000);
+    }, 10000);
 
     return () => {
       cancelled = true;
