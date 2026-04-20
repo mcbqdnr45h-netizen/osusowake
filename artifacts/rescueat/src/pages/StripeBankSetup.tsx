@@ -383,15 +383,25 @@ export default function StripeBankSetup() {
 
   useEffect(() => {
     if (!store?.stripeAccountId || !store?.id) return;
-    // chargesEnabled=false（再送信が必要）のときのみ取得
-    if (store.stripeChargesEnabled !== false) return;
-    fetch(`/api/stores/${store.id}/connect/stripe-sync`)
+    // charges/payoutsどちらかが停止中のときStripeの具体的なエラー情報を取得する
+    const stripeHasIssue =
+      store.stripeChargesEnabled === false || store.stripePayoutsEnabled === false;
+    if (!stripeHasIssue) return;
+    fetch(`/api/stores/${store.id}/connect/status`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.requirements) setStripeReqs(data.requirements);
+        if (data?.requirements) {
+          setStripeReqs({
+            currentlyDue:        data.requirements.currentlyDue       ?? [],
+            errors:              (data.requirements.errors ?? []).map((e: any) => ({
+              code: e.code ?? '', reason: e.reason ?? '', requirement: e.requirement ?? '',
+            })),
+            pendingVerification: data.requirements.pendingVerification ?? [],
+          });
+        }
       })
       .catch(() => {});
-  }, [store?.id, store?.stripeAccountId, store?.stripeChargesEnabled]);
+  }, [store?.id, store?.stripeAccountId, store?.stripeChargesEnabled, store?.stripePayoutsEnabled]);
 
   // ── Stripe 保存済みデータ取得（再申請時のフォーム事前入力用）──
   const stripeDataLoadedRef = useRef(false);
@@ -826,16 +836,94 @@ export default function StripeBankSetup() {
     );
   }
 
-  // ────────── Stripe 情報不完全（chargesEnabled=false）── 再送信バナーを表示 ──
+  // ── Stripe コード → 日本語変換 ──────────────────────────────────────────────
+  const stripeReqLabel = (key: string) => ({
+    'individual.verification.document':            '本人確認書類（運転免許証・マイナンバーカード等）',
+    'individual.verification.additional_document': '追加書類（営業許可証等）',
+    'individual.first_name_kana':  '氏名（カナ・名）',
+    'individual.last_name_kana':   '氏名（カナ・姓）',
+    'individual.first_name_kanji': '氏名（漢字・名）',
+    'individual.last_name_kanji':  '氏名（漢字・姓）',
+    'individual.dob.day':   '生年月日（日）',
+    'individual.dob.month': '生年月日（月）',
+    'individual.dob.year':  '生年月日（年）',
+    'individual.address_kanji.line1':      '住所（漢字・番地）',
+    'individual.address_kanji.city':       '住所（漢字・市区町村）',
+    'individual.address_kanji.state':      '住所（漢字・都道府県）',
+    'individual.address_kanji.postal_code':'郵便番号',
+    'individual.address_kana.line1':       '住所（カナ・番地）',
+    'individual.address_kana.city':        '住所（カナ・市区町村）',
+    'individual.address_kana.state':       '住所（カナ・都道府県）',
+    'individual.phone': '電話番号',
+    'individual.email': 'メールアドレス',
+    'individual.id_number': 'マイナンバー',
+    'external_account': '銀行口座情報',
+  } as Record<string, string>)[key] ?? key;
+
+  const stripeErrLabel = (code: string) => ({
+    'verification_document_dob_mismatch':        '書類の生年月日が登録情報と一致しません',
+    'verification_document_name_mismatch':       '書類の氏名が登録情報と一致しません',
+    'verification_document_address_mismatch':    '書類の住所が登録情報と一致しません',
+    'verification_document_expired':             '書類の有効期限が切れています',
+    'verification_document_not_readable':        '書類が読み取れません（再撮影してください）',
+    'verification_document_not_uploaded':        '書類がアップロードされていません',
+    'verification_document_photo_mismatch':      '書類の写真が一致しません',
+    'verification_document_type_not_supported':  'この書類の種類は対応していません',
+    'verification_document_corrupt':             '書類ファイルが破損しています',
+    'verification_failed_keyed_identity':        '本人確認情報の照合に失敗しました',
+    'verification_failed_name_match':            '氏名の照合に失敗しました',
+    'invalid_dob_age_under_18':                  '代表者が18歳未満のため登録できません',
+    'invalid_phone_number':                      '電話番号が無効です',
+    'bank_account_unusable':                     '銀行口座が使用できません',
+  } as Record<string, string>)[code] ?? code;
+
+  // ────────── Stripe 情報不完全（chargesEnabled/payoutsEnabled=false）── 再送信バナーを表示 ──
   const incompleteWarning = stripeIncomplete ? (
-    <div className="mx-4 mt-4 mb-0 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
-      <span className="text-amber-500 text-xl mt-0.5">⚠️</span>
-      <div>
-        <p className="text-sm font-bold text-amber-800">決済情報が不完全です</p>
-        <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-          前回の登録で一部の情報が送信されませんでした。フォームを再入力して再送信してください。
-        </p>
+    <div className="mx-4 mt-4 mb-0 bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+      <div className="flex gap-3">
+        <span className="text-amber-500 text-xl mt-0.5">⚠️</span>
+        <div>
+          <p className="text-sm font-bold text-amber-800">
+            {store.stripeChargesEnabled === false ? '決済情報が不完全です' : '入金が一時停止中です'}
+          </p>
+          <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+            {store.stripeChargesEnabled === false
+              ? '前回の登録で一部の情報が送信されませんでした。フォームを再入力して再送信してください。'
+              : '本人確認書類の提出または修正が必要です。下記の内容をご確認ください。'}
+          </p>
+        </div>
       </div>
+
+      {/* 具体的なエラー詳細 */}
+      {stripeReqs && stripeReqs.errors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 space-y-1.5">
+          <p className="text-[11px] font-black text-red-800">🚫 修正が必要な内容（{stripeReqs.errors.length}件）</p>
+          {stripeReqs.errors.map((e, i) => (
+            <div key={i}>
+              <p className="text-[11px] font-bold text-red-700">・{stripeReqLabel(e.requirement)}</p>
+              <p className="text-[11px] text-red-600 ml-3">{stripeErrLabel(e.code)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {stripeReqs && stripeReqs.currentlyDue.length > 0 && (
+        <div className="bg-amber-100 border border-amber-300 rounded-xl px-3 py-2.5 space-y-1">
+          <p className="text-[11px] font-black text-amber-900">📋 提出が必要な項目（{stripeReqs.currentlyDue.length}件）</p>
+          {stripeReqs.currentlyDue.map((item, i) => (
+            <p key={i} className="text-[11px] text-amber-800">・{stripeReqLabel(item)}</p>
+          ))}
+        </div>
+      )}
+
+      {stripeReqs && stripeReqs.pendingVerification.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-center gap-2">
+          <span className="text-blue-500 text-sm">🔄</span>
+          <p className="text-[11px] font-bold text-blue-800">
+            審査中: {stripeReqs.pendingVerification.map(stripeReqLabel).join('・')}
+          </p>
+        </div>
+      )}
     </div>
   ) : null;
 
