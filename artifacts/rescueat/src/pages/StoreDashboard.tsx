@@ -1750,10 +1750,10 @@ export default function StoreDashboard() {
                 className={`w-full rounded-2xl py-5 flex items-center justify-center gap-3 transition-all ${
                   stripeBlocked
                     ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
-                    : 'bg-primary text-white shadow-xl shadow-primary/25 hover:bg-primary/90'
+                    : 'bg-rose-200 text-rose-700 shadow-md hover:bg-rose-300/70'
                 }`}
               >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${stripeBlocked ? 'bg-muted-foreground/20' : 'bg-white/20'}`}>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${stripeBlocked ? 'bg-muted-foreground/20' : 'bg-rose-300/50'}`}>
                   <Plus className="w-6 h-6" />
                 </div>
                 <div className="text-left">
