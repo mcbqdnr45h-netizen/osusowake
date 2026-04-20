@@ -299,6 +299,25 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
 
     const store = storeRows[0];
 
+    // ── payouts_enabled=false の場合：DB更新 & 既存出品バッグを自動停止 ──────
+    // charges_enabled=true でも payouts 停止中は新規出品ブロック済み（API側）
+    // Webhook 受信時点で既に公開中のバッグも念のため全停止する
+    if (!account.payouts_enabled) {
+      try {
+        await db
+          .update(storesTable)
+          .set({ stripePayoutsEnabled: false })
+          .where(eq(storesTable.id, store.id));
+        await db
+          .update(surpriseBagsTable)
+          .set({ isActive: false })
+          .where(eq(surpriseBagsTable.storeId, store.id));
+        console.log(`[stripe-webhook] 🟡 payouts_enabled=false → store ${store.id} の出品バッグを全て停止`);
+      } catch (err: any) {
+        console.error('[stripe-webhook] payouts_disabled bag stop error:', err?.message);
+      }
+    }
+
     // ── 自動承認設定を確認（デフォルトON）────────────────────────────────────
     const autoApprove = (await getSetting('auto_approve_stripe_verified', 'true')) === 'true';
 

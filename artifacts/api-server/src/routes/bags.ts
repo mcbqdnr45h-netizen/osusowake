@@ -223,6 +223,7 @@ router.post("/stores/:storeId/bags", async (req, res) => {
         status: storesTable.status,
         stripeAccountId: storesTable.stripeAccountId,
         stripeChargesEnabled: storesTable.stripeChargesEnabled,
+        stripePayoutsEnabled: storesTable.stripePayoutsEnabled,
       })
       .from(storesTable)
       .where(eq(storesTable.id, storeId))
@@ -238,6 +239,9 @@ router.post("/stores/:storeId/bags", async (req, res) => {
     }
     if (!storeCheck.stripeChargesEnabled) {
       return res.status(403).json({ error: "kyc_pending", message: "決済の本人確認が完了していないため出品できません。審査通過後（通常3〜5営業日）に出品が開始できます。" });
+    }
+    if (!storeCheck.stripePayoutsEnabled) {
+      return res.status(403).json({ error: "payouts_disabled", message: "入金が一時停止中のため出品できません。本人確認書類を提出して審査を完了してください。" });
     }
 
     const body = CreateBagBody.parse(req.body);
@@ -412,13 +416,14 @@ router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
       return;
     }
 
-    // 公開ON操作の場合：承認済み かつ Stripe 連携・KYC完了済みでないとブロック
+    // 公開ON操作の場合：承認済み かつ Stripe 連携・charges/payoutsどちらも有効でないとブロック
     if (body.isActive === true) {
       const [storeCheck] = await db
         .select({
           status: storesTable.status,
           stripeAccountId: storesTable.stripeAccountId,
           stripeChargesEnabled: storesTable.stripeChargesEnabled,
+          stripePayoutsEnabled: storesTable.stripePayoutsEnabled,
         })
         .from(storesTable)
         .where(eq(storesTable.id, storeId))
@@ -433,6 +438,10 @@ router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
       }
       if (!storeCheck.stripeChargesEnabled) {
         res.status(403).json({ error: "kyc_pending", message: "決済の本人確認が完了していないため公開できません。Stripe審査通過後に出品が開始できます。" });
+        return;
+      }
+      if (!storeCheck.stripePayoutsEnabled) {
+        res.status(403).json({ error: "payouts_disabled", message: "入金が一時停止中のため公開できません。本人確認書類を提出して審査を完了してください。" });
         return;
       }
     }
