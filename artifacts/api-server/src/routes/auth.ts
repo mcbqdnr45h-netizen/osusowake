@@ -406,18 +406,55 @@ router.delete("/user/account", async (req: Request, res: Response) => {
   }
 
   try {
-    // 1. 予約・お気に入り・通知など（CASCADE FK があれば自動削除されるが念のため明示）
+    // 1. 店舗オーナーの場合：店舗データのクリーンアップ
+    const { data: ownedStores } = await supabaseAdmin
+      .from("stores")
+      .select("id, stripe_account_id")
+      .eq("owner_id", user.id);
+
+    if (ownedStores && ownedStores.length > 0) {
+      for (const store of ownedStores) {
+        // 1a. 出品中バッグを全て停止
+        await supabaseAdmin
+          .from("surprise_bags")
+          .update({ is_active: false })
+          .eq("store_id", store.id);
+
+        // 1b. Stripe Connect アカウントを削除（連携解除）
+        if (store.stripe_account_id) {
+          try {
+            const stripeKey = process.env["STRIPE_SECRET_KEY"];
+            if (stripeKey) {
+              const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+              await stripe.accounts.del(store.stripe_account_id);
+              console.log(`[user/account] Stripe account ${store.stripe_account_id} deleted`);
+            }
+          } catch (stripeErr: any) {
+            // Stripe 削除失敗は致命的ではないのでログに留め処理続行
+            console.warn(`[user/account] Stripe account delete failed (${store.stripe_account_id}):`, stripeErr?.message);
+          }
+        }
+
+        // 1c. 店舗を suspended に更新（FK制約のためすぐに行は削除しない）
+        await supabaseAdmin
+          .from("stores")
+          .update({ status: "suspended", is_active: false })
+          .eq("id", store.id);
+      }
+    }
+
+    // 2. 予約・お気に入り・通知など（CASCADE FK があれば自動削除されるが念のため明示）
     await supabaseAdmin.from("reservations").delete().eq("user_id", user.id);
     await supabaseAdmin.from("favorites").delete().eq("user_id", user.id);
 
-    // 2. public.users 行を削除
+    // 3. public.users 行を削除
     await supabaseAdmin.from("users").delete().eq("id", user.id);
 
-    // 3. auth.users を削除（Supabase Admin API）
+    // 4. auth.users を削除（Supabase Admin API）
     const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(user.id);
     if (delErr) throw delErr;
 
-    console.log(`[user/account] Deleted user ${user.id}`);
+    console.log(`[user/account] Deleted user ${user.id}${ownedStores?.length ? ` (+ ${ownedStores.length} stores)` : ''}`);
     res.json({ ok: true });
   } catch (err: any) {
     console.error("[user/account] delete error:", err);

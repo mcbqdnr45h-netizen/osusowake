@@ -749,12 +749,24 @@ export default function MyPage() {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 py-3 px-4 hover:bg-destructive/5 transition-colors text-left text-destructive"
+                  className="w-full flex items-center gap-3 py-3 px-4 hover:bg-destructive/5 transition-colors text-left text-destructive border-b border-border"
                 >
                   <div className="w-9 h-9 bg-destructive/10 text-destructive rounded-full flex items-center justify-center shrink-0">
                     <LogOut className="w-4 h-4" />
                   </div>
                   <div className="flex-1 font-bold text-sm">ログアウト</div>
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full flex items-center gap-3 py-3 px-4 hover:bg-rose-50 transition-colors text-left"
+                >
+                  <div className="w-9 h-9 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-sm text-rose-600">アカウントを削除する</div>
+                    <div className="text-[10px] text-rose-400 mt-0.5">店舗・Stripe連携・全データが削除されます</div>
+                  </div>
                 </button>
               </div>
             </div>
@@ -1071,7 +1083,11 @@ export default function MyPage() {
                 <h3 className="font-bold text-foreground text-lg leading-tight">アカウントを削除しますか？</h3>
                 <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
                   この操作は取り消せません。<br />
-                  予約・お気に入り・購入履歴など<br />
+                  {isStoreOwner ? (
+                    <>店舗・出品中バッグ・Stripe連携・<br />予約・購入履歴など</>
+                  ) : (
+                    <>予約・お気に入り・購入履歴など</>
+                  )}<br />
                   すべてのデータが完全に削除されます。
                 </p>
               </div>
