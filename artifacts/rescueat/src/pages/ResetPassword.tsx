@@ -170,6 +170,7 @@ export default function ResetPassword() {
                     onChange={e => setPassword(e.target.value)}
                     placeholder="8文字以上"
                     required
+                    autoComplete="new-password"
                     className="w-full bg-muted/40 border border-border/70 rounded-xl pl-10 pr-10 py-3 text-sm font-medium placeholder:text-muted-foreground/40 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                   />
                   <button
@@ -193,6 +194,7 @@ export default function ResetPassword() {
                     onChange={e => setConfirm(e.target.value)}
                     placeholder="もう一度入力"
                     required
+                    autoComplete="new-password"
                     className="w-full bg-muted/40 border border-border/70 rounded-xl pl-10 pr-10 py-3 text-sm font-medium placeholder:text-muted-foreground/40 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
                   />
                   <button

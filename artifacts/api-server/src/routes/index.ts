@@ -59,8 +59,8 @@ router.post("/auth/forgot-password", async (req, res) => {
     );
 
     if (genErr || !data?.properties?.action_link) {
-      // ユーザーが存在しない場合もセキュリティ上 ok を返す
-      console.warn("[forgot-password] generateLink warn:", genErr?.message);
+      // ユーザーが存在しない場合もセキュリティ上 ok を返す（メールアドレス漏洩防止）
+      console.warn("[forgot-password] generateLink failed for:", email.trim(), "reason:", genErr?.message ?? "no action_link");
       res.json({ ok: true });
       return;
     }
@@ -77,13 +77,20 @@ router.post("/auth/forgot-password", async (req, res) => {
     const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
     const resend = new Resend(resendKey);
 
-    await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from:    `Osusowake 事務局 <${fromDomain}>`,
       to:      email.trim(),
       subject: "【Osusowake】パスワード再設定のご案内",
       html:    buildPasswordResetHtml(resetLink),
     });
 
+    if (sendError) {
+      console.error("[forgot-password] Resend send error:", sendError);
+      res.status(500).json({ error: "send_error", message: "メールの送信に失敗しました。しばらくしてからお試しください。" });
+      return;
+    }
+
+    console.log("[forgot-password] email sent to:", email.trim());
     res.json({ ok: true });
   } catch (err: any) {
     console.error("[forgot-password] error:", err);
