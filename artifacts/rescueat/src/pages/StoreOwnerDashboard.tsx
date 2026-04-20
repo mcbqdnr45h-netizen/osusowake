@@ -744,14 +744,21 @@ export default function StoreOwnerDashboard() {
 
         {/* ── ④ 新規出品ボタン ── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <button
-            onClick={() => navigate('/store/bags')}
-            className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2.5 shadow-lg shadow-primary/20 active:scale-[0.98] transition-transform"
-          >
-            <Zap className="w-5 h-5" />
-            新しいバッグを出品する
-            <ChevronRight className="w-4 h-4 ml-auto" />
-          </button>
+          {connectStatus !== null && (!connectStatus.chargesEnabled || !connectStatus.payoutsEnabled) ? (
+            <div className="w-full h-14 bg-muted text-muted-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2.5 opacity-60 cursor-not-allowed select-none">
+              <Zap className="w-5 h-5" />
+              {!connectStatus.chargesEnabled ? '決済停止中のため出品不可' : '入金停止中のため出品不可'}
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/store/bags')}
+              className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2.5 shadow-lg shadow-primary/20 active:scale-[0.98] transition-transform"
+            >
+              <Zap className="w-5 h-5" />
+              新しいバッグを出品する
+              <ChevronRight className="w-4 h-4 ml-auto" />
+            </button>
+          )}
         </motion.div>
 
         {/* ── ⑤ 緊急停止ボタン ── */}

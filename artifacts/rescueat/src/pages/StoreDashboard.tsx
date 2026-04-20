@@ -1653,18 +1653,47 @@ export default function StoreDashboard() {
         )}
 
         {/* ── 大きなCTAボタン ── */}
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowPostModal(true)}
-          className="w-full bg-primary text-white rounded-2xl py-5 flex items-center justify-center gap-3 shadow-xl shadow-primary/25 hover:bg-primary/90 transition-all"
-        >
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
-            <Plus className="w-6 h-6" />
-          </div>
-          <div className="text-left">
-            <p className="font-black text-base leading-tight">本日のOsusowakeを出品する</p>
-          </div>
-        </motion.button>
+        {(() => {
+          const stripeBlocked =
+            stripeStatus !== undefined &&
+            (!stripeStatus.chargesEnabled || !stripeStatus.payoutsEnabled);
+          return (
+            <>
+              {stripeBlocked && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                  <span className="text-amber-500 text-base mt-0.5">⚠️</span>
+                  <div>
+                    <p className="text-xs font-black text-amber-800">
+                      {!stripeStatus?.chargesEnabled ? '決済が停止中のため出品できません' : '入金が一時停止中のため出品できません'}
+                    </p>
+                    <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
+                      {!stripeStatus?.chargesEnabled
+                        ? 'Stripeの決済が制限されています。本人確認書類を提出して審査を完了させてください。'
+                        : 'Stripeより本人確認書類の提出が必要です。このまま放置すると決済も停止されます。'}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <motion.button
+                whileTap={stripeBlocked ? undefined : { scale: 0.98 }}
+                onClick={() => { if (!stripeBlocked) setShowPostModal(true); }}
+                disabled={stripeBlocked}
+                className={`w-full rounded-2xl py-5 flex items-center justify-center gap-3 transition-all ${
+                  stripeBlocked
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
+                    : 'bg-primary text-white shadow-xl shadow-primary/25 hover:bg-primary/90'
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${stripeBlocked ? 'bg-muted-foreground/20' : 'bg-white/20'}`}>
+                  <Plus className="w-6 h-6" />
+                </div>
+                <div className="text-left">
+                  <p className="font-black text-base leading-tight">本日のOsusowakeを出品する</p>
+                </div>
+              </motion.button>
+            </>
+          );
+        })()}
 
         {/* ── クイックサマリー（タップで各セクションへジャンプ）── */}
         <div className="grid grid-cols-3 gap-3">

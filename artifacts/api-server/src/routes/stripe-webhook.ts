@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, pool } from "@workspace/db";
-import { storesTable, notificationsTable } from "@workspace/db/schema";
+import { storesTable, notificationsTable, surpriseBagsTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { Resend } from "resend";
 import { sendStoreApprovalEmail } from "../utils/emails";
@@ -200,10 +200,24 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
   if (!account.charges_enabled) {
     // charges 無効 → 必ずDBの stripeChargesEnabled を false に更新してから詳細処理
     try {
+      // stripeChargesEnabled = false に更新
       await db
         .update(storesTable)
         .set({ stripeChargesEnabled: false })
         .where(eq(storesTable.stripeAccountId, account.id));
+
+      // この店舗に紐づく出品中バッグを全て自動停止（客が注文しても決済できないため）
+      const affectedStores = await db
+        .select({ id: storesTable.id })
+        .from(storesTable)
+        .where(eq(storesTable.stripeAccountId, account.id));
+      if (affectedStores.length > 0) {
+        await db
+          .update(surpriseBagsTable)
+          .set({ isActive: false })
+          .where(eq(surpriseBagsTable.storeId, affectedStores[0].id));
+        console.log(`[stripe-webhook] 🔴 charges_enabled=false → store ${affectedStores[0].id} の出品バッグを全て停止`);
+      }
     } catch (dbErr: any) {
       console.error('[stripe-webhook] stripeChargesEnabled=false 更新失敗:', dbErr?.message);
     }
