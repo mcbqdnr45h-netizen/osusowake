@@ -2438,13 +2438,21 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       if ((kycAcc?.requirements?.errors ?? []).length > 0) {
         console.warn(`⚠️  [bank-setup] STEP4 errors: ${JSON.stringify(kycAcc.requirements.errors)}`);
       }
-      // STEP4成功後でも individual.* がまだ不足している場合は未送信と判断
+      // STEP4成功後の currently_due をチェック
+      // individual.verification.document / individual.verification.additional_document は
+      // バックグラウンドでアップロード済み or アップロード予定のため「エラー」扱いしない
       const stillDue: string[] = kycAcc?.requirements?.currently_due ?? [];
-      const missingIndividual = stillDue.filter((f: string) => f.startsWith('individual.'));
+      const missingIndividual = stillDue.filter((f: string) =>
+        f.startsWith('individual.') &&
+        !f.includes('verification') &&
+        !f.includes('document')
+      );
       if (missingIndividual.length > 0) {
         console.warn(`⚠️  [bank-setup] Individual fields still missing after STEP4 — reverting to pending: ${missingIndividual.join(', ')}`);
         await db.update(storesTable).set({ status: 'pending' }).where(eq(storesTable.id, storeId));
         kycWarning = true;
+      } else {
+        console.log(`✅ [bank-setup] STEP4 OK — remaining currently_due (verification docs expected): ${JSON.stringify(stillDue)}`);
       }
     } catch (kycErr: any) {
       const errMsg = kycErr?.raw?.message ?? kycErr?.message ?? '';

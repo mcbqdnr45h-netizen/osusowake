@@ -740,9 +740,9 @@ export default function StripeBankSetup() {
         return;
       }
 
-      // kycWarning: 口座登録は成功したが個人情報がStripeに届かなかった
+      // kycWarning: 個人情報フィールドが不足している場合のみ（書類未送信は対象外）
       if (data.kycWarning) {
-        setError('⚠️ 口座の登録は完了しましたが、代表者の個人情報がシステムに正常に送信されませんでした。\n\nお手数ですが、このページを再度送信してください。入力内容はそのまま保持されています。');
+        setError('⚠️ 代表者の個人情報（氏名・住所・生年月日など）の一部が正しく送信されませんでした。\n\nお手数ですが、入力内容をご確認のうえ再度送信してください。');
         try { await refetch(); } catch (_) {}
         return;
       }
