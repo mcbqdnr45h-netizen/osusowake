@@ -2,27 +2,49 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabase';
 import { motion } from 'framer-motion';
-import { Lock, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Lock, CheckCircle, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function ResetPassword() {
   const [, navigate] = useLocation();
-  const [password, setPassword]         = useState('');
-  const [confirm, setConfirm]           = useState('');
-  const [showPw, setShowPw]             = useState(false);
-  const [showCf, setShowCf]             = useState(false);
-  const [submitting, setSubmitting]     = useState(false);
-  const [done, setDone]                 = useState(false);
-  const [error, setError]               = useState('');
-  const [sessionReady, setSessionReady] = useState(false);
+  const [password, setPassword]     = useState('');
+  const [confirm, setConfirm]       = useState('');
+  const [showPw, setShowPw]         = useState(false);
+  const [showCf, setShowCf]         = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone]             = useState(false);
+  const [error, setError]           = useState('');
+  const [linkStatus, setLinkStatus] = useState<'checking' | 'ready' | 'failed'>('checking');
 
   useEffect(() => {
-    // Supabase は URL の #access_token&type=recovery を自動処理する
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setSessionReady(true);
+    let cancelled = false;
+
+    // ① 既存セッションを即時確認（SDKがhashを処理済みの場合）
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled && session?.user) {
+        setLinkStatus('ready');
       }
     });
-    return () => subscription.unsubscribe();
+
+    // ② PASSWORD_RECOVERY イベントを待つ
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === 'PASSWORD_RECOVERY' && session?.user) {
+        setLinkStatus('ready');
+      }
+    });
+
+    // ③ 4秒待っても ready にならなければ failed に
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setLinkStatus(prev => prev === 'checking' ? 'failed' : prev);
+      }
+    }, 4000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -38,14 +60,30 @@ export default function ResetPassword() {
       return;
     }
 
+    // セッションが有効か確認してから更新
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setError('セッションが切れました。もう一度パスワードリセットメールを送り直してください。');
+      setLinkStatus('failed');
+      return;
+    }
+
     setSubmitting(true);
     const { error: err } = await supabase.auth.updateUser({ password });
     setSubmitting(false);
 
     if (err) {
-      setError(err.message === 'New password should be different from the old password'
-        ? '以前と異なるパスワードを設定してください'
-        : 'エラーが発生しました。もう一度お試しください');
+      if (err.message?.includes('different from the old password') || err.message?.includes('same password')) {
+        setError('以前と異なるパスワードを設定してください');
+      } else if (err.message?.includes('expired') || err.message?.includes('invalid')) {
+        setError('リンクの有効期限が切れています。もう一度パスワードリセットメールを送り直してください。');
+        setLinkStatus('failed');
+      } else if (err.message?.includes('session') || err.message?.includes('Auth session')) {
+        setError('セッションが切れました。もう一度パスワードリセットメールを送り直してください。');
+        setLinkStatus('failed');
+      } else {
+        setError('エラーが発生しました。もう一度お試しください');
+      }
       return;
     }
 
@@ -62,9 +100,12 @@ export default function ResetPassword() {
         className="w-full max-w-sm"
       >
         {/* ロゴ */}
-        <div className="text-center mb-8">
-          <p className="text-3xl font-black text-primary tracking-tight">Osusowake</p>
-          <p className="text-xs text-muted-foreground mt-1">食品ロスをなくす、おすそわけマーケット</p>
+        <div className="text-center mb-8 flex flex-col items-center gap-2">
+          <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-12 h-12 rounded-[14px] object-cover shadow-sm" />
+          <div>
+            <p className="text-3xl font-black text-primary tracking-tight">Osusowake</p>
+            <p className="text-xs text-muted-foreground mt-1">食品ロスをなくす、おすそわけマーケット</p>
+          </div>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-border/40 p-7">
@@ -76,13 +117,18 @@ export default function ResetPassword() {
                 ログインページへ移動します…
               </p>
             </div>
-          ) : !sessionReady ? (
+          ) : linkStatus === 'checking' ? (
+            <div className="flex flex-col items-center gap-3 py-6">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-sm font-bold text-foreground text-center">リンクを確認中…</p>
+            </div>
+          ) : linkStatus === 'failed' ? (
             <div className="flex flex-col items-center gap-3 py-4">
               <AlertCircle className="w-10 h-10 text-amber-400" />
-              <p className="text-sm font-bold text-foreground text-center">リンクを確認中…</p>
+              <p className="text-sm font-bold text-foreground text-center">リンクを確認できませんでした</p>
               <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                メール内のリンクから直接アクセスしてください。<br/>
-                しばらくお待ちいただくか、再度メールを送り直してください。
+                メール内のリンクから直接アクセスするか、<br/>
+                再度パスワードリセットを申請してください。
               </p>
               <button
                 onClick={() => navigate('/login')}

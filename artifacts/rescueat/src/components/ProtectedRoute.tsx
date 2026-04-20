@@ -9,9 +9,7 @@ function AuthLoadingScreen() {
   return (
     <div className="min-h-dvh flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-          <span className="text-3xl">🍀</span>
-        </div>
+        <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-16 h-16 rounded-2xl object-cover shadow-md" />
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground font-medium">読み込み中...</p>
       </div>

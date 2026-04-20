@@ -127,7 +127,7 @@ export default function Login() {
             >
               {isStore
                 ? <Store className="w-6 h-6 text-primary" />
-                : <span className="text-2xl">🍀</span>
+                : <img src="/rescueat/images/logo.jpg" alt="Osusowake" className="w-10 h-10 rounded-xl object-cover" />
               }
             </div>
             <h1 className="text-[30px] font-black text-foreground leading-tight" style={{ letterSpacing: '-0.03em' }}>
