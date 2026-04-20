@@ -627,10 +627,10 @@ export default function MyPage() {
                     </div>
                     <div className="flex-1">
                       <div className="font-bold text-foreground text-sm">
-                        {store?.stripeAccountId ? '本人確認情報を修正してください' : '口座・本人確認の登録が必要です'}
+                        {store?.stripeAccountId ? '本人確認書類の提出が必要です' : '口座・本人確認の登録が必要です'}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {store?.stripeAccountId ? '口座は登録済みです。本人確認情報のみ再送信してください' : '振込先口座と本人確認の登録が必要です'}
+                        {store?.stripeAccountId ? '口座は登録済みです。本人確認書類をご提出ください' : '振込先口座と本人確認の登録が必要です'}
                       </div>
                     </div>
                     <span className="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">未完了</span>
@@ -765,7 +765,7 @@ export default function MyPage() {
                   </div>
                   <div className="flex-1">
                     <div className="font-bold text-sm text-rose-600">アカウントを削除する</div>
-                    <div className="text-[10px] text-rose-400 mt-0.5">店舗・Stripe連携・全データが削除されます</div>
+                    <div className="text-[10px] text-rose-400 mt-0.5">全データが削除されます</div>
                   </div>
                 </button>
               </div>
@@ -877,10 +877,10 @@ export default function MyPage() {
                         </div>
                         <div className="flex-1">
                           <div className="font-bold text-foreground text-sm">
-                            {store?.stripeAccountId ? '本人確認情報を修正してください' : '口座・本人確認の登録が必要です'}
+                            {store?.stripeAccountId ? '本人確認書類の提出が必要です' : '口座・本人確認の登録が必要です'}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            {store?.stripeAccountId ? '口座は登録済みです。本人確認情報のみ再送信してください' : '振込先口座と本人確認の登録が必要です'}
+                            {store?.stripeAccountId ? '口座は登録済みです。本人確認書類をご提出ください' : '振込先口座と本人確認の登録が必要です'}
                           </div>
                         </div>
                         <span className="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">未完了</span>
