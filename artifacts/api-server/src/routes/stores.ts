@@ -1963,7 +1963,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
   }
 
   const body = req.body as {
-    bankToken: string;
+    bankToken: string | null;
     tosTimestamp: number;
     businessType?: "individual" | "company";
     kycData: {
@@ -1987,8 +1987,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 
   const { bankToken, tosTimestamp, businessType = "individual", kycData, docFrontBase64, docFrontMime, docBackBase64, docBackMime, bizLicenseBase64, bizLicenseMime, bizLicenseNumber } = body;
 
-  if (!bankToken || !tosTimestamp || !kycData || !docFrontBase64 || !docFrontMime) {
-    res.status(400).json({ error: "bad_request", message: "bankToken, tosTimestamp, kycData, docFrontBase64, docFrontMime は必須です" });
+  if (!tosTimestamp || !kycData || !docFrontBase64 || !docFrontMime) {
+    res.status(400).json({ error: "bad_request", message: "tosTimestamp, kycData, docFrontBase64, docFrontMime は必須です" });
     return;
   }
 
@@ -2148,7 +2148,10 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       }
     }
 
-    // STEP 2: 銀行口座を紐付け
+    // STEP 2: 銀行口座を紐付け（口座登録済みの場合はスキップ）
+    if (!bankToken) {
+      console.log(`[bank-setup] STEP2 Skipped — bank account already registered for ${accountId}`);
+    } else {
     console.log(`[bank-setup] STEP2 Attaching bank account to ${accountId}…`);
     try {
       await stripeCall(
@@ -2168,6 +2171,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
         throw bankErr;
       }
     }
+    } // end if (bankToken)
 
     // ── STEP 4: KYC 更新（同期 — 代表者データを確実に Stripe に届けるため BG から移動）──
     const k = kycData;

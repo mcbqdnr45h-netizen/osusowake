@@ -1484,17 +1484,35 @@ export default function StoreDashboard() {
             <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <CreditCard className="w-10 h-10 text-orange-400" />
             </div>
-            <h2 className="text-xl font-black mb-2">口座登録を完了してください</h2>
-            <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
-              出品を開始するには、振込先口座と本人確認の登録が必要です。
-            </p>
-            <p className="text-xs text-muted-foreground mb-6">登録完了後、決済システムの確認が通り次第すぐに自動で出品が開始できます。早ければ数時間で完了します。</p>
-            <a
-              href="/store/bank-setup"
-              className="inline-flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl hover:bg-primary/90 transition-colors"
-            >
-              口座登録に進む
-            </a>
+            {store.stripeAccountId ? (
+              <>
+                <h2 className="text-xl font-black mb-2">本人確認情報の修正が必要です</h2>
+                <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+                  口座は登録済みです。決済システムから本人確認情報の再提出が求められています。
+                </p>
+                <p className="text-xs text-muted-foreground mb-6">修正後すぐに再審査が開始されます。早ければ数時間で完了します。</p>
+                <a
+                  href="/store/bank-setup"
+                  className="inline-flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl hover:bg-primary/90 transition-colors"
+                >
+                  本人確認情報を修正する
+                </a>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-black mb-2">口座登録を完了してください</h2>
+                <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+                  出品を開始するには、振込先口座と本人確認の登録が必要です。
+                </p>
+                <p className="text-xs text-muted-foreground mb-6">登録完了後、決済システムの確認が通り次第すぐに自動で出品が開始できます。早ければ数時間で完了します。</p>
+                <a
+                  href="/store/bank-setup"
+                  className="inline-flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl hover:bg-primary/90 transition-colors"
+                >
+                  口座登録に進む
+                </a>
+              </>
+            )}
           </div>
         </div>
       </Layout>

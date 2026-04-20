@@ -442,11 +442,14 @@ export default function StripeBankSetup() {
   if (!cityKanji.trim() || !townKanji.trim())           missingFields.push('住所（市区町村・町名）漢字');
   if (!cityKana.trim()  || !townKana.trim())            missingFields.push('住所（市区町村・町名）カナ');
   if (productDescription.trim().length < 10)            missingFields.push(`事業内容の説明（現在${productDescription.trim().length}文字 / 10文字以上必要）`);
-  if (!bankName.trim())                                 missingFields.push('銀行名');
-  if (bankCode.length !== 4)                            missingFields.push(`銀行コード（${bankCode.length}桁 → 4桁で入力）`);
-  if (branchCode.length !== 3)                          missingFields.push(`支店コード（${branchCode.length}桁 → 3桁で入力）`);
-  if (!accountNumber.trim())                            missingFields.push('口座番号');
-  if (!holderName.trim())                               missingFields.push('口座名義（カタカナ）');
+  const bankAlreadyRegistered = !!store?.stripeAccountId;
+  if (!bankAlreadyRegistered) {
+    if (!bankName.trim())        missingFields.push('銀行名');
+    if (bankCode.length !== 4)   missingFields.push(`銀行コード（${bankCode.length}桁 → 4桁で入力）`);
+    if (branchCode.length !== 3) missingFields.push(`支店コード（${branchCode.length}桁 → 3桁で入力）`);
+    if (!accountNumber.trim())   missingFields.push('口座番号');
+    if (!holderName.trim())      missingFields.push('口座名義（カタカナ）');
+  }
   if (!docFrontPreview)                                 missingFields.push('本人確認書類（表面）の写真');
   if (!docBackPreview)                                  missingFields.push('本人確認書類（裏面）の写真');
   if (!bizLicensePreview)                               missingFields.push('営業許可証の画像');
@@ -473,36 +476,43 @@ export default function StripeBankSetup() {
     }, 30_000);
 
     try {
-      // ① Stripe.js で銀行口座トークン生成（バックエンドと同じ公開鍵を使用）
-      setSubmitStatus('決済サーバーに接続中...');
-      const stripe = await getStripeInstance();
-      if (!stripe) throw new Error('Stripeの読み込みに失敗しました。STRIPE_PUBLISHABLE_KEY の設定を確認してください。');
+      let bankTokenId: string | null = null;
 
-      const routingNumber = bankCode.trim().padStart(4, '0') + branchCode.trim().padStart(3, '0');
-      // Stripe JP は半角カタカナを要求するため自動変換
-      const holderNameHalf = toHalfWidthKana(holderName.trim());
-      const result = await (stripe as any).createToken('bank_account', {
-        country: 'JP', currency: 'jpy',
-        routing_number: routingNumber,
-        account_number: accountNumber.trim(),
-        account_holder_name: holderNameHalf,
-        account_holder_type: 'individual',
-      });
+      if (bankAlreadyRegistered) {
+        // 口座登録済み → トークン生成不要（KYC情報のみ再送）
+        setSubmitStatus('本人確認情報をサーバーに送信中...');
+      } else {
+        // ① Stripe.js で銀行口座トークン生成（バックエンドと同じ公開鍵を使用）
+        setSubmitStatus('決済サーバーに接続中...');
+        const stripe = await getStripeInstance();
+        if (!stripe) throw new Error('Stripeの読み込みに失敗しました。STRIPE_PUBLISHABLE_KEY の設定を確認してください。');
 
-      if (result.error) {
-        setError(result.error.message ?? '口座情報が正しくありません。入力内容をご確認ください。');
-        return;
+        const routingNumber = bankCode.trim().padStart(4, '0') + branchCode.trim().padStart(3, '0');
+        // Stripe JP は半角カタカナを要求するため自動変換
+        const holderNameHalf = toHalfWidthKana(holderName.trim());
+        const result = await (stripe as any).createToken('bank_account', {
+          country: 'JP', currency: 'jpy',
+          routing_number: routingNumber,
+          account_number: accountNumber.trim(),
+          account_holder_name: holderNameHalf,
+          account_holder_type: 'individual',
+        });
+
+        if (result.error) {
+          setError(result.error.message ?? '口座情報が正しくありません。入力内容をご確認ください。');
+          return;
+        }
+        bankTokenId = result.token.id;
+        setSubmitStatus('登録情報をサーバーに送信中...');
       }
 
       // ② 全データを一括送信（口座登録 + KYC + 書類アップロード + DB approved 更新）
-      setSubmitStatus('登録情報をサーバーに送信中...');
-
       const res = await fetch(`/api/stores/${store.id}/connect/bank-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          bankToken:    result.token.id,
+          bankToken:    bankTokenId,
           tosTimestamp: tosTime,
           businessType,
           kycData: {
@@ -763,7 +773,11 @@ export default function StripeBankSetup() {
                 {store.rejectionReason ?? '口座情報または本人確認情報に不備があります。下記フォームで修正して再申請してください。'}
               </p>
               <p className="text-xs text-red-400 mt-3 leading-relaxed">
-                下記フォームで<strong className="text-red-500">口座情報を再入力</strong>して送信してください。送信後、管理者が再審査します。
+                {bankAlreadyRegistered
+                  ? <>下記フォームで<strong className="text-red-500">本人確認情報を修正</strong>して送信してください。口座情報は変更不要です。</>
+                  : <>下記フォームで<strong className="text-red-500">口座情報・本人確認情報を修正</strong>して送信してください。</>
+                }
+                送信後、管理者が再審査します。
               </p>
             </div>
           </motion.div>
@@ -1029,7 +1043,17 @@ export default function StripeBankSetup() {
             </Field>
           </FormSection>
 
-          {/* ── ⑥ 銀行情報 ── */}
+          {/* ── ⑥⑦ 銀行情報・口座情報 ── */}
+          {bankAlreadyRegistered ? (
+            <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 flex items-center gap-3">
+              <BadgeCheck className="w-5 h-5 text-green-600 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-green-800">振込先口座は登録済みです</p>
+                <p className="text-xs text-green-700 mt-0.5">再入力不要です。本人確認情報のみ送信します。</p>
+              </div>
+            </div>
+          ) : (
+            <>
           <FormSection title="銀行情報" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
             <Field label="銀行名" required>
               <input type="text" value={bankName} onChange={e => setBankName(e.target.value)}
@@ -1051,7 +1075,6 @@ export default function StripeBankSetup() {
             </div>
           </FormSection>
 
-          {/* ── ⑦ 口座情報 ── */}
           <FormSection title="口座情報" icon={<CreditCard className="w-5 h-5 text-orange-500" />}>
             <Field label="口座番号" required>
               <input type="text" value={accountNumber}
@@ -1064,6 +1087,8 @@ export default function StripeBankSetup() {
                 placeholder="サトウ タロウ" required className={inputClass} />
             </Field>
           </FormSection>
+            </>
+          )}
 
           {/* ── ⑧ 本人確認書類 ── */}
           <FormSection title={businessType === 'company' ? '代表者の本人確認書類' : '本人確認書類'} icon={<BadgeCheck className="w-5 h-5 text-orange-500" />}>
