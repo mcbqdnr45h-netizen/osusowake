@@ -12,9 +12,14 @@ import { useQuery } from '@tanstack/react-query';
 
 export default function MyPage() {
   const userId = useUserId();
-  const { currentStore: store, stores, selectedStoreId, setSelectedStoreId, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup } = useMyStores();
-  const [, navigate] = useLocation();
+  const { currentStore: store, stores, selectedStoreId, setSelectedStoreId, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup, refetch } = useMyStores();
+  const [location, navigate] = useLocation();
   const { user, profile, session, isLoading: authLoading, signOut, isAdmin } = useAuth();
+
+  // MyPageが表示されるたびに最新データを取得（bank-setup完了後の古いキャッシュ表示を防ぐ）
+  useEffect(() => {
+    refetch();
+  }, [location]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── ロール修正は App.tsx の RoleReconciler が全ページで自動実行するため不要 ──
 

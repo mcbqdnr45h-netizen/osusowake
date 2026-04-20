@@ -59,7 +59,7 @@ interface MyStoresContextValue {
   setSelectedStoreId: (id: number | null) => void;
   loading: boolean;
   fetchError: boolean;
-  refetch: () => void;
+  refetch: () => Promise<void>;
   isApprovedOwner: boolean;
   needsBankSetup: boolean;
   hasExistingStripeAccount: boolean;
@@ -84,16 +84,16 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
     if (user) writeSelectedStoreId(user.id, id);
   }, [user]);
 
-  const fetchStores = useCallback(() => {
+  const fetchStores = useCallback((): Promise<void> => {
     if (!user) {
       setStores([]); setFetchError(false); setLoading(false);
-      return;
+      return Promise.resolve();
     }
     const uid = user.id;
     setLoading(true); setFetchError(false);
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 
-    fetch(`${BASE}/api/stores/all-by-owner?userId=${encodeURIComponent(uid)}`, { cache: 'no-store' })
+    return fetch(`${BASE}/api/stores/all-by-owner?userId=${encodeURIComponent(uid)}`, { cache: 'no-store' })
       .then(r => {
         if (r.ok) return r.json() as Promise<MyStore[]>;
         if (r.status === 404) return [] as MyStore[];
