@@ -223,8 +223,8 @@ export default function StoreOnboarding() {
       if (isInherited) {
         // Stripe引き継ぎ → bank-setup スキップ → マイページへ
         toast({
-          title: '店舗を追加しました',
-          description: '審査が完了するまでお待ちください。',
+          title: '店舗を追加しました！',
+          description: 'すぐに商品を出品できます。',
         });
         navigate('/mypage');
       } else {
@@ -514,7 +514,7 @@ export default function StoreOnboarding() {
                 登録中...
               </>
             ) : isInherited ? (
-              '登録して審査へ →'
+              '店舗を登録する →'
             ) : (
               '登録して口座設定へ →'
             )}

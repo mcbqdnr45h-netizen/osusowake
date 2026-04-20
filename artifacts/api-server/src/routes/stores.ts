@@ -283,7 +283,7 @@ router.post("/stores/apply", async (req, res) => {
       }
     }
 
-    // 基本情報のみ保存 — 審査待ち（pending_review）で登録
+    // 基本情報のみ保存 — 自動承認（管理者審査なし）
     const inserted = await db.insert(storesTable).values({
       name: body.name,
       description: body.description ?? null,
@@ -295,7 +295,7 @@ router.post("/stores/apply", async (req, res) => {
       imageUrl: body.imageUrl ?? null,
       phone: body.phone ?? null,
       isActive: false,
-      status: "pending",
+      status: "approved",
       ownerId: body.ownerId,
       // 2店舗目以降は既存のStripeアカウントIDを流用（bank-setup不要）
       stripeAccountId: existingStripeAccountId,
@@ -314,7 +314,7 @@ router.post("/stores/apply", async (req, res) => {
       return res.status(500).json({ error: "insert_no_result", message: "店舗情報の保存が確認できませんでした。再度お試しください。" });
     }
 
-    console.log("[/stores/apply] ✅ 店舗登録・審査待ち id=", store.id, "ownerId=", store.ownerId);
+    console.log("[/stores/apply] ✅ 店舗登録・自動承認 id=", store.id, "ownerId=", store.ownerId);
 
 
     // ── オーナーの role を store_owner に更新（customer から登録した場合も対応）──
