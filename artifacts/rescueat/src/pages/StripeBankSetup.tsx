@@ -54,6 +54,28 @@ async function compressIdImage(dataUrl: string, maxPx = 1280, quality = 0.82): P
 
 // ── localStorage 下書き保存（ストアIDごとに分離）────────────────────────────────
 // v2: storeId 単位のキーにすることで別ストアのデータが混入しないようにした
+// ── Stripe エラーコード → 日本語（モジュールレベル。コンポーネント外で定義することで
+//    getGroupStatus など初期化前のコードからも参照可能）
+const STRIPE_ERR_CODE_LABELS: Record<string, string> = {
+  verification_document_dob_mismatch:        '書類の生年月日が登録情報と一致しません',
+  verification_document_name_mismatch:       '書類の氏名が登録情報と一致しません',
+  verification_document_address_mismatch:    '書類の住所が登録情報と一致しません',
+  verification_document_expired:             '書類の有効期限が切れています',
+  verification_document_not_readable:        '書類が読み取れません（再撮影してください）',
+  verification_document_not_uploaded:        '書類がアップロードされていません',
+  verification_document_photo_mismatch:      '書類の写真が一致しません',
+  verification_document_type_not_supported:  'この書類の種類は対応していません',
+  verification_document_corrupt:             '書類ファイルが破損しています',
+  verification_failed_keyed_identity:        '本人確認情報の照合に失敗しました',
+  verification_failed_name_match:            '氏名の照合に失敗しました',
+  invalid_dob_age_under_18:                  '代表者が18歳未満のため登録できません',
+  invalid_phone_number:                      '電話番号が無効です',
+  bank_account_unusable:                     '銀行口座が使用できません',
+};
+function stripeErrCodeLabel(code: string): string {
+  return STRIPE_ERR_CODE_LABELS[code] ?? '';
+}
+
 const DRAFT_KEY_PREFIX = 'bank-setup-draft-v2-';
 const BUSINESS_TYPE_KEY = 'store-business-type';
 function loadSavedBusinessType(): 'individual' | 'company' {
@@ -228,7 +250,7 @@ function FormSection({ title, icon, children, stripeStatus }: {
       </div>
       {stripeStatus?.type === 'error' && stripeStatus.reasons.length > 0 && (
         <div className="mx-5 mt-3 bg-red-50 border border-red-200 rounded-xl p-3">
-          <p className="text-xs font-black text-red-700 mb-1">⚠️ Stripeからの指摘</p>
+          <p className="text-xs font-black text-red-700 mb-1">⚠️ 修正が必要な内容</p>
           {stripeStatus.reasons.map((r, i) => (
             <p key={i} className="text-xs text-red-600 leading-relaxed">• {r}</p>
           ))}
@@ -437,11 +459,12 @@ export default function StripeBankSetup() {
         if (!draft.stateKanji      && ind.stateKanji      && ok(['individual.address_kanji.state']))       setStateKanji(ind.stateKanji);
         if (!draft.cityKanji       && ind.cityKanji       && ok(['individual.address_kanji.city']))        setCityKanji(ind.cityKanji);
         if (!draft.townKanji       && ind.townKanji       && ok(['individual.address_kanji.town']))        setTownKanji(ind.townKanji);
-        if (!draft.line1Kanji      && ind.line1Kanji      && ok(['individual.address_kanji.line1']))       setLine1Kanji(ind.line1Kanji);
+        // 建物名は常にStripe側データで上書き（draftに city+town が混入していた可能性があるため）
+        if (ok(['individual.address_kanji.line1'])) setLine1Kanji(ind.line1Kanji ?? '');
         if (!draft.stateKana       && ind.stateKana       && ok(['individual.address_kana.state']))        setStateKana(ind.stateKana);
         if (!draft.cityKana        && ind.cityKana        && ok(['individual.address_kana.city']))         setCityKana(ind.cityKana);
         if (!draft.townKana        && ind.townKana        && ok(['individual.address_kana.town']))         setTownKana(ind.townKana);
-        if (!draft.line1Kana       && ind.line1Kana       && ok(['individual.address_kana.line1']))        setLine1Kana(ind.line1Kana);
+        if (ok(['individual.address_kana.line1'])) setLine1Kana(ind.line1Kana ?? '');
         if (!draft.productDescription && biz.productDescription && ok(['business_profile.product_description'])) setProductDescription(biz.productDescription);
         if (!draft.businessUrl        && biz.url          && ok(['business_profile.url']))                 setBusinessUrl(biz.url);
         if (data.company && data.businessType === 'company') {
@@ -460,7 +483,7 @@ export default function StripeBankSetup() {
       e => STRIPE_FIELD_TO_GROUP[e.requirement] === group
     );
     if (errorsForGroup.length > 0) {
-      return { type: 'error', reasons: errorsForGroup.map(e => e.reason).filter(Boolean) };
+      return { type: 'error', reasons: errorsForGroup.map(e => stripeErrCodeLabel(e.code) || e.reason).filter(Boolean) };
     }
     const requiredForGroup = stripeReqs.currentlyDue.some(
       f => STRIPE_FIELD_TO_GROUP[f] === group
@@ -860,23 +883,6 @@ export default function StripeBankSetup() {
     'external_account': '銀行口座情報',
   } as Record<string, string>)[key] ?? key;
 
-  const stripeErrLabel = (code: string) => ({
-    'verification_document_dob_mismatch':        '書類の生年月日が登録情報と一致しません',
-    'verification_document_name_mismatch':       '書類の氏名が登録情報と一致しません',
-    'verification_document_address_mismatch':    '書類の住所が登録情報と一致しません',
-    'verification_document_expired':             '書類の有効期限が切れています',
-    'verification_document_not_readable':        '書類が読み取れません（再撮影してください）',
-    'verification_document_not_uploaded':        '書類がアップロードされていません',
-    'verification_document_photo_mismatch':      '書類の写真が一致しません',
-    'verification_document_type_not_supported':  'この書類の種類は対応していません',
-    'verification_document_corrupt':             '書類ファイルが破損しています',
-    'verification_failed_keyed_identity':        '本人確認情報の照合に失敗しました',
-    'verification_failed_name_match':            '氏名の照合に失敗しました',
-    'invalid_dob_age_under_18':                  '代表者が18歳未満のため登録できません',
-    'invalid_phone_number':                      '電話番号が無効です',
-    'bank_account_unusable':                     '銀行口座が使用できません',
-  } as Record<string, string>)[code] ?? code;
-
   // ────────── Stripe 情報不完全（chargesEnabled/payoutsEnabled=false）── 再送信バナーを表示 ──
   const incompleteWarning = stripeIncomplete ? (
     <div className="mx-4 mt-4 mb-0 bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
@@ -901,7 +907,7 @@ export default function StripeBankSetup() {
           {stripeReqs.errors.map((e, i) => (
             <div key={i}>
               <p className="text-[11px] font-bold text-red-700">・{stripeReqLabel(e.requirement)}</p>
-              <p className="text-[11px] text-red-600 ml-3">{stripeErrLabel(e.code)}</p>
+              <p className="text-[11px] text-red-600 ml-3">{stripeErrCodeLabel(e.code) || e.code}</p>
             </div>
           ))}
         </div>
@@ -1096,7 +1102,7 @@ export default function StripeBankSetup() {
               <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-black text-red-800">
-                  Stripeから修正依頼が届いています（{stripeReqs.errors.length}件）
+                  修正依頼が届いています（{stripeReqs.errors.length}件）
                 </p>
                 <p className="text-xs text-red-700 mt-1 leading-relaxed">
                   赤枠のセクションのみ修正して再送信してください。緑の「確認済み」セクションは変更不要です。

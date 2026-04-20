@@ -1266,7 +1266,6 @@ router.get("/stores/:storeId/connect/account-data", async (req, res) => {
         firstNameKanji: ind.first_name_kanji ?? '',
         lastNameKana:   ind.last_name_kana   ?? '',
         firstNameKana:  ind.first_name_kana  ?? '',
-        phone: ind.phone ?? '',
         email: ind.email ?? '',
         dobYear:  ind.dob?.year  ? String(ind.dob.year)  : '',
         dobMonth: ind.dob?.month ? String(ind.dob.month).padStart(2, '0') : '',
@@ -1275,11 +1274,32 @@ router.get("/stores/:storeId/connect/account-data", async (req, res) => {
         stateKanji: ind.address_kanji?.state ?? '',
         cityKanji:  ind.address_kanji?.city  ?? '',
         townKanji:  ind.address_kanji?.town  ?? '',
-        line1Kanji: ind.address_kanji?.line1 ?? '',
+        line1Kanji: (() => {
+          // Stripe の line1 = "市区町村 町名・番地 [建物名]" で送信しているため
+          // 読み戻す際は city + town のプレフィックスを除去して建物名のみ返す
+          let v = ind.address_kanji?.line1 ?? '';
+          const city = ind.address_kanji?.city ?? '';
+          const town = ind.address_kanji?.town ?? '';
+          if (city && v.startsWith(city)) v = v.slice(city.length).trimStart();
+          if (town && v.startsWith(town)) v = v.slice(town.length).trimStart();
+          return v;
+        })(),
         stateKana:  ind.address_kana?.state  ?? '',
         cityKana:   ind.address_kana?.city   ?? '',
         townKana:   ind.address_kana?.town   ?? '',
-        line1Kana:  ind.address_kana?.line1  ?? '',
+        line1Kana: (() => {
+          let v = ind.address_kana?.line1 ?? '';
+          const city = ind.address_kana?.city ?? '';
+          const town = ind.address_kana?.town ?? '';
+          if (city && v.startsWith(city)) v = v.slice(city.length).trimStart();
+          if (town && v.startsWith(town)) v = v.slice(town.length).trimStart();
+          return v;
+        })(),
+        phone: (() => {
+          // Stripe は +81XXXXXXXXX 形式で保存。日本のフォーム用に 0XX 形式に変換
+          const raw = ind.phone ?? '';
+          return raw.startsWith('+81') ? '0' + raw.slice(3) : raw;
+        })(),
       } : null,
       company: account.business_type === 'company' ? {
         nameKanji: (account as any).company?.name_kanji ?? '',
