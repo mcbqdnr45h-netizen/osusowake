@@ -406,6 +406,10 @@ export default function StripeBankSetup() {
         const ind = data.individual;
         const biz = data.business ?? {};
         const draft = store.id ? loadDraft(store.id) : {};
+        // Stripeの実際の事業形態でフォームを合わせる（localStorage/URLパラムの食い違いを防ぐ）
+        if (data.businessType === 'individual' || data.businessType === 'company') {
+          setBusinessType(data.businessType);
+        }
         // 不備・要再提出フィールドのセット（これらは空欄のまま = ユーザーに入力させる）
         const rejected = new Set<string>(data.rejectedFields ?? []);
         const ok = (stripeKeys: string[]) => stripeKeys.every(k => !rejected.has(k));

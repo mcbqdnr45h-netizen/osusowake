@@ -1723,6 +1723,23 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
 
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
+    // ── Stripe アカウントの実際の business_type を取得して整合性チェック ──
+    // フォームの businessType と Stripe 側が食い違う場合は Stripe 側を優先する
+    // （フォームが company でも Stripe が individual なら individual パスで送る）
+    let resolvedBusinessType: "individual" | "company" = businessType;
+    try {
+      const existingAcc = await stripe.accounts.retrieve(store.stripeAccountId);
+      const stripeActualType = existingAcc.business_type as "individual" | "company" | undefined;
+      if (stripeActualType && stripeActualType !== businessType) {
+        console.warn(
+          `[KYC] business_type mismatch — form: ${businessType}, Stripe: ${stripeActualType} → using Stripe value`
+        );
+        resolvedBusinessType = stripeActualType;
+      }
+    } catch (_) {
+      // 取得失敗時はフォームの値をそのまま使用
+    }
+
     // ── address_kanji.line1 = 「市区町村 + 町名・番地 [+ 建物名]」
     //    Stripe Japan は line1 を必須要求するため、常に値を設定する
     const kanjiLine1Parts = [representative.cityKanji, representative.townKanji];
@@ -1770,20 +1787,20 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       businessProfileUpdate["url"] = businessProfile.url;
     }
     // 法人の場合は business_profile.name（ビジネス名）を設定する
-    if (businessType === "company" && companyNameKanji?.trim()) {
+    if (resolvedBusinessType === "company" && companyNameKanji?.trim()) {
       businessProfileUpdate["name"] = companyNameKanji.trim();
     }
 
     // ── Stripe Account Update パラメータを構築（部分更新 — 空フィールドは完全に除外）──
     const updateParams: Record<string, any> = {
-      business_type:    businessType,
+      business_type:    resolvedBusinessType,
       business_profile: businessProfileUpdate,
     };
 
     // 法人代表者用: スコープを if-else の外に宣言して後続の Persons API で使えるようにする
     let repPersonPayload: Record<string, any> | null = null;
 
-    if (businessType === "individual") {
+    if (resolvedBusinessType === "individual") {
       const indiv: Record<string, any> = {};
       // JP では first_name/last_name（Latin）は不要。kana/kanji のみ送る
       if (representative.firstNameKana?.trim())  indiv.first_name_kana  = representative.firstNameKana;
@@ -1869,7 +1886,7 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     const account = await stripe.accounts.update(store.stripeAccountId, updateParams as any);
 
     // ── 法人代表者を Persons API で登録/更新（accounts.update では設定不可）──
-    if (businessType === 'company' && repPersonPayload !== null) {
+    if (resolvedBusinessType === 'company' && repPersonPayload !== null) {
       try {
         const kyc_existingPersons = await stripe.accounts.listPersons(store.stripeAccountId, { limit: 10 });
         const kyc_existing = kyc_existingPersons.data.find(p => p.relationship?.representative);
