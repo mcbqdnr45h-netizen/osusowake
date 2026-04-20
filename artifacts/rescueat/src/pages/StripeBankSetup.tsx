@@ -169,15 +169,70 @@ function translateRequirement(key: string): string {
   return map[key] ?? key;
 }
 
+// ── Stripe フィールド → セクショングループ マッピング ─────────────────────────
+const STRIPE_FIELD_TO_GROUP: Record<string, string> = {
+  'individual.first_name': 'name', 'individual.last_name': 'name',
+  'individual.first_name_kanji': 'name', 'individual.last_name_kanji': 'name',
+  'individual.first_name_kana': 'name', 'individual.last_name_kana': 'name',
+  'individual.phone': 'name', 'individual.email': 'name',
+  'representative.first_name': 'name', 'representative.last_name': 'name',
+  'representative.first_name_kanji': 'name', 'representative.last_name_kanji': 'name',
+  'representative.first_name_kana': 'name', 'representative.last_name_kana': 'name',
+  'representative.relationship.representative': 'name',
+  'individual.dob.day': 'dob', 'individual.dob.month': 'dob', 'individual.dob.year': 'dob',
+  'representative.dob.day': 'dob', 'representative.dob.month': 'dob', 'representative.dob.year': 'dob',
+  'individual.address_kanji.postal_code': 'address', 'individual.address_kanji.state': 'address',
+  'individual.address_kanji.city': 'address', 'individual.address_kanji.town': 'address',
+  'individual.address_kanji.line1': 'address', 'individual.address_kana.postal_code': 'address',
+  'individual.address_kana.state': 'address', 'individual.address_kana.city': 'address',
+  'individual.address_kana.town': 'address', 'individual.address_kana.line1': 'address',
+  'representative.address_kanji.state': 'address', 'representative.address_kanji.city': 'address',
+  'representative.address_kanji.postal_code': 'address',
+  'business_profile.product_description': 'business', 'business_profile.url': 'business',
+  'business_profile.mcc': 'business',
+  'external_account': 'bank',
+  'individual.verification.document': 'document', 'individual.verification.document.front': 'document',
+  'individual.verification.document.back': 'document', 'individual.id_number': 'document',
+  'company.name': 'company', 'company.name_kana': 'company', 'company.name_kanji': 'company',
+  'company.tax_id': 'company', 'company.structure': 'company',
+  'business_type': 'businessType',
+};
+
+type StripeGroupStatus = { type: 'error'; reasons: string[] } | { type: 'required' } | { type: 'ok' } | null;
+
 // ── 共通 UI パーツ ──────────────────────────────────────────────────
 const inputClass = 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-orange-400 focus:outline-none transition-colors';
 const selectClass = 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-orange-400 focus:outline-none transition-colors bg-white';
 
-function FormSection({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function FormSection({ title, icon, children, stripeStatus }: {
+  title: string; icon: React.ReactNode; children: React.ReactNode;
+  stripeStatus?: StripeGroupStatus;
+}) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-      <h2 className="font-black text-gray-900 text-base flex items-center gap-2">{icon}{title}</h2>
-      {children}
+    <div className={`bg-white rounded-2xl shadow-sm overflow-hidden ${stripeStatus?.type === 'error' ? 'ring-2 ring-red-400' : stripeStatus?.type === 'ok' ? 'ring-1 ring-green-300' : ''}`}>
+      <div className={`px-5 py-3.5 flex items-center justify-between gap-2 ${stripeStatus?.type === 'error' ? 'bg-red-50' : stripeStatus?.type === 'ok' ? 'bg-green-50' : 'bg-white'}`}>
+        <h2 className="font-black text-gray-900 text-base flex items-center gap-2">{icon}{title}</h2>
+        {stripeStatus?.type === 'error' && (
+          <span className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded-full shrink-0">要修正</span>
+        )}
+        {stripeStatus?.type === 'ok' && (
+          <span className="text-[10px] font-black bg-green-500 text-white px-2 py-0.5 rounded-full shrink-0 flex items-center gap-0.5">✓ 確認済み</span>
+        )}
+        {stripeStatus?.type === 'required' && (
+          <span className="text-[10px] font-black bg-orange-400 text-white px-2 py-0.5 rounded-full shrink-0">入力が必要</span>
+        )}
+      </div>
+      {stripeStatus?.type === 'error' && stripeStatus.reasons.length > 0 && (
+        <div className="mx-5 mt-3 bg-red-50 border border-red-200 rounded-xl p-3">
+          <p className="text-xs font-black text-red-700 mb-1">⚠️ Stripeからの指摘</p>
+          {stripeStatus.reasons.map((r, i) => (
+            <p key={i} className="text-xs text-red-600 leading-relaxed">• {r}</p>
+          ))}
+        </div>
+      )}
+      <div className="px-5 pb-5 pt-4 space-y-4">
+        {children}
+      </div>
     </div>
   );
 }
@@ -314,6 +369,41 @@ export default function StripeBankSetup() {
   const [done, setDone]                 = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string>('');
   const abortRef = useRef<AbortController | null>(null);
+
+  // ── Stripe フィールドエラー取得（再送信モード時）──
+  const [stripeReqs, setStripeReqs] = useState<{
+    currentlyDue: string[];
+    errors: { code: string; reason: string; requirement: string }[];
+    pendingVerification: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!store?.stripeAccountId || !store?.id) return;
+    // chargesEnabled=false（再送信が必要）のときのみ取得
+    if (store.stripeChargesEnabled !== false) return;
+    fetch(`/api/stores/${store.id}/connect/stripe-sync`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.requirements) setStripeReqs(data.requirements);
+      })
+      .catch(() => {});
+  }, [store?.id, store?.stripeAccountId, store?.stripeChargesEnabled]);
+
+  // ── グループ単位のStripeステータスを計算するヘルパー ──
+  const getGroupStatus = (group: string): StripeGroupStatus => {
+    if (!stripeReqs || !store?.stripeAccountId) return null;
+    const errorsForGroup = stripeReqs.errors.filter(
+      e => STRIPE_FIELD_TO_GROUP[e.requirement] === group
+    );
+    if (errorsForGroup.length > 0) {
+      return { type: 'error', reasons: errorsForGroup.map(e => e.reason).filter(Boolean) };
+    }
+    const requiredForGroup = stripeReqs.currentlyDue.some(
+      f => STRIPE_FIELD_TO_GROUP[f] === group
+    );
+    if (requiredForGroup) return { type: 'required' };
+    return { type: 'ok' };
+  };
 
   // ── 下書き自動保存（30秒ごと + state変化から2秒後）──
   const draftStateRef = useRef<DraftState>({
@@ -854,8 +944,24 @@ export default function StripeBankSetup() {
           {/* Stripe 不完全バナー（chargesEnabled=false の再送信時） */}
           {incompleteWarning}
 
+          {/* ── Stripe フィールドエラー サマリーバナー ── */}
+          {stripeReqs && stripeReqs.errors.length > 0 && (
+            <div className="bg-red-50 border border-red-300 rounded-2xl p-4 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-black text-red-800">
+                  Stripeから修正依頼が届いています（{stripeReqs.errors.length}件）
+                </p>
+                <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                  赤枠のセクションのみ修正して再送信してください。緑の「確認済み」セクションは変更不要です。
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* ── ① 事業形態 ── */}
-          <FormSection title="事業形態" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
+          <FormSection title="事業形態" icon={<Building2 className="w-5 h-5 text-orange-500" />}
+            stripeStatus={getGroupStatus('businessType')}>
             <div className="grid grid-cols-2 gap-3">
               {([
                 { t: 'individual' as const, emoji: '👤', label: '個人事業主' },
@@ -888,7 +994,8 @@ export default function StripeBankSetup() {
 
           {/* ── ①-b 法人情報（法人のみ表示）── */}
           {businessType === 'company' && (
-            <FormSection title="法人情報" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
+            <FormSection title="法人情報" icon={<Building2 className="w-5 h-5 text-orange-500" />}
+              stripeStatus={getGroupStatus('company')}>
               <Field label="法人名（漢字・登記簿上の名称）" required hint="例：株式会社〇〇フード">
                 <input type="text" value={companyNameKanji} onChange={e => setCompanyNameKanji(e.target.value)}
                   placeholder="株式会社〇〇フード" required={businessType === 'company'} className={inputClass} />
@@ -910,7 +1017,8 @@ export default function StripeBankSetup() {
           )}
 
           {/* ── ② 代表者氏名 ── */}
-          <FormSection title={businessType === 'company' ? '代表者（法人代表）の氏名' : '代表者氏名'} icon={<User className="w-5 h-5 text-orange-500" />}>
+          <FormSection title={businessType === 'company' ? '代表者（法人代表）の氏名' : '代表者氏名'} icon={<User className="w-5 h-5 text-orange-500" />}
+            stripeStatus={getGroupStatus('name')}>
             <div className="grid grid-cols-2 gap-3">
               <Field label="姓（漢字）" required>
                 <input type="text" value={lastNameKanji} onChange={e => setLastNameKanji(e.target.value)}
@@ -949,7 +1057,8 @@ export default function StripeBankSetup() {
           </FormSection>
 
           {/* ── ③ 生年月日 ── */}
-          <FormSection title="生年月日" icon={<User className="w-5 h-5 text-orange-500" />}>
+          <FormSection title="生年月日" icon={<User className="w-5 h-5 text-orange-500" />}
+            stripeStatus={getGroupStatus('dob')}>
             <div className="grid grid-cols-3 gap-3">
               <Field label="年" required>
                 <input type="number" value={dobYear} onChange={e => setDobYear(e.target.value)}
@@ -976,7 +1085,8 @@ export default function StripeBankSetup() {
           </FormSection>
 
           {/* ── ④ 住所 ── */}
-          <FormSection title={businessType === 'company' ? '代表者（法人代表）の住所' : '代表者（本人）の住所'} icon={<MapPin className="w-5 h-5 text-orange-500" />}>
+          <FormSection title={businessType === 'company' ? '代表者（法人代表）の住所' : '代表者（本人）の住所'} icon={<MapPin className="w-5 h-5 text-orange-500" />}
+            stripeStatus={getGroupStatus('address')}>
             <Field label="郵便番号（ハイフンなし7桁）" required>
               <div className="relative">
                 <input type="text" value={postalCode} onChange={e => handlePostalCodeChange(e.target.value)}
@@ -1031,7 +1141,8 @@ export default function StripeBankSetup() {
           </FormSection>
 
           {/* ── ⑤ 事業内容 ── */}
-          <FormSection title="事業内容" icon={<FileText className="w-5 h-5 text-orange-500" />}>
+          <FormSection title="事業内容" icon={<FileText className="w-5 h-5 text-orange-500" />}
+            stripeStatus={getGroupStatus('business')}>
             <Field label="サービス内容の説明" required hint="10文字以上（例：飲食店での余剰食品のおすそわけ販売）">
               <textarea value={productDescription} onChange={e => setProductDescription(e.target.value)}
                 placeholder="例：飲食店での余剰食品を詰め合わせた「おすそわけ袋」の販売。フードロス削減を目的とした割引価格での提供。"
@@ -1055,7 +1166,8 @@ export default function StripeBankSetup() {
             </div>
           ) : (
             <>
-          <FormSection title="銀行情報" icon={<Building2 className="w-5 h-5 text-orange-500" />}>
+          <FormSection title="銀行情報" icon={<Building2 className="w-5 h-5 text-orange-500" />}
+            stripeStatus={getGroupStatus('bank')}>
             <Field label="銀行名" required>
               <input type="text" value={bankName} onChange={e => setBankName(e.target.value)}
                 placeholder="例：三菱UFJ銀行" required className={inputClass} />
@@ -1076,7 +1188,8 @@ export default function StripeBankSetup() {
             </div>
           </FormSection>
 
-          <FormSection title="口座情報" icon={<CreditCard className="w-5 h-5 text-orange-500" />}>
+          <FormSection title="口座情報" icon={<CreditCard className="w-5 h-5 text-orange-500" />}
+            stripeStatus={getGroupStatus('bank')}>
             <Field label="口座番号" required>
               <input type="text" value={accountNumber}
                 onChange={e => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 7))}
@@ -1092,7 +1205,8 @@ export default function StripeBankSetup() {
           )}
 
           {/* ── ⑧ 本人確認書類 ── */}
-          <FormSection title={businessType === 'company' ? '代表者の本人確認書類' : '本人確認書類'} icon={<BadgeCheck className="w-5 h-5 text-orange-500" />}>
+          <FormSection title={businessType === 'company' ? '代表者の本人確認書類' : '本人確認書類'} icon={<BadgeCheck className="w-5 h-5 text-orange-500" />}
+            stripeStatus={getGroupStatus('document')}>
             <p className="text-sm text-gray-500 -mt-1 mb-3">
               {businessType === 'company'
                 ? '代表者（法人代表）の運転免許証・マイナンバーカード・パスポートなど。'
