@@ -197,3 +197,9 @@ id = "w_B0eGXNEmnXaBTHaCsJy"
 uri = "file://screenshots/logo-variants-all.jpg"
 type = "image"
 title = "ロゴ カラーバリエーション 5案"
+
+[[outputs]]
+id = "q4W_b9Fx9hYIKXQ8thprk"
+uri = "file://attached_assets/logo_processed.png"
+type = "image"
+title = "処理済みロゴ（白余白除去・丸角アプリアイコン形状）"

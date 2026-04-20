@@ -11,9 +11,15 @@
   "lang": "ja",
   "icons": [
     {
-      "src": "/rescueat/images/logo.jpg",
+      "src": "/rescueat/images/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/rescueat/images/logo.png",
       "sizes": "1024x1024",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
