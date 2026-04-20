@@ -1276,12 +1276,17 @@ router.get("/stores/:storeId/connect/account-data", async (req, res) => {
         townKanji:  ind.address_kanji?.town  ?? '',
         line1Kanji: (() => {
           // Stripe の line1 = "市区町村 町名・番地 [建物名]" で送信しているため
-          // 読み戻す際は city + town のプレフィックスを除去して建物名のみ返す
+          // 読み戻す際は city + town の繰り返しプレフィックスをすべて除去して建物名のみ返す
           let v = ind.address_kanji?.line1 ?? '';
           const city = ind.address_kanji?.city ?? '';
           const town = ind.address_kanji?.town ?? '';
-          if (city && v.startsWith(city)) v = v.slice(city.length).trimStart();
-          if (town && v.startsWith(town)) v = v.slice(town.length).trimStart();
+          // 繰り返し含む "高槻市 上土室 高槻市 上土室..." を全て除去するためwhileループ使用
+          let prev = '';
+          while (v !== prev) {
+            prev = v;
+            if (city && v.startsWith(city)) v = v.slice(city.length).trimStart();
+            if (town && v.startsWith(town)) v = v.slice(town.length).trimStart();
+          }
           return v;
         })(),
         stateKana:  ind.address_kana?.state  ?? '',
@@ -1291,8 +1296,12 @@ router.get("/stores/:storeId/connect/account-data", async (req, res) => {
           let v = ind.address_kana?.line1 ?? '';
           const city = ind.address_kana?.city ?? '';
           const town = ind.address_kana?.town ?? '';
-          if (city && v.startsWith(city)) v = v.slice(city.length).trimStart();
-          if (town && v.startsWith(town)) v = v.slice(town.length).trimStart();
+          let prev = '';
+          while (v !== prev) {
+            prev = v;
+            if (city && v.startsWith(city)) v = v.slice(city.length).trimStart();
+            if (town && v.startsWith(town)) v = v.slice(town.length).trimStart();
+          }
           return v;
         })(),
         phone: (() => {

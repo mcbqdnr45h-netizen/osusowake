@@ -450,7 +450,8 @@ export default function StripeBankSetup() {
         if (!draft.firstNameKanji  && ind.firstNameKanji  && ok(['individual.first_name_kanji', 'individual.first_name'])) setFirstNameKanji(ind.firstNameKanji);
         if (!draft.lastNameKana    && ind.lastNameKana    && ok(['individual.last_name_kana']))   setLastNameKana(ind.lastNameKana);
         if (!draft.firstNameKana   && ind.firstNameKana   && ok(['individual.first_name_kana']))  setFirstNameKana(ind.firstNameKana);
-        if (!draft.phone           && ind.phone           && ok(['individual.phone']))             setPhone(ind.phone);
+        // 電話番号は常にStripe側データで上書き（draftに +81 形式が残っている可能性があるため）
+        if (ind.phone && ok(['individual.phone'])) setPhone(ind.phone);
         if (!draft.email           && ind.email           && ok(['individual.email']))             setEmail(ind.email);
         if (!draft.dobYear         && ind.dobYear         && ok(['individual.dob.year']))          setDobYear(ind.dobYear);
         if (!draft.dobMonth        && ind.dobMonth        && ok(['individual.dob.month']))         setDobMonth(ind.dobMonth);
