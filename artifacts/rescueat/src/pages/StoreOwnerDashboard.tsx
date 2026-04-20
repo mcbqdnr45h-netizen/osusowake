@@ -101,10 +101,17 @@ function translateRequirement(key: string): string {
     'individual.verification.document': '本人確認書類',
     'individual.verification.document.front': '本人確認書類（表面）',
     'individual.verification.document.back': '本人確認書類（裏面）',
+    'individual.verification.additional_document': '営業許可証',
+    'individual.verification.additional_document.front': '営業許可証（表面）',
+    'individual.verification.additional_document.back': '営業許可証（裏面）',
     'external_account': '振込先口座（銀行口座）',
     'business_profile.product_description': '事業内容の説明',
     'business_profile.url': 'ウェブサイトURL',
     'tos_acceptance.date': '利用規約への同意',
+    'company.verification.document': '法人確認書類',
+    'company.verification.document.front': '法人確認書類（表面）',
+    'individual.id_number': 'マイナンバー / 法人番号',
+    'business_type': '事業形態',
   };
   const normalized = key.replace(/\[([^\]]+)\]/g, '.$1');
   return map[normalized] ?? map[key] ?? key;

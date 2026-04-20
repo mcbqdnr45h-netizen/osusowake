@@ -1223,6 +1223,85 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
   }
 });
 
+// ─── Stripe 保存済みデータ取得（フォーム事前入力用） ────────────────────────────
+// GET /api/stores/:storeId/connect/account-data
+// Stripe に保存済みの個人情報・口座情報を返す（再申請時のフォーム事前入力用）
+router.get("/stores/:storeId/connect/account-data", async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId);
+    if (isNaN(storeId)) return res.status(400).json({ error: "bad_request" });
+
+    const [store] = await db
+      .select({ stripeAccountId: storesTable.stripeAccountId, ownerId: storesTable.ownerId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+
+    if (!store) return res.status(404).json({ error: "not_found" });
+    if (!store.stripeAccountId) return res.json({ hasAccount: false });
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) return res.json({ hasAccount: true, data: null });
+
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+    const account = await stripe.accounts.retrieve(store.stripeAccountId);
+
+    const ind = (account as any).individual ?? null;
+    const biz = account.business_profile ?? null;
+
+    const bankAccount = (() => {
+      const ext = (account as any).external_accounts?.data?.[0];
+      if (!ext) return null;
+      return {
+        bankName: ext.bank_name ?? '',
+        last4: ext.last4 ?? '',
+        routingNumber: ext.routing_number ?? '',
+      };
+    })();
+
+    res.json({
+      hasAccount: true,
+      businessType: account.business_type ?? 'individual',
+      individual: ind ? {
+        lastNameKanji:  ind.last_name_kanji  ?? '',
+        firstNameKanji: ind.first_name_kanji ?? '',
+        lastNameKana:   ind.last_name_kana   ?? '',
+        firstNameKana:  ind.first_name_kana  ?? '',
+        phone: ind.phone ?? '',
+        email: ind.email ?? '',
+        dobYear:  ind.dob?.year  ? String(ind.dob.year)  : '',
+        dobMonth: ind.dob?.month ? String(ind.dob.month).padStart(2, '0') : '',
+        dobDay:   ind.dob?.day   ? String(ind.dob.day).padStart(2, '0')   : '',
+        postalCode: ind.address_kanji?.postal_code ?? '',
+        stateKanji: ind.address_kanji?.state ?? '',
+        cityKanji:  ind.address_kanji?.city  ?? '',
+        townKanji:  ind.address_kanji?.town  ?? '',
+        line1Kanji: ind.address_kanji?.line1 ?? '',
+        stateKana:  ind.address_kana?.state  ?? '',
+        cityKana:   ind.address_kana?.city   ?? '',
+        townKana:   ind.address_kana?.town   ?? '',
+        line1Kana:  ind.address_kana?.line1  ?? '',
+      } : null,
+      company: account.business_type === 'company' ? {
+        nameKanji: (account as any).company?.name_kanji ?? '',
+        nameKana:  (account as any).company?.name_kana  ?? '',
+        taxId:     '',
+        structure: (account as any).company?.structure  ?? '',
+      } : null,
+      business: {
+        productDescription: biz?.product_description ?? biz?.name ?? '',
+        url: biz?.url ?? '',
+      },
+      bankAccount,
+    });
+  } catch (err: any) {
+    if (err?.code === "account_invalid" || err?.statusCode === 404) {
+      return res.json({ hasAccount: false });
+    }
+    console.error("[account-data] error:", err?.message);
+    res.status(500).json({ error: "stripe_error" });
+  }
+});
+
 // ─── Stripe アカウント切断（再連携用） ────────────────────────────────────────
 // POST /api/stores/:storeId/stripe-disconnect
 // stripeAccountId を NULL にリセットして、オーナーが新しい口座で再連携できるようにする

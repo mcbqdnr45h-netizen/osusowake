@@ -193,6 +193,10 @@ const STRIPE_FIELD_TO_GROUP: Record<string, string> = {
   'external_account': 'bank',
   'individual.verification.document': 'document', 'individual.verification.document.front': 'document',
   'individual.verification.document.back': 'document', 'individual.id_number': 'document',
+  'individual.verification.additional_document': 'bizLicense',
+  'individual.verification.additional_document.front': 'bizLicense',
+  'individual.verification.additional_document.back': 'bizLicense',
+  'company.verification.document': 'bizLicense', 'company.verification.document.front': 'bizLicense',
   'company.name': 'company', 'company.name_kana': 'company', 'company.name_kanji': 'company',
   'company.tax_id': 'company', 'company.structure': 'company',
   'business_type': 'businessType',
@@ -388,6 +392,49 @@ export default function StripeBankSetup() {
       })
       .catch(() => {});
   }, [store?.id, store?.stripeAccountId, store?.stripeChargesEnabled]);
+
+  // ── Stripe 保存済みデータ取得（再申請時のフォーム事前入力用）──
+  const stripeDataLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!store?.stripeAccountId || !store?.id) return;
+    if (stripeDataLoadedRef.current) return;
+    stripeDataLoadedRef.current = true;
+    fetch(`/api/stores/${store.id}/connect/account-data`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.hasAccount || !data.individual) return;
+        const ind = data.individual;
+        const biz = data.business ?? {};
+        const draft = store.id ? loadDraft(store.id) : {};
+        // ドラフトにない項目だけStripeデータで埋める
+        if (!draft.lastNameKanji   && ind.lastNameKanji)   setLastNameKanji(ind.lastNameKanji);
+        if (!draft.firstNameKanji  && ind.firstNameKanji)  setFirstNameKanji(ind.firstNameKanji);
+        if (!draft.lastNameKana    && ind.lastNameKana)    setLastNameKana(ind.lastNameKana);
+        if (!draft.firstNameKana   && ind.firstNameKana)   setFirstNameKana(ind.firstNameKana);
+        if (!draft.phone           && ind.phone)           setPhone(ind.phone);
+        if (!draft.email           && ind.email)           setEmail(ind.email);
+        if (!draft.dobYear         && ind.dobYear)         setDobYear(ind.dobYear);
+        if (!draft.dobMonth        && ind.dobMonth)        setDobMonth(ind.dobMonth);
+        if (!draft.dobDay          && ind.dobDay)          setDobDay(ind.dobDay);
+        if (!draft.postalCode      && ind.postalCode)      setPostalCode(ind.postalCode);
+        if (!draft.stateKanji      && ind.stateKanji)      setStateKanji(ind.stateKanji);
+        if (!draft.cityKanji       && ind.cityKanji)       setCityKanji(ind.cityKanji);
+        if (!draft.townKanji       && ind.townKanji)       setTownKanji(ind.townKanji);
+        if (!draft.line1Kanji      && ind.line1Kanji)      setLine1Kanji(ind.line1Kanji);
+        if (!draft.stateKana       && ind.stateKana)       setStateKana(ind.stateKana);
+        if (!draft.cityKana        && ind.cityKana)        setCityKana(ind.cityKana);
+        if (!draft.townKana        && ind.townKana)        setTownKana(ind.townKana);
+        if (!draft.line1Kana       && ind.line1Kana)       setLine1Kana(ind.line1Kana);
+        if (!draft.productDescription && biz.productDescription) setProductDescription(biz.productDescription);
+        if (!draft.businessUrl        && biz.url)              setBusinessUrl(biz.url);
+        if (data.company && data.businessType === 'company') {
+          if (!draft.companyNameKanji && data.company.nameKanji) setCompanyNameKanji(data.company.nameKanji);
+          if (!draft.companyNameKana  && data.company.nameKana)  setCompanyNameKana(data.company.nameKana);
+          if (!draft.companyStructure && data.company.structure) setCompanyStructure(data.company.structure);
+        }
+      })
+      .catch(() => {});
+  }, [store?.id, store?.stripeAccountId]);
 
   // ── グループ単位のStripeステータスを計算するヘルパー ──
   const getGroupStatus = (group: string): StripeGroupStatus => {
