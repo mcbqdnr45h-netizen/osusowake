@@ -443,10 +443,19 @@ export default function MyPage() {
             </div>
           );
           if (chargesOk && !payoutsOk) return (
-            <div className="mb-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <p className="text-xs font-black text-amber-800 flex-1">⚠️ 決済受付中・入金一時停止</p>
-              <span className="text-[9px] font-black bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full shrink-0">入金停止</span>
+            <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <p className="text-xs font-black text-amber-800 flex-1">⚠️ 決済受付中・入金一時停止</p>
+                <span className="text-[9px] font-black bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full shrink-0">入金停止</span>
+              </div>
+              <p className="text-[10px] text-amber-700 leading-snug">Stripeより本人確認書類の提出が必要です。このまま放置すると決済も停止されます。</p>
+              <button
+                onClick={() => navigate('/store/bank-setup')}
+                className="w-full py-1.5 text-[11px] font-black bg-amber-600 text-white rounded-lg"
+              >
+                本人確認書類を提出する →
+              </button>
             </div>
           );
           return (

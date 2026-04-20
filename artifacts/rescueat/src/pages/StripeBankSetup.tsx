@@ -729,7 +729,11 @@ export default function StripeBankSetup() {
   //   - status === 'rejected'（再設定のため通過）
   //   - stripeAccountId が null（STEP1 が失敗したまま、またはまだ未登録）
   //   - stripeChargesEnabled === false（Stripe 情報が不完全 → 再送信が必要）
-  const stripeIncomplete = !!store.stripeAccountId && store.stripeChargesEnabled === false;
+  //   - stripePayoutsEnabled === false（入金停止 → 本人確認書類の再提出が必要）
+  const stripeIncomplete = !!store.stripeAccountId && (
+    store.stripeChargesEnabled === false ||
+    store.stripePayoutsEnabled === false
+  );
   const noStripeAccount  = !store.stripeAccountId;
   if (
     store.status !== 'rejected' &&
