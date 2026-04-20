@@ -179,8 +179,11 @@ export default function MyPage() {
               </div>
             ) : (
               <div className="divide-y divide-border/40">
-                {notifications.slice(0, 8).map(n => (
-                  <div key={n.id} className={`px-4 py-3 ${!n.read ? 'bg-primary/[0.03]' : ''}`}>
+                {notifications.slice(0, 8).map(n => {
+                  const isRejected = n.type === 'store_rejected';
+                  const isApproved = n.type === 'store_approved';
+                  return (
+                  <div key={n.id} className={`px-4 py-3 border-b border-border/30 last:border-0 ${!n.read ? 'bg-primary/[0.03]' : ''} ${isRejected ? 'bg-red-50/50' : isApproved ? 'bg-green-50/50' : ''}`}>
                     <div className="flex items-start gap-2.5">
                       {(() => {
                         switch (n.type) {
@@ -193,16 +196,31 @@ export default function MyPage() {
                         }
                       })()}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-bold ${!n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{n.body}</p>
+                        <p className={`text-xs font-bold ${isRejected ? 'text-red-700' : isApproved ? 'text-green-700' : !n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
+                        <p className={`text-[11px] mt-0.5 leading-relaxed ${isRejected ? 'text-red-600' : 'text-muted-foreground'}`}>{n.body}</p>
                         <p className="text-[10px] text-muted-foreground/50 mt-1">
                           {new Date(n.createdAt).toLocaleDateString('ja-JP')}
                         </p>
+                        {isRejected && (
+                          <Link href="/store/reapply">
+                            <span className="inline-flex items-center gap-1 mt-2 text-[11px] font-black text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-full transition-colors">
+                              <ChevronRight className="w-3 h-3" />修正して再申請する
+                            </span>
+                          </Link>
+                        )}
+                        {isApproved && (
+                          <Link href="/store/bank-setup">
+                            <span className="inline-flex items-center gap-1 mt-2 text-[11px] font-black text-white bg-green-500 hover:bg-green-600 px-2.5 py-1 rounded-full transition-colors">
+                              <ChevronRight className="w-3 h-3" />口座・本人確認を登録する
+                            </span>
+                          </Link>
+                        )}
                       </div>
                       {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

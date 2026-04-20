@@ -615,6 +615,54 @@ router.post("/admin/stores/:storeId/approve", async (req, res) => {
       }
     }
 
+    // ── 店舗オーナーへの承認通知 & メール ──────────────────────────────
+    try {
+      if (updated.ownerId) {
+        // アプリ内通知（重複防止: 既存の store_approved 通知がなければ追加）
+        const existing = await db
+          .select({ id: notificationsTable.id })
+          .from(notificationsTable)
+          .where(and(
+            eq(notificationsTable.userId, updated.ownerId),
+            eq(notificationsTable.type, "store_approved"),
+          ))
+          .limit(1);
+
+        if (existing.length === 0) {
+          await db.insert(notificationsTable).values({
+            userId: updated.ownerId,
+            type:   "store_approved",
+            title:  "🎉 店舗審査が承認されました！",
+            body:   `${updated.name} の審査が通過しました。口座・本人確認登録を完了して出品を始めましょう。`,
+            read:   false,
+          });
+          console.log(`[approve] ✅ アプリ内通知送信 → userId=${updated.ownerId}`);
+        }
+
+        // 承認メール（未送信の場合のみ）
+        if (!updated.approvalEmailSent) {
+          const resendApiKey = process.env.RESEND_API_KEY;
+          if (resendApiKey) {
+            try {
+              const { data: userData } = await supabaseAdmin.auth.admin.getUserById(updated.ownerId);
+              const ownerEmail = userData?.user?.email;
+              if (ownerEmail) {
+                const sent = await sendStoreApprovalEmail({ ownerEmail, storeName: updated.name });
+                if (sent) {
+                  await db.update(storesTable).set({ approvalEmailSent: true }).where(eq(storesTable.id, storeId));
+                  console.log(`[approve] ✅ 承認メール送信 → ${ownerEmail}`);
+                }
+              }
+            } catch (emailErr: any) {
+              console.warn(`[approve] 承認メール送信エラー:`, emailErr?.message);
+            }
+          }
+        }
+      }
+    } catch (notifyErr: any) {
+      console.warn("[approve] 通知送信エラー:", notifyErr?.message);
+    }
+
     res.json({ ...updated, totalBagsAvailable: 0, stripeStatus });
   } catch (err) {
     console.error(err);

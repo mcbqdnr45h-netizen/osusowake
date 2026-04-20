@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, X, CheckCheck } from 'lucide-react';
+import { Bell, X, CheckCheck, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'wouter';
 import { useNotifications, AppNotification } from '@/hooks/use-notifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -13,25 +14,71 @@ function timeAgo(dateStr: string) {
   }
 }
 
-function NotificationItem({ n, onRead }: { n: AppNotification; onRead: (id: number) => void }) {
+function notificationLink(n: AppNotification): string | null {
+  switch (n.type) {
+    case 'store_approved':   return '/store/bank-setup';   // 承認→口座・本人確認へ
+    case 'store_rejected':   return '/store/reapply';      // 却下→店舗情報の再申請へ
+    case 'bag_sold':         return '/store/sales';
+    case 'pickup_reminder':  return '/store/dashboard';
+    case 'new_bag':          return '/';
+    default:                 return null;
+  }
+}
+
+function notificationIcon(type: string) {
+  const icons: Record<string, string> = {
+    store_approved:  '✅',
+    store_rejected:  '❌',
+    bag_sold:        '💰',
+    pickup_reminder: '⏰',
+    new_bag:         '🛍️',
+  };
+  return icons[type] ?? '📢';
+}
+
+function NotificationItem({ n, onRead, onClose }: {
+  n: AppNotification;
+  onRead: (id: number) => void;
+  onClose: () => void;
+}) {
+  const [, navigate] = useLocation();
+  const link = notificationLink(n);
+
+  const handleClick = () => {
+    if (!n.read) onRead(n.id);
+    if (link) {
+      onClose();
+      navigate(link);
+    }
+  };
+
   return (
     <button
-      onClick={() => !n.read && onRead(n.id)}
+      onClick={handleClick}
       className={`w-full text-left px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${
-        n.read ? 'bg-white' : 'bg-orange-50/60 hover:bg-orange-50'
+        n.read ? 'bg-white hover:bg-gray-50' : 'bg-orange-50/60 hover:bg-orange-50'
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? 'bg-transparent' : 'bg-primary'}`} />
+        <span className="text-base shrink-0 mt-0.5 leading-none">{notificationIcon(n.type)}</span>
         <div className="flex-1 min-w-0">
           <p className={`text-sm leading-snug ${n.read ? 'font-medium text-gray-600' : 'font-black text-gray-900'}`}>
             {n.title}
           </p>
           {n.body && (
-            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{n.body}</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-3">{n.body}</p>
           )}
-          <p className="text-[10px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10px] text-gray-400">{timeAgo(n.createdAt)}</p>
+            {link && (
+              <span className="text-[10px] text-primary font-bold flex items-center gap-0.5">
+                {n.type === 'store_rejected' ? '修正して再申請' : n.type === 'store_approved' ? '口座登録へ' : '詳細を見る'}
+                <ChevronRight className="w-2.5 h-2.5" />
+              </span>
+            )}
+          </div>
         </div>
+        {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />}
       </div>
     </button>
   );
@@ -127,7 +174,7 @@ export function NotificationsBell() {
                 </div>
               ) : (
                 notifications.map(n => (
-                  <NotificationItem key={n.id} n={n} onRead={markRead} />
+                  <NotificationItem key={n.id} n={n} onRead={markRead} onClose={() => setOpen(false)} />
                 ))
               )}
             </div>
