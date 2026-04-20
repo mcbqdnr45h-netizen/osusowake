@@ -551,6 +551,13 @@ export default function StripeBankSetup() {
         return;
       }
 
+      // kycWarning: 口座登録は成功したが個人情報がStripeに届かなかった
+      if (data.kycWarning) {
+        setError('⚠️ 口座の登録は完了しましたが、代表者の個人情報がシステムに正常に送信されませんでした。\n\nお手数ですが、このページを再度送信してください。入力内容はそのまま保持されています。');
+        try { await refetch(); } catch (_) {}
+        return;
+      }
+
       // ③ 完了 → 下書き削除・プロフィール更新・マイページへ
       setSubmitStatus('登録完了！');
       if (store?.id) clearDraft(store.id);

@@ -2231,6 +2231,7 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     }
 
     console.log(`📤 [bank-setup] STEP4 accounts.update (sync): ${JSON.stringify(step4Payload, null, 2)}`);
+    let kycWarning = false;
     try {
       const kycAcc = await stripeCall(
         stripe.accounts.update(accountId!, step4Payload as any),
@@ -2241,8 +2242,22 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       if ((kycAcc?.requirements?.errors ?? []).length > 0) {
         console.warn(`⚠️  [bank-setup] STEP4 errors: ${JSON.stringify(kycAcc.requirements.errors)}`);
       }
+      // STEP4成功後でも individual.* がまだ不足している場合は未送信と判断
+      const stillDue: string[] = kycAcc?.requirements?.currently_due ?? [];
+      const missingIndividual = stillDue.filter((f: string) => f.startsWith('individual.'));
+      if (missingIndividual.length > 0) {
+        console.warn(`⚠️  [bank-setup] Individual fields still missing after STEP4 — reverting to pending: ${missingIndividual.join(', ')}`);
+        await db.update(storesTable).set({ status: 'pending' }).where(eq(storesTable.id, storeId));
+        kycWarning = true;
+      }
     } catch (kycErr: any) {
-      console.warn(`⚠️  [bank-setup] STEP4 accounts.update FAILED (non-fatal): ${kycErr?.raw?.message ?? kycErr?.message}`);
+      const errMsg = kycErr?.raw?.message ?? kycErr?.message ?? '';
+      console.warn(`⚠️  [bank-setup] STEP4 accounts.update FAILED — reverting to pending: ${errMsg}`);
+      // 個人情報が届かなかったのでステータスを pending に戻して再入力を促す
+      try {
+        await db.update(storesTable).set({ status: 'pending' }).where(eq(storesTable.id, storeId));
+      } catch (_) {}
+      kycWarning = true;
     }
 
     // ── STEP 4b: 法人代表者を Persons API で同期登録/更新 ──
@@ -2340,8 +2355,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
     }
 
     // STEP1-4 完了 → クライアントにレスポンスを返す（BG は書類アップロードのみ）
-    console.log(`✅ [bank-setup] STEP1-4 complete — responding to client (syncPersonId=${syncPersonId})`);
-    res.json({ success: true, accountId, partial: true });
+    console.log(`✅ [bank-setup] STEP1-4 complete — responding to client (syncPersonId=${syncPersonId}, kycWarning=${kycWarning})`);
+    res.json({ success: true, accountId, partial: true, kycWarning });
 
   } catch (err: any) {
     console.error("❌ [bank-setup] Fatal error (STEP1-4):", err?.raw?.message ?? err?.message ?? err);
