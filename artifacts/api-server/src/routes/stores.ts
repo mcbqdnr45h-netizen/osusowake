@@ -1913,7 +1913,10 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
     console.log(`   requirements.disabled_reason: ${account.requirements?.disabled_reason}`);
 
     // currently_due が空 = Stripe への必須送信フィールドがすべて揃った
-    // → DB ステータスを 'applied'（口座登録済み・審査待ち）に更新。承認は管理者が手動で行う
+    // KYC フォーム送信が成功した時点（Stripe がエラーを返さなかった時点）で
+    // DB ステータスを 'applied' に進める。
+    // pending のまま放置すると「本人確認が必要」が申請直後も出続けるため、
+    // currently_due の残有無に関わらず常に applied へ移行する。
     const eventuallyDue = account.requirements?.eventually_due ?? [];
     const currentlyDue  = account.requirements?.currently_due ?? [];
     const kycComplete   = currentlyDue.length === 0;   // currently_due 空 = 送信完了
@@ -1924,25 +1927,33 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       .set({ stripeChargesEnabled: account.charges_enabled })
       .where(eq(storesTable.id, storeId));
 
-    if (kycComplete) {
-      // charges_enabled なら自動承認（デフォルトON。app_settings で 'false' を明示すると無効）
-      let kycAutoApproved = false;
-      if (account.charges_enabled) {
-        try {
-          const settingRows = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'auto_approve_stripe_verified'`);
-          const settingVal = (settingRows.rows[0] as any)?.value ?? 'true';
-          if (settingVal !== 'false') kycAutoApproved = true;
-        } catch (_) {
-          kycAutoApproved = true; // DB読み込みエラー時もデフォルトON
-        }
+    // charges_enabled なら自動承認（デフォルトON。app_settings で 'false' を明示すると無効）
+    let kycAutoApproved = false;
+    if (account.charges_enabled) {
+      try {
+        const settingRows = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'auto_approve_stripe_verified'`);
+        const settingVal = (settingRows.rows[0] as any)?.value ?? 'true';
+        if (settingVal !== 'false') kycAutoApproved = true;
+      } catch (_) {
+        kycAutoApproved = true; // DB読み込みエラー時もデフォルトON
       }
+    }
 
+    // KYC送信成功 → 常に pending → applied（or approved）へ進める
+    // ただし既に approved/pending_review の場合はダウングレードしない
+    const [currentStore] = await db
+      .select({ status: storesTable.status })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+    const shouldUpgrade = !["approved", "pending_review"].includes(currentStore?.status ?? "");
+    if (shouldUpgrade) {
+      const newStatus = kycAutoApproved ? "approved" : "applied";
       await db
         .update(storesTable)
-        .set({ status: kycAutoApproved ? "approved" : "applied", isActive: kycAutoApproved ? true : undefined })
+        .set({ status: newStatus, isActive: kycAutoApproved ? true : undefined })
         .where(eq(storesTable.id, storeId));
       console.log(
-        `✅ Store ${storeId} status → '${kycAutoApproved ? "approved (auto)" : "applied"}' (KYC complete)` +
+        `✅ Store ${storeId} status → '${newStatus}' (KYC submitted, currently_due: ${currentlyDue.length} 件)` +
         (eventuallyDue.length > 0 ? ` (eventually_due ${eventuallyDue.length} 件残)` : "")
       );
     }
