@@ -275,8 +275,8 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
 
     const store = storeRows[0];
 
-    // ── 自動承認設定を確認 ────────────────────────────────────────────────────
-    const autoApprove = (await getSetting('auto_approve_stripe_verified')) === 'true';
+    // ── 自動承認設定を確認（デフォルトON）────────────────────────────────────
+    const autoApprove = (await getSetting('auto_approve_stripe_verified', 'true')) === 'true';
 
     // ── 自動承認モード ON → 審査待ちなら即承認 ──────────────────────────────
     // 'applied' = 口座登録済みでStripe審査待ち（最も一般的なケース）

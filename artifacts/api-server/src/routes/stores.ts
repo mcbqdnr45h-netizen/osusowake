@@ -1824,14 +1824,16 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
       .where(eq(storesTable.id, storeId));
 
     if (kycComplete) {
-      // auto_approve_stripe_verified が true かつ charges_enabled なら即時承認
+      // charges_enabled なら自動承認（デフォルトON。app_settings で 'false' を明示すると無効）
       let kycAutoApproved = false;
       if (account.charges_enabled) {
         try {
           const settingRows = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'auto_approve_stripe_verified'`);
-          const settingVal = (settingRows.rows[0] as any)?.value;
-          if (settingVal === 'true') kycAutoApproved = true;
-        } catch (_) {}
+          const settingVal = (settingRows.rows[0] as any)?.value ?? 'true';
+          if (settingVal !== 'false') kycAutoApproved = true;
+        } catch (_) {
+          kycAutoApproved = true; // DB読み込みエラー時もデフォルトON
+        }
       }
 
       await db
@@ -2557,14 +2559,16 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
       } catch (_) {}
 
       // STEP 5: DB 更新 + オーナーの role を確実に store_owner に設定
-      // auto_approve_stripe_verified が true かつ charges_enabled ならそのまま approved にする
+      // charges_enabled なら自動承認（デフォルトON。app_settings で 'false' を明示すると無効）
       let autoApproved = false;
       if (kycChargesEnabled === true) {
         try {
           const settingRows = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'auto_approve_stripe_verified'`);
-          const settingVal = (settingRows.rows[0] as any)?.value;
-          if (settingVal === 'true') autoApproved = true;
-        } catch (_) {}
+          const settingVal = (settingRows.rows[0] as any)?.value ?? 'true';
+          if (settingVal !== 'false') autoApproved = true;
+        } catch (_) {
+          autoApproved = true; // DB読み込みエラー時もデフォルトON
+        }
       }
 
       const newStatus = autoApproved ? "approved" : "applied";
