@@ -434,7 +434,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         renderer: makeClusterRenderer(gMaps),
       });
     }
-  }, [markerKey, status]); // eslint-disable-line react-hooks/exhaustive-deps
+  // listingStores を直接依存に追加: stores が変化したとき markerKey が
+  // 変わらなかった稀なケース（空→空など）でも確実に再描画するための防御策
+  }, [markerKey, status, listingStores]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 現在地マーカー ────────────────────────────────────────────────────────
   useEffect(() => {
