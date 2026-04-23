@@ -1,4 +1,5 @@
 import React, { Suspense, useRef } from "react";
+import { SplashScreen } from "@capacitor/splash-screen";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import logoUrl from "@/lib/logo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -309,6 +310,16 @@ function HomeRouter() {
 
 // ── ロール整合チェック：store があるのに customer のままになるバグを防ぐ ──────────
 // MyPage だけでなくアプリ全体で動作し、ページ問わず確実に store_owner ロールへ修正する
+function SplashHider() {
+  const { isLoading } = useAuth();
+  useEffect(() => {
+    if (!isLoading) {
+      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
+    }
+  }, [isLoading]);
+  return null;
+}
+
 function RoleReconciler() {
   const { user, profile, isLoading: authLoading, refreshProfile } = useAuth();
   const { stores, loading: storesLoading } = useMyStoresContext();
@@ -381,6 +392,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <SplashHider />
         <MyStoresProvider>
           <FavoritesProvider>
             <TooltipProvider>
