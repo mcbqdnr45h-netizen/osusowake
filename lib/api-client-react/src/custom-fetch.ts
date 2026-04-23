@@ -307,7 +307,7 @@ export async function customFetch<T = unknown>(
     headers.set("content-type", "application/json");
   }
 
-  if (responseType === "json" && !headers.has("accept")) {
+  if (!headers.has("accept")) {
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
@@ -318,6 +318,17 @@ export async function customFetch<T = unknown>(
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
+  }
+
+  // If we sent Accept: application/json but got a non-JSON content-type (e.g. text/html from a
+  // server that doesn't know about this API endpoint), treat it as an error so callers receive
+  // undefined data rather than an unexpected string/HTML body that breaks .filter() etc.
+  if (responseType === "auto") {
+    const mediaType = getMediaType(response.headers);
+    if (mediaType && !isJsonMediaType(mediaType) && !hasNoBody(response, method)) {
+      const raw = await response.text();
+      throw new ResponseParseError(response, raw, new TypeError(`Expected JSON but got ${mediaType}`), requestInfo);
+    }
   }
 
   return (await parseSuccessBody(response, responseType, requestInfo)) as T;
