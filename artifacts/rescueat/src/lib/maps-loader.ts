@@ -1,4 +1,9 @@
-export const MAPS_API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
+// In Capacitor builds, the domain-restricted key causes a blocking error dialog.
+// We intentionally skip the key (shows "development purposes only" watermark but
+// the map functions correctly). In web builds the full key is used.
+export const MAPS_API_KEY = (import.meta.env.VITE_IS_CAPACITOR === 'true')
+  ? ''
+  : ((import.meta.env.VITE_MAPS_API_KEY as string) || '');
 
 const SCRIPT_ID = 'rescueat-google-maps';
 let _promise: Promise<void> | null = null;

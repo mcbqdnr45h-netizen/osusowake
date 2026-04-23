@@ -20,6 +20,7 @@ export default defineConfig({
   base: "/",
   define: {
     'import.meta.env.VITE_MAPS_API_KEY': JSON.stringify(process.env.Maps_API_KEY ?? ''),
+    'import.meta.env.VITE_IS_CAPACITOR': JSON.stringify('true'),
     'import.meta.env.VITE_STRIPE_PK': JSON.stringify(process.env.STRIPE_PUBLISHABLE_KEY ?? ''),
     'import.meta.env.VITE_BASE_URL': JSON.stringify('/'),
     'import.meta.env.VITE_API_BASE': JSON.stringify('https://osusowakejapan.org'),
