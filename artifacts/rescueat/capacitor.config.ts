@@ -16,15 +16,15 @@ const config: CapacitorConfig = {
 
   plugins: {
     SplashScreen: {
-      launchShowDuration: 0,
-      launchAutoHide: false,
+      launchShowDuration: 500,
+      launchAutoHide: true,
       backgroundColor: '#FBFBFA',
       iosSpinnerStyle: 'small',
       spinnerColor: '#F26419',
       showSpinner: false,
       splashFullScreen: true,
       splashImmersive: false,
-      fadeOutDuration: 300,
+      fadeOutDuration: 200,
     },
     StatusBar: {
       style: 'DEFAULT',
