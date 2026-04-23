@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
     scheme: 'Osusowake',
     contentInset: 'automatic',
     allowsLinkPreview: false,
-    scrollEnabled: false,
+    scrollEnabled: true,
   },
 
   plugins: {
