@@ -196,8 +196,8 @@ function FloatingMapButton() {
         initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.4 }}
         whileTap={{ scale: 0.88 }}
-        className="fixed bottom-[88px] right-4 z-40 w-14 h-14 bg-primary rounded-2xl shadow-xl shadow-primary/30
-          flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors"
+        className="fixed right-4 z-40 w-14 h-14 bg-primary rounded-2xl shadow-xl shadow-primary/30 flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors"
+        style={{ bottom: 'calc(64px + env(safe-area-inset-bottom) + 16px)' }}
         aria-label="地図で探す"
       >
         <MapIcon className="w-6 h-6" />
@@ -577,8 +577,7 @@ export default function Home() {
         {/* ── スクロールエリア ── */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto bg-secondary/10 scroll-smooth-native"
-          style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' }}
+          className="flex-1 overflow-y-auto bg-secondary/10 scroll-smooth-native pb-4"
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >
