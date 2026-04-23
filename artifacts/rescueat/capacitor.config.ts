@@ -11,7 +11,6 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     allowsLinkPreview: false,
     scrollEnabled: false,
-    limitsNavigationsToAppBoundDomains: true,
   },
 
   plugins: {
