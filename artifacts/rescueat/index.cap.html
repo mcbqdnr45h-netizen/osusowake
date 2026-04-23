@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+    <title>Osusowake</title>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Osusowake" />
+    <style>
+      body { margin: 0; background: #FBFBFA; }
+      #root { min-height: 100dvh; }
+      #js-fallback {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: #FBFBFA;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        font-family: sans-serif;
+        font-size: 14px;
+        color: #888;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="js-fallback">
+      <p>読み込み中...</p>
+    </div>
+    <script>
+      // Show fallback if React hasn't mounted within 10 seconds
+      var fb = document.getElementById('js-fallback');
+      fb.style.display = 'flex';
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (!root || !root.firstChild) {
+          fb.style.display = 'flex';
+        } else {
+          fb.style.display = 'none';
+        }
+      }, 10000);
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

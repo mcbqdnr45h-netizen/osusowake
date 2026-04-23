@@ -31,5 +31,8 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist-cap"),
     emptyOutDir: true,
+    rollupOptions: {
+      input: path.resolve(import.meta.dirname, "index.cap.html"),
+    },
   },
 });
