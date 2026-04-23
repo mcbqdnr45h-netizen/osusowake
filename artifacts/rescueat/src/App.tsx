@@ -1,5 +1,4 @@
 import React, { Suspense, useRef } from "react";
-import { SplashScreen } from "@capacitor/splash-screen";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import logoUrl from "@/lib/logo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -308,78 +307,6 @@ function HomeRouter() {
   return <Home />;
 }
 
-// ── ロール整合チェック：store があるのに customer のままになるバグを防ぐ ──────────
-// MyPage だけでなくアプリ全体で動作し、ページ問わず確実に store_owner ロールへ修正する
-function AppLoadingScreen() {
-  const auth = useAuth();
-  const isLoading = auth?.isLoading ?? true;
-  const [visible, setVisible] = React.useState(true);
-  const [fadeOut, setFadeOut] = React.useState(false);
-
-  useEffect(() => {
-    if (!isLoading) {
-      setFadeOut(true);
-      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
-      const t = setTimeout(() => setVisible(false), 350);
-      return () => clearTimeout(t);
-    }
-  }, [isLoading]);
-
-  // 絶対タイムアウト：10秒後に強制非表示
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setFadeOut(true);
-      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
-      setTimeout(() => setVisible(false), 350);
-    }, 10000);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (!visible) return null;
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        backgroundColor: '#FBFBFA',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'opacity 0.35s ease',
-        opacity: fadeOut ? 0 : 1,
-        pointerEvents: fadeOut ? 'none' : 'auto',
-      }}
-    >
-      <img
-        src={logoUrl}
-        alt="Osusowake"
-        style={{
-          width: 80,
-          height: 80,
-          borderRadius: 20,
-          objectFit: 'cover',
-          boxShadow: '0 4px 24px rgba(242,100,25,0.18)',
-        }}
-      />
-      <div
-        style={{
-          marginTop: 24,
-          width: 32,
-          height: 32,
-          border: '3px solid #F2641966',
-          borderTopColor: '#F26419',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }}
-      />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-}
-
 function RoleReconciler() {
   const { user, profile, isLoading: authLoading, refreshProfile } = useAuth();
   const { stores, loading: storesLoading } = useMyStoresContext();
@@ -452,7 +379,6 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppLoadingScreen />
         <MyStoresProvider>
           <FavoritesProvider>
             <TooltipProvider>
