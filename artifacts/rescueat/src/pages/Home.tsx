@@ -435,11 +435,13 @@ export default function Home() {
 
   return (
     <Layout>
-      <div className="flex flex-col h-dvh md:h-auto md:flex-1 md:min-h-0 overflow-hidden">
+      <div
+        className="flex flex-col overflow-hidden md:h-auto md:flex-1 md:min-h-0"
+        style={{ height: 'calc(100dvh - env(safe-area-inset-top))' }}
+      >
 
         {/* ── Sticky ヘッダー ── */}
-        <div className="shrink-0 bg-background border-b border-border/50 z-20 shadow-sm"
-          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="shrink-0 bg-background border-b border-border/50 z-20 shadow-sm">
 
           {/* Row 1: エリア名 ←→ 🔔 + 検索アイコン */}
           <div className="flex items-center gap-2 px-4 h-11">
@@ -579,6 +581,7 @@ export default function Home() {
         <div
           ref={scrollRef}
           className="flex-1 overflow-y-auto bg-secondary/10 scroll-smooth-native"
+          style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' }}
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >

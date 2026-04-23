@@ -5,6 +5,31 @@ export const MAPS_API_KEY = (import.meta.env.VITE_IS_CAPACITOR === 'true')
   ? ''
   : ((import.meta.env.VITE_MAPS_API_KEY as string) || '');
 
+// In Capacitor: suppress the Google Maps error dialog (appears even with empty key).
+// Inject CSS to hide it, and use a MutationObserver to auto-click OK if it appears.
+if (import.meta.env.VITE_IS_CAPACITOR === 'true') {
+  const style = document.createElement('style');
+  style.textContent = '.gm-err-container, .gm-err-autocomplete { display: none !important; }';
+  document.head.appendChild(style);
+
+  const observer = new MutationObserver(() => {
+    const errBox = document.querySelector<HTMLElement>('.gm-err-container');
+    if (errBox) {
+      errBox.style.display = 'none';
+      const btn = errBox.querySelector<HTMLElement>('button, [role="button"]');
+      if (btn) btn.click();
+    }
+    // Also hide any iframe-based error overlays Google Maps injects
+    document.querySelectorAll<HTMLElement>('div[style*="z-index: 1000"] > div > div').forEach(el => {
+      if (el.textContent?.includes('Google マップ') && el.textContent?.includes('正しく読み込まれ')) {
+        const parent = el.closest<HTMLElement>('div[style*="z-index"]');
+        if (parent) parent.style.display = 'none';
+      }
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
 const SCRIPT_ID = 'rescueat-google-maps';
 let _promise: Promise<void> | null = null;
 
