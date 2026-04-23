@@ -390,7 +390,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             {/* Copyright row */}
             <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
               <p className="text-[12px] text-muted-foreground/55 font-medium">
-                © 2026 YK Nova LLC. All rights reserved.
+                © 2026 Osusowake. All rights reserved.
               </p>
               <p className="text-[11px] text-muted-foreground/40">
                 初期費用・月額0円。成果報酬型（手数料25%）
@@ -434,7 +434,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             </div>
 
             <p className="text-center text-[11px] text-muted-foreground/40 font-medium">
-              © 2026 YK Nova LLC. All rights reserved.
+              © 2026 Osusowake. All rights reserved.
             </p>
           </div>
         </footer>
