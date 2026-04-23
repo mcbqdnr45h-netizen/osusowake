@@ -2,6 +2,19 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import type { Plugin } from "vite";
+
+function removeCrossorigin(): Plugin {
+  return {
+    name: 'remove-crossorigin',
+    transformIndexHtml(html: string) {
+      return html
+        .replace(/<script ([^>]*?)crossorigin([^>]*?)>/g, '<script $1$2>')
+        .replace(/<link ([^>]*?)crossorigin([^>]*?)>/g, '<link $1$2>')
+        .replace(/\s{2,}/g, ' ');
+    },
+  };
+}
 
 export default defineConfig({
   base: "/",
@@ -20,6 +33,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    removeCrossorigin(),
   ],
   resolve: {
     alias: {
