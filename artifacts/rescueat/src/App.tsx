@@ -311,7 +311,8 @@ function HomeRouter() {
 // ── ロール整合チェック：store があるのに customer のままになるバグを防ぐ ──────────
 // MyPage だけでなくアプリ全体で動作し、ページ問わず確実に store_owner ロールへ修正する
 function AppLoadingScreen() {
-  const { isLoading } = useAuth();
+  const auth = useAuth();
+  const isLoading = auth?.isLoading ?? true;
   const [visible, setVisible] = React.useState(true);
   const [fadeOut, setFadeOut] = React.useState(false);
 
@@ -323,6 +324,16 @@ function AppLoadingScreen() {
       return () => clearTimeout(t);
     }
   }, [isLoading]);
+
+  // 絶対タイムアウト：10秒後に強制非表示
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setFadeOut(true);
+      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
+      setTimeout(() => setVisible(false), 350);
+    }, 10000);
+    return () => clearTimeout(t);
+  }, []);
 
   if (!visible) return null;
 

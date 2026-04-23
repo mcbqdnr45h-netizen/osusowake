@@ -37,6 +37,8 @@ const config: CapacitorConfig = {
   },
 
   server: {
+    url: 'https://osusowakejapan.org/rescueat',
+    cleartext: false,
     allowNavigation: [
       'maps.googleapis.com',
       'maps.gstatic.com',
