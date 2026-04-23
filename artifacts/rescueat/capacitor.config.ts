@@ -36,6 +36,8 @@ const config: CapacitorConfig = {
   },
 
   server: {
+    hostname: 'osusowakejapan.org',
+    iosScheme: 'https',
     allowNavigation: [
       'maps.googleapis.com',
       'maps.gstatic.com',
