@@ -3,7 +3,7 @@ set -e
 echo "=== ci_post_clone ==="
 export HOMEBREW_NO_AUTO_UPDATE=1
 if [[ -f /opt/homebrew/bin/brew ]]; then eval "$(/opt/homebrew/bin/brew shellenv)"; elif [[ -f /usr/local/bin/brew ]]; then eval "$(/usr/local/bin/brew shellenv)"; fi
-command -v node &>/dev/null || (brew install node@20 && brew link --overwrite node@20)
+command -v node &>/dev/null || (brew install node@22 && brew link --overwrite node@22)
 command -v pnpm &>/dev/null || npm install -g pnpm@9
 command -v pod &>/dev/null || brew install cocoapods
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
