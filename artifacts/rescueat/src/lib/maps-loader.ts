@@ -5,20 +5,56 @@ export const MAPS_API_KEY = (import.meta.env.VITE_IS_CAPACITOR === 'true')
   ? ''
   : ((import.meta.env.VITE_MAPS_API_KEY as string) || '');
 
-// In Capacitor: suppress the Google Maps authentication failure dialog.
-// gm_authFailure is the official Google Maps API callback for auth errors.
-// Setting it to a no-op prevents the blocking error dialog from appearing.
+// ─── Capacitor: Suppress Google Maps auth failure dialog (triple approach) ───
 if (import.meta.env.VITE_IS_CAPACITOR === 'true') {
-  (window as any).gm_authFailure = function () { /* suppress auth dialog */ };
 
-  // Also inject CSS as belt-and-suspenders defense
-  const style = document.createElement('style');
-  style.textContent = [
-    '.gm-err-container { display: none !important; }',
-    '.gm-err-autocomplete { display: none !important; }',
+  // 1. gm_authFailure — official Maps API hook; also actively hides any dialog
+  (window as any).gm_authFailure = function () {
+    try {
+      // Hide all gm-err-* elements
+      document.querySelectorAll<HTMLElement>(
+        '[class*="gm-err"], .gm-err-container, .gm-err-dialog, .gm-err-autocomplete'
+      ).forEach(el => el.style.setProperty('display', 'none', 'important'));
+
+      // Auto-click every "OK" button that appears inside a .gm-style map container
+      document.querySelectorAll('.gm-style button').forEach(btn => {
+        if ((btn as HTMLElement).textContent?.trim() === 'OK') {
+          (btn as HTMLButtonElement).click();
+        }
+      });
+    } catch (_) { /* ignore */ }
+  };
+
+  // 2. Preemptive CSS — hides dialog before JS cleanup fires
+  const _gmStyle = document.createElement('style');
+  _gmStyle.textContent = [
+    /* standard class names */
+    '.gm-err-container, .gm-err-dialog, .gm-err-autocomplete { display: none !important; }',
+    /* wildcard — catches renamed variants in newer weekly builds */
+    '[class*="gm-err"] { display: none !important; }',
+    /* z-index 1000 overlay inside gm-style (fallback) */
     'div.gm-style > div[style*="z-index: 1000"] { display: none !important; }',
+    'div.gm-style > div > div[style*="z-index: 1000"] { display: none !important; }',
   ].join('\n');
-  document.head.appendChild(style);
+  document.head.appendChild(_gmStyle);
+
+  // 3. MutationObserver — catches dynamically inserted dialog nodes
+  const _gmObserver = new MutationObserver(() => {
+    try {
+      // Hide gm-err-* elements
+      document.querySelectorAll<HTMLElement>(
+        '[class*="gm-err"], .gm-err-container'
+      ).forEach(el => el.style.setProperty('display', 'none', 'important'));
+
+      // Auto-click "OK" inside any map container
+      document.querySelectorAll('.gm-style').forEach(container => {
+        container.querySelectorAll<HTMLButtonElement>('button').forEach(btn => {
+          if (btn.textContent?.trim() === 'OK') btn.click();
+        });
+      });
+    } catch (_) { /* ignore */ }
+  });
+  _gmObserver.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 const SCRIPT_ID = 'rescueat-google-maps';

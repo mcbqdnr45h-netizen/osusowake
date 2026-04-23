@@ -8,21 +8,32 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Osusowake" />
     <style>
-      body { margin: 0; background: #1a1a1a; }
+      body { margin: 0; background: #fdf8f3; }
       #root { min-height: 100dvh; }
     </style>
   </head>
   <body>
     <div id="root">
-      <div id="pre-react" style="position:fixed;inset:0;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;">
-        <div style="color:#F26419;font-size:28px;font-weight:bold;margin-bottom:12px;">Osusowake</div>
-        <div style="color:#888;font-size:15px;">読み込み中...</div>
+      <div id="pre-react" style="position:fixed;inset:0;background:#fdf8f3;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;">
+        <div style="width:64px;height:64px;background:#F26419;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 4px 20px rgba(242,100,25,0.3);">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        </div>
+        <div style="color:#1a1a1a;font-size:22px;font-weight:900;letter-spacing:-0.04em;margin-bottom:8px;">Osusowake</div>
+        <div style="color:#a0968a;font-size:13px;">読み込み中...</div>
       </div>
     </div>
     <script>
       /* Suppress Google Maps auth failure dialog — must run before any module */
-      window.gm_authFailure = function() {};
-      window.gm_authFailure_set = true;
+      window.gm_authFailure = function() {
+        try {
+          document.querySelectorAll('[class*="gm-err"]').forEach(function(el) {
+            el.style.setProperty('display','none','important');
+          });
+          document.querySelectorAll('.gm-style button').forEach(function(btn) {
+            if (btn.textContent && btn.textContent.trim() === 'OK') btn.click();
+          });
+        } catch(e) {}
+      };
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
