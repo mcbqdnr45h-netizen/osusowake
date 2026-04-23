@@ -119,8 +119,8 @@ export default function Privacy() {
               </li>
               <li>
                 <strong>メールアドレス：</strong>
-                <a href="mailto:hello.osusowake@gmail.com" className="text-primary underline underline-offset-2 ml-1">
-                  hello.osusowake@gmail.com
+                <a href="mailto:hello@osusowakejapan.org" className="text-primary underline underline-offset-2 ml-1">
+                  hello@osusowakejapan.org
                 </a>
               </li>
               <li>

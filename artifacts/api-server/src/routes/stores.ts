@@ -745,7 +745,7 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
           再申請する
         </a>
       </div>
-      <p style="color:#999;font-size:12px;text-align:center;margin:0;">ご不明な点は <a href="mailto:hello.osusowake@gmail.com" style="color:#F26419;">hello.osusowake@gmail.com</a> までご連絡ください。</p>
+      <p style="color:#999;font-size:12px;text-align:center;margin:0;">ご不明な点は <a href="mailto:hello@osusowakejapan.org" style="color:#F26419;">hello@osusowakejapan.org</a> までご連絡ください。</p>
     </div>
   </div>
 </body>

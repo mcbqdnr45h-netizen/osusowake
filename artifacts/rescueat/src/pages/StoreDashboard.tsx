@@ -1996,7 +1996,7 @@ export default function StoreDashboard() {
                 <div>
                   <p className="text-xs font-black text-red-700">🔴 決済連携エラー</p>
                   <p className="text-[11px] text-red-600 mt-0.5">エラーコード: {stripeError}</p>
-                  <p className="text-[11px] text-red-500 mt-0.5">サポートまでお問い合わせください: hello.osusowake@gmail.com</p>
+                  <p className="text-[11px] text-red-500 mt-0.5">サポートまでお問い合わせください: hello@osusowakejapan.org</p>
                 </div>
               </div>
             )}
