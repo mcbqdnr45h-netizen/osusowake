@@ -434,11 +434,8 @@ export default function Home() {
       : geoDenied ? '全国の注目おすそわけ' : (appSettings.catchphrase || 'あなたの街のおすそわけ');
 
   return (
-    <Layout>
-      <div
-        className="flex flex-col overflow-hidden md:h-auto md:flex-1 md:min-h-0"
-        style={{ height: 'calc(100dvh - env(safe-area-inset-top))' }}
-      >
+    <Layout hideFooter>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
         {/* ── Sticky ヘッダー ── */}
         <div className="shrink-0 bg-background border-b border-border/50 z-20 shadow-sm">
