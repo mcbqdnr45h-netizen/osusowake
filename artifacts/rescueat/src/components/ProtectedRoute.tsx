@@ -29,7 +29,7 @@ function GuestPlaceholderScreen() {
 
   return (
     <Layout showBottomNav>
-      <div className="h-[calc(100dvh-64px)] flex flex-col items-center justify-center bg-background px-6 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-background px-6 overflow-hidden">
         {/* イラスト */}
         <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 shadow-inner shrink-0">
           <ShoppingBag className="w-8 h-8 text-primary" />
