@@ -275,10 +275,20 @@ async function parseSuccessBody(
   }
 }
 
+// Prepend absolute base URL to relative paths when VITE_API_BASE is set (e.g. Capacitor build)
+function applyApiBase(input: RequestInfo | URL): RequestInfo | URL {
+  const apiBase: string = (typeof import.meta !== "undefined" ? (import.meta as any).env?.VITE_API_BASE : "") ?? "";
+  if (!apiBase) return input;
+  const url = resolveUrl(input);
+  if (url.startsWith("/")) return apiBase + url;
+  return input;
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
 ): Promise<T> {
+  input = applyApiBase(input);
   const { responseType = "auto", headers: headersInit, ...init } = options;
 
   const method = resolveMethod(input, init.method);

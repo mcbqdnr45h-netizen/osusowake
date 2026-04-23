@@ -184,8 +184,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   function getApiBase() {
+    const apiBase = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_API_BASE : '') ?? '';
+    if (apiBase) return apiBase as string;
     const base = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.BASE_URL : '') ?? '';
-    return base.replace(/\/$/, '') || '';
+    return (base as string).replace(/\/$/, '') || '';
   }
 
   async function checkPhoneAvailable(normalizedPhone: string): Promise<boolean> {
