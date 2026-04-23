@@ -1,0 +1,22 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Debug Build Configuration
+// Osusowake — com.yuhi.osusowake
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Bundle ID（開発ビルド）
+PRODUCT_BUNDLE_IDENTIFIER = com.yuhi.osusowake
+
+// バージョン管理
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+
+// Swift / Deployment Target
+SWIFT_VERSION = 5.0
+IPHONEOS_DEPLOYMENT_TARGET = 16.0
+
+// デバッグ設定
+DEBUG_INFORMATION_FORMAT = dwarf
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+
+// Bitcode 無効
+ENABLE_BITCODE = NO

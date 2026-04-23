@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Info.plist 追加エントリ テンプレート
+  ─────────────────────────────────────────────────────────────────────────────
+  「npx cap add ios」実行後、自動生成された ios/App/App/Info.plist に
+  以下のエントリを <dict> 内に追加してください。
+
+  または ios-setup.sh が自動で適用します。
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+<additions>
+
+  <!-- ── プライバシー許可 ─────────────────────────────── -->
+
+  <!-- GPS（現在地取得: おすそわけ検索に使用） -->
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>近くのおすそわけ店舗を探すために現在地を使用します。</string>
+
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>近くのおすそわけ店舗を探すために現在地を使用します。</string>
+
+  <!-- カメラ（店舗画像・本人確認書類のアップロードに使用） -->
+  <key>NSCameraUsageDescription</key>
+  <string>店舗写真や本人確認書類の撮影に使用します。</string>
+
+  <!-- フォトライブラリ（画像選択に使用） -->
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>店舗写真や本人確認書類の選択に使用します。</string>
+
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>QRコードや受取チケットを写真ライブラリに保存します。</string>
+
+  <!-- ── URL スキーム ─────────────────────────────────── -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>com.yuhi.osusowake</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>com.yuhi.osusowake</string>
+        <string>Osusowake</string>
+      </array>
+    </dict>
+  </array>
+
+  <!-- ── Google Maps SDK ────────────────────────────────── -->
+  <!-- Maps API キーは Xcode の Build Settings または Secrets Manager で管理 -->
+  <!-- 注意: APIキーを Info.plist に直接埋め込まないこと -->
+
+  <!-- ── Stripe ─────────────────────────────────────────── -->
+  <!-- Stripe URLスキームを CFBundleURLTypes に追加済み -->
+
+  <!-- ── ネットワーク許可（ATS） ────────────────────────── -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <false/>
+    <key>NSExceptionDomains</key>
+    <dict>
+      <!-- Google Maps -->
+      <key>googleapis.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key>
+        <false/>
+        <key>NSIncludesSubdomains</key>
+        <true/>
+      </dict>
+      <!-- Supabase -->
+      <key>supabase.co</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key>
+        <false/>
+        <key>NSIncludesSubdomains</key>
+        <true/>
+      </dict>
+    </dict>
+  </dict>
+
+  <!-- ── その他の設定 ───────────────────────────────────── -->
+  <key>UIViewControllerBasedStatusBarAppearance</key>
+  <true/>
+
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+  </array>
+
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+
+</additions>

@@ -17,6 +17,7 @@
 - **Font**: Noto Sans JP (body) + Outfit (display)
 - **Color**: #F26419 テラコッタオレンジ / #F6AE2D ハニーアクセント / #FBFBFA オフホワイト背景
 - **PWA**: manifest.json + sw.js (プッシュ通知対応、本番デプロイ後有効)
+- **iOS ネイティブ**: Capacitor 8 でラッピング（Bundle ID: `com.yuhi.osusowake`）、Xcode Cloud CI 対応
 - **CSS Utilities**: skeleton-shimmer, img-fade-in, hide-scrollbar, scroll-snap-x, tap-scale, hover-lift (index.css)
 - **Accessibility**: prefers-reduced-motion 対応済み (img-fade-in, scroll-snap無効化)
 

@@ -11,7 +11,11 @@
     "build:cap": "vite build --config vite.config.cap.ts",
     "cap:gen-assets": "npx @capacitor/assets generate --iconBackgroundColor '#F26419' --iconBackgroundColorDark '#F26419' --splashBackgroundColor '#FBFBFA' --splashBackgroundColorDark '#1a1a1a'",
     "cap:sync": "pnpm run build:cap && npx cap sync ios",
-    "cap:open": "npx cap open ios"
+    "cap:open": "npx cap open ios",
+    "cap:add-ios": "npx cap add ios",
+    "ios:setup": "bash scripts/ios-setup.sh",
+    "ios:update": "pnpm run build:cap && npx cap copy ios",
+    "ios:run": "pnpm run build:cap && npx cap run ios"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",

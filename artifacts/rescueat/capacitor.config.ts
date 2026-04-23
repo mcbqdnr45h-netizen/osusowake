@@ -1,14 +1,17 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.osusowake',
+  appId: 'com.yuhi.osusowake',
   appName: 'Osusowake',
   webDir: 'dist-cap',
   bundledWebRuntime: false,
 
   ios: {
-    scheme: 'osusowake',
+    scheme: 'Osusowake',
     contentInset: 'automatic',
+    allowsLinkPreview: false,
+    scrollEnabled: false,
+    limitsNavigationsToAppBoundDomains: true,
   },
 
   plugins: {
@@ -25,10 +28,23 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'DEFAULT',
       backgroundColor: '#FBFBFA',
+      overlaysWebView: false,
     },
     App: {
-      launchUrl: 'app.osusowake://app',
+      launchUrl: 'com.yuhi.osusowake://app',
     },
+  },
+
+  server: {
+    allowNavigation: [
+      'maps.googleapis.com',
+      'maps.gstatic.com',
+      '*.googleapis.com',
+      'js.stripe.com',
+      '*.stripe.com',
+      '*.supabase.co',
+      '*.supabase.io',
+    ],
   },
 };
 

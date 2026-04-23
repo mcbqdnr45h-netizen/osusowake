@@ -1,0 +1,25 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Release Build Configuration
+// Osusowake — com.yuhi.osusowake
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Bundle ID（Xcode Cloud でオーバーライド可能）
+PRODUCT_BUNDLE_IDENTIFIER = com.yuhi.osusowake
+
+// バージョン管理（Xcode Cloud の CI_BUILD_NUMBER で上書きされる）
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+
+// Swift / Deployment Target
+SWIFT_VERSION = 5.0
+IPHONEOS_DEPLOYMENT_TARGET = 16.0
+
+// 最適化
+SWIFT_OPTIMIZATION_LEVEL = -O
+GCC_OPTIMIZATION_LEVEL = s
+
+// デバッグシンボル（クラッシュレポート用に保持）
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+
+// Bitcode（Xcode 14 以降は不要）
+ENABLE_BITCODE = NO
