@@ -1508,7 +1508,7 @@ router.post("/stores/:storeId/connect/account-link", async (req, res) => {
         : "account_onboarding";
 
     // URLのデフォルト値（フロントエンドから渡せる）
-    const baseUrl = returnUrl?.replace(/\/(stripe-kyc.*|store\/.*)$/, '') ?? "https://osusowake.example.com";
+    const baseUrl = returnUrl?.replace(/\/(stripe-kyc.*|store\/.*)$/, '') ?? "https://osusowakejapan.org";
     const safeReturnUrl  = returnUrl  ?? `${baseUrl}/store/dashboard`;
     const safeRefreshUrl = refreshUrl ?? `${baseUrl}/store/dashboard`;
 

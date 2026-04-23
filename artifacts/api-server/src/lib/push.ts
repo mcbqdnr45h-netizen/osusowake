@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 
 const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-const vapidSubject    = process.env.VAPID_SUBJECT ?? 'mailto:support@osusowake.app';
+const vapidSubject    = process.env.VAPID_SUBJECT ?? 'mailto:support@osusowakejapan.org';
 
 if (vapidPublicKey && vapidPrivateKey) {
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);

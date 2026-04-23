@@ -44,6 +44,8 @@ const config: CapacitorConfig = {
       '*.stripe.com',
       '*.supabase.co',
       '*.supabase.io',
+      'osusowakejapan.org',
+      '*.osusowakejapan.org',
     ],
   },
 };
