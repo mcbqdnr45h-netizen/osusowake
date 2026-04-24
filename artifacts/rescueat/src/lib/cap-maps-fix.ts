@@ -1,12 +1,11 @@
 // ──────────────────────────────────────────────────────────────────────────
 // Google Maps auth error dialog suppression for Capacitor iOS builds.
-// This file MUST be imported FIRST in main.tsx so it sets up gm_authFailure
-// and the MutationObserver before any map component is rendered.
+// This file MUST be imported FIRST in main.tsx.
 //
-// Strategy:
-//   - Hide by CSS class (cheap) for polling + MutationObserver.
-//   - Hide by text content (expensive) ONLY when gm_authFailure fires.
-//   - No aggressive querySelectorAll('div,...') on every tick — that crashed iOS.
+// Primary strategy: inject a <style> tag BEFORE Maps loads.
+//   → CSS is applied by the browser engine instantly, no timing race.
+//   → Even if Maps recreates the element, the CSS rule still applies.
+// Secondary strategy: gm_authFailure + MutationObserver + polling as backup.
 // ──────────────────────────────────────────────────────────────────────────
 
 const ERROR_TEXT_FRAGMENTS = [
@@ -19,6 +18,30 @@ const ERROR_TEXT_FRAGMENTS = [
 const HIDE_CSS =
   'display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;';
 
+// ── 1. CSS injection (primary, runs immediately) ───────────────────────────
+const CSS_RULE = [
+  '.gm-err-container',
+  '.gm-err-dialog',
+  '.gm-err-autocomplete',
+  '.gm-err-content',
+  '.gm-err-title',
+  '[class*="gm-err"]',
+].join(',') + `{${HIDE_CSS}}`;
+
+function injectErrorCSS() {
+  if (document.getElementById('gm-err-suppress')) return;
+  const style = document.createElement('style');
+  style.id = 'gm-err-suppress';
+  style.textContent = CSS_RULE;
+  (document.head || document.documentElement)?.appendChild(style);
+}
+
+// Run immediately (document.documentElement always exists).
+if (typeof window !== 'undefined') {
+  injectErrorCSS();
+}
+
+// ── 2. JavaScript fallback helpers ─────────────────────────────────────────
 function _hideEl(el: Element | null) {
   if (!el) return;
   try {
@@ -30,6 +53,7 @@ function _hideEl(el: Element | null) {
 // Cheap: only class-name based — safe to run frequently.
 function hideByClass() {
   try {
+    injectErrorCSS(); // re-inject if DOM was wiped (rare)
     document.querySelectorAll<HTMLElement>(
       '[class*="gm-err"], .gm-err-container, .gm-err-dialog, .gm-err-autocomplete'
     ).forEach(_hideEl);
@@ -56,22 +80,24 @@ function hideByTextContent() {
 }
 
 if (typeof window !== 'undefined') {
-  // 1. gm_authFailure — called by Google Maps API on auth failure.
-  //    Run the expensive text scan here (not in polling).
+  // ── 3. gm_authFailure override ───────────────────────────────────────────
+  //   Called by Maps API on auth failure. Run expensive scan here.
   (window as any).gm_authFailure = function () {
     hideByTextContent();
-    [50, 200, 500, 1000, 2000, 3000].forEach(ms =>
+    [50, 150, 300, 600, 1000, 2000, 4000].forEach(ms =>
       setTimeout(hideByTextContent, ms)
     );
   };
 
-  // 2. MutationObserver — class-based only (cheap).
-  //    Debounced so rapid React re-renders don't spam it.
+  // ── 4. MutationObserver — no debounce for childList (hideByClass is cheap)
   if (typeof MutationObserver !== 'undefined') {
-    let _debounce: ReturnType<typeof setTimeout> | null = null;
-    const _obs = new MutationObserver(() => {
-      if (_debounce) clearTimeout(_debounce);
-      _debounce = setTimeout(hideByClass, 80);
+    const _obs = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.addedNodes.length > 0) {
+          hideByClass(); // run immediately, not debounced
+          return;
+        }
+      }
     });
     const startObs = () =>
       _obs.observe(document.documentElement, { childList: true, subtree: true });
@@ -82,10 +108,9 @@ if (typeof window !== 'undefined') {
     }
   }
 
-  // 3. Light polling — class-based only, every 500ms for first 20s.
-  //    Runs only if class-based elements are actually found (avoids extra work).
+  // ── 5. Light polling — class-based only, every 500ms for first 30s ───────
   const _poll = setInterval(hideByClass, 500);
-  setTimeout(() => clearInterval(_poll), 20000);
+  setTimeout(() => clearInterval(_poll), 30000);
 }
 
 export {};
