@@ -384,3 +384,16 @@
   background-image: radial-gradient(circle, rgba(232, 120, 108, 0.08) 1.2px, transparent 1.2px);
   background-size: 22px 22px;
 }
+
+/* ─── Suppress Google Maps auth error dialog (Capacitor iOS) ─────────────── */
+/* Using CSS is the most reliable approach — applied before any JS runs.      */
+/* Hiding (not removing) keeps Maps from recreating the dialog.               */
+.gm-err-container,
+.gm-err-dialog,
+.gm-err-autocomplete,
+[class*="gm-err"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
