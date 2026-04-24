@@ -21,7 +21,7 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_MAPS_API_KEY': JSON.stringify(process.env.Maps_API_KEY ?? ''),
     'import.meta.env.VITE_IS_CAPACITOR': JSON.stringify('true'),
-    'import.meta.env.VITE_STRIPE_PK': JSON.stringify(process.env.STRIPE_PUBLISHABLE_KEY ?? ''),
+    'import.meta.env.VITE_STRIPE_PK': JSON.stringify(process.env.STRIPE_PUBLISHABLE_KEY ?? "pk_live_51TCspv2dGOazl8RiQ1qqScKCjyQEaYxFTVf5lI5gYJkIPuKMwLI81T4q5FV8sVKzT12LoilMhM15gOGknbg8alrs00c8uepepr"),
     'import.meta.env.VITE_BASE_URL': JSON.stringify('/'),
     'import.meta.env.VITE_API_BASE': JSON.stringify('https://food-rescue-map--Tatsuya0906.replit.app'),
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(
