@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Loader2, Database, RefreshCw, PlusCircle, Trash2 } from 'lucide-react';
+import { API_BASE } from '@/lib/api-base';
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const BASE = API_BASE;
 
 type TableStatus = 'idle' | 'loading' | 'ok' | 'error';
 type TableResult = { [key: string]: string };

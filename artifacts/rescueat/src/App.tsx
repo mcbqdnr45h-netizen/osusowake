@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import { useAppSettings } from "@/hooks/use-app-settings";
 import MaintenancePage from "./pages/MaintenancePage";
 import { listStores, getListStoresQueryKey, listAllBags, getListAllBagsQueryKey } from "@workspace/api-client-react";
+import { API_BASE } from "@/lib/api-base";
 
 // ── クリティカルパス：初回表示に必要なページは eager import ──
 import Home from "./pages/Home";
@@ -312,7 +313,7 @@ function RoleReconciler() {
   const { stores, loading: storesLoading } = useMyStoresContext();
   const fixedRef = useRef(false);
   const retryCountRef = useRef(0);
-  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
+  const BASE = API_BASE;
 
   useEffect(() => {
     // 両方の読み込みが完了するまで待つ
