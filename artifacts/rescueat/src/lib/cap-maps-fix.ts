@@ -3,9 +3,10 @@
 // This file MUST be imported FIRST in main.tsx so it sets up gm_authFailure
 // and the MutationObserver before any map component is rendered.
 //
-// Strategy: Match dialog by TEXT CONTENT (not class names) so it works even
-// if Google changes the dialog DOM structure. Hide elements (don't remove)
-// to prevent Maps from recreating them.
+// Strategy:
+//   - Hide by CSS class (cheap) for polling + MutationObserver.
+//   - Hide by text content (expensive) ONLY when gm_authFailure fires.
+//   - No aggressive querySelectorAll('div,...') on every tick — that crashed iOS.
 // ──────────────────────────────────────────────────────────────────────────
 
 const ERROR_TEXT_FRAGMENTS = [
@@ -15,32 +16,38 @@ const ERROR_TEXT_FRAGMENTS = [
   'website owner of this site',
 ];
 
-const HIDE_STYLE = 'display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;';
+const HIDE_CSS =
+  'display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;';
 
-function _hide(el: Element | null) {
+function _hideEl(el: Element | null) {
   if (!el) return;
   try {
-    (el as HTMLElement).style.cssText = ((el as HTMLElement).style.cssText || '') + ';' + HIDE_STYLE;
+    (el as HTMLElement).style.cssText =
+      ((el as HTMLElement).style.cssText || '') + ';' + HIDE_CSS;
   } catch (_) { /* ignore */ }
 }
 
-function findAndHideMapsError() {
+// Cheap: only class-name based — safe to run frequently.
+function hideByClass() {
   try {
-    // Strategy 1: Hide by class name (covers gm-err-container, gm-err-dialog, etc.)
-    document.querySelectorAll('[class*="gm-err"]').forEach(_hide);
+    document.querySelectorAll<HTMLElement>(
+      '[class*="gm-err"], .gm-err-container, .gm-err-dialog, .gm-err-autocomplete'
+    ).forEach(_hideEl);
+  } catch (_) { /* ignore */ }
+}
 
-    // Strategy 2: Find by TEXT CONTENT — works even if class names changed
-    const candidates = document.querySelectorAll('div, dialog, section, aside, article');
+// Expensive: text-content scan — called only when gm_authFailure fires.
+function hideByTextContent() {
+  try {
+    hideByClass();
+    const candidates = document.querySelectorAll('div[class], dialog, aside');
     for (const el of candidates) {
       const text = el.textContent || '';
-      // Skip very long texts (the entire body) and empty texts
-      if (text.length === 0 || text.length > 1000) continue;
-      // Match if any of the error text fragments are in this element
+      if (text.length === 0 || text.length > 800) continue;
       if (ERROR_TEXT_FRAGMENTS.some(t => text.includes(t))) {
-        // Hide this element AND walk up the DOM to hide its container
         let target: Element | null = el;
         for (let i = 0; i < 6 && target && target !== document.body; i++) {
-          _hide(target);
+          _hideEl(target);
           target = target.parentElement;
         }
       }
@@ -49,30 +56,36 @@ function findAndHideMapsError() {
 }
 
 if (typeof window !== 'undefined') {
-  // 1. gm_authFailure — called by Google Maps API on auth failure
+  // 1. gm_authFailure — called by Google Maps API on auth failure.
+  //    Run the expensive text scan here (not in polling).
   (window as any).gm_authFailure = function () {
-    findAndHideMapsError();
-    // Run repeatedly because Maps may render the dialog AFTER calling gm_authFailure
-    [10, 50, 100, 200, 500, 1000, 2000, 3000].forEach(ms =>
-      setTimeout(findAndHideMapsError, ms)
+    hideByTextContent();
+    [50, 200, 500, 1000, 2000, 3000].forEach(ms =>
+      setTimeout(hideByTextContent, ms)
     );
   };
 
-  // 2. MutationObserver — catch dialog as soon as it's added to DOM
+  // 2. MutationObserver — class-based only (cheap).
+  //    Debounced so rapid React re-renders don't spam it.
   if (typeof MutationObserver !== 'undefined') {
-    const _obs = new MutationObserver(() => findAndHideMapsError());
-    if (document.documentElement) {
+    let _debounce: ReturnType<typeof setTimeout> | null = null;
+    const _obs = new MutationObserver(() => {
+      if (_debounce) clearTimeout(_debounce);
+      _debounce = setTimeout(hideByClass, 80);
+    });
+    const startObs = () =>
       _obs.observe(document.documentElement, { childList: true, subtree: true });
+    if (document.documentElement) {
+      startObs();
     } else {
-      document.addEventListener('DOMContentLoaded', () => {
-        _obs.observe(document.documentElement, { childList: true, subtree: true });
-      });
+      document.addEventListener('DOMContentLoaded', startObs);
     }
   }
 
-  // 3. Aggressive polling for first 30 seconds — catches anything the observer misses
-  const _poll = setInterval(findAndHideMapsError, 100);
-  setTimeout(() => clearInterval(_poll), 30000);
+  // 3. Light polling — class-based only, every 500ms for first 20s.
+  //    Runs only if class-based elements are actually found (avoids extra work).
+  const _poll = setInterval(hideByClass, 500);
+  setTimeout(() => clearInterval(_poll), 20000);
 }
 
 export {};
