@@ -16,7 +16,8 @@ import { format, parseISO } from 'date-fns';
 import { WalkTime } from '@/components/WalkTime';
 import { useUserLocation, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 const REPORT_TYPES = [
   { value: 'closed', label: '閉店している' },

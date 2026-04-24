@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 import {
   Package, Store, Clock, QrCode,
   ChevronRight, Home, Copy, Check, Sparkles, Receipt,
@@ -45,7 +47,7 @@ export default function CheckoutSuccess() {
 
   useEffect(() => {
     if (!sessionId || !reservationId) { setLoading(false); return; }
-    fetch(`/api/checkout/verify?session_id=${sessionId}&reservation_id=${reservationId}`)
+    fetch(`${BASE}/api/checkout/verify?session_id=${sessionId}&reservation_id=${reservationId}`)
       .then(r => r.json())
       .then((data) => { setReceipt(data); setLoading(false); })
       .catch(() => setLoading(false));

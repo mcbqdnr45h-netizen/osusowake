@@ -5,7 +5,8 @@ import { Layout } from '@/components/Layout';
 import { useGetStore, useListAllBags } from '@workspace/api-client-react';
 import { ArrowLeft, MapPin, Clock, Star, Navigation, ChevronRight, ExternalLink, Package } from 'lucide-react';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 const CATEGORY_LABEL: Record<string, string> = {
   meals:          'お食事',

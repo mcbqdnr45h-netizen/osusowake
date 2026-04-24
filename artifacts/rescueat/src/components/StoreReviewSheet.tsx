@@ -4,7 +4,8 @@ import { Star, X, MessageSquare, ChevronDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 interface Review {
   id: number;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_BASE } from '@/lib/api-base';
 import { StoreLayout } from '@/components/StoreLayout';
 import { Layout } from '@/components/Layout';
 import { useMyStores } from '@/hooks/use-my-stores';
@@ -1240,7 +1241,7 @@ export default function StoreDashboard() {
     }, open ? 50 : 0);
   }
 
-  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+  const BASE = API_BASE;
 
   const { data: reservations = [], isLoading: resLoading, refetch } =
     useListReservations({ storeId: storeId ?? 0 }, { query: { enabled: !!storeId } });

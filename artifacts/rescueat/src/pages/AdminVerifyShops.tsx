@@ -36,7 +36,8 @@ interface AdminReport {
   createdAt: string;
 }
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 async function fetchAllAdminStores(): Promise<AdminStore[]> {
   const res = await fetch(`${BASE}/api/admin/stores`);

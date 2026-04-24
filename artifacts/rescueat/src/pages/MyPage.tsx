@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE } from '@/lib/api-base';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
@@ -33,7 +34,7 @@ export default function MyPage() {
   const co2Saved       = +(pickedUpCount * 2.5).toFixed(1);
 
   // ── Stripe ライブステータス（payouts_enabled を DB 固定値ではなく API から取得）──
-  const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+  const BASE_URL = API_BASE;
   const storeId = store?.id;
   const { data: stripeStatus } = useQuery<{
     connected: boolean;
@@ -503,7 +504,7 @@ export default function MyPage() {
               <button
                 onClick={async () => {
                   if (!storeId) return;
-                  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+                  const BASE = API_BASE;
                   await fetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, { method: 'POST' });
                   navigate('/store/bank-setup');
                 }}

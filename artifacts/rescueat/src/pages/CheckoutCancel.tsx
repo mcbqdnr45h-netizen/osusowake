@@ -1,12 +1,13 @@
 import React from 'react';
 import { XCircle, ArrowLeft, RotateCcw } from 'lucide-react';
+import { API_BASE } from '@/lib/api-base';
 import { motion } from 'framer-motion';
 
 export default function CheckoutCancel() {
   const params = new URLSearchParams(window.location.search);
   const reservationId = params.get('reservation_id');
 
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+  const base = API_BASE;
   const origin = window.location.origin;
 
   const handleRetry = () => {

@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 const STRIPE_FIELD_JA: Record<string, string> = {
   'individual.first_name_kana':          '代表者の名前（カナ）',
@@ -477,7 +478,8 @@ export default function AdminDashboard() {
 
   async function disconnectStripe(storeId: number, storeName: string) {
     if (!confirm(`「${storeName}」のStripe口座連携を解除しますか？\n\n⚠️ 注意：保留中・振込可能の残高がある場合、その金額は旧銀行口座に振り込まれます。旧口座が閉鎖済みの場合は振込失敗のリスクがあります。\n\n残高¥0を確認してから実行することを推奨します。`)) return;
-    const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+    import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
     try {
       const res = await fetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, { method: 'POST' });
       if (res.ok) {

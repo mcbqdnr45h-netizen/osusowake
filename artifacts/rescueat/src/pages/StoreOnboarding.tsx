@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 const CATEGORY_OPTIONS = [
   { value: 'meals',         label: '料理・お惣菜',  emoji: '🍱' },

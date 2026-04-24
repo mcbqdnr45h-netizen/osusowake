@@ -31,7 +31,8 @@ function getBrandMeta(brand: string) {
   return BRAND_META[brand] ?? { label: brand.toUpperCase(), color: 'from-slate-600 to-slate-800', textColor: 'text-slate-100' };
 }
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 function CreditCardWidget({ card, onDelete, deleting }: {
   card: SavedCard;

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 export interface AppNotification {
   id: number;

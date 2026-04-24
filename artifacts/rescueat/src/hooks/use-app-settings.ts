@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE } from '@/lib/api-base';
 
 export interface AppSettings {
   catchphrase: string;
@@ -26,7 +27,7 @@ function notifyAll(s: AppSettings) {
 }
 
 export async function fetchAppSettings(): Promise<AppSettings> {
-  const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+  const BASE_URL = API_BASE;
   try {
     const res = await fetch(`${BASE_URL}/api/settings`);
     if (!res.ok) return DEFAULTS;

@@ -6,7 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Star, MessageSquare, Send, Package2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 type OwnerReview = {
   id: number;

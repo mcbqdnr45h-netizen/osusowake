@@ -7,7 +7,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { StoreLayout } from '@/components/StoreLayout';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 const CATEGORIES = [
   { value: 'restaurant',    label: '飲食店・レストラン' },

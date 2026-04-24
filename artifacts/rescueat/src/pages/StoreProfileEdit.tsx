@@ -7,7 +7,8 @@ import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, M
 import { TimePicker } from '@/components/TimePicker';
 import { motion } from 'framer-motion';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 const CATEGORY_OPTIONS = [
   { value: 'meals',         label: '料理・お惣菜',  emoji: '🍱' },

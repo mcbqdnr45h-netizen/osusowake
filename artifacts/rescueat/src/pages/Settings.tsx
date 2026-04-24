@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '@/lib/api-base';
 import { Layout } from '@/components/Layout';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
@@ -309,7 +310,7 @@ export default function Settings() {
       const session = await import('@/lib/supabase').then(m => m.supabase.auth.getSession());
       const token = session.data.session?.access_token;
       if (token && displayName.trim()) {
-        const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
+        const base = API_BASE;
         const res = await fetch(`${base}/api/user/display-name`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -358,7 +359,7 @@ export default function Settings() {
       const token = session?.access_token;
       if (!token) throw new Error('ログインセッションが切れています。再ログインしてください。');
 
-      const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
+      const base = API_BASE;
       const res = await fetch(`${base}/api/user/account`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },

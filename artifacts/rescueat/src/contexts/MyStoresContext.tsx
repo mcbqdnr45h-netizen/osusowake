@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 const CACHE_KEY_PREFIX = 'osusowake_myStores_v1_';
 const SELECTED_STORE_KEY_PREFIX = 'osusowake_selectedStore_v1_';
 

@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { ImagePlus, X, RefreshCw, AlertCircle } from 'lucide-react';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 interface ImageUploadProps {
   value: string | null;

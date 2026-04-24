@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 import { Layout } from '@/components/Layout';
 import { useGetReservation } from '@workspace/api-client-react';
 import { formatPickupTime } from '@/lib/utils';
@@ -260,7 +262,7 @@ export default function OrderTicket() {
   }, [reservation, ticket, navigate]);
 
   const handleConfirmPickup = useCallback(async () => {
-    const res = await fetch(`/api/reservations/${reservationId}/pickup`, { method: 'POST' });
+    const res = await fetch(`${BASE}/api/reservations/${reservationId}/pickup`, { method: 'POST' });
 
     if (res.status === 409) {
       // 既に使用済み

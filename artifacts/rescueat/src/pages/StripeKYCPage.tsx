@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useAuth } from '@/contexts/AuthContext';
@@ -379,7 +381,7 @@ export default function StripeKYCPage() {
 
     try {
       // ① KYC テキスト情報送信
-      const kycFetch = fetch(`/api/stores/${store.id}/connect/kyc`, {
+      const kycFetch = fetch(`${BASE}/api/stores/${store.id}/connect/kyc`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({
@@ -418,7 +420,7 @@ export default function StripeKYCPage() {
         const preview = side === 'front' ? docFrontPreview : docBackPreview;
         const file    = side === 'front' ? docFrontFile    : docBackFile;
         if (!preview || !file) return Promise.resolve(null);
-        return fetch(`/api/stores/${store.id}/connect/kyc-document`, {
+        return fetch(`${BASE}/api/stores/${store.id}/connect/kyc-document`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader },
           body: JSON.stringify({ imageBase64: preview, mimeType: file.type || 'image/jpeg', side }),
@@ -499,7 +501,7 @@ export default function StripeKYCPage() {
     setDocLoading(side);
     setDocError(null);
     try {
-      const res = await fetch(`/api/stores/${store.id}/connect/kyc-document`, {
+      const res = await fetch(`${BASE}/api/stores/${store.id}/connect/kyc-document`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -794,7 +796,6 @@ export default function StripeKYCPage() {
                   <button
                     type="button"
                     onClick={async () => {
-                      const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
                       await fetch(`${BASE}/api/stores/${store.id}/stripe-disconnect`, { method: 'POST' });
                       navigate('/store/bank-setup');
                     }}

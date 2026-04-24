@@ -16,7 +16,8 @@ import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { BagManageCard, getBagStatus, type Bag, type BagRealStatus } from '@/components/BagManageCard';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 export default function StoreBagsPage() {
   const queryClient = useQueryClient();

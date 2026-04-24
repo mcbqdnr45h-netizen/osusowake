@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Flag, MapPin, Store, FileText, ChevronLeft, CheckCircle, SendHorizontal } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 export default function SalesLeadForm() {
   const [, navigate] = useLocation();

@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { useAuth } from '@/contexts/AuthContext';
 
 const GUEST_KEY = 'rescueat_favorites_v1_guest';
-const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+import { API_BASE } from '@/lib/api-base';
+const BASE_URL = API_BASE;
 
 function getUserKey(userId: string | null): string {
   return userId ? `rescueat_favorites_v1_${userId}` : GUEST_KEY;

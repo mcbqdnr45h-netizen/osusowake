@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { API_BASE } from '@/lib/api-base';
 import { Layout } from '@/components/Layout';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import { useListAllBags, useListReservations, SurpriseBagWithStore } from '@workspace/api-client-react';
@@ -267,7 +268,7 @@ export default function Home() {
   const [announcement, setAnnouncement]         = useState<{ id: number; title: string; body: string } | null>(null);
   const [annDismissed, setAnnDismissed]         = useState(false);
   useEffect(() => {
-    const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+    const BASE_URL = API_BASE;
     fetch(`${BASE_URL}/api/announcements?limit=1`)
       .then(r => r.ok ? r.json() : [])
       .then((list: { id: number; title: string; body: string }[]) => {

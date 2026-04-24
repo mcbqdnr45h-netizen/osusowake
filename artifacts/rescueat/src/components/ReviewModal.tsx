@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Star, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+import { API_BASE } from '@/lib/api-base';
+const BASE = API_BASE;
 
 export interface ReviewTarget {
   id: number;

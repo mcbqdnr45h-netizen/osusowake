@@ -17,10 +17,12 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 
+import { API_BASE } from '@/lib/api-base';
+
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
 
 const HOLD_MINUTES = 5;
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const BASE = API_BASE;
 
 function useCountdown(createdAt: string | Date | undefined, status: string | undefined) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -99,7 +101,7 @@ function PaymentForm({
       }
 
       if (result.paymentIntent?.status === 'succeeded') {
-        await fetch('/api/payment/confirm', {
+        await fetch(`${BASE}/api/payment/confirm`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -270,7 +272,7 @@ export default function Checkout() {
     if (!reservation || reservation.paymentStatus === 'paid' || clientSecret || creatingIntent.current) return;
     creatingIntent.current = true;
 
-    fetch('/api/payment/create-intent', {
+    fetch(`${BASE}/api/payment/create-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reservationId, userId: user?.id }),
