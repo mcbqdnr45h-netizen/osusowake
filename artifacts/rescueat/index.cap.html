@@ -10,9 +10,14 @@
     <style>
       body { margin: 0; background: #fdf8f3; }
       #root { min-height: 100dvh; }
-      .gm-err-container,.gm-err-dialog,[class*="gm-err"] {
+      /* Hide Google Maps error dialog — keep in DOM (removing causes Maps to recreate it) */
+      .gm-err-container,
+      .gm-err-dialog,
+      [class*="gm-err"] {
         display: none !important;
+        visibility: hidden !important;
         pointer-events: none !important;
+        opacity: 0 !important;
       }
     </style>
   </head>
@@ -27,25 +32,28 @@
       </div>
     </div>
     <script>
-      /* Must run BEFORE module script — intercepts Maps auth failure dialog */
-      function _removeGmErr() {
+      /* Runs before module script. HIDE (not remove) error elements so Maps
+         doesn't detect them missing and recreate them. */
+      function _hideGmErr() {
         try {
-          document.querySelectorAll('[class*="gm-err"]').forEach(function(el) { el.remove(); });
-          document.querySelectorAll('.gm-style button').forEach(function(btn) {
-            if (btn.textContent && btn.textContent.trim() === 'OK') btn.click();
+          document.querySelectorAll('[class*="gm-err"]').forEach(function(el) {
+            el.style.setProperty('display', 'none', 'important');
+            el.style.setProperty('visibility', 'hidden', 'important');
+            el.style.setProperty('pointer-events', 'none', 'important');
+            el.style.setProperty('opacity', '0', 'important');
           });
         } catch(e) {}
       }
       window.gm_authFailure = function() {
-        _removeGmErr();
-        setTimeout(_removeGmErr, 100);
-        setTimeout(_removeGmErr, 500);
-        setTimeout(_removeGmErr, 1000);
+        _hideGmErr();
+        setTimeout(_hideGmErr, 50);
+        setTimeout(_hideGmErr, 200);
+        setTimeout(_hideGmErr, 500);
       };
-      var _gmObs = new MutationObserver(function() { _removeGmErr(); });
+      var _gmObs = new MutationObserver(function() { _hideGmErr(); });
       _gmObs.observe(document.documentElement, { childList: true, subtree: true });
       var _gmPoll = setInterval(function() {
-        if (document.querySelectorAll('[class*="gm-err"]').length > 0) _removeGmErr();
+        if (document.querySelectorAll('[class*="gm-err"]').length > 0) _hideGmErr();
       }, 200);
       setTimeout(function() { clearInterval(_gmPoll); }, 30000);
     </script>
