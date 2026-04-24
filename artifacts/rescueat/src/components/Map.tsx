@@ -613,7 +613,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           </div>
 
           {/* カスタムズームボタン */}
-          <div className="absolute bottom-[124px] right-3 z-10 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
+          <div className="absolute bottom-[60px] right-3 z-10 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
             style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
             <button
               onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) + 1)}
@@ -631,7 +631,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           <button
             onClick={handleLocate}
             aria-label={locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地を表示'}
-            className={`absolute bottom-20 right-2 z-10 w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
+            className={`absolute bottom-3 right-2 z-10 w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
               ${userPos
                 ? 'bg-white border border-primary/25 text-primary'
                 : 'bg-white border border-gray-200/80 text-gray-500'
@@ -646,7 +646,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
           {/* 凡例バッジ（オレンジ店舗のみカウント）*/}
           {(visibleListingCount > 0 || listingStores.length > 0) && (
-            <div className="absolute bottom-20 left-3 z-10 bg-white/96 backdrop-blur-sm rounded-2xl px-3 py-2 flex items-center gap-2 border border-gray-100/80"
+            <div className="absolute bottom-3 left-3 z-10 bg-white/96 backdrop-blur-sm rounded-2xl px-3 py-2 flex items-center gap-2 border border-gray-100/80"
               style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#FA9455,#D44A00)' }} />
