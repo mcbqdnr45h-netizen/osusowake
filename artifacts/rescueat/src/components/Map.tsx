@@ -323,6 +323,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           styles: MAP_STYLES,
           clickableIcons: false,
           backgroundColor: '#f2f0eb',
+          keyboardShortcuts: false,
+          fullscreenControl: false,
+          streetViewControl: false,
+          rotateControl: false,
+          scaleControl: false,
         });
 
         mapRef.current = map;

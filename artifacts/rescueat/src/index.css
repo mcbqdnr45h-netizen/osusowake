@@ -397,3 +397,16 @@
   pointer-events: none !important;
   opacity: 0 !important;
 }
+
+/* ─── Hide Google Maps logo and attribution bar ─────────────────────────── */
+/* (User-requested removal of Google branding from map UI)                   */
+.gm-style-cc,
+a[href^="https://maps.google.com/maps"],
+a[href^="https://www.google.com/maps"],
+a[rel="noopener"][title*="Google"],
+.gm-style > div:last-child > a[target="_blank"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}

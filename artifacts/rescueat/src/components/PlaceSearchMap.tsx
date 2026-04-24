@@ -83,6 +83,11 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
           mapTypeControl: false,
           gestureHandling: 'greedy',
           clickableIcons: false,
+          keyboardShortcuts: false,
+          fullscreenControl: false,
+          streetViewControl: false,
+          rotateControl: false,
+          scaleControl: false,
           styles: [
             { featureType: 'poi',       stylers: [{ visibility: 'off' }] },
             { featureType: 'transit',   stylers: [{ visibility: 'simplified' }] },
