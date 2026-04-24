@@ -1,60 +1,52 @@
-// In Capacitor builds, the domain-restricted key causes a blocking error dialog.
-// We intentionally skip the key (shows "development purposes only" watermark but
-// the map functions correctly). In web builds the full key is used.
+// In Capacitor, the domain-restricted key shows the auth error dialog.
+// We use an empty key (shows "development purposes only" watermark but map works).
 export const MAPS_API_KEY = (import.meta.env.VITE_IS_CAPACITOR === 'true')
   ? ''
   : ((import.meta.env.VITE_MAPS_API_KEY as string) || '');
 
-// ─── Capacitor: Suppress Google Maps auth failure dialog (triple approach) ───
+// ─── Capacitor: Suppress Google Maps auth failure dialog ───────────────────
 if (import.meta.env.VITE_IS_CAPACITOR === 'true') {
 
-  // 1. gm_authFailure — official Maps API hook; also actively hides any dialog
-  (window as any).gm_authFailure = function () {
+  function _removeGmErrElements() {
     try {
-      // Hide all gm-err-* elements
       document.querySelectorAll<HTMLElement>(
         '[class*="gm-err"], .gm-err-container, .gm-err-dialog, .gm-err-autocomplete'
-      ).forEach(el => el.style.setProperty('display', 'none', 'important'));
+      ).forEach(el => el.remove());
 
-      // Auto-click every "OK" button that appears inside a .gm-style map container
-      document.querySelectorAll('.gm-style button').forEach(btn => {
-        if ((btn as HTMLElement).textContent?.trim() === 'OK') {
-          (btn as HTMLButtonElement).click();
-        }
+      // Also auto-click any stray OK buttons inside .gm-style
+      document.querySelectorAll<HTMLButtonElement>('.gm-style button').forEach(btn => {
+        if (btn.textContent?.trim() === 'OK') btn.click();
       });
     } catch (_) { /* ignore */ }
+  }
+
+  // 1. gm_authFailure hook — called by Maps API on auth failure
+  (window as any).gm_authFailure = function () {
+    _removeGmErrElements();
+    setTimeout(_removeGmErrElements, 100);
+    setTimeout(_removeGmErrElements, 500);
   };
 
-  // 2. Preemptive CSS — hides dialog before JS cleanup fires
+  // 2. Preemptive CSS — hides dialog immediately before JS cleanup fires
   const _gmStyle = document.createElement('style');
   _gmStyle.textContent = [
-    /* standard class names */
-    '.gm-err-container, .gm-err-dialog, .gm-err-autocomplete { display: none !important; }',
-    /* wildcard — catches renamed variants in newer weekly builds */
-    '[class*="gm-err"] { display: none !important; }',
-    /* z-index 1000 overlay inside gm-style (fallback) */
-    'div.gm-style > div[style*="z-index: 1000"] { display: none !important; }',
-    'div.gm-style > div > div[style*="z-index: 1000"] { display: none !important; }',
+    '.gm-err-container,.gm-err-dialog,.gm-err-autocomplete{display:none!important;pointer-events:none!important;}',
+    '[class*="gm-err"]{display:none!important;pointer-events:none!important;}',
   ].join('\n');
   document.head.appendChild(_gmStyle);
 
-  // 3. MutationObserver — catches dynamically inserted dialog nodes
-  const _gmObserver = new MutationObserver(() => {
-    try {
-      // Hide gm-err-* elements
-      document.querySelectorAll<HTMLElement>(
-        '[class*="gm-err"], .gm-err-container'
-      ).forEach(el => el.style.setProperty('display', 'none', 'important'));
-
-      // Auto-click "OK" inside any map container
-      document.querySelectorAll('.gm-style').forEach(container => {
-        container.querySelectorAll<HTMLButtonElement>('button').forEach(btn => {
-          if (btn.textContent?.trim() === 'OK') btn.click();
-        });
-      });
-    } catch (_) { /* ignore */ }
-  });
+  // 3. MutationObserver — removes dialog nodes as soon as they appear in DOM
+  const _gmObserver = new MutationObserver(() => _removeGmErrElements());
   _gmObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+  // 4. Polling backup — every 200ms for first 30s
+  const _poll = setInterval(() => {
+    const found = document.querySelectorAll('[class*="gm-err"], .gm-err-container');
+    if (found.length > 0) {
+      _removeGmErrElements();
+    }
+  }, 200);
+  setTimeout(() => clearInterval(_poll), 30000);
 }
 
 const SCRIPT_ID = 'rescueat-google-maps';
