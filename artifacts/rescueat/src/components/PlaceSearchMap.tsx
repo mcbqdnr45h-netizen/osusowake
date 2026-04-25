@@ -109,10 +109,10 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
     });
     mapRef.current = map;
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>',
-      maxZoom: 19,
+        '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',
+      maxZoom: 18,
     }).addTo(map);
 
     if (hasInitial) {
@@ -144,12 +144,14 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
     if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
     if (suggestAbortRef.current) suggestAbortRef.current.abort();
 
-    if (q.length < 2) {
+    if (q.length < 1) {
       setSuggestions([]);
+      setShowSuggestions(false);
       setSuggestLoading(false);
       return;
     }
 
+    setShowSuggestions(true);
     setSuggestLoading(true);
     suggestTimerRef.current = setTimeout(async () => {
       const ac = new AbortController();
@@ -326,26 +328,32 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
         </button>
 
         {/* オートコンプリート候補 */}
-        {showSuggestions && suggestions.length > 0 && (
+        {showSuggestions && searchQuery.trim().length >= 1 && (
           <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-primary/30 rounded-xl shadow-lg z-[500] max-h-64 overflow-y-auto">
-            {suggestions.map((sug) => (
-              <button
-                key={sug.place_id}
-                type="button"
-                onClick={() => applySuggestion(sug)}
-                className="w-full text-left px-3 py-2.5 hover:bg-primary/5 active:bg-primary/10 border-b border-gray-100 last:border-0 flex items-start gap-2"
-              >
-                <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <span className="text-sm text-gray-800 leading-snug break-words">
-                  {sug.display_name}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-        {showSuggestions && suggestLoading && suggestions.length === 0 && searchQuery.trim().length >= 2 && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-primary/30 rounded-xl shadow-lg z-[500] px-3 py-2.5 text-sm text-gray-500 flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> 候補を検索中...
+            {suggestLoading ? (
+              <div className="px-3 py-2.5 text-sm text-gray-500 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> 候補を検索中...
+              </div>
+            ) : suggestions.length === 0 ? (
+              <div className="px-3 py-3 text-sm text-gray-500">
+                該当する場所が見つかりませんでした。<br />
+                <span className="text-xs text-gray-400">例:「梅田駅」「大阪市北区」「東京タワー」</span>
+              </div>
+            ) : (
+              suggestions.map((sug) => (
+                <button
+                  key={sug.place_id}
+                  type="button"
+                  onClick={() => applySuggestion(sug)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-primary/5 active:bg-primary/10 border-b border-gray-100 last:border-0 flex items-start gap-2"
+                >
+                  <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span className="text-sm text-gray-800 leading-snug break-words">
+                    {sug.display_name}
+                  </span>
+                </button>
+              ))
+            )}
           </div>
         )}
       </div>
