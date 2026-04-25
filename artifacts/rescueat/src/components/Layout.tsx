@@ -264,18 +264,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
       <main className="flex-1 min-h-0 w-full relative flex flex-col">
-        <AnimatePresence>
-          <motion.div
-            key={location}
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -5 }}
-            transition={{ duration: 0.20, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 flex flex-col w-full min-w-0"
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        <div key={location} className="flex-1 flex flex-col w-full min-w-0">
+          {children}
+        </div>
       </main>
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
