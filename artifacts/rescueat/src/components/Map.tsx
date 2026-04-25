@@ -7,7 +7,7 @@ import { LocateFixed, AlertTriangle, Layers } from 'lucide-react';
 
 import { updateCachedCoords, TAKATSUKI_STATION } from '@/hooks/use-user-location';
 
-const MAP_BUILD_TAG = 'leaflet-osm-v3';
+const MAP_BUILD_TAG = 'leaflet-v4';
 
 // ── バッグ情報（ピン色判定用）────────────────────────────────────────────────
 export interface BagMapInfo {

@@ -235,7 +235,13 @@ function AnimatedRoutes() {
             initial="initial"
             animate="animate"
             exit="exit"
-            style={{ display: 'contents' }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              flex: '1 1 auto',
+              minHeight: '100dvh',
+              width: '100%',
+            }}
           >
             <Switch>
               {/* ── パブリックページ ── */}
