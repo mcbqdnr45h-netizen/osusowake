@@ -11,7 +11,7 @@ import {
   RotateCcw, Apple, Fish, UtensilsCrossed, GlassWater, Gift,
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useUserLocation, updateCachedCoords, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 
@@ -457,9 +457,20 @@ export default function SearchPage() {
   // キャッシュ済み現在地（GPSボタン押下済みなら即座に利用可能）
   const { coords: cachedCoords } = useUserLocation();
 
+  const [location] = useLocation();
+
   const [inputValue,    setInputValue]    = useState('');
   const [query,         setQuery]         = useState('');
-  const [view,          setView]          = useState<ViewMode>('map');
+  const [view,          setView]          = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/search') return 'list';
+    return 'map';
+  });
+
+  // URL に応じて view を強制同期（/map → map, /search → list）
+  useEffect(() => {
+    if (location === '/map' && view !== 'map') setView('map');
+    if (location === '/search' && view !== 'list') setView('list');
+  }, [location]);
   const [category,      setCategory]      = useState('');
   const [sort,          setSort]          = useState<SortKey>('default');
   const [inStockOnly,   setInStockOnly]   = useState(false);
