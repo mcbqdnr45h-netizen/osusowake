@@ -11,16 +11,32 @@
       html, body { margin: 0; padding: 0; height: 100%; background: #fdf8f3; }
       #root { min-height: 100dvh; height: 100%; display: flex; flex-direction: column; }
       #cap-build-stamp {
-        position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
-        background: #F26419; color: white;
-        font: 700 10px -apple-system, sans-serif;
-        text-align: center; padding: 2px 4px;
+        position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; z-index: 2147483647;
+        background: #DC2626; color: white;
+        font: 800 14px -apple-system, sans-serif;
+        text-align: center; padding: 8px 6px;
         pointer-events: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        letter-spacing: 0.5px;
       }
     </style>
   </head>
   <body>
-    <div id="cap-build-stamp">BUILD v4 · iOS-fix · 2026-04-25</div>
+    <div id="cap-build-stamp">BUILD __BUILD_STAMP__</div>
+    <script>
+      // 古いサービスワーカーを強制削除
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.unregister(); });
+        }).catch(function(){});
+      }
+      // キャッシュも全部消す
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(k) { caches.delete(k); });
+        }).catch(function(){});
+      }
+    </script>
     <div id="root">
       <div id="pre-react" style="position:fixed;inset:0;background:#fdf8f3;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;">
         <div style="width:64px;height:64px;background:#F26419;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 4px 20px rgba(242,100,25,0.3);">

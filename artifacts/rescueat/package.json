@@ -8,7 +8,7 @@
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build:cap": "vite build --config vite.config.cap.ts && mv dist-cap/index.cap.html dist-cap/index.html",
+    "build:cap": "vite build --config vite.config.cap.ts && mv dist-cap/index.cap.html dist-cap/index.html && node -e \"const fs=require('fs');const p='dist-cap/index.html';const s=new Date().toISOString().replace('T',' ').slice(0,16)+' UTC';fs.writeFileSync(p,fs.readFileSync(p,'utf8').replace('__BUILD_STAMP__',s));console.log('[build:cap] stamped:',s);\" && rm -f dist-cap/sw.js",
     "cap:gen-assets": "npx @capacitor/assets generate --iconBackgroundColor '#F26419' --iconBackgroundColorDark '#F26419' --splashBackgroundColor '#FBFBFA' --splashBackgroundColorDark '#1a1a1a'",
     "cap:sync": "pnpm run build:cap && npx cap sync ios",
     "cap:open": "npx cap open ios",
