@@ -71,7 +71,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
   return (
     <div
-      className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen'} md:!pb-0 bg-background text-foreground flex flex-col font-sans overflow-x-hidden`}
+      className={`${hideFooter ? 'h-screen overflow-hidden' : 'min-h-screen'} md:!pb-0 bg-background text-foreground flex flex-col font-sans overflow-x-hidden`}
       style={showBottomNav ? { paddingBottom: (isStoreOwner && showBottomNav) ? 'calc(92px + env(safe-area-inset-bottom))' : 'calc(64px + env(safe-area-inset-bottom))' } : undefined}
     >
 
