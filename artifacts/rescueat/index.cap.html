@@ -10,10 +10,11 @@
     <style>
       body { margin: 0; background: #fdf8f3; }
       #root { min-height: 100dvh; }
-      /* Hide Google Maps error dialog — keep in DOM (removing causes Maps to recreate it) */
+      /* Hide Google Maps error dialog — ONLY specific known classes.
+         DO NOT use [class*="gm-err"] — that hides map tile elements too. */
       .gm-err-container,
       .gm-err-dialog,
-      [class*="gm-err"] {
+      .gm-err-autocomplete {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
@@ -32,11 +33,13 @@
       </div>
     </div>
     <script>
-      /* Runs before module script. HIDE (not remove) error elements so Maps
-         doesn't detect them missing and recreate them. */
+      /* Runs before module script.
+         Only hides specific known error dialog classes.
+         DO NOT query [class*="gm-err"] — it matches tile elements and makes map blank. */
+      var _gmErrSelectors = '.gm-err-container,.gm-err-dialog,.gm-err-autocomplete';
       function _hideGmErr() {
         try {
-          document.querySelectorAll('[class*="gm-err"]').forEach(function(el) {
+          document.querySelectorAll(_gmErrSelectors).forEach(function(el) {
             el.style.setProperty('display', 'none', 'important');
             el.style.setProperty('visibility', 'hidden', 'important');
             el.style.setProperty('pointer-events', 'none', 'important');
@@ -46,16 +49,17 @@
       }
       window.gm_authFailure = function() {
         _hideGmErr();
-        setTimeout(_hideGmErr, 50);
-        setTimeout(_hideGmErr, 200);
-        setTimeout(_hideGmErr, 500);
+        [50, 200, 500, 1000, 2000].forEach(function(ms) {
+          setTimeout(_hideGmErr, ms);
+        });
       };
-      var _gmObs = new MutationObserver(function() { _hideGmErr(); });
+      /* Debounced MutationObserver — prevents overwhelming iOS WebView */
+      var _gmDebounce = null;
+      var _gmObs = new MutationObserver(function() {
+        if (_gmDebounce) clearTimeout(_gmDebounce);
+        _gmDebounce = setTimeout(_hideGmErr, 100);
+      });
       _gmObs.observe(document.documentElement, { childList: true, subtree: true });
-      var _gmPoll = setInterval(function() {
-        if (document.querySelectorAll('[class*="gm-err"]').length > 0) _hideGmErr();
-      }, 200);
-      setTimeout(function() { clearInterval(_gmPoll); }, 30000);
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
