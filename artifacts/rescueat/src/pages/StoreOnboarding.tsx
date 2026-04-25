@@ -315,7 +315,7 @@ export default function StoreOnboarding() {
         )}
 
         <motion.form
-          initial={{ opacity: 0, y: 16 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           onSubmit={handleSubmit}
           noValidate
