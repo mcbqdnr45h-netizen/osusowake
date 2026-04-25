@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState, useImperativeHandle, forwardRef } from 'react';
-import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
-import type { Renderer, Cluster, ClusterStats } from '@googlemaps/markerclusterer';
+import L from 'leaflet';
+import 'leaflet.markercluster';
 import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
 import { LocateFixed, AlertTriangle, Layers } from 'lucide-react';
 
-import { loadGoogleMapsScript } from '@/lib/maps-loader';
 import { updateCachedCoords, TAKATSUKI_STATION } from '@/hooks/use-user-location';
 
 // ── バッグ情報（ピン色判定用）────────────────────────────────────────────────
@@ -18,7 +17,7 @@ export interface BagMapInfo {
 
 // ── 受取時間内かどうかを判定（深夜またぎ対応）─────────────────────────────────
 function isInPickupWindow(start?: string | null, end?: string | null): boolean {
-  if (!start || !end) return true; // 時間制限なし → 常に表示
+  if (!start || !end) return true;
   const now      = new Date();
   const nowMins  = now.getHours() * 60 + now.getMinutes();
   const [sh, sm] = start.split(':').map(Number);
@@ -26,38 +25,24 @@ function isInPickupWindow(start?: string | null, end?: string | null): boolean {
   const startMins = sh * 60 + sm;
   const endMins   = eh * 60 + em;
   if (endMins >= startMins) {
-    // 通常ウィンドウ（例: 18:00〜20:00）
     return nowMins >= startMins && nowMins <= endMins;
   } else {
-    // 深夜またぎ（例: 22:00〜02:00）
     return nowMins >= startMins || nowMins <= endMins;
   }
 }
 
-// ── プロ仕様・超ミニマル Silver マップスタイル ────────────────────────────
-const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry',          stylers: [{ color: '#f2f0eb' }] },
-  { elementType: 'labels.text.fill',  stylers: [{ color: '#b0a898' }] },
-  { elementType: 'labels.text.stroke',stylers: [{ color: '#f2f0eb' }] },
-  { featureType: 'poi',     stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road',                elementType: 'geometry',          stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road',                elementType: 'geometry.stroke',   stylers: [{ color: '#e8e4de' }] },
-  { featureType: 'road',                elementType: 'labels.text.fill',  stylers: [{ color: '#c8c0b8' }] },
-  { featureType: 'road',                elementType: 'labels.text.stroke',stylers: [{ color: '#f2f0eb' }] },
-  { featureType: 'road.highway',        elementType: 'geometry',          stylers: [{ color: '#f0ebe2' }] },
-  { featureType: 'road.highway',        elementType: 'geometry.stroke',   stylers: [{ color: '#ddd8cf' }] },
-  { featureType: 'road.arterial',       elementType: 'labels',            stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.local',          elementType: 'labels',            stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry',stylers: [{ color: '#d8e4ec' }] },
-  { featureType: 'water', elementType: 'labels',  stylers: [{ visibility: 'off' }] },
-  { featureType: 'landscape',       elementType: 'geometry',stylers: [{ color: '#f2f0eb' }] },
-  { featureType: 'landscape.natural',elementType: 'geometry',stylers: [{ color: '#e8ede0' }] },
-  { featureType: 'administrative',             elementType: 'labels',            stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'administrative',             elementType: 'labels.text.fill',  stylers: [{ color: '#c0b8b0' }] },
-  { featureType: 'administrative.locality',    elementType: 'labels.text.fill',  stylers: [{ color: '#a8a098' }] },
-  { featureType: 'administrative.neighborhood',elementType: 'labels',            stylers: [{ visibility: 'off' }] },
-];
+// ── タイルプロバイダ（API キー不要）──────────────────────────────────────────
+const TILE_ROADMAP = {
+  url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 20,
+};
+const TILE_SATELLITE = {
+  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  attribution: 'Tiles &copy; Esri',
+  maxZoom: 19,
+};
 
 // ── オレンジピン（在庫あり・受取時間内）─────────────────────────────────────
 function makeActivePinUrl(category: string): string {
@@ -116,43 +101,53 @@ function makeUserIconUrl(): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-// ── クラスターレンダラー（アクティブ店舗のみ対象）────────────────────────────
-function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
-  return {
-    render: (cluster: Cluster, stats: ClusterStats, _map: google.maps.Map) => {
-      const count  = cluster.count;
-      const maxVal = stats.clusters.markers.max;
+function makeActiveIcon(category: string): L.Icon {
+  return L.icon({
+    iconUrl: makeActivePinUrl(category),
+    iconSize: [52, 66],
+    iconAnchor: [26, 59],
+    popupAnchor: [0, -59],
+  });
+}
+function makeGrayIcon(category: string): L.Icon {
+  return L.icon({
+    iconUrl: makeGrayPinUrl(category),
+    iconSize: [44, 56],
+    iconAnchor: [22, 50],
+    popupAnchor: [0, -50],
+  });
+}
+function makeUserIcon(): L.Icon {
+  return L.icon({
+    iconUrl: makeUserIconUrl(),
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+  });
+}
 
-      const ratio = Math.min(count / Math.max(maxVal, 1), 1);
-      const size  = Math.round(30 + ratio * 10);
-      const half  = size / 2;
-      const r     = half - 2.5;
-
-      const strokeColor = count >= 10 ? '#D44A00' : '#F26419';
-      const fillAlpha   = count >= 10 ? 0.20 : 0.13;
-      const textColor   = count >= 10 ? '#B83D00' : '#D44A00';
-      const fontSize    = count >= 100 ? 9 : count >= 10 ? 10 : 11;
-
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-        <circle cx="${half}" cy="${half}" r="${r + 3.5}" fill="rgba(242,100,25,0.06)"/>
-        <circle cx="${half}" cy="${half}" r="${r}" fill="rgba(242,100,25,${fillAlpha})" stroke="${strokeColor}" stroke-width="1.5"/>
-        <text x="${half}" y="${half + fontSize * 0.38}"
-          text-anchor="middle" font-size="${fontSize}" font-family="'Noto Sans JP','Outfit',sans-serif"
-          font-weight="500" fill="${textColor}">${count}</text>
-      </svg>`;
-
-      return new gMaps.Marker({
-        position: cluster.position,
-        icon: {
-          url:        `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-          scaledSize: new gMaps.Size(size, size),
-          anchor:     new gMaps.Point(half, half),
-        },
-        title:  `${count}店舗`,
-        zIndex: Number(gMaps.Marker.MAX_ZINDEX) + count,
-      });
-    },
-  };
+// ── クラスターアイコン ────────────────────────────────────────────────────
+function clusterIconCreate(cluster: any): L.DivIcon {
+  const count = cluster.getChildCount();
+  const size  = Math.min(40, Math.round(30 + Math.log2(Math.max(count, 1)) * 2.5));
+  const half  = size / 2;
+  const r     = half - 2.5;
+  const strokeColor = count >= 10 ? '#D44A00' : '#F26419';
+  const fillAlpha   = count >= 10 ? 0.20 : 0.13;
+  const textColor   = count >= 10 ? '#B83D00' : '#D44A00';
+  const fontSize    = count >= 100 ? 9 : count >= 10 ? 10 : 11;
+  const html = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${half}" cy="${half}" r="${r + 3.5}" fill="rgba(242,100,25,0.06)"/>
+    <circle cx="${half}" cy="${half}" r="${r}" fill="rgba(242,100,25,${fillAlpha})" stroke="${strokeColor}" stroke-width="1.5"/>
+    <text x="${half}" y="${half + fontSize * 0.38}"
+      text-anchor="middle" font-size="${fontSize}" font-family="'Noto Sans JP','Outfit',sans-serif"
+      font-weight="500" fill="${textColor}">${count}</text>
+  </svg>`;
+  return L.divIcon({
+    html,
+    className: 'rescueat-cluster',
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+  });
 }
 
 export interface MapBounds {
@@ -170,7 +165,7 @@ export interface MapViewHandle {
 
 interface MapViewProps {
   stores: Store[];
-  bags?: BagMapInfo[];          // ← ピン色判定用バッグ一覧
+  bags?: BagMapInfo[];
   center?: [number, number];
   zoom?: number;
   userPosition?: [number, number] | null;
@@ -184,10 +179,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   ref
 ) {
   const containerRef    = useRef<HTMLDivElement>(null);
-  const mapRef          = useRef<google.maps.Map | null>(null);
-  const userMarkerRef   = useRef<google.maps.Marker | null>(null);
-  const storeMarkersRef = useRef<google.maps.Marker[]>([]);
-  const clustererRef    = useRef<MarkerClusterer | null>(null);
+  const mapRef          = useRef<L.Map | null>(null);
+  const tileLayerRef    = useRef<L.TileLayer | null>(null);
+  const userMarkerRef   = useRef<L.Marker | null>(null);
+  const storeMarkersRef = useRef<L.Marker[]>([]);
+  const clusterRef      = useRef<any | null>(null);
+  const grayLayerRef    = useRef<L.LayerGroup | null>(null);
   const onStoreSelectRef        = useRef(onStoreSelect);
   const onUserPositionChangeRef = useRef(onUserPositionChange);
   const onMapIdleRef            = useRef(onMapIdle);
@@ -219,7 +216,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const ll = { lat: userPosition[0], lng: userPosition[1] };
     setUserPos(ll);
     if (mapRef.current) {
-      mapRef.current.panTo(ll);
+      mapRef.current.panTo([ll.lat, ll.lng]);
       mapRef.current.setZoom(15);
     }
   }, [userPosition]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -228,25 +225,22 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     panTo: (lat: number, lng: number, z?: number) => {
       const map = mapRef.current;
       if (!map) return;
-      map.panTo({ lat, lng });
+      map.panTo([lat, lng]);
       if (z !== undefined) map.setZoom(z);
     },
     fitStores: (locations: { lat: number; lng: number }[], opts?: { minZoom?: number; maxZoom?: number }) => {
-      const map   = mapRef.current;
-      const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
-      if (!map || !gMaps || locations.length === 0) return;
+      const map = mapRef.current;
+      if (!map || locations.length === 0) return;
       const { minZoom = 12, maxZoom = 16 } = opts ?? {};
       if (locations.length === 1) {
-        map.panTo(locations[0]);
+        map.panTo([locations[0].lat, locations[0].lng]);
         map.setZoom(Math.min(16, maxZoom));
         return;
       }
-      const bounds = new gMaps.LatLngBounds();
-      locations.forEach(loc => bounds.extend(loc));
-      map.fitBounds(bounds, { top: 80, right: 24, bottom: 200, left: 24 });
-      gMaps.event.addListenerOnce(map, 'idle', () => {
+      const bounds = L.latLngBounds(locations.map(loc => [loc.lat, loc.lng] as [number, number]));
+      map.fitBounds(bounds, { padding: [80, 24] });
+      map.once('moveend', () => {
         const z = map.getZoom();
-        if (z === undefined) return;
         if (z < minZoom) map.setZoom(minZoom);
         else if (z > maxZoom) map.setZoom(maxZoom);
       });
@@ -255,11 +249,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
-  // ── マップに表示する店舗（全承認済み店舗・ID+座標で重複排除）────────────────
-  // 在庫の有無にかかわらず全店舗を表示する（在庫あり→オレンジ、なし→グレー）
-  // 重複排除ロジック:
-  //   1. 店舗IDで重複排除（同じIDが複数来ても1ピンのみ）
-  //   2. 同一座標（約11m精度）の別店舗も1ピンに統合（「2」バグの根本原因修正）
+  // ── マップに表示する店舗 ──────────────────────────────────────────────────
   const listingStores = useMemo(() => {
     const seenId  = new Set<number | string>();
     const seenLoc = new Set<string>();
@@ -268,7 +258,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       if (!ok) return false;
       if (seenId.has(s.id)) return false;
       seenId.add(s.id);
-      // 同一lat/lng（約11m精度）の重複ピンを排除
       const locKey = `${Math.round(s.lat * 10000)}-${Math.round(s.lng * 10000)}`;
       if (seenLoc.has(locKey)) return false;
       seenLoc.add(locKey);
@@ -276,7 +265,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     });
   }, [stores]);
 
-  // ── アクティブ店舗（オレンジピン: 在庫あり + 受取時間内）────────────────────
   const activeListingStores = useMemo(() => {
     return listingStores.filter(s =>
       bags.some(b =>
@@ -287,8 +275,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
   }, [listingStores, bags]);
 
-  // ── マーカーKey（ID:色 文字列）─────────────────────────────────────────────
-  // 店舗リストや在庫・時間が変わったときだけマーカーを再描画
   const markerKey = useMemo(() => {
     return listingStores.map(s => {
       const isActive = bags.some(b =>
@@ -305,171 +291,146 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     if (!containerRef.current) return;
     let cancelled = false;
 
-    async function init() {
-      try {
-        const startCenter = mapCenter;
-        await loadGoogleMapsScript();
-        if (cancelled || !containerRef.current) return;
+    try {
+      const map = L.map(containerRef.current, {
+        center:           [mapCenter.lat, mapCenter.lng],
+        zoom:             zoom ?? 14,
+        zoomControl:      false,
+        attributionControl: true,
+        preferCanvas:     true,
+        worldCopyJump:    true,
+      });
 
-        const gMaps = (window as any).google.maps as typeof google.maps;
-
-        const map = new gMaps.Map(containerRef.current, {
-          center: startCenter,
-          zoom: zoom ?? 14,
-          disableDefaultUI: true,
-          zoomControl: false,
-          mapTypeControl: false,
-          gestureHandling: 'greedy',
-          styles: MAP_STYLES,
-          clickableIcons: false,
-          backgroundColor: '#f2f0eb',
-          keyboardShortcuts: false,
-          fullscreenControl: false,
-          streetViewControl: false,
-          rotateControl: false,
-          scaleControl: false,
-        });
-
-        mapRef.current = map;
-
-        map.addListener('idle', () => {
-          const bounds = map.getBounds();
-          const c      = map.getCenter();
-          if (!bounds || !c) return;
-          const ne = bounds.getNorthEast();
-          const sw = bounds.getSouthWest();
-          const b = {
-            north: ne.lat(), south: sw.lat(),
-            east:  ne.lng(), west:  sw.lng(),
-          };
-          setVisibleBounds(b);
-          if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
-          onMapIdleRef.current?.({
-            ...b,
-            centerLat: c.lat(), centerLng: c.lng(),
+      const tile = mapType === 'satellite'
+        ? L.tileLayer(TILE_SATELLITE.url, { attribution: TILE_SATELLITE.attribution, maxZoom: TILE_SATELLITE.maxZoom })
+        : L.tileLayer(TILE_ROADMAP.url, {
+            attribution: TILE_ROADMAP.attribution,
+            subdomains:  TILE_ROADMAP.subdomains,
+            maxZoom:     TILE_ROADMAP.maxZoom,
           });
-        });
+      tile.addTo(map);
+      tileLayerRef.current = tile;
 
-        setStatus('ready');
-      } catch (e) {
-        console.error('Google Maps load error:', e);
-        if (!cancelled) setStatus('error');
-      }
+      mapRef.current = map;
+
+      map.on('moveend', () => {
+        if (cancelled) return;
+        const b = map.getBounds();
+        const c = map.getCenter();
+        const bounds = {
+          north: b.getNorth(), south: b.getSouth(),
+          east:  b.getEast(),  west:  b.getWest(),
+        };
+        setVisibleBounds(bounds);
+        if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
+        onMapIdleRef.current?.({
+          ...bounds,
+          centerLat: c.lat, centerLng: c.lng,
+        });
+      });
+
+      // 初期 bounds を反映（最初のイベント前でも凡例カウントが正しく動くよう）
+      const initBounds = map.getBounds();
+      setVisibleBounds({
+        north: initBounds.getNorth(), south: initBounds.getSouth(),
+        east:  initBounds.getEast(),  west:  initBounds.getWest(),
+      });
+
+      setStatus('ready');
+    } catch (e) {
+      console.error('[Map] init error:', e);
+      if (!cancelled) setStatus('error');
     }
 
-    init();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 店舗マーカー（オレンジ/グレー色分け + クラスタリング）──────────────────
-  // クラスタリング対象はオレンジ（アクティブ）のみ。
-  // グレーはクラスターに含めず、個別ピンとして常に表示する。
   useEffect(() => {
     if (status !== 'ready') return;
-    const map   = mapRef.current;
-    const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
-    if (!map || !gMaps) return;
+    const map = mapRef.current;
+    if (!map) return;
 
-    // 既存マーカーをすべて削除
-    if (clustererRef.current) {
-      clustererRef.current.clearMarkers();
-      clustererRef.current = null;
+    // 既存マーカー削除
+    if (clusterRef.current) {
+      map.removeLayer(clusterRef.current);
+      clusterRef.current = null;
     }
-    storeMarkersRef.current.forEach(m => {
-      gMaps.event.clearInstanceListeners(m);
-      m.setMap(null);
-    });
+    if (grayLayerRef.current) {
+      map.removeLayer(grayLayerRef.current);
+      grayLayerRef.current = null;
+    }
     storeMarkersRef.current = [];
 
     if (listingStores.length === 0) return;
 
-    const activeMarkers: google.maps.Marker[] = [];
-    const allMarkers:    google.maps.Marker[] = [];
+    const Lany = L as any;
+    const cluster = Lany.markerClusterGroup({
+      maxClusterRadius:    80,
+      disableClusteringAtZoom: 16,
+      spiderfyOnMaxZoom:   true,
+      showCoverageOnHover: false,
+      iconCreateFunction:  clusterIconCreate,
+    });
+    const grayLayer = L.layerGroup();
 
     listingStores.forEach(store => {
-      // このstoreが「アクティブ（在庫あり + 受取時間内）」かを判定
       const isActive = bags.some(b =>
         b.store.id === store.id &&
         b.stockCount > 0 &&
         isInPickupWindow(b.pickupStart, b.pickupEnd)
       );
-
-      const pinUrl = isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category);
-      const [w, h, ax, ay] = isActive ? [52, 66, 26, 59] : [44, 56, 22, 50];
-
-      const marker = new gMaps.Marker({
-        position: { lat: store.lat, lng: store.lng },
-        icon: {
-          url:        pinUrl,
-          scaledSize: new gMaps.Size(w, h),
-          anchor:     new gMaps.Point(ax, ay),
-        },
-        title:  store.name,
-        zIndex: isActive ? 10 : 5,
-        // グレーピンはクラスタに入れないためmapを直接設定
-        map: isActive ? undefined : map,
+      const icon = isActive ? makeActiveIcon(store.category) : makeGrayIcon(store.category);
+      const marker = L.marker([store.lat, store.lng], {
+        icon,
+        title: store.name,
+        zIndexOffset: isActive ? 100 : 0,
       });
-
-      marker.addListener('click', () => {
-        const pos = marker.getPosition();
-        if (pos) {
-          map.setZoom(15);
-          map.panTo(pos);
-          setTimeout(() => { map.panBy(0, 200); }, 80);
-        }
+      marker.on('click', () => {
+        map.setView([store.lat, store.lng], Math.max(map.getZoom(), 15), { animate: true });
         onStoreSelectRef.current?.(store);
       });
-
-      allMarkers.push(marker);
-      if (isActive) activeMarkers.push(marker);
+      storeMarkersRef.current.push(marker);
+      if (isActive) cluster.addLayer(marker);
+      else grayLayer.addLayer(marker);
     });
 
-    storeMarkersRef.current = allMarkers;
-
-    // オレンジマーカーのみクラスタリング
-    if (activeMarkers.length > 0) {
-      clustererRef.current = new MarkerClusterer({
-        map,
-        markers: activeMarkers,
-        algorithm: new SuperClusterAlgorithm({
-          radius:    80,
-          maxZoom:   15,
-          minPoints: 2,
-        }),
-        renderer: makeClusterRenderer(gMaps),
-      });
-    }
-  // listingStores を直接依存に追加: stores が変化したとき markerKey が
-  // 変わらなかった稀なケース（空→空など）でも確実に再描画するための防御策
+    map.addLayer(cluster);
+    map.addLayer(grayLayer);
+    clusterRef.current = cluster;
+    grayLayerRef.current = grayLayer;
   }, [markerKey, status, listingStores]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 現在地マーカー ────────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
-    const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
-    const map   = mapRef.current;
-    if (!gMaps || !map) return;
-
-    userMarkerRef.current?.setMap(null);
+    const map = mapRef.current;
+    if (!map) return;
+    if (userMarkerRef.current) {
+      map.removeLayer(userMarkerRef.current);
+      userMarkerRef.current = null;
+    }
     if (userPos) {
-      userMarkerRef.current = new gMaps.Marker({
-        position: userPos,
-        map,
-        icon: {
-          url:        makeUserIconUrl(),
-          scaledSize: new gMaps.Size(48, 48),
-          anchor:     new gMaps.Point(24, 24),
-        },
-        title:  '現在地',
-        zIndex: 999,
+      const m = L.marker([userPos.lat, userPos.lng], {
+        icon: makeUserIcon(),
+        zIndexOffset: 1000,
+        title: '現在地',
       });
+      m.addTo(map);
+      userMarkerRef.current = m;
     }
   }, [userPos, status]);
 
-  // ── GPS ── iOS Safari 対策 ─────────────────────────────────────────────────
+  // ── GPS ────────────────────────────────────────────────────────────────────
   function handleLocate() {
     if (userPos) {
-      mapRef.current?.panTo(userPos);
+      mapRef.current?.panTo([userPos.lat, userPos.lng]);
       mapRef.current?.setZoom(15);
       return;
     }
@@ -483,7 +444,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         updateCachedCoords(ll);
         setUserPos(ll);
-        mapRef.current?.panTo(ll);
+        mapRef.current?.panTo([ll.lat, ll.lng]);
         mapRef.current?.setZoom(15);
         setLocating(false);
       },
@@ -495,22 +456,27 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     );
   }
 
-  // ── マップタイプ切替 ─────────────────────────────────────────────────────────
+  // ── マップタイプ切替 ─────────────────────────────────────────────────────
   useEffect(() => {
     localStorage.setItem('osusowake_map_type', mapType);
     const map = mapRef.current;
     if (!map || status !== 'ready') return;
-    map.setMapTypeId(mapType);
-    // satellite では styles が無効化されるので、roadmap 復帰時のみスタイルを再適用
-    if (mapType === 'roadmap') {
-      map.setOptions({ styles: MAP_STYLES });
-    } else {
-      map.setOptions({ styles: [] });
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+      tileLayerRef.current = null;
     }
+    const tile = mapType === 'satellite'
+      ? L.tileLayer(TILE_SATELLITE.url, { attribution: TILE_SATELLITE.attribution, maxZoom: TILE_SATELLITE.maxZoom })
+      : L.tileLayer(TILE_ROADMAP.url, {
+          attribution: TILE_ROADMAP.attribution,
+          subdomains:  TILE_ROADMAP.subdomains,
+          maxZoom:     TILE_ROADMAP.maxZoom,
+        });
+    tile.addTo(map);
+    tileLayerRef.current = tile;
   }, [mapType, status]);
 
-  // ── 表示範囲内のアクティブ店舗数（凡例カウント）─────────────────────────────
-  // 「おすそわけ受付中 ○店」はオレンジ（在庫あり + 受取時間内）の店舗のみ数える
+  // ── 表示範囲内のアクティブ店舗数 ──────────────────────────────────────────
   const visibleListingCount = useMemo(() => {
     if (!visibleBounds) return activeListingStores.length;
     const { north, south, east, west } = visibleBounds;
@@ -521,27 +487,27 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   return (
     <div className="w-full h-full relative">
-      <div ref={containerRef} className="w-full h-full" />
+      <div ref={containerRef} className="w-full h-full" style={{ background: '#f2f0eb' }} />
 
       {status === 'loading' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3 z-[400]">
           <div className="w-9 h-9 border-[3px] border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-muted-foreground font-medium">地図を読み込んでいます...</p>
         </div>
       )}
 
       {status === 'error' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3 px-6 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3 px-6 text-center z-[400]">
           <AlertTriangle className="w-10 h-10 text-amber-500" />
           <p className="text-sm font-bold text-foreground">地図を読み込めませんでした</p>
-          <p className="text-xs text-muted-foreground">Google Maps APIキーを確認してください</p>
+          <p className="text-xs text-muted-foreground">時間をおいて再度お試しください</p>
         </div>
       )}
 
       {status === 'ready' && (
         <>
-          {/* レイヤー切替ボタン + ピッカー */}
-          <div className="absolute top-3 right-3 z-20">
+          {/* レイヤー切替ボタン */}
+          <div className="absolute top-3 right-3 z-[500]">
             <button
               onClick={() => setShowMapTypePick(v => !v)}
               aria-label="地図タイプを切替"
@@ -557,24 +523,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
             {showMapTypePick && (
               <>
-                {/* 背景クリックで閉じる */}
+                <div className="fixed inset-0 z-[490]" onClick={() => setShowMapTypePick(false)} />
                 <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowMapTypePick(false)}
-                />
-                {/* ピッカーカード */}
-                <div
-                  className="absolute top-12 right-0 z-20 bg-white rounded-2xl p-2 flex gap-2"
+                  className="absolute top-12 right-0 z-[500] bg-white rounded-2xl p-2 flex gap-2"
                   style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.14)', minWidth: 168 }}
                 >
-                  {/* 地図 */}
                   <button
                     onClick={() => { setMapType('roadmap'); setShowMapTypePick(false); }}
                     className={`flex flex-col items-center gap-1.5 p-1.5 rounded-xl flex-1 transition-all ${
                       mapType === 'roadmap' ? 'ring-2 ring-primary' : 'hover:bg-gray-50'
                     }`}
                   >
-                    {/* サムネイル（道路地図イメージ） */}
                     <div className="w-16 h-11 rounded-lg overflow-hidden border border-gray-100 relative bg-[#f2f0eb]">
                       <div className="absolute inset-0" style={{
                         backgroundImage: `
@@ -583,21 +542,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
                         `,
                         backgroundSize: '12px 12px',
                       }} />
-                      <div className="absolute top-2 left-1 right-1 h-1 rounded bg-white/80" />
-                      <div className="absolute top-5 left-3 right-3 h-0.5 rounded bg-white/60" />
-                      <div className="absolute top-8 left-1 right-2 h-1 rounded bg-white/70" />
                     </div>
                     <span className={`text-[11px] font-bold ${mapType === 'roadmap' ? 'text-primary' : 'text-gray-600'}`}>地図</span>
                   </button>
 
-                  {/* 航空写真 */}
                   <button
                     onClick={() => { setMapType('satellite'); setShowMapTypePick(false); }}
                     className={`flex flex-col items-center gap-1.5 p-1.5 rounded-xl flex-1 transition-all ${
                       mapType === 'satellite' ? 'ring-2 ring-primary' : 'hover:bg-gray-50'
                     }`}
                   >
-                    {/* サムネイル（航空写真イメージ） */}
                     <div className="w-16 h-11 rounded-lg overflow-hidden border border-gray-100 relative bg-[#3a5a3c]">
                       <div className="absolute inset-0" style={{
                         background: `
@@ -607,8 +561,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
                           linear-gradient(135deg, #3a5a3c, #2a4a2c, #4a6a4e)
                         `,
                       }} />
-                      <div className="absolute bottom-1 left-1 right-2 h-1 rounded-sm bg-[#8a7a5a]/60" />
-                      <div className="absolute top-3 left-4 right-1 h-0.5 rounded-sm bg-[#6a5a4a]/40" />
                     </div>
                     <span className={`text-[11px] font-bold ${mapType === 'satellite' ? 'text-primary' : 'text-gray-600'}`}>航空写真</span>
                   </button>
@@ -618,7 +570,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           </div>
 
           {/* カスタムズームボタン */}
-          <div className="absolute bottom-[60px] right-3 z-10 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
+          <div className="absolute bottom-[60px] right-3 z-[500] flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
             style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
             <button
               onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) + 1)}
@@ -636,7 +588,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           <button
             onClick={handleLocate}
             aria-label={locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地を表示'}
-            className={`absolute bottom-3 right-2 z-10 w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
+            className={`absolute bottom-3 right-2 z-[500] w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
               ${userPos
                 ? 'bg-white border border-primary/25 text-primary'
                 : 'bg-white border border-gray-200/80 text-gray-500'
@@ -649,9 +601,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             }
           </button>
 
-          {/* 凡例バッジ（オレンジ店舗のみカウント）*/}
+          {/* 凡例バッジ */}
           {(visibleListingCount > 0 || listingStores.length > 0) && (
-            <div className="absolute bottom-3 left-3 z-10 bg-white/96 backdrop-blur-sm rounded-2xl px-3 py-2 flex items-center gap-2 border border-gray-100/80"
+            <div className="absolute bottom-3 left-3 z-[500] bg-white/96 backdrop-blur-sm rounded-2xl px-3 py-2 flex items-center gap-2 border border-gray-100/80"
               style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#FA9455,#D44A00)' }} />

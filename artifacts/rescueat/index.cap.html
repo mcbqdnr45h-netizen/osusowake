@@ -10,16 +10,6 @@
     <style>
       body { margin: 0; background: #fdf8f3; }
       #root { min-height: 100dvh; }
-      /* Hide Google Maps error dialog — ONLY specific known classes.
-         DO NOT use [class*="gm-err"] — that hides map tile elements too. */
-      .gm-err-container,
-      .gm-err-dialog,
-      .gm-err-autocomplete {
-        display: none !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-        opacity: 0 !important;
-      }
     </style>
   </head>
   <body>
@@ -32,35 +22,6 @@
         <div style="color:#a0968a;font-size:13px;">読み込み中...</div>
       </div>
     </div>
-    <script>
-      /* Runs before module script.
-         Only hides specific known error dialog classes.
-         DO NOT query [class*="gm-err"] — it matches tile elements and makes map blank. */
-      var _gmErrSelectors = '.gm-err-container,.gm-err-dialog,.gm-err-autocomplete';
-      function _hideGmErr() {
-        try {
-          document.querySelectorAll(_gmErrSelectors).forEach(function(el) {
-            el.style.setProperty('display', 'none', 'important');
-            el.style.setProperty('visibility', 'hidden', 'important');
-            el.style.setProperty('pointer-events', 'none', 'important');
-            el.style.setProperty('opacity', '0', 'important');
-          });
-        } catch(e) {}
-      }
-      window.gm_authFailure = function() {
-        _hideGmErr();
-        [50, 200, 500, 1000, 2000].forEach(function(ms) {
-          setTimeout(_hideGmErr, ms);
-        });
-      };
-      /* Debounced MutationObserver — prevents overwhelming iOS WebView */
-      var _gmDebounce = null;
-      var _gmObs = new MutationObserver(function() {
-        if (_gmDebounce) clearTimeout(_gmDebounce);
-        _gmDebounce = setTimeout(_hideGmErr, 100);
-      });
-      _gmObs.observe(document.documentElement, { childList: true, subtree: true });
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

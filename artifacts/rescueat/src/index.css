@@ -385,13 +385,25 @@
   background-size: 22px 22px;
 }
 
-/* ─── Hide Google Maps attribution bar ──────────────────────────────────── */
-/* Only hides attribution text — NOT tile elements or error classes.         */
-.gm-style-cc,
-a[href^="https://maps.google.com/maps"],
-a[href^="https://www.google.com/maps"] {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  opacity: 0 !important;
+/* ─── Leaflet attribution: keep visible but compact ───────────────────── */
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  background: rgba(255,255,255,0.7) !important;
+  padding: 1px 4px !important;
+}
+.leaflet-control-attribution a {
+  color: #888 !important;
+  text-decoration: none;
+}
+
+/* Make sure leaflet container fills its parent and respects safe area */
+.leaflet-container {
+  font-family: 'Noto Sans JP', sans-serif !important;
+  background: #f2f0eb !important;
+}
+
+/* Cluster icon hover effect */
+.rescueat-cluster {
+  background: transparent !important;
+  border: none !important;
 }

@@ -1,6 +1,6 @@
-// MUST be first import — sets up Google Maps error dialog suppression
-// before any other code runs.
-import "./lib/cap-maps-fix";
+import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 import { createRoot } from "react-dom/client";
 import App from "./App";
