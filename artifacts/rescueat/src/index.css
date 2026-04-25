@@ -385,26 +385,11 @@
   background-size: 22px 22px;
 }
 
-/* ─── Suppress Google Maps auth error dialog (Capacitor iOS) ─────────────── */
-/* Using CSS is the most reliable approach — applied before any JS runs.      */
-/* Hiding (not removing) keeps Maps from recreating the dialog.               */
-.gm-err-container,
-.gm-err-dialog,
-.gm-err-autocomplete,
-[class*="gm-err"] {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  opacity: 0 !important;
-}
-
-/* ─── Hide Google Maps logo and attribution bar ─────────────────────────── */
-/* (User-requested removal of Google branding from map UI)                   */
+/* ─── Hide Google Maps attribution bar ──────────────────────────────────── */
+/* Only hides attribution text — NOT tile elements or error classes.         */
 .gm-style-cc,
 a[href^="https://maps.google.com/maps"],
-a[href^="https://www.google.com/maps"],
-a[rel="noopener"][title*="Google"],
-.gm-style > div:last-child > a[target="_blank"] {
+a[href^="https://www.google.com/maps"] {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;

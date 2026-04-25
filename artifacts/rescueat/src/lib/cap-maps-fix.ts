@@ -2,10 +2,11 @@
 // Google Maps auth error dialog suppression for Capacitor iOS builds.
 // This file MUST be imported FIRST in main.tsx.
 //
-// Primary strategy: inject a <style> tag BEFORE Maps loads.
-//   → CSS applied instantly by browser engine, no timing race.
-//   → Even if Maps recreates the element, the CSS rule still applies.
-// Secondary strategy: gm_authFailure + debounced MutationObserver + polling.
+// Strategy:
+//   - Set gm_authFailure BEFORE Maps loads → triggered when auth fails.
+//   - On auth failure, run text-content scan to find and hide the dialog.
+//   - MutationObserver watches for dialog appearing (debounced, cheap).
+//   - NO broad CSS injection — [class*="gm-err"] hides map tiles on empty key.
 // ──────────────────────────────────────────────────────────────────────────
 
 const ERROR_TEXT_FRAGMENTS = [
@@ -15,54 +16,26 @@ const ERROR_TEXT_FRAGMENTS = [
   'website owner of this site',
 ];
 
-const HIDE_CSS =
+const HIDE_STYLE =
   'display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;';
 
-// ── 1. CSS injection (primary, runs once at startup) ──────────────────────
-const CSS_RULE = [
-  '.gm-err-container',
-  '.gm-err-dialog',
-  '.gm-err-autocomplete',
-  '.gm-err-content',
-  '.gm-err-title',
-  '[class*="gm-err"]',
-].join(',') + `{${HIDE_CSS}}`;
-
-function injectErrorCSS() {
-  if (document.getElementById('gm-err-suppress')) return;
-  const style = document.createElement('style');
-  style.id = 'gm-err-suppress';
-  style.textContent = CSS_RULE;
-  (document.head || document.documentElement)?.appendChild(style);
-}
-
-// Run immediately (document.documentElement always exists).
-if (typeof window !== 'undefined') {
-  injectErrorCSS();
-}
-
-// ── 2. JavaScript fallback helpers ─────────────────────────────────────────
 function _hideEl(el: Element | null) {
   if (!el) return;
-  try {
-    (el as HTMLElement).style.cssText =
-      ((el as HTMLElement).style.cssText || '') + ';' + HIDE_CSS;
-  } catch (_) { /* ignore */ }
+  try { (el as HTMLElement).style.cssText += ';' + HIDE_STYLE; } catch (_) {}
 }
 
-// Cheap: only class-name based — safe to call from polling.
-function hideByClass() {
+// Scan for the error dialog by known exact class names (NOT [class*="gm-err"]).
+function hideErrorDialog() {
   try {
-    document.querySelectorAll<HTMLElement>(
-      '[class*="gm-err"], .gm-err-container, .gm-err-dialog, .gm-err-autocomplete'
-    ).forEach(_hideEl);
-  } catch (_) { /* ignore */ }
-}
+    // 1. Known exact error container classes (safe — not used on tile elements).
+    ['.gm-err-container', '.gm-err-dialog', '.gm-err-autocomplete'].forEach(sel => {
+      document.querySelectorAll<HTMLElement>(sel).forEach(el => {
+        _hideEl(el);
+        _hideEl(el.parentElement);
+      });
+    });
 
-// Expensive: text-content scan — only called when gm_authFailure fires.
-function hideByTextContent() {
-  try {
-    hideByClass();
+    // 2. Text-content scan as fallback.
     const candidates = document.querySelectorAll('div[class], dialog, aside');
     for (const el of candidates) {
       const text = el.textContent || '';
@@ -75,37 +48,36 @@ function hideByTextContent() {
         }
       }
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {}
 }
 
 if (typeof window !== 'undefined') {
-  // ── 3. gm_authFailure — called by Maps API on auth failure ───────────────
+  // ── 1. gm_authFailure — called by Maps API when auth fails ───────────────
+  //    Must be defined BEFORE Maps script loads.
   (window as any).gm_authFailure = function () {
-    hideByTextContent();
+    hideErrorDialog();
     [50, 150, 300, 600, 1000, 2000, 4000].forEach(ms =>
-      setTimeout(hideByTextContent, ms)
+      setTimeout(hideErrorDialog, ms)
     );
   };
 
-  // ── 4. MutationObserver — debounced 80ms (prevents overwhelming iOS) ─────
+  // ── 2. MutationObserver — debounced, watches for dialog appearing ─────────
   if (typeof MutationObserver !== 'undefined') {
     let _debounce: ReturnType<typeof setTimeout> | null = null;
     const _obs = new MutationObserver(() => {
       if (_debounce) clearTimeout(_debounce);
-      _debounce = setTimeout(hideByClass, 80);
+      _debounce = setTimeout(hideErrorDialog, 120);
     });
     const startObs = () =>
       _obs.observe(document.documentElement, { childList: true, subtree: true });
-    if (document.documentElement) {
-      startObs();
-    } else {
-      document.addEventListener('DOMContentLoaded', startObs);
-    }
+    document.documentElement
+      ? startObs()
+      : document.addEventListener('DOMContentLoaded', startObs);
   }
 
-  // ── 5. Light polling — class-based only, every 500ms for first 30s ───────
-  const _poll = setInterval(hideByClass, 500);
-  setTimeout(() => clearInterval(_poll), 30000);
+  // ── 3. Polling fallback — every 600ms for first 20s ──────────────────────
+  const _poll = setInterval(hideErrorDialog, 600);
+  setTimeout(() => clearInterval(_poll), 20000);
 }
 
 export {};
