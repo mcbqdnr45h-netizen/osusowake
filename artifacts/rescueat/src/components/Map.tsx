@@ -7,6 +7,8 @@ import { LocateFixed, AlertTriangle, Layers } from 'lucide-react';
 
 import { updateCachedCoords, TAKATSUKI_STATION } from '@/hooks/use-user-location';
 
+const MAP_BUILD_TAG = 'leaflet-osm-v3';
+
 // ── バッグ情報（ピン色判定用）────────────────────────────────────────────────
 export interface BagMapInfo {
   store: { id: number };
@@ -15,7 +17,6 @@ export interface BagMapInfo {
   pickupEnd?: string | null;
 }
 
-// ── 受取時間内かどうかを判定（深夜またぎ対応）─────────────────────────────────
 function isInPickupWindow(start?: string | null, end?: string | null): boolean {
   if (!start || !end) return true;
   const now      = new Date();
@@ -24,19 +25,15 @@ function isInPickupWindow(start?: string | null, end?: string | null): boolean {
   const [eh, em] = end.split(':').map(Number);
   const startMins = sh * 60 + sm;
   const endMins   = eh * 60 + em;
-  if (endMins >= startMins) {
-    return nowMins >= startMins && nowMins <= endMins;
-  } else {
-    return nowMins >= startMins || nowMins <= endMins;
-  }
+  if (endMins >= startMins) return nowMins >= startMins && nowMins <= endMins;
+  return nowMins >= startMins || nowMins <= endMins;
 }
 
-// ── タイルプロバイダ（API キー不要）──────────────────────────────────────────
+// ── タイルプロバイダ（OpenStreetMap直接 - 最も互換性が高い）────────────────
 const TILE_ROADMAP = {
-  url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  subdomains: 'abcd',
-  maxZoom: 20,
+  url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom: 19,
 };
 const TILE_SATELLITE = {
   url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -44,7 +41,6 @@ const TILE_SATELLITE = {
   maxZoom: 19,
 };
 
-// ── オレンジピン（在庫あり・受取時間内）─────────────────────────────────────
 function makeActivePinUrl(category: string): string {
   const emoji = getCategoryIcon(category);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="66" viewBox="0 0 52 66">
@@ -53,50 +49,32 @@ function makeActivePinUrl(category: string): string {
         <stop offset="0%" stop-color="#FA9455"/>
         <stop offset="100%" stop-color="#D44A00"/>
       </radialGradient>
-      <filter id="ds1" x="-25%" y="-10%" width="150%" height="135%">
-        <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="rgba(160,50,0,0.42)"/>
-      </filter>
     </defs>
     <ellipse cx="26" cy="63" rx="8" ry="3" fill="rgba(0,0,0,0.16)"/>
     <path d="M26 59 Q11 43, 7 26 A19 19 0 1 1 45 26 Q41 43, 26 59 Z"
-      fill="url(#g1)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" filter="url(#ds1)"/>
+      fill="url(#g1)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
     <circle cx="26" cy="24" r="14" fill="rgba(255,255,255,0.15)"/>
     <text x="26" y="31" text-anchor="middle" font-size="18" font-family="serif">${emoji}</text>
   </svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-// ── グレーピン（在庫切れ or 受取時間外）────────────────────────────────────
 function makeGrayPinUrl(category: string): string {
   const emoji = getCategoryIcon(category);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="56" viewBox="0 0 44 56">
-    <defs>
-      <filter id="ds2" x="-25%" y="-10%" width="150%" height="135%">
-        <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.18)"/>
-      </filter>
-    </defs>
     <ellipse cx="22" cy="53" rx="6" ry="2.5" fill="rgba(0,0,0,0.10)"/>
     <path d="M22 50 Q9 36, 6 22 A16 16 0 1 1 38 22 Q35 36, 22 50 Z"
-      fill="#b8c0cc" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" filter="url(#ds2)"/>
+      fill="#b8c0cc" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
     <circle cx="22" cy="20" r="12" fill="rgba(255,255,255,0.12)"/>
     <text x="22" y="26" text-anchor="middle" font-size="15" font-family="serif" opacity="0.7">${emoji}</text>
   </svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-// ── 現在地マーカー（テラコッタ波紋アニメーション）────────────────────────
 function makeUserIconUrl(): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-    <circle cx="24" cy="24" r="4" fill="none" stroke="#F26419" stroke-width="1.5" opacity="0">
-      <animate attributeName="r"       values="4;22;22"   dur="2.2s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
-      <animate attributeName="opacity" values="0.7;0;0"   dur="2.2s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
-    </circle>
-    <circle cx="24" cy="24" r="4" fill="none" stroke="#F26419" stroke-width="1" opacity="0">
-      <animate attributeName="r"       values="4;16;16"   dur="2.2s" begin="0.6s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
-      <animate attributeName="opacity" values="0.5;0;0"   dur="2.2s" begin="0.6s" repeatCount="indefinite" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.2 0 0.4 1;0 0 1 1"/>
-    </circle>
-    <circle cx="24" cy="24" r="7" fill="rgba(242,100,25,0.2)"/>
-    <circle cx="24" cy="24" r="5" fill="#F26419" stroke="white" stroke-width="2.5"/>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+    <circle cx="18" cy="18" r="6" fill="rgba(242,100,25,0.25)"/>
+    <circle cx="18" cy="18" r="5" fill="#F26419" stroke="white" stroke-width="2.5"/>
   </svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
@@ -104,50 +82,38 @@ function makeUserIconUrl(): string {
 function makeActiveIcon(category: string): L.Icon {
   return L.icon({
     iconUrl: makeActivePinUrl(category),
-    iconSize: [52, 66],
-    iconAnchor: [26, 59],
-    popupAnchor: [0, -59],
+    iconSize: [52, 66], iconAnchor: [26, 59], popupAnchor: [0, -59],
   });
 }
 function makeGrayIcon(category: string): L.Icon {
   return L.icon({
     iconUrl: makeGrayPinUrl(category),
-    iconSize: [44, 56],
-    iconAnchor: [22, 50],
-    popupAnchor: [0, -50],
+    iconSize: [44, 56], iconAnchor: [22, 50], popupAnchor: [0, -50],
   });
 }
 function makeUserIcon(): L.Icon {
   return L.icon({
     iconUrl: makeUserIconUrl(),
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
+    iconSize: [36, 36], iconAnchor: [18, 18],
   });
 }
 
-// ── クラスターアイコン ────────────────────────────────────────────────────
 function clusterIconCreate(cluster: any): L.DivIcon {
   const count = cluster.getChildCount();
   const size  = Math.min(40, Math.round(30 + Math.log2(Math.max(count, 1)) * 2.5));
   const half  = size / 2;
   const r     = half - 2.5;
-  const strokeColor = count >= 10 ? '#D44A00' : '#F26419';
-  const fillAlpha   = count >= 10 ? 0.20 : 0.13;
-  const textColor   = count >= 10 ? '#B83D00' : '#D44A00';
-  const fontSize    = count >= 100 ? 9 : count >= 10 ? 10 : 11;
+  const stroke = count >= 10 ? '#D44A00' : '#F26419';
+  const fillA  = count >= 10 ? 0.20 : 0.13;
+  const txtCol = count >= 10 ? '#B83D00' : '#D44A00';
+  const fs     = count >= 100 ? 9 : count >= 10 ? 10 : 11;
   const html = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <circle cx="${half}" cy="${half}" r="${r + 3.5}" fill="rgba(242,100,25,0.06)"/>
-    <circle cx="${half}" cy="${half}" r="${r}" fill="rgba(242,100,25,${fillAlpha})" stroke="${strokeColor}" stroke-width="1.5"/>
-    <text x="${half}" y="${half + fontSize * 0.38}"
-      text-anchor="middle" font-size="${fontSize}" font-family="'Noto Sans JP','Outfit',sans-serif"
-      font-weight="500" fill="${textColor}">${count}</text>
+    <circle cx="${half}" cy="${half}" r="${r}" fill="rgba(242,100,25,${fillA})" stroke="${stroke}" stroke-width="1.5"/>
+    <text x="${half}" y="${half + fs * 0.38}"
+      text-anchor="middle" font-size="${fs}" font-family="sans-serif"
+      font-weight="700" fill="${txtCol}">${count}</text>
   </svg>`;
-  return L.divIcon({
-    html,
-    className: 'rescueat-cluster',
-    iconSize: [size, size],
-    iconAnchor: [half, half],
-  });
+  return L.divIcon({ html, className: 'rescueat-cluster', iconSize: [size, size], iconAnchor: [half, half] });
 }
 
 export interface MapBounds {
@@ -190,10 +156,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const onMapIdleRef            = useRef(onMapIdle);
   const isFirstIdleRef          = useRef(true);
 
-  const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status,   setStatus]   = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [tilesLoaded, setTilesLoaded] = useState(0);
+  const [tilesError,  setTilesError]  = useState(0);
   const [locating,        setLocating]       = useState(false);
   const [mapType,         setMapType]        = useState<'roadmap' | 'satellite'>(
-    () => (localStorage.getItem('osusowake_map_type') as 'roadmap' | 'satellite') ?? 'roadmap'
+    () => {
+      try { return (localStorage.getItem('osusowake_map_type') as any) ?? 'roadmap'; }
+      catch { return 'roadmap'; }
+    }
   );
   const [showMapTypePick, setShowMapTypePick]= useState(false);
   const [userPos,   setUserPos] = useState<{ lat: number; lng: number } | null>(
@@ -216,40 +188,37 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const ll = { lat: userPosition[0], lng: userPosition[1] };
     setUserPos(ll);
     if (mapRef.current) {
-      mapRef.current.panTo([ll.lat, ll.lng]);
-      mapRef.current.setZoom(15);
+      try { mapRef.current.panTo([ll.lat, ll.lng]); mapRef.current.setZoom(15); } catch {}
     }
   }, [userPosition]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useImperativeHandle(ref, () => ({
-    panTo: (lat: number, lng: number, z?: number) => {
-      const map = mapRef.current;
-      if (!map) return;
-      map.panTo([lat, lng]);
-      if (z !== undefined) map.setZoom(z);
+    panTo: (lat, lng, z) => {
+      const map = mapRef.current; if (!map) return;
+      try { map.panTo([lat, lng]); if (z !== undefined) map.setZoom(z); } catch (e) { console.warn('[Map] panTo error:', e); }
     },
-    fitStores: (locations: { lat: number; lng: number }[], opts?: { minZoom?: number; maxZoom?: number }) => {
-      const map = mapRef.current;
-      if (!map || locations.length === 0) return;
+    fitStores: (locations, opts) => {
+      const map = mapRef.current; if (!map || locations.length === 0) return;
       const { minZoom = 12, maxZoom = 16 } = opts ?? {};
-      if (locations.length === 1) {
-        map.panTo([locations[0].lat, locations[0].lng]);
-        map.setZoom(Math.min(16, maxZoom));
-        return;
-      }
-      const bounds = L.latLngBounds(locations.map(loc => [loc.lat, loc.lng] as [number, number]));
-      map.fitBounds(bounds, { padding: [80, 24] });
-      map.once('moveend', () => {
-        const z = map.getZoom();
-        if (z < minZoom) map.setZoom(minZoom);
-        else if (z > maxZoom) map.setZoom(maxZoom);
-      });
+      try {
+        if (locations.length === 1) {
+          map.panTo([locations[0].lat, locations[0].lng]);
+          map.setZoom(Math.min(16, maxZoom));
+          return;
+        }
+        const bounds = L.latLngBounds(locations.map(loc => [loc.lat, loc.lng] as [number, number]));
+        map.fitBounds(bounds, { padding: [80, 24] });
+        map.once('moveend', () => {
+          const z = map.getZoom();
+          if (z < minZoom) map.setZoom(minZoom);
+          else if (z > maxZoom) map.setZoom(maxZoom);
+        });
+      } catch (e) { console.warn('[Map] fitStores error:', e); }
     },
   }), []);
 
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
-  // ── マップに表示する店舗 ──────────────────────────────────────────────────
   const listingStores = useMemo(() => {
     const seenId  = new Set<number | string>();
     const seenLoc = new Set<string>();
@@ -288,195 +257,221 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   // ── マップ初期化 ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!containerRef.current) return;
-    let cancelled = false;
-
-    try {
-      const map = L.map(containerRef.current, {
-        center:           [mapCenter.lat, mapCenter.lng],
-        zoom:             zoom ?? 14,
-        zoomControl:      false,
-        attributionControl: true,
-        preferCanvas:     true,
-        worldCopyJump:    true,
-      });
-
-      const tile = mapType === 'satellite'
-        ? L.tileLayer(TILE_SATELLITE.url, { attribution: TILE_SATELLITE.attribution, maxZoom: TILE_SATELLITE.maxZoom })
-        : L.tileLayer(TILE_ROADMAP.url, {
-            attribution: TILE_ROADMAP.attribution,
-            subdomains:  TILE_ROADMAP.subdomains,
-            maxZoom:     TILE_ROADMAP.maxZoom,
-          });
-      tile.addTo(map);
-      tileLayerRef.current = tile;
-
-      mapRef.current = map;
-
-      map.on('moveend', () => {
-        if (cancelled) return;
-        const b = map.getBounds();
-        const c = map.getCenter();
-        const bounds = {
-          north: b.getNorth(), south: b.getSouth(),
-          east:  b.getEast(),  west:  b.getWest(),
-        };
-        setVisibleBounds(bounds);
-        if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
-        onMapIdleRef.current?.({
-          ...bounds,
-          centerLat: c.lat, centerLng: c.lng,
-        });
-      });
-
-      // 初期 bounds を反映（最初のイベント前でも凡例カウントが正しく動くよう）
-      const initBounds = map.getBounds();
-      setVisibleBounds({
-        north: initBounds.getNorth(), south: initBounds.getSouth(),
-        east:  initBounds.getEast(),  west:  initBounds.getWest(),
-      });
-
-      setStatus('ready');
-    } catch (e) {
-      console.error('[Map] init error:', e);
-      if (!cancelled) setStatus('error');
+    if (!containerRef.current) {
+      console.error('[Map] container ref is null at mount');
+      setStatus('error');
+      setErrorMsg('container ref null');
+      return;
     }
+    let cancelled = false;
+    let map: L.Map | null = null;
+
+    // コンテナのサイズが 0 の場合に備えて、マウント直後に少し待つ
+    const initMap = () => {
+      if (cancelled || !containerRef.current) return;
+
+      const w = containerRef.current.offsetWidth;
+      const h = containerRef.current.offsetHeight;
+      console.log(`[Map] init: container=${w}x${h}, build=${MAP_BUILD_TAG}`);
+
+      try {
+        map = L.map(containerRef.current, {
+          center:           [mapCenter.lat, mapCenter.lng],
+          zoom:             zoom ?? 14,
+          zoomControl:      false,
+          attributionControl: true,
+          preferCanvas:     false, // Canvas は iOS WebView で問題になる場合あり
+          worldCopyJump:    true,
+          tap:              true,
+        });
+
+        const tileCfg = mapType === 'satellite' ? TILE_SATELLITE : TILE_ROADMAP;
+        const tile = L.tileLayer(tileCfg.url, {
+          attribution: tileCfg.attribution,
+          maxZoom:     tileCfg.maxZoom,
+          crossOrigin: false,
+        });
+        tile.on('tileload',      () => setTilesLoaded(c => c + 1));
+        tile.on('tileerror',     (e: any) => {
+          console.warn('[Map] tile error:', e?.tile?.src);
+          setTilesError(c => c + 1);
+        });
+        tile.addTo(map);
+        tileLayerRef.current = tile;
+
+        mapRef.current = map;
+
+        map.on('moveend', () => {
+          if (cancelled || !map) return;
+          try {
+            const b = map.getBounds();
+            const c = map.getCenter();
+            const bounds = {
+              north: b.getNorth(), south: b.getSouth(),
+              east:  b.getEast(),  west:  b.getWest(),
+            };
+            setVisibleBounds(bounds);
+            if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
+            onMapIdleRef.current?.({ ...bounds, centerLat: c.lat, centerLng: c.lng });
+          } catch (e) { console.warn('[Map] moveend handler error:', e); }
+        });
+
+        // 初期 bounds
+        try {
+          const initBounds = map.getBounds();
+          setVisibleBounds({
+            north: initBounds.getNorth(), south: initBounds.getSouth(),
+            east:  initBounds.getEast(),  west:  initBounds.getWest(),
+          });
+        } catch {}
+
+        // コンテナサイズが変わった時に再描画
+        setTimeout(() => { try { map?.invalidateSize(); } catch {} }, 100);
+        setTimeout(() => { try { map?.invalidateSize(); } catch {} }, 500);
+
+        setStatus('ready');
+      } catch (e: any) {
+        console.error('[Map] init error:', e);
+        if (!cancelled) {
+          setStatus('error');
+          setErrorMsg(e?.message ?? String(e));
+        }
+      }
+    };
+
+    // requestAnimationFrame で次フレームに実行（コンテナサイズが確定した後）
+    const raf = requestAnimationFrame(initMap);
+
+    // ResizeObserver でコンテナサイズ変更を検知して invalidateSize
+    let ro: ResizeObserver | null = null;
+    try {
+      ro = new ResizeObserver(() => {
+        if (mapRef.current) {
+          try { mapRef.current.invalidateSize(); } catch {}
+        }
+      });
+      ro.observe(containerRef.current);
+    } catch {}
 
     return () => {
       cancelled = true;
+      cancelAnimationFrame(raf);
+      ro?.disconnect();
       if (mapRef.current) {
-        mapRef.current.remove();
+        try { mapRef.current.remove(); } catch {}
         mapRef.current = null;
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 店舗マーカー（オレンジ/グレー色分け + クラスタリング）──────────────────
+  // ── 店舗マーカー ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
     const map = mapRef.current;
     if (!map) return;
 
-    // 既存マーカー削除
-    if (clusterRef.current) {
-      map.removeLayer(clusterRef.current);
-      clusterRef.current = null;
-    }
-    if (grayLayerRef.current) {
-      map.removeLayer(grayLayerRef.current);
-      grayLayerRef.current = null;
-    }
-    storeMarkersRef.current = [];
+    try {
+      if (clusterRef.current)   { map.removeLayer(clusterRef.current);   clusterRef.current = null; }
+      if (grayLayerRef.current) { map.removeLayer(grayLayerRef.current); grayLayerRef.current = null; }
+      storeMarkersRef.current = [];
 
-    if (listingStores.length === 0) return;
+      if (listingStores.length === 0) return;
 
-    const Lany = L as any;
-    const cluster = Lany.markerClusterGroup({
-      maxClusterRadius:    80,
-      disableClusteringAtZoom: 16,
-      spiderfyOnMaxZoom:   true,
-      showCoverageOnHover: false,
-      iconCreateFunction:  clusterIconCreate,
-    });
-    const grayLayer = L.layerGroup();
+      const Lany = L as any;
+      const cluster = Lany.markerClusterGroup
+        ? Lany.markerClusterGroup({
+            maxClusterRadius:    80,
+            disableClusteringAtZoom: 16,
+            spiderfyOnMaxZoom:   true,
+            showCoverageOnHover: false,
+            iconCreateFunction:  clusterIconCreate,
+          })
+        : L.layerGroup(); // フォールバック：プラグインがロードされていない場合
+      const grayLayer = L.layerGroup();
 
-    listingStores.forEach(store => {
-      const isActive = bags.some(b =>
-        b.store.id === store.id &&
-        b.stockCount > 0 &&
-        isInPickupWindow(b.pickupStart, b.pickupEnd)
-      );
-      const icon = isActive ? makeActiveIcon(store.category) : makeGrayIcon(store.category);
-      const marker = L.marker([store.lat, store.lng], {
-        icon,
-        title: store.name,
-        zIndexOffset: isActive ? 100 : 0,
+      listingStores.forEach(store => {
+        const isActive = bags.some(b =>
+          b.store.id === store.id &&
+          b.stockCount > 0 &&
+          isInPickupWindow(b.pickupStart, b.pickupEnd)
+        );
+        const icon = isActive ? makeActiveIcon(store.category) : makeGrayIcon(store.category);
+        const marker = L.marker([store.lat, store.lng], {
+          icon, title: store.name,
+          zIndexOffset: isActive ? 100 : 0,
+        });
+        marker.on('click', () => {
+          try {
+            map.setView([store.lat, store.lng], Math.max(map.getZoom(), 15), { animate: true });
+            onStoreSelectRef.current?.(store);
+          } catch (e) { console.warn('[Map] marker click error:', e); }
+        });
+        storeMarkersRef.current.push(marker);
+        if (isActive) (cluster as any).addLayer(marker);
+        else grayLayer.addLayer(marker);
       });
-      marker.on('click', () => {
-        map.setView([store.lat, store.lng], Math.max(map.getZoom(), 15), { animate: true });
-        onStoreSelectRef.current?.(store);
-      });
-      storeMarkersRef.current.push(marker);
-      if (isActive) cluster.addLayer(marker);
-      else grayLayer.addLayer(marker);
-    });
 
-    map.addLayer(cluster);
-    map.addLayer(grayLayer);
-    clusterRef.current = cluster;
-    grayLayerRef.current = grayLayer;
+      map.addLayer(cluster as L.Layer);
+      map.addLayer(grayLayer);
+      clusterRef.current = cluster;
+      grayLayerRef.current = grayLayer;
+    } catch (e) {
+      console.error('[Map] marker render error:', e);
+    }
   }, [markerKey, status, listingStores]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 現在地マーカー ────────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
-    const map = mapRef.current;
-    if (!map) return;
-    if (userMarkerRef.current) {
-      map.removeLayer(userMarkerRef.current);
-      userMarkerRef.current = null;
-    }
-    if (userPos) {
-      const m = L.marker([userPos.lat, userPos.lng], {
-        icon: makeUserIcon(),
-        zIndexOffset: 1000,
-        title: '現在地',
-      });
-      m.addTo(map);
-      userMarkerRef.current = m;
-    }
+    const map = mapRef.current; if (!map) return;
+    try {
+      if (userMarkerRef.current) { map.removeLayer(userMarkerRef.current); userMarkerRef.current = null; }
+      if (userPos) {
+        const m = L.marker([userPos.lat, userPos.lng], {
+          icon: makeUserIcon(), zIndexOffset: 1000, title: '現在地',
+        });
+        m.addTo(map);
+        userMarkerRef.current = m;
+      }
+    } catch (e) { console.warn('[Map] user marker error:', e); }
   }, [userPos, status]);
 
-  // ── GPS ────────────────────────────────────────────────────────────────────
+  // ── マップタイプ切替 ─────────────────────────────────────────────────────
+  useEffect(() => {
+    try { localStorage.setItem('osusowake_map_type', mapType); } catch {}
+    const map = mapRef.current; if (!map || status !== 'ready') return;
+    try {
+      if (tileLayerRef.current) { map.removeLayer(tileLayerRef.current); tileLayerRef.current = null; }
+      const tileCfg = mapType === 'satellite' ? TILE_SATELLITE : TILE_ROADMAP;
+      const tile = L.tileLayer(tileCfg.url, { attribution: tileCfg.attribution, maxZoom: tileCfg.maxZoom });
+      tile.on('tileload',  () => setTilesLoaded(c => c + 1));
+      tile.on('tileerror', () => setTilesError(c => c + 1));
+      tile.addTo(map);
+      tileLayerRef.current = tile;
+    } catch (e) { console.warn('[Map] tile switch error:', e); }
+  }, [mapType, status]);
+
+  // ── GPS ───────────────────────────────────────────────────────────────────
   function handleLocate() {
     if (userPos) {
-      mapRef.current?.panTo([userPos.lat, userPos.lng]);
-      mapRef.current?.setZoom(15);
+      try { mapRef.current?.panTo([userPos.lat, userPos.lng]); mapRef.current?.setZoom(15); } catch {}
       return;
     }
-    if (!navigator.geolocation) {
-      console.warn('[Map] geolocation not supported');
-      return;
-    }
+    if (!navigator.geolocation) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         updateCachedCoords(ll);
         setUserPos(ll);
-        mapRef.current?.panTo([ll.lat, ll.lng]);
-        mapRef.current?.setZoom(15);
+        try { mapRef.current?.panTo([ll.lat, ll.lng]); mapRef.current?.setZoom(15); } catch {}
         setLocating(false);
       },
-      (err) => {
-        console.warn('[Map] geolocation error:', err.code, err.message);
-        setLocating(false);
-      },
+      (err) => { console.warn('[Map] geolocation error:', err.code, err.message); setLocating(false); },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
   }
 
-  // ── マップタイプ切替 ─────────────────────────────────────────────────────
-  useEffect(() => {
-    localStorage.setItem('osusowake_map_type', mapType);
-    const map = mapRef.current;
-    if (!map || status !== 'ready') return;
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
-      tileLayerRef.current = null;
-    }
-    const tile = mapType === 'satellite'
-      ? L.tileLayer(TILE_SATELLITE.url, { attribution: TILE_SATELLITE.attribution, maxZoom: TILE_SATELLITE.maxZoom })
-      : L.tileLayer(TILE_ROADMAP.url, {
-          attribution: TILE_ROADMAP.attribution,
-          subdomains:  TILE_ROADMAP.subdomains,
-          maxZoom:     TILE_ROADMAP.maxZoom,
-        });
-    tile.addTo(map);
-    tileLayerRef.current = tile;
-  }, [mapType, status]);
-
-  // ── 表示範囲内のアクティブ店舗数 ──────────────────────────────────────────
   const visibleListingCount = useMemo(() => {
     if (!visibleBounds) return activeListingStores.length;
     const { north, south, east, west } = visibleBounds;
@@ -485,141 +480,186 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     ).length;
   }, [activeListingStores, visibleBounds]);
 
+  const showDebug = (
+    typeof window !== 'undefined' &&
+    (
+      // 開発時 OR Capacitor内 OR URLに ?debug=1
+      (import.meta as any).env?.DEV === true ||
+      (window as any).Capacitor !== undefined ||
+      new URLSearchParams(window.location.search).get('debug') === '1'
+    )
+  );
+
   return (
-    <div className="w-full h-full relative">
-      <div ref={containerRef} className="w-full h-full" style={{ background: '#f2f0eb' }} />
+    <div className="w-full h-full relative" style={{ minHeight: '300px', background: '#e8e6e0' }}>
+      {/* 地図コンテナ - 明示的な寸法で必ず可視 */}
+      <div
+        ref={containerRef}
+        className="leaflet-host"
+        style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          width: '100%',
+          height: '100%',
+          background: '#e8e6e0',
+        }}
+      />
+
+      {/* デバッグ：常に左上に状態表示（iOSで何が起きているか目で確認） */}
+      {showDebug && (
+        <div style={{
+          position: 'absolute', top: 6, left: 6, zIndex: 9999,
+          background: 'rgba(0,0,0,0.78)', color: 'white',
+          fontSize: 10, padding: '5px 8px', borderRadius: 8,
+          fontFamily: 'monospace', lineHeight: 1.4,
+          maxWidth: 'calc(100% - 60px)',
+        }}>
+          <div>MAP[{MAP_BUILD_TAG}]: {status}</div>
+          <div>tiles ✓{tilesLoaded} ✗{tilesError}</div>
+          <div>stores: {listingStores.length}</div>
+          {errorMsg && <div style={{ color: '#fca5a5' }}>err: {errorMsg.slice(0, 80)}</div>}
+        </div>
+      )}
 
       {status === 'loading' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3 z-[400]">
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 400,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          background: '#f2f0eb', gap: 12,
+        }}>
           <div className="w-9 h-9 border-[3px] border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-muted-foreground font-medium">地図を読み込んでいます...</p>
+          <p style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>地図を読み込んでいます...</p>
         </div>
       )}
 
       {status === 'error' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3 px-6 text-center z-[400]">
-          <AlertTriangle className="w-10 h-10 text-amber-500" />
-          <p className="text-sm font-bold text-foreground">地図を読み込めませんでした</p>
-          <p className="text-xs text-muted-foreground">時間をおいて再度お試しください</p>
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 400,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          background: '#fff3e0', gap: 12, padding: '0 24px', textAlign: 'center',
+        }}>
+          <AlertTriangle style={{ width: 40, height: 40, color: '#f59e0b' }} />
+          <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>地図を読み込めませんでした</p>
+          <p style={{ fontSize: 11, color: '#666', maxWidth: 280, wordBreak: 'break-all' }}>{errorMsg || '時間をおいて再度お試しください'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              background: '#F26419', color: 'white', border: 'none',
+              padding: '10px 24px', borderRadius: 12, fontWeight: 700, fontSize: 13,
+            }}
+          >
+            再読み込み
+          </button>
         </div>
       )}
 
       {status === 'ready' && (
         <>
           {/* レイヤー切替ボタン */}
-          <div className="absolute top-3 right-3 z-[500]">
+          <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 500 }}>
             <button
               onClick={() => setShowMapTypePick(v => !v)}
               aria-label="地図タイプを切替"
-              className={`w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-all duration-150 border ${
-                mapType === 'satellite'
-                  ? 'bg-primary border-primary text-white'
-                  : 'bg-white border-gray-200/80 text-gray-600'
-              }`}
-              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+              style={{
+                width: 40, height: 40, borderRadius: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: mapType === 'satellite' ? '#F26419' : 'white',
+                border: `1px solid ${mapType === 'satellite' ? '#F26419' : 'rgba(0,0,0,0.1)'}`,
+                color: mapType === 'satellite' ? 'white' : '#666',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              }}
             >
-              <Layers className="w-5 h-5" strokeWidth={1.8} />
+              <Layers style={{ width: 20, height: 20 }} strokeWidth={1.8} />
             </button>
 
             {showMapTypePick && (
               <>
-                <div className="fixed inset-0 z-[490]" onClick={() => setShowMapTypePick(false)} />
-                <div
-                  className="absolute top-12 right-0 z-[500] bg-white rounded-2xl p-2 flex gap-2"
-                  style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.14)', minWidth: 168 }}
-                >
+                <div style={{ position: 'fixed', inset: 0, zIndex: 490 }} onClick={() => setShowMapTypePick(false)} />
+                <div style={{
+                  position: 'absolute', top: 48, right: 0, zIndex: 500,
+                  background: 'white', borderRadius: 16, padding: 8, display: 'flex', gap: 8,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.14)', minWidth: 168,
+                }}>
                   <button
                     onClick={() => { setMapType('roadmap'); setShowMapTypePick(false); }}
-                    className={`flex flex-col items-center gap-1.5 p-1.5 rounded-xl flex-1 transition-all ${
-                      mapType === 'roadmap' ? 'ring-2 ring-primary' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="w-16 h-11 rounded-lg overflow-hidden border border-gray-100 relative bg-[#f2f0eb]">
-                      <div className="absolute inset-0" style={{
-                        backgroundImage: `
-                          linear-gradient(#d6d0c7 1px, transparent 1px),
-                          linear-gradient(90deg, #d6d0c7 1px, transparent 1px)
-                        `,
-                        backgroundSize: '12px 12px',
-                      }} />
-                    </div>
-                    <span className={`text-[11px] font-bold ${mapType === 'roadmap' ? 'text-primary' : 'text-gray-600'}`}>地図</span>
-                  </button>
-
+                    style={{
+                      flex: 1, padding: 6, borderRadius: 12, border: 'none',
+                      background: mapType === 'roadmap' ? 'rgba(242,100,25,0.08)' : 'white',
+                      color: mapType === 'roadmap' ? '#F26419' : '#666',
+                      fontSize: 11, fontWeight: 700,
+                    }}
+                  >地図</button>
                   <button
                     onClick={() => { setMapType('satellite'); setShowMapTypePick(false); }}
-                    className={`flex flex-col items-center gap-1.5 p-1.5 rounded-xl flex-1 transition-all ${
-                      mapType === 'satellite' ? 'ring-2 ring-primary' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="w-16 h-11 rounded-lg overflow-hidden border border-gray-100 relative bg-[#3a5a3c]">
-                      <div className="absolute inset-0" style={{
-                        background: `
-                          radial-gradient(circle at 30% 40%, #2d4a2e 25%, transparent 26%),
-                          radial-gradient(circle at 70% 30%, #1e3d1f 20%, transparent 21%),
-                          radial-gradient(circle at 50% 70%, #3a5a3c 30%, transparent 31%),
-                          linear-gradient(135deg, #3a5a3c, #2a4a2c, #4a6a4e)
-                        `,
-                      }} />
-                    </div>
-                    <span className={`text-[11px] font-bold ${mapType === 'satellite' ? 'text-primary' : 'text-gray-600'}`}>航空写真</span>
-                  </button>
+                    style={{
+                      flex: 1, padding: 6, borderRadius: 12, border: 'none',
+                      background: mapType === 'satellite' ? 'rgba(242,100,25,0.08)' : 'white',
+                      color: mapType === 'satellite' ? '#F26419' : '#666',
+                      fontSize: 11, fontWeight: 700,
+                    }}
+                  >航空写真</button>
                 </div>
               </>
             )}
           </div>
 
-          {/* カスタムズームボタン */}
-          <div className="absolute bottom-[60px] right-3 z-[500] flex flex-col overflow-hidden rounded-2xl border border-gray-200/80"
-            style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+          {/* ズーム */}
+          <div style={{
+            position: 'absolute', bottom: 60, right: 12, zIndex: 500,
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            borderRadius: 16, border: '1px solid rgba(0,0,0,0.1)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          }}>
             <button
-              onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) + 1)}
-              className="w-9 h-9 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-95 transition-all border-b border-gray-100 text-lg font-light"
+              onClick={() => { try { mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) + 1); } catch {} }}
+              style={{ width: 36, height: 36, background: 'white', border: 'none', borderBottom: '1px solid #f0f0f0', fontSize: 18, color: '#666' }}
               aria-label="ズームイン"
             >＋</button>
             <button
-              onClick={() => mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) - 1)}
-              className="w-9 h-9 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-95 transition-all text-lg font-light"
+              onClick={() => { try { mapRef.current?.setZoom((mapRef.current.getZoom() ?? 14) - 1); } catch {} }}
+              style={{ width: 36, height: 36, background: 'white', border: 'none', fontSize: 18, color: '#666' }}
               aria-label="ズームアウト"
             >－</button>
           </div>
 
-          {/* GPS FAB */}
+          {/* GPS */}
           <button
             onClick={handleLocate}
-            aria-label={locating ? '取得中...' : userPos ? '現在地に戻る' : '現在地を表示'}
-            className={`absolute bottom-3 right-2 z-[500] w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-all duration-150
-              ${userPos
-                ? 'bg-white border border-primary/25 text-primary'
-                : 'bg-white border border-gray-200/80 text-gray-500'
-              }`}
-            style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
+            aria-label={locating ? '取得中' : userPos ? '現在地に戻る' : '現在地を表示'}
+            style={{
+              position: 'absolute', bottom: 12, right: 8, zIndex: 500,
+              width: 44, height: 44, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'white',
+              border: `1px solid ${userPos ? 'rgba(242,100,25,0.25)' : 'rgba(0,0,0,0.1)'}`,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+              color: userPos ? '#F26419' : '#9ca3af',
+            }}
           >
             {locating
               ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              : <LocateFixed className={`w-4.5 h-4.5 ${userPos ? 'text-primary' : 'text-gray-400'}`} strokeWidth={2.5} />
+              : <LocateFixed style={{ width: 18, height: 18 }} strokeWidth={2.5} />
             }
           </button>
 
-          {/* 凡例バッジ */}
+          {/* 凡例 */}
           {(visibleListingCount > 0 || listingStores.length > 0) && (
-            <div className="absolute bottom-3 left-3 z-[500] bg-white/96 backdrop-blur-sm rounded-2xl px-3 py-2 flex items-center gap-2 border border-gray-100/80"
-              style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#FA9455,#D44A00)' }} />
-                <span className="text-[11px] font-bold text-gray-700">受付中</span>
-                <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+            <div style={{
+              position: 'absolute', bottom: 12, left: 12, zIndex: 500,
+              background: 'rgba(255,255,255,0.96)', borderRadius: 16,
+              padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
+              border: '1px solid rgba(0,0,0,0.08)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg,#FA9455,#D44A00)' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#444' }}>受付中</span>
+                <span style={{ fontSize: 10, fontWeight: 900, color: '#F26419', background: 'rgba(242,100,25,0.1)', padding: '2px 6px', borderRadius: 999 }}>
                   {visibleListingCount}店
                 </span>
               </div>
-              {listingStores.length > activeListingStores.length && (
-                <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#b8c0cc] shrink-0" />
-                  <span className="text-[10px] text-gray-400 font-medium">
-                    {listingStores.length - activeListingStores.length}店 受付外
-                  </span>
-                </div>
-              )}
             </div>
           )}
         </>
