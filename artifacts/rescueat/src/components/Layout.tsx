@@ -267,7 +267,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
         <AnimatePresence>
           <motion.div
             key={location}
-            initial={{ opacity: 0, y: 8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
             transition={{ duration: 0.20, ease: [0.22, 1, 0.36, 1] }}
