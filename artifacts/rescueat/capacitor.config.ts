@@ -6,11 +6,13 @@ const config: CapacitorConfig = {
   webDir: 'dist-cap',
   bundledWebRuntime: false,
 
+  // リリース/TestFlight ビルドでも Safari Web Inspector を使えるようにする
   ios: {
     scheme: 'Osusowake',
     contentInset: 'automatic',
     allowsLinkPreview: false,
     scrollEnabled: true,
+    webContentsDebuggingEnabled: true,
   },
 
   plugins: {
