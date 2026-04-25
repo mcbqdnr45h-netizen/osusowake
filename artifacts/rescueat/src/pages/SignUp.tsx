@@ -136,7 +136,7 @@ export default function SignUp() {
       <AnimatePresence>
         <motion.div
           key={activeTab}
-          initial={{ opacity: 0, x: isStore ? 18 : -18 }}
+          initial={false}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: isStore ? -18 : 18 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}

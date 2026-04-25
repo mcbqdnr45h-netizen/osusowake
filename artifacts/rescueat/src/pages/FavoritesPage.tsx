@@ -53,7 +53,7 @@ export default function FavoritesPage() {
         ) : favoriteStores.length === 0 ? (
           /* ── Empty State ── */
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"
           >

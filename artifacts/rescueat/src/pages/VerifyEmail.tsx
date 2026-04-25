@@ -148,7 +148,7 @@ export default function VerifyEmail() {
 
         {/* Icon + Title */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
           className="mb-10"
