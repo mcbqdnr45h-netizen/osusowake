@@ -210,10 +210,12 @@ function PageSkeleton() {
 }
 
 // ── ページ遷移フェードアニメーション ─────────────────────────────────────────
+// NOTE: AnimatePresence の mode="wait" + exit が iOS WKWebView で完了せず、
+// 古い motion.div に display:none !important が残ったまま新ページが mount されない
+// バグがあったため、exit を完全に取り除き、AnimatePresence も使わずに直接 mount する。
 const pageVariants = {
   initial: { opacity: 0, y: 4 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as [number, number, number, number], delay: 0.12 } },
-  exit:    { opacity: 0, transition: { duration: 0.1, ease: 'easeIn' as const } },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
 };
 
 function AnimatedRoutes() {
@@ -228,13 +230,11 @@ function AnimatedRoutes() {
       <PageTransitionOverlay />
       <ErrorBoundary>
       <Suspense fallback={<PageSkeleton />}>
-        <AnimatePresence mode="wait">
           <motion.div
             key={location}
             variants={pageVariants}
             initial="initial"
             animate="animate"
-            exit="exit"
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -302,7 +302,6 @@ function AnimatedRoutes() {
               <Route component={NotFound} />
             </Switch>
           </motion.div>
-        </AnimatePresence>
       </Suspense>
       </ErrorBoundary>
     </>
