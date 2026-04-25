@@ -71,8 +71,11 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
   return (
     <div
-      className={`${hideFooter ? 'h-screen overflow-hidden' : 'min-h-screen'} md:!pb-0 bg-background text-foreground flex flex-col font-sans overflow-x-hidden`}
-      style={showBottomNav ? { paddingBottom: (isStoreOwner && showBottomNav) ? 'calc(92px + env(safe-area-inset-bottom))' : 'calc(64px + env(safe-area-inset-bottom))' } : undefined}
+      className={`${hideFooter ? 'overflow-hidden' : 'min-h-screen'} md:!pb-0 bg-background text-foreground flex flex-col font-sans overflow-x-hidden`}
+      style={{
+        ...(hideFooter ? { height: 'var(--app-vh, 100vh)' } : {}),
+        ...(showBottomNav ? { paddingBottom: (isStoreOwner && showBottomNav) ? 'calc(92px + env(safe-area-inset-bottom))' : 'calc(64px + env(safe-area-inset-bottom))' } : {}),
+      }}
     >
 
       {/* ── モバイル専用セーフエリアスペーサー（デスクトップ非表示）── */}
