@@ -47,6 +47,26 @@ window.addEventListener("resize", setVh);
 window.addEventListener("orientationchange", setVh);
 
 // ============================================================================
+// #root のスタイル乗っ取り防止 + 犯人特定
+// 何者かが #root に display:none などを設定するバグの対策
+// ============================================================================
+(() => {
+  const r = document.getElementById("root");
+  if (!r) return;
+  const obs = new MutationObserver(() => {
+    const s = r.getAttribute("style");
+    if (s && /display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0/i.test(s)) {
+      const stack = new Error().stack || "(no stack)";
+      console.warn("[ROOT-STYLE-INTERCEPTED]", s);
+      console.warn("[ROOT-STYLE-STACK]", stack);
+      showOnScreenError("ROOT-HIDDEN", `style=${s}\nstack=${stack.substring(0, 800)}`);
+      r.removeAttribute("style");
+    }
+  });
+  obs.observe(r, { attributes: true, attributeFilter: ["style"] });
+})();
+
+// ============================================================================
 // Reactレンダー（try-catch で同期エラーも拾う）
 // ============================================================================
 try {
