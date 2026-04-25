@@ -230,11 +230,8 @@ function AnimatedRoutes() {
       <PageTransitionOverlay />
       <ErrorBoundary>
       <Suspense fallback={<PageSkeleton />}>
-          <motion.div
+          <div
             key={location}
-            variants={pageVariants}
-            initial="initial"
-            animate="animate"
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -301,7 +298,7 @@ function AnimatedRoutes() {
 
               <Route component={NotFound} />
             </Switch>
-          </motion.div>
+          </div>
       </Suspense>
       </ErrorBoundary>
     </>
