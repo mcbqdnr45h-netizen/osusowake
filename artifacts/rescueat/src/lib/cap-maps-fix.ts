@@ -3,9 +3,9 @@
 // This file MUST be imported FIRST in main.tsx.
 //
 // Primary strategy: inject a <style> tag BEFORE Maps loads.
-//   → CSS is applied by the browser engine instantly, no timing race.
+//   → CSS applied instantly by browser engine, no timing race.
 //   → Even if Maps recreates the element, the CSS rule still applies.
-// Secondary strategy: gm_authFailure + MutationObserver + polling as backup.
+// Secondary strategy: gm_authFailure + debounced MutationObserver + polling.
 // ──────────────────────────────────────────────────────────────────────────
 
 const ERROR_TEXT_FRAGMENTS = [
@@ -18,7 +18,7 @@ const ERROR_TEXT_FRAGMENTS = [
 const HIDE_CSS =
   'display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;';
 
-// ── 1. CSS injection (primary, runs immediately) ───────────────────────────
+// ── 1. CSS injection (primary, runs once at startup) ──────────────────────
 const CSS_RULE = [
   '.gm-err-container',
   '.gm-err-dialog',
@@ -50,17 +50,16 @@ function _hideEl(el: Element | null) {
   } catch (_) { /* ignore */ }
 }
 
-// Cheap: only class-name based — safe to run frequently.
+// Cheap: only class-name based — safe to call from polling.
 function hideByClass() {
   try {
-    injectErrorCSS(); // re-inject if DOM was wiped (rare)
     document.querySelectorAll<HTMLElement>(
       '[class*="gm-err"], .gm-err-container, .gm-err-dialog, .gm-err-autocomplete'
     ).forEach(_hideEl);
   } catch (_) { /* ignore */ }
 }
 
-// Expensive: text-content scan — called only when gm_authFailure fires.
+// Expensive: text-content scan — only called when gm_authFailure fires.
 function hideByTextContent() {
   try {
     hideByClass();
@@ -80,8 +79,7 @@ function hideByTextContent() {
 }
 
 if (typeof window !== 'undefined') {
-  // ── 3. gm_authFailure override ───────────────────────────────────────────
-  //   Called by Maps API on auth failure. Run expensive scan here.
+  // ── 3. gm_authFailure — called by Maps API on auth failure ───────────────
   (window as any).gm_authFailure = function () {
     hideByTextContent();
     [50, 150, 300, 600, 1000, 2000, 4000].forEach(ms =>
@@ -89,15 +87,12 @@ if (typeof window !== 'undefined') {
     );
   };
 
-  // ── 4. MutationObserver — no debounce for childList (hideByClass is cheap)
+  // ── 4. MutationObserver — debounced 80ms (prevents overwhelming iOS) ─────
   if (typeof MutationObserver !== 'undefined') {
-    const _obs = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        if (m.addedNodes.length > 0) {
-          hideByClass(); // run immediately, not debounced
-          return;
-        }
-      }
+    let _debounce: ReturnType<typeof setTimeout> | null = null;
+    const _obs = new MutationObserver(() => {
+      if (_debounce) clearTimeout(_debounce);
+      _debounce = setTimeout(hideByClass, 80);
     });
     const startObs = () =>
       _obs.observe(document.documentElement, { childList: true, subtree: true });
