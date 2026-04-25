@@ -20,7 +20,13 @@ if (!isBuild && !basePath) {
 export default defineConfig({
   base: basePath,
   define: {
-    'import.meta.env.VITE_MAPS_API_KEY': JSON.stringify(process.env.Maps_API_KEY ?? ''),
+    'import.meta.env.VITE_MAPS_API_KEY': JSON.stringify(
+      process.env.VITE_MAPS_API_KEY ??
+      process.env.MAPS_API_KEY ??
+      process.env.Maps_API_KEY ??
+      process.env.GOOGLE_MAPS_API_KEY ??
+      ''
+    ),
     'import.meta.env.VITE_STRIPE_PK': JSON.stringify(process.env.STRIPE_PUBLISHABLE_KEY ?? ''),
   },
   plugins: [
