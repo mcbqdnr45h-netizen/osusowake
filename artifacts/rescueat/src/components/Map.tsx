@@ -420,24 +420,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
   }, [markerKey, status, listingStores]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 初回ロード時に全店舗が見えるよう自動でフィット ─────────────────────────
-  const didAutoFitRef = useRef(false);
-  useEffect(() => {
-    if (status !== 'ready') return;
-    if (didAutoFitRef.current) return;
-    if (listingStores.length === 0) return;
-    const map = mapRef.current; if (!map) return;
-    didAutoFitRef.current = true;
-    try {
-      if (listingStores.length === 1) {
-        map.setView([listingStores[0].lat, listingStores[0].lng], 15);
-        return;
-      }
-      const bounds = L.latLngBounds(listingStores.map(s => [s.lat, s.lng] as [number, number]));
-      map.fitBounds(bounds, { padding: [60, 40], maxZoom: 15 });
-    } catch (e) { console.warn('[Map] auto-fit error:', e); }
-  }, [status, listingStores]);
-
   // ── 現在地マーカー ────────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'ready') return;
