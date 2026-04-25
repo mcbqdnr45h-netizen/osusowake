@@ -138,7 +138,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                     ${menuOpen ? 'bg-muted text-primary' : 'hover:bg-muted/70'}
                     ${isLoggedIn ? 'ring-2 ring-primary/20 ring-offset-1 ring-offset-background' : ''}`}
                 >
-                  <AnimatePresence mode="wait" initial={false}>
+                  <AnimatePresence initial={false}>
                     {menuOpen ? (
                       <motion.div key="x"
                         initial={{ rotate: -45, opacity: 0, scale: 0.7 }}
@@ -264,7 +264,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
       <main className="flex-1 min-h-0 w-full relative flex flex-col">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           <motion.div
             key={location}
             initial={{ opacity: 0, y: 8 }}
