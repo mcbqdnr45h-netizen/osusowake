@@ -231,7 +231,6 @@ function AnimatedRoutes() {
       <ErrorBoundary>
       <Suspense fallback={<PageSkeleton />}>
           <div
-            key={location}
             style={{
               display: 'flex',
               flexDirection: 'column',
