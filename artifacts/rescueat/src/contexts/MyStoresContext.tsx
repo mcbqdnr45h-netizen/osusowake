@@ -95,10 +95,18 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 
     return fetch(`${BASE}/api/stores/all-by-owner?userId=${encodeURIComponent(uid)}`, { cache: 'no-store' })
-      .then(r => {
-        if (r.ok) return r.json() as Promise<MyStore[]>;
+      .then(async r => {
         if (r.status === 404) return [] as MyStore[];
-        throw new Error(`API error: ${r.status}`);
+        if (!r.ok) throw new Error(`API error: ${r.status}`);
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          return [] as MyStore[];
+        }
+        try {
+          return (await r.json()) as MyStore[];
+        } catch {
+          return [] as MyStore[];
+        }
       })
       .then(data => {
         const list = Array.isArray(data) ? data : [];
@@ -113,9 +121,8 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
         });
       })
       .catch(err => {
-        console.warn('[MyStoresContext] fetch error (retry in 4s):', err);
+        console.warn('[MyStoresContext] fetch error (giving up):', err?.message || err);
         setFetchError(true);
-        retryTimerRef.current = setTimeout(fetchStores, 4000);
       })
       .finally(() => setLoading(false));
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps

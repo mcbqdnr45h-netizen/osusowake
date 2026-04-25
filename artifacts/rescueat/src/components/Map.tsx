@@ -29,16 +29,16 @@ function isInPickupWindow(start?: string | null, end?: string | null): boolean {
   return nowMins >= startMins || nowMins <= endMins;
 }
 
-// ── タイルプロバイダ（国土地理院 - 日本語表記・日本最適化・無料・無認証）─────
+// ── タイルプロバイダ（CARTO Voyager - Google Maps風・綺麗・無料・無認証）─────
 const TILE_ROADMAP = {
-  url: 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
-  attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
-  maxZoom: 18,
+  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  maxZoom: 19,
 };
 const TILE_SATELLITE = {
-  url: 'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg',
-  attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
-  maxZoom: 18,
+  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  attribution: 'Tiles &copy; Esri',
+  maxZoom: 19,
 };
 
 function makeActivePinUrl(category: string): string {

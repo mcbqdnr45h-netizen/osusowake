@@ -1,4 +1,84 @@
-import React, { useEffect, useRef, useState } from 'react';
+cd ~/Documents/Osusowake/artifacts/rescueat || exit 1
+
+python3 <<'PYEOF'
+import pathlib, sys
+
+# === 1. Map.tsx: 国土地理院 → CARTO Voyager ===
+p = pathlib.Path('src/components/Map.tsx')
+s = p.read_text()
+old = """// ── タイルプロバイダ（国土地理院 - 日本語表記・日本最適化・無料・無認証）─────
+const TILE_ROADMAP = {
+  url: 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
+  attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+  maxZoom: 18,
+};
+const TILE_SATELLITE = {
+  url: 'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg',
+  attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+  maxZoom: 18,
+};"""
+new = """// ── タイルプロバイダ（CARTO Voyager - Google Maps風・綺麗・無料・無認証）─────
+const TILE_ROADMAP = {
+  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  maxZoom: 19,
+};
+const TILE_SATELLITE = {
+  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  attribution: 'Tiles &copy; Esri',
+  maxZoom: 19,
+};"""
+if old not in s:
+    print("FAIL: Map.tsx old block not found")
+    sys.exit(1)
+p.write_text(s.replace(old, new, 1))
+print("OK: Map.tsx (CARTO Voyager tiles)")
+
+# === 2. MyStoresContext.tsx: silence error spam ===
+p = pathlib.Path('src/contexts/MyStoresContext.tsx')
+s = p.read_text()
+old1 = """    return fetch(`${BASE}/api/stores/all-by-owner?userId=${encodeURIComponent(uid)}`, { cache: 'no-store' })
+      .then(r => {
+        if (r.ok) return r.json() as Promise<MyStore[]>;
+        if (r.status === 404) return [] as MyStore[];
+        throw new Error(`API error: ${r.status}`);
+      })"""
+new1 = """    return fetch(`${BASE}/api/stores/all-by-owner?userId=${encodeURIComponent(uid)}`, { cache: 'no-store' })
+      .then(async r => {
+        if (r.status === 404) return [] as MyStore[];
+        if (!r.ok) throw new Error(`API error: ${r.status}`);
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          return [] as MyStore[];
+        }
+        try {
+          return (await r.json()) as MyStore[];
+        } catch {
+          return [] as MyStore[];
+        }
+      })"""
+if old1 not in s:
+    print("FAIL: MyStoresContext.tsx fetch block not found")
+    sys.exit(1)
+s = s.replace(old1, new1, 1)
+old2 = """      .catch(err => {
+        console.warn('[MyStoresContext] fetch error (retry in 4s):', err);
+        setFetchError(true);
+        retryTimerRef.current = setTimeout(fetchStores, 4000);
+      })"""
+new2 = """      .catch(err => {
+        console.warn('[MyStoresContext] fetch error (giving up):', err?.message || err);
+        setFetchError(true);
+      })"""
+if old2 not in s:
+    print("FAIL: MyStoresContext.tsx catch block not found")
+    sys.exit(1)
+s = s.replace(old2, new2, 1)
+p.write_text(s)
+print("OK: MyStoresContext.tsx (no more retry spam)")
+
+# === 3. PlaceSearchMap.tsx: full overwrite (autocomplete + CARTO tiles) ===
+content = '''import React, { useEffect, useRef, useState } from 'react';
 import { Search, MapPin, Loader2, AlertTriangle } from 'lucide-react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -383,3 +463,18 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
     </div>
   );
 }
+'''
+pathlib.Path('src/components/PlaceSearchMap.tsx').write_text(content)
+print("OK: PlaceSearchMap.tsx (autocomplete added)")
+
+print("=== ALL FILES PATCHED ===")
+PYEOF
+
+if [ $? -ne 0 ]; then
+  echo "PATCH FAILED — see error above"
+  exit 1
+fi
+
+echo "=== ビルド開始 ==="
+rm -rf dist-cap node_modules/.vite ios/App/App/public
+pnpm --filter @workspace/rescueat run build:cap && pnpm --filter @workspace/rescueat exec cap sync ios && echo "=== 完了！Xcode で ▶ Run ==="
