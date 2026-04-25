@@ -29,17 +29,16 @@ function isInPickupWindow(start?: string | null, end?: string | null): boolean {
   return nowMins >= startMins || nowMins <= endMins;
 }
 
-// ── タイルプロバイダ（CartoDB Voyager - Google/Apple Maps風のクリーンなデザイン）
+// ── タイルプロバイダ（国土地理院 - 日本語表記・日本最適化・無料・無認証）─────
 const TILE_ROADMAP = {
-  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  subdomains: 'abcd',
-  maxZoom: 20,
+  url: 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
+  attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+  maxZoom: 18,
 };
 const TILE_SATELLITE = {
-  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  attribution: 'Tiles &copy; Esri',
-  maxZoom: 19,
+  url: 'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg',
+  attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+  maxZoom: 18,
 };
 
 function makeActivePinUrl(category: string): string {
@@ -420,6 +419,24 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       console.error('[Map] marker render error:', e);
     }
   }, [markerKey, status, listingStores]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── 初回ロード時に全店舗が見えるよう自動でフィット ─────────────────────────
+  const didAutoFitRef = useRef(false);
+  useEffect(() => {
+    if (status !== 'ready') return;
+    if (didAutoFitRef.current) return;
+    if (listingStores.length === 0) return;
+    const map = mapRef.current; if (!map) return;
+    didAutoFitRef.current = true;
+    try {
+      if (listingStores.length === 1) {
+        map.setView([listingStores[0].lat, listingStores[0].lng], 15);
+        return;
+      }
+      const bounds = L.latLngBounds(listingStores.map(s => [s.lat, s.lng] as [number, number]));
+      map.fitBounds(bounds, { padding: [60, 40], maxZoom: 15 });
+    } catch (e) { console.warn('[Map] auto-fit error:', e); }
+  }, [status, listingStores]);
 
   // ── 現在地マーカー ────────────────────────────────────────────────────────
   useEffect(() => {
