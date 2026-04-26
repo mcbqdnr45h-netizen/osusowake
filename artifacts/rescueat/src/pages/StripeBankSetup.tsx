@@ -11,6 +11,10 @@ import {
   Camera, ImageIcon, BadgeCheck,
 } from 'lucide-react';
 
+// ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
+const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+             (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
+
 // ── Stripe インスタンスはコンポーネント内でバックエンドの公開鍵を取得してから初期化する
 // （テスト/本番の鍵の不一致を防ぐため、モジュールレベルでの事前ロードは行わない）
 let _cachedStripePromise: Promise<Stripe | null> | null = null;
@@ -18,7 +22,7 @@ async function getStripeInstance(): Promise<Stripe | null> {
   if (_cachedStripePromise) return _cachedStripePromise;
   _cachedStripePromise = (async () => {
     try {
-      const res = await fetch('/api/stripe/public-config');
+      const res = await fetch(`${BASE}/api/stripe/public-config`);
       if (!res.ok) throw new Error(`/api/stripe/public-config returned ${res.status}`);
       const data = await res.json() as { publishableKey: string; mode: string };
       if (!data.publishableKey) throw new Error('Stripe公開鍵が設定されていません（STRIPE_PUBLISHABLE_KEY を設定してください）');
@@ -409,7 +413,7 @@ export default function StripeBankSetup() {
     const stripeHasIssue =
       store.stripeChargesEnabled === false || store.stripePayoutsEnabled === false;
     if (!stripeHasIssue) return;
-    fetch(`/api/stores/${store.id}/connect/status`)
+    fetch(`${BASE}/api/stores/${store.id}/connect/status`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.requirements) {
@@ -431,7 +435,7 @@ export default function StripeBankSetup() {
     if (!store?.stripeAccountId || !store?.id) return;
     if (stripeDataLoadedRef.current) return;
     stripeDataLoadedRef.current = true;
-    fetch(`/api/stores/${store.id}/connect/account-data`)
+    fetch(`${BASE}/api/stores/${store.id}/connect/account-data`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data?.hasAccount || !data.individual) return;
@@ -688,7 +692,7 @@ export default function StripeBankSetup() {
       }
 
       // ② 全データを一括送信（口座登録 + KYC + 書類アップロード + DB approved 更新）
-      const res = await fetch(`/api/stores/${store.id}/connect/bank-setup`, {
+      const res = await fetch(`${BASE}/api/stores/${store.id}/connect/bank-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,

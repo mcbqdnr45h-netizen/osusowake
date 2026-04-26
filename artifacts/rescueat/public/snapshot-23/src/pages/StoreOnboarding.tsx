@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+// ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
+const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+             (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
 
 const CATEGORY_OPTIONS = [
   { value: 'meals',         label: '料理・お惣菜',  emoji: '🍱' },
@@ -246,9 +248,35 @@ export default function StoreOnboarding() {
         throw new Error(msg);
       }
 
-      const responseBody = await res.json().catch(() => null);
+      // ★ レスポンス本文取得 (JSON 失敗時はテキストでフォールバック → 原因特定ログ)
+      const rawText = await res.text().catch(() => '');
+      let responseBody: any = null;
+      try { responseBody = JSON.parse(rawText); } catch { /* JSON でない */ }
+
       if (!responseBody?.id) {
-        console.error('[StoreOnboarding] ❌ 登録成功レスポンスに id がない:', responseBody);
+        console.error('[StoreOnboarding] ❌ 登録レスポンスに id がない:', { status: res.status, contentType: res.headers.get('content-type'), bodyPreview: rawText.slice(0, 200) });
+        // ★ サーバー側では INSERT 成功している可能性が高い (JSON経路の問題のみ) → 即座に確認
+        try {
+          const check = await fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
+          if (check.ok) {
+            const checkStore = await check.json().catch(() => null);
+            if (checkStore?.id) {
+              console.log('[StoreOnboarding] ✅ 確認: 店舗は実際には作成されている → 続行');
+              clearOnboardingDraft();
+              refetchStores();
+              try { await refreshProfile(); } catch (_) {}
+              if (isInherited) {
+                toast({ title: '店舗を追加しました！', description: 'すぐに商品を出品できます。' });
+                navigate('/mypage');
+              } else {
+                navigate('/store/bank-setup');
+              }
+              return;
+            }
+          }
+        } catch (recoverErr) {
+          console.warn('[StoreOnboarding] 復旧チェック失敗:', recoverErr);
+        }
         toast({
           title: '登録が完了しませんでした',
           description: 'データの保存を確認できませんでした。再度お試しください。',
