@@ -192,12 +192,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const onUserPositionChangeRef = useRef(onUserPositionChange);
   const onMapIdleRef            = useRef(onMapIdle);
   const isFirstIdleRef          = useRef(true);
+  const hasUserInteractedRef    = useRef(false);
 
   const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>('loading');
   const [locating,        setLocating]       = useState(false);
-  const [mapType,         setMapType]        = useState<'roadmap' | 'satellite'>(
-    () => (localStorage.getItem('osusowake_map_type') as 'roadmap' | 'satellite') ?? 'roadmap'
-  );
+  const [mapType,         setMapType]        = useState<'roadmap' | 'satellite'>('roadmap');
   const [showMapTypePick, setShowMapTypePick]= useState(false);
   const [userPos,   setUserPos] = useState<{ lat: number; lng: number } | null>(
     userPosition ? { lat: userPosition[0], lng: userPosition[1] } : null
@@ -327,6 +326,15 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
         mapRef.current = map;
 
+        // ユーザーが地図を実際に動かしたかどうかを追跡
+        // (プログラムによる pan/zoom ではボタンを出さない)
+        map.addListener('dragstart', () => { hasUserInteractedRef.current = true; });
+        // ピンチズームも検知 (touchstart で2本指以上)
+        const touchHandler = (e: TouchEvent) => {
+          if (e.touches.length >= 2) hasUserInteractedRef.current = true;
+        };
+        containerRef.current?.addEventListener('touchstart', touchHandler, { passive: true });
+
         map.addListener('idle', () => {
           const bounds = map.getBounds();
           const c      = map.getCenter();
@@ -339,6 +347,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           };
           setVisibleBounds(b);
           if (isFirstIdleRef.current) { isFirstIdleRef.current = false; return; }
+          // ユーザーがまだ地図を触ってなければ「再検索」ボタンを出さない
+          if (!hasUserInteractedRef.current) return;
           onMapIdleRef.current?.({
             ...b,
             centerLat: c.lat(), centerLng: c.lng(),
