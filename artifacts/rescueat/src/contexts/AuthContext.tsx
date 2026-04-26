@@ -504,6 +504,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signOut() {
     sessionStorage.removeItem('adminUserMode');
     sessionStorage.removeItem('adminMfaVerifiedAt');
+    // ★ ログアウト時に前ユーザーのローカルデータを完全消去 (新規アカウントに前店舗の写真/店名が残る不具合の根本対策)
+    try {
+      // 店舗オンボーディング下書き (グローバルキーのため必ず消す)
+      localStorage.removeItem('store-onboarding-draft-v2');
+      localStorage.removeItem('store-onboarding-draft-v1');
+      // プロフィールキャッシュ
+      localStorage.removeItem(PROFILE_CACHE_KEY);
+      // ユーザー別キャッシュ群 (myStores / selectedStore / favorites など) を一括掃除
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        if (k.startsWith('osusowake_myStores_v1_') ||
+            k.startsWith('osusowake_selectedStore_v1_') ||
+            k.startsWith('rescueat_favorites_v1_')) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch { /* localStorage 失敗は無視 */ }
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+// ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
+const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+             (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
+const MAX_RETRIES = 3;
 const CACHE_KEY_PREFIX = 'osusowake_myStores_v1_';
 const SELECTED_STORE_KEY_PREFIX = 'osusowake_selectedStore_v1_';
 
@@ -78,6 +81,7 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
   });
   const [fetchError, setFetchError] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
 
   const [selectedStoreId, setSelectedStoreIdState] = useState<number | null>(
     () => user ? readSelectedStoreId(user.id) : null
@@ -108,6 +112,7 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
         setStores(list);
         writeCache(uid, list);
         setFetchError(false);
+        retryCountRef.current = 0;
         setSelectedStoreIdState(prev => {
           if (prev && list.some(s => s.id === prev)) return prev;
           const first = list[0]?.id ?? null;
@@ -116,9 +121,17 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
         });
       })
       .catch(err => {
-        console.warn('[MyStoresContext] fetch error (retry in 4s):', err);
-        setFetchError(true);
-        retryTimerRef.current = setTimeout(fetchStores, 4000);
+        retryCountRef.current += 1;
+        // ★ 永久スピナー回避: MAX_RETRIES 回失敗したら空リスト扱いにして「未申請」バナーへフォールバック
+        if (retryCountRef.current >= MAX_RETRIES) {
+          console.warn('[MyStoresContext] max retries reached, falling back to empty list:', err);
+          setStores([]);
+          setFetchError(false);
+        } else {
+          console.warn(`[MyStoresContext] fetch error (retry ${retryCountRef.current}/${MAX_RETRIES} in 4s):`, err);
+          setFetchError(true);
+          retryTimerRef.current = setTimeout(fetchStores, 4000);
+        }
       })
       .finally(() => setLoading(false));
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
