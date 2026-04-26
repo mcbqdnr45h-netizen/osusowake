@@ -114,10 +114,19 @@ export default function MyPage() {
 
   const isStoreOwner = profile?.role === 'store_owner';
 
+  // ★ profile 読み込み待ちのタイムアウト (3秒経ったら諦めて描画する → 永久スケルトン防止)
+  const [profileWaitElapsed, setProfileWaitElapsed] = useState(false);
+  useEffect(() => {
+    if (profile) { setProfileWaitElapsed(true); return; }
+    const t = setTimeout(() => setProfileWaitElapsed(true), 3000);
+    return () => clearTimeout(t);
+  }, [profile]);
+
   // Auth確定前はスケルトン表示でフラッシュを防ぐ
   // ★ profile が未ロード時もスケルトンを出す (店舗オーナーがカスタマー画面でフラッシュするバグ防止)
+  // ★ ただし最大3秒まで - それ以上は profile=null でも描画する (永久ロード防止)
   // キャッシュから store が読めている場合はスケルトン不要
-  if (authLoading || (user && !profile) || (isStoreOwner && loadingStore && store === null)) {
+  if (authLoading || (user && !profile && !profileWaitElapsed) || (isStoreOwner && loadingStore && store === null)) {
     return (
       <Layout showBottomNav>
         <div className="w-full py-8 px-4 animate-pulse">
