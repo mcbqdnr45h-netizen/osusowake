@@ -44,6 +44,8 @@ FILES=(
   "src/pages/Home.tsx"
   "src/pages/Login.tsx"
   "src/pages/MyPage.tsx"
+  "src/pages/RegisterStore.tsx"
+  "src/pages/TokushoPage.tsx"
   "src/pages/OrderTicket.tsx"
   "src/pages/PaymentMethods.tsx"
   "src/pages/ResetPassword.tsx"

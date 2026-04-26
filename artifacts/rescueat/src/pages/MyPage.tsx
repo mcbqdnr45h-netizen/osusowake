@@ -119,7 +119,7 @@ export default function MyPage() {
   if (authLoading || (isStoreOwner && loadingStore && store === null)) {
     return (
       <Layout showBottomNav>
-        <div className="w-full py-8 px-4 pb-24 animate-pulse">
+        <div className="w-full py-8 px-4 animate-pulse">
           <div className="h-8 w-32 bg-muted rounded-xl mb-6" />
           <div className="bg-card border border-border rounded-2xl p-5 mb-4">
             <div className="flex items-center gap-4">

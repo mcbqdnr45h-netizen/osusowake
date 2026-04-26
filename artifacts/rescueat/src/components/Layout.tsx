@@ -443,7 +443,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
       {/* ── Mobile Bottom Nav ─────────────────────────────────────────── */}
       {showBottomNav && (
         <div
-          className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-border/30"
+          className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border/40"
           style={{
             paddingBottom: 'env(safe-area-inset-bottom)',
             boxShadow: '0 -1px 0 rgba(10,8,6,0.04), 0 -4px 20px rgba(10,8,6,0.05)',
@@ -481,7 +481,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                     {isActive && (
                       <motion.div
                         layoutId="bottom-nav-dot"
-                        className="absolute -top-[14px] w-5 h-1 bg-primary rounded-b-full"
+                        className="absolute -top-[8px] left-1/2 -translate-x-1/2 w-6 h-[3px] bg-primary rounded-full"
                         transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                       />
                     )}

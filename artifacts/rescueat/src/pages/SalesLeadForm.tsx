@@ -43,7 +43,7 @@ export default function SalesLeadForm() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-background pb-24">
+      <div className="min-h-screen bg-background">
         {/* ヘッダー */}
         <div className="sticky z-40 bg-white/90 backdrop-blur-xl border-b border-border/40"
           style={{ top: 'env(safe-area-inset-top)' }}>

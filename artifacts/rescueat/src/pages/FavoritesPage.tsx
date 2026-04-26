@@ -25,7 +25,7 @@ export default function FavoritesPage() {
 
   const content = (
     <div
-      className="w-full pb-24"
+      className="w-full"
       style={{ paddingTop: isStoreOwner ? 'calc(env(safe-area-inset-top) + 1.25rem)' : '1.25rem' }}
     >
 
