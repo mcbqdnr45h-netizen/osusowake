@@ -40,6 +40,7 @@ FILES=(
   "src/pages/CheckoutCancel.tsx"
   "src/pages/CheckoutSuccess.tsx"
   "src/pages/FavoritesPage.tsx"
+  "src/pages/MyReservations.tsx"
   "src/pages/HelpPage.tsx"
   "src/pages/Home.tsx"
   "src/pages/Login.tsx"
