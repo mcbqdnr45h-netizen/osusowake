@@ -115,8 +115,9 @@ export default function MyPage() {
   const isStoreOwner = profile?.role === 'store_owner';
 
   // Auth確定前はスケルトン表示でフラッシュを防ぐ
+  // ★ profile が未ロード時もスケルトンを出す (店舗オーナーがカスタマー画面でフラッシュするバグ防止)
   // キャッシュから store が読めている場合はスケルトン不要
-  if (authLoading || (isStoreOwner && loadingStore && store === null)) {
+  if (authLoading || (user && !profile) || (isStoreOwner && loadingStore && store === null)) {
     return (
       <Layout showBottomNav>
         <div className="w-full py-8 px-4 animate-pulse">
