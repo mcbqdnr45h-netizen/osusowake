@@ -478,6 +478,7 @@ export default function StripeKYCPage() {
   // ── 書類ファイル選択ハンドラ ──
   const handleDocFileChange = (side: 'front' | 'back') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {

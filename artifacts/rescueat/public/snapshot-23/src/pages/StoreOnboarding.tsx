@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -41,16 +41,24 @@ async function compressImage(file: File, maxPx = 1200, quality = 0.80): Promise<
   });
 }
 
-const ONBOARDING_DRAFT_KEY = 'store-onboarding-draft-v1';
-type OnboardingDraft = { name: string; address: string; city: string; category: string };
-function saveOnboardingDraft(d: OnboardingDraft) {
+const ONBOARDING_DRAFT_KEY = 'store-onboarding-draft-v2';
+type OnboardingDraft = {
+  name: string; address: string; city: string; category: string;
+  phone: string; imageUrl: string;
+  pledgeSigned: boolean;
+  pinLat: number | null; pinLng: number | null;
+};
+function saveOnboardingDraft(d: Partial<OnboardingDraft>) {
   try { localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
 }
 function loadOnboardingDraft(): Partial<OnboardingDraft> {
   try { const r = localStorage.getItem(ONBOARDING_DRAFT_KEY); return r ? JSON.parse(r) : {}; } catch (_) { return {}; }
 }
 function clearOnboardingDraft() {
-  try { localStorage.removeItem(ONBOARDING_DRAFT_KEY); } catch (_) {}
+  try {
+    localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+    localStorage.removeItem('store-onboarding-draft-v1'); // 旧バージョンも掃除
+  } catch (_) {}
 }
 
 export default function StoreOnboarding() {
@@ -68,21 +76,34 @@ export default function StoreOnboarding() {
   // → 本人確認・銀行口座は自動引き継ぎ。営業許可証のみ提出。
   const isInherited = isAddMode && hasExistingStripeAccount;
 
+  // ★ draft はマウント時に1回だけ読む (再レンダリングで読み直さない)
+  const obDraftRef = useRef<Partial<OnboardingDraft> | null>(null);
+  if (obDraftRef.current === null) obDraftRef.current = loadOnboardingDraft();
+  const obDraft = obDraftRef.current;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pledgeSigned, setPledgeSigned] = useState(false);
-  const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [imagePreview, setImagePreview] = useState('');
+  const [pledgeSigned, setPledgeSigned] = useState<boolean>(obDraft.pledgeSigned ?? false);
+  const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(
+    obDraft.pinLat != null && obDraft.pinLng != null ? { lat: obDraft.pinLat, lng: obDraft.pinLng } : null
+  );
+  const [imagePreview, setImagePreview] = useState<string>(obDraft.imageUrl ?? '');
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
-  const obDraft = loadOnboardingDraft();
   const [form, setForm] = useState({
     name:          obDraft.name     ?? '',
     address:       obDraft.address  ?? '',
     city:          obDraft.city     ?? '',
     category:      obDraft.category ?? '',
-    phone:         '',
-    imageUrl:      '',
+    phone:         obDraft.phone    ?? '',
+    imageUrl:      obDraft.imageUrl ?? '',
   });
+
+  // ★ ファイル input の ref (同じファイル再選択時に value をリセットするため)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ★ 初回ロード後は2度とスピナー画面に戻らない (form アンマウント = 入力消失を防ぐ)
+  const hasInitializedRef = useRef(false);
+  if (!storeLoading) hasInitializedRef.current = true;
 
   // 追加モードでない場合のみ、既存店舗があればダッシュボードへリダイレクト
   useEffect(() => {
@@ -96,13 +117,23 @@ export default function StoreOnboarding() {
     }
   }, [existingStore, storeLoading, navigate, isAddMode]);
 
-  // 入力内容を自動保存（フォーム変化から1秒後）
+  // 入力内容を自動保存（フォーム変化から1秒後）— 全フィールドを保存
   useEffect(() => {
     const t = setTimeout(() => {
-      saveOnboardingDraft({ name: form.name, address: form.address, city: form.city, category: form.category });
-    }, 1000);
+      saveOnboardingDraft({
+        name: form.name,
+        address: form.address,
+        city: form.city,
+        category: form.category,
+        phone: form.phone,
+        imageUrl: form.imageUrl,
+        pledgeSigned,
+        pinLat: pinPos?.lat ?? null,
+        pinLng: pinPos?.lng ?? null,
+      });
+    }, 600);
     return () => clearTimeout(t);
-  }, [form.name, form.address, form.city, form.category]);
+  }, [form.name, form.address, form.city, form.category, form.phone, form.imageUrl, pledgeSigned, pinPos]);
 
   // 警告が表示中のとき、フィールドが埋まったら警告をリアルタイム更新
   useEffect(() => {
@@ -133,6 +164,8 @@ export default function StoreOnboarding() {
     const compressed = await compressImage(f);
     setForm(prev => ({ ...prev, imageUrl: compressed }));
     setImagePreview(compressed);
+    // ★ 同じファイルを再選択できるよう input 値をリセット
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -264,8 +297,9 @@ export default function StoreOnboarding() {
     }
   };
 
-  // ロード中
-  if (storeLoading) {
+  // ★ 初回ロードのみスピナーを表示。以降は refetch 中でも form をアンマウントしない
+  //    (storeLoading が true → false → true で form が消える = 入力が消える バグの根本対策)
+  if (storeLoading && !hasInitializedRef.current) {
     return (
       <Layout showBottomNav={false} hideHeader={true}>
         <div className="flex-1 flex items-center justify-center min-h-dvh">
@@ -343,10 +377,14 @@ export default function StoreOnboarding() {
             </label>
             <label className="block cursor-pointer">
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 className="sr-only"
-                onChange={e => e.target.files?.[0] && handleImageFile(e.target.files[0])}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageFile(file);
+                }}
               />
               <div className={`relative w-full aspect-video rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 overflow-hidden transition-all
                 ${imagePreview ? 'border-primary/40' : 'border-red-300 bg-red-50/40 hover:border-primary/40 hover:bg-primary/5'}`}>

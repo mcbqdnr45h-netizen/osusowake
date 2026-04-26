@@ -573,6 +573,7 @@ export default function StripeBankSetup() {
 
   const handleDocFileChange = (side: 'front' | 'back') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
     if (!file) return;
     setDocError(null);
     const reader = new FileReader();
@@ -588,6 +589,7 @@ export default function StripeBankSetup() {
 
   const handleBizLicenseChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async (ev) => {

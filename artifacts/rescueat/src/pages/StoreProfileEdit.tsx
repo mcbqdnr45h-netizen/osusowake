@@ -77,6 +77,7 @@ export default function StoreProfileEdit() {
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
     if (!file) return;
     setUploading(true);
     try {
