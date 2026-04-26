@@ -1,9 +1,8 @@
-// In Capacitor builds, the domain-restricted key causes a blocking error dialog.
-// We intentionally skip the key (shows "development purposes only" watermark but
-// the map functions correctly). In web builds the full key is used.
-export const MAPS_API_KEY = (import.meta.env.VITE_IS_CAPACITOR === 'true')
-  ? ''
-  : ((import.meta.env.VITE_MAPS_API_KEY as string) || '');
+// 全環境(Web・iOS)で同じAPIキーを使う。
+// iOS WebView も capacitor.config.ts の hostname='osusowakejapan.org' により
+// 同じドメインとして認識されるので、Google Cloud Console で
+// referer に "https://osusowakejapan.org/*" を追加すれば動作する。
+export const MAPS_API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
 
 // ─── Capacitor: Suppress Google Maps auth failure dialog (triple approach) ───
 if (import.meta.env.VITE_IS_CAPACITOR === 'true') {
