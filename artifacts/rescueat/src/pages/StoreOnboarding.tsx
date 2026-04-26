@@ -64,8 +64,17 @@ function clearOnboardingDraft() {
 export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile, setOptimisticRole, refreshProfile } = useAuth();
   const { currentStore: existingStore, loading: storeLoading, hasExistingStripeAccount, refetch: refetchStores } = useMyStores();
+
+  // ★ StoreOnboarding 開始時に楽観的にロールを store_owner にする
+  // → 戻るボタンで MyPage に行っても「お客様」表示にならず、店舗ナビが出る
+  // submit 完了で実際のロールが DB 上で更新される (refreshProfile で同期)
+  useEffect(() => {
+    if (user && profile && profile.role === 'customer') {
+      setOptimisticRole('store_owner');
+    }
+  }, [user, profile, setOptimisticRole]);
 
   // ?add=1 が付いている場合は「追加登録モード」→ 既存店舗リダイレクトをスキップ
   const isAddMode = typeof window !== 'undefined'
@@ -252,6 +261,8 @@ export default function StoreOnboarding() {
 
       // 店舗リストを即時更新してから遷移する
       refetchStores();
+      // ★ DB の users.role が server 側で store_owner に更新されているので profile を再取得
+      try { await refreshProfile(); } catch (_) {}
 
       if (isInherited) {
         // Stripe引き継ぎ → bank-setup スキップ → マイページへ

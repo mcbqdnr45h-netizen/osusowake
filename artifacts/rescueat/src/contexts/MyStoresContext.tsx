@@ -71,7 +71,11 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoading: authLoading } = useAuth();
 
   const [stores, setStores] = useState<MyStore[]>(() => user ? readCache(user.id) : []);
-  const [loading, setLoading] = useState(true);
+  // ★ キャッシュにストアがあれば loading=false で開始 → スピナー画面のフラッシュ回避
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!user) return false;
+    return readCache(user.id).length === 0;
+  });
   const [fetchError, setFetchError] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

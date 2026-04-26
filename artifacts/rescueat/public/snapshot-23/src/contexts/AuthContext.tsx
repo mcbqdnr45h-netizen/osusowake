@@ -17,6 +17,8 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resetPasswordForEmail: (email: string) => Promise<{ error: string | null }>;
+  // ★ 楽観的ロール更新 (登録途中のユーザーが店舗オーナー UI を見られるように)
+  setOptimisticRole: (role: 'store_owner' | 'customer') => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -122,6 +124,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function refreshProfile() {
     if (user) await fetchProfile(user.id);
+  }
+
+  // ★ 楽観的にロールを切り替える (StoreOnboarding 開始時など)
+  // キャッシュには書き込まない → リロード時は actual DB role に戻る (整合性保持)
+  function setOptimisticRole(newRole: 'store_owner' | 'customer') {
+    setProfile(prev => prev ? { ...prev, role: newRole } : prev);
   }
 
   useEffect(() => {
@@ -407,7 +415,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               ? 'customer'
               : (role ?? prof.role);
             role = sessionRole;
-            setProfile({
+            const fp1: PublicUser = {
               id: data.user.id,
               email: prof.email,
               role: sessionRole,
@@ -415,16 +423,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               phone_number: prof.phone_number ?? null,
               display_name: prof.display_name ?? null,
               created_at: data.user.created_at,
-            });
+            };
+            setProfile(fp1);
+            writeCachedProfile(fp1); // ★ 即座にキャッシュ → 次回起動時もスケルトン無し
           } else {
             // プロフィールが存在しない場合（まれ）
             role = forceRole ?? 'customer';
-            setProfile({ id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at });
+            const fp2: PublicUser = { id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at };
+            setProfile(fp2);
+            writeCachedProfile(fp2);
           }
         } else {
           // プロフィール取得失敗 → フォールバック
           role = forceRole ?? 'customer';
-          setProfile({ id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at });
+          const fp3: PublicUser = { id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at };
+          setProfile(fp3);
+          writeCachedProfile(fp3);
           console.warn('[AuthContext] profile fetch failed — using fallback');
         }
       }
@@ -432,7 +446,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('[AuthContext] signIn profile error:', err);
       if (data.user) {
         role = forceRole ?? 'customer';
-        setProfile({ id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at });
+        const fp4: PublicUser = { id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at };
+        setProfile(fp4);
+        writeCachedProfile(fp4);
       }
     } finally {
       fetchingRef.current = false;
@@ -520,7 +536,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, isLoading, isAdmin, pendingAdminMfa, signUp, signUpAsStore, signIn, sendAdminMfa, verifyAdminMfa, signOut, refreshProfile, resetPasswordForEmail }}>
+    <AuthContext.Provider value={{ user, profile, session, isLoading, isAdmin, pendingAdminMfa, signUp, signUpAsStore, signIn, sendAdminMfa, verifyAdminMfa, signOut, refreshProfile, resetPasswordForEmail, setOptimisticRole }}>
       {children}
     </AuthContext.Provider>
   );
