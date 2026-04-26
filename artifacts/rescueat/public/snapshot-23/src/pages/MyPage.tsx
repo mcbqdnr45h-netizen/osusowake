@@ -146,7 +146,7 @@ export default function MyPage() {
 
   const pageContent = (
     <div
-      className="w-full px-4 pb-24"
+      className="w-full px-4"
       style={{ paddingTop: '1.5rem' }}
     >
         <div className="flex items-center justify-between mb-2">
