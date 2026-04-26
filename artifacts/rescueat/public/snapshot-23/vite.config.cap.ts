@@ -16,10 +16,16 @@ function removeCrossorigin(): Plugin {
   };
 }
 
+// Mac側ビルド時に Replit Secret が無くてもキーが埋め込まれるよう実値を fallback として保持
+// (Maps JS API キーは referer 制限付きクライアント用キーで Web版 bundle にも公開されている)
+const MAPS_API_KEY_FALLBACK = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U";
+
 export default defineConfig({
   base: "/",
   define: {
-    'import.meta.env.VITE_MAPS_API_KEY': JSON.stringify(process.env.VITE_MAPS_API_KEY ?? process.env.Maps_API_KEY ?? ''),
+    'import.meta.env.VITE_MAPS_API_KEY': JSON.stringify(
+      process.env.VITE_MAPS_API_KEY ?? process.env.Maps_API_KEY ?? MAPS_API_KEY_FALLBACK
+    ),
     'import.meta.env.VITE_IS_CAPACITOR': JSON.stringify('true'),
     'import.meta.env.VITE_STRIPE_PK': JSON.stringify(process.env.STRIPE_PUBLISHABLE_KEY ?? ''),
     'import.meta.env.VITE_BASE_URL': JSON.stringify('/'),
