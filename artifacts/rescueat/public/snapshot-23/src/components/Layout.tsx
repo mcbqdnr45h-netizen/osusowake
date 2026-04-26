@@ -72,7 +72,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   return (
     <div
       className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen'} md:!pb-0 bg-background text-foreground flex flex-col font-sans overflow-x-hidden`}
-      style={showBottomNav ? { paddingBottom: (isStoreOwner && showBottomNav) ? '92px' : '64px' } : undefined}
+      style={showBottomNav ? { paddingBottom: (isStoreOwner && showBottomNav) ? '100px' : '72px' } : undefined}
     >
 
       {/* ── モバイル専用セーフエリアスペーサー（デスクトップ非表示）── */}
@@ -458,7 +458,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
               )}
             </div>
           )}
-          <div className="flex items-stretch h-[64px] px-2">
+          <div className="flex items-stretch h-[72px] px-2">
             {navItems.map((item) => {
               const isActive =
                 location === item.href ||
@@ -473,9 +473,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="relative flex flex-col items-center justify-center flex-1 gap-0.5 min-w-0 py-2 transition-opacity duration-100 active:opacity-60"
+                  className="relative flex flex-col items-center justify-center flex-1 gap-1 min-w-0 py-2 transition-opacity duration-100 active:opacity-60"
                 >
-                  <div className={`relative flex items-center justify-center w-10 h-7 rounded-full transition-all duration-200
+                  <div className={`relative flex items-center justify-center w-12 h-8 rounded-full transition-all duration-200
                     ${isActive ? 'bg-primary/10' : ''}`}>
                     {isActive && (
                       <motion.div
@@ -485,7 +485,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                       />
                     )}
                     <Icon
-                      className={`w-[22px] h-[22px] transition-all duration-200
+                      className={`w-[26px] h-[26px] transition-all duration-200
                         ${isActive ? 'text-primary' : 'text-muted-foreground/55'}`}
                       strokeWidth={isActive ? 2.5 : 1.8}
                     />
@@ -493,7 +493,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                       <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full border-2 border-white" />
                     )}
                   </div>
-                  <span className={`text-[10px] font-bold leading-none transition-colors duration-200
+                  <span className={`text-[11px] font-bold leading-none transition-colors duration-200
                     ${isActive ? 'text-primary' : 'text-muted-foreground/60'}`}>
                     {item.label}
                   </span>
