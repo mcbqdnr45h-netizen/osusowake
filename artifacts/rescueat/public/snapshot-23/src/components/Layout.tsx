@@ -72,7 +72,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   return (
     <div
       className={`${hideFooter ? 'h-dvh overflow-hidden' : 'min-h-screen'} md:!pb-0 bg-background text-foreground flex flex-col font-sans overflow-x-hidden`}
-      style={showBottomNav ? { paddingBottom: (isStoreOwner && showBottomNav) ? '100px' : '72px' } : undefined}
+      style={showBottomNav ? { paddingBottom: (isStoreOwner && showBottomNav) ? 'calc(100px + env(safe-area-inset-bottom))' : 'calc(72px + env(safe-area-inset-bottom))' } : undefined}
     >
 
       {/* ── モバイル専用セーフエリアスペーサー（デスクトップ非表示）── */}
@@ -446,6 +446,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
           className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border/40"
           style={{
             boxShadow: '0 -1px 0 rgba(10,8,6,0.04), 0 -4px 20px rgba(10,8,6,0.05)',
+            paddingBottom: 'env(safe-area-inset-bottom)',
           }}
         >
           {/* 店舗オーナー向け：現在操作中の店舗名バナー */}

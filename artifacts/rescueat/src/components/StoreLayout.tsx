@@ -89,7 +89,7 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
         {shouldShowNav && (
           <div
             className="shrink-0"
-            style={{ height: '62px' }}
+            style={{ height: 'calc(62px + env(safe-area-inset-bottom))' }}
             aria-hidden="true"
           />
         )}
@@ -99,6 +99,7 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
       {shouldShowNav && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-orange-100 shadow-[0_-4px_24px_rgba(255,140,0,0.08)]"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="flex items-stretch h-[62px] px-1">
             {navItems.map((item) => {
