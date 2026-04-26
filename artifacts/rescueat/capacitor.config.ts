@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
 
   ios: {
     scheme: 'Osusowake',
-    contentInset: 'automatic',
+    contentInset: 'never',
     allowsLinkPreview: false,
     scrollEnabled: true,
   },
