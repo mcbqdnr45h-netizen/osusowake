@@ -197,7 +197,7 @@ function FloatingMapButton() {
         transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.4 }}
         whileTap={{ scale: 0.88 }}
         className="fixed right-4 z-40 w-14 h-14 bg-primary rounded-2xl shadow-xl shadow-primary/30 flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors"
-        style={{ bottom: 'calc(64px + env(safe-area-inset-bottom) + 16px)' }}
+        style={{ bottom: 'calc(64px + 16px)' }}
         aria-label="地図で探す"
       >
         <MapIcon className="w-6 h-6" />

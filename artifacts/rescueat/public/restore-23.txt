@@ -28,6 +28,7 @@ FILES=(
   "src/components/PlaceSearchMap.tsx"
   "src/components/ReviewModal.tsx"
   "src/components/StoreReviewSheet.tsx"
+  "src/components/StoreLayout.tsx"
   "src/contexts/FavoritesContext.tsx"
   "src/contexts/MyStoresContext.tsx"
   "src/hooks/use-app-settings.ts"
@@ -66,6 +67,7 @@ FILES=(
   "src/pages/StripeKYCPage.tsx"
   "src/pages/SupabaseTest.tsx"
   "src/pages/VerifyEmail.tsx"
+  "src/pages/MyTownPage.tsx"
 )
 
 OK=0
