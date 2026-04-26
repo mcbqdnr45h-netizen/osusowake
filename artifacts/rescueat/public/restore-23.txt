@@ -1,0 +1,123 @@
+#!/bin/bash
+set -e
+cd ~/Documents/Osusowake/artifacts/rescueat || { echo "FAIL: directory not found"; exit 1; }
+
+BASE="https://77a30fd7-5987-4f0d-8ba0-66504bb80d25-00-1trfhtigssewn.janeway.replit.dev/snapshot-23"
+
+echo "=================================================="
+echo "  4月23日(完璧状態)に完全復元 - Osusowake"
+echo "=================================================="
+echo ""
+echo "復元対象: 50 ファイル"
+echo "削除対象: 2 ファイル (api-base.ts, cap-maps-fix.ts)"
+echo ""
+
+FILES=(
+  "capacitor.config.ts"
+  "index.cap.html"
+  "package.json"
+  "vite.config.cap.ts"
+  "vite.config.ts"
+  "public/opengraph.jpg"
+  "src/App.tsx"
+  "src/index.css"
+  "src/main.tsx"
+  "src/components/ImageUpload.tsx"
+  "src/components/Layout.tsx"
+  "src/components/Map.tsx"
+  "src/components/PlaceSearchMap.tsx"
+  "src/components/ReviewModal.tsx"
+  "src/components/StoreReviewSheet.tsx"
+  "src/contexts/FavoritesContext.tsx"
+  "src/contexts/MyStoresContext.tsx"
+  "src/hooks/use-app-settings.ts"
+  "src/hooks/use-notifications.ts"
+  "src/lib/maps-loader.ts"
+  "src/pages/AdminDashboard.tsx"
+  "src/pages/AdminVerifyShops.tsx"
+  "src/pages/BagDetail.tsx"
+  "src/pages/Checkout.tsx"
+  "src/pages/CheckoutCancel.tsx"
+  "src/pages/CheckoutSuccess.tsx"
+  "src/pages/FavoritesPage.tsx"
+  "src/pages/HelpPage.tsx"
+  "src/pages/Home.tsx"
+  "src/pages/Login.tsx"
+  "src/pages/MyPage.tsx"
+  "src/pages/OrderTicket.tsx"
+  "src/pages/PaymentMethods.tsx"
+  "src/pages/ResetPassword.tsx"
+  "src/pages/SalesLeadForm.tsx"
+  "src/pages/SearchPage.tsx"
+  "src/pages/Settings.tsx"
+  "src/pages/SignUp.tsx"
+  "src/pages/StoreBagsPage.tsx"
+  "src/pages/StoreDashboard.tsx"
+  "src/pages/StoreDetailPublic.tsx"
+  "src/pages/StoreOnboarding.tsx"
+  "src/pages/StoreOwnerDashboard.tsx"
+  "src/pages/StoreProfileEdit.tsx"
+  "src/pages/StoreReapply.tsx"
+  "src/pages/StoreReviews.tsx"
+  "src/pages/StripeBankSetup.tsx"
+  "src/pages/StripeKYCPage.tsx"
+  "src/pages/SupabaseTest.tsx"
+  "src/pages/VerifyEmail.tsx"
+)
+
+OK=0
+FAIL=0
+echo "--- ダウンロード開始 ---"
+for f in "${FILES[@]}"; do
+  mkdir -p "$(dirname "$f")"
+  if curl -fsS "$BASE/$f" -o "$f.dl"; then
+    if [ -s "$f.dl" ]; then
+      mv "$f.dl" "$f"
+      OK=$((OK+1))
+      printf "."
+    else
+      rm -f "$f.dl"
+      echo ""
+      echo "FAIL (empty): $f"
+      FAIL=$((FAIL+1))
+    fi
+  else
+    rm -f "$f.dl"
+    echo ""
+    echo "FAIL (curl): $f"
+    FAIL=$((FAIL+1))
+  fi
+done
+echo ""
+echo "成功: $OK / 失敗: $FAIL"
+
+if [ $FAIL -gt 0 ]; then
+  echo "FAILED. Aborting before build."
+  exit 1
+fi
+
+echo "--- 削除（4/23時点で存在しなかったファイル）---"
+rm -fv src/lib/api-base.ts
+rm -fv src/lib/cap-maps-fix.ts
+
+echo ""
+echo "=================================================="
+echo "  ビルド開始（時間かかります）"
+echo "=================================================="
+rm -rf dist-cap node_modules/.vite ios/App/App/public
+
+# package.json が変わってる可能性あるので install
+echo "--- pnpm install ---"
+pnpm install --filter @workspace/rescueat... 2>&1 | tail -5
+
+echo "--- vite build:cap ---"
+pnpm --filter @workspace/rescueat run build:cap || { echo "BUILD FAIL"; exit 1; }
+
+echo "--- cap sync ios ---"
+pnpm --filter @workspace/rescueat exec cap sync ios || { echo "CAP SYNC FAIL"; exit 1; }
+
+echo ""
+echo "=================================================="
+echo "  完了！Xcode で ▶ Run してください"
+echo "  (4月23日の完璧状態 + iOS環境)"
+echo "=================================================="
