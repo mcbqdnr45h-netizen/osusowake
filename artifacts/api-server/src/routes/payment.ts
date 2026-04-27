@@ -155,6 +155,8 @@ router.post("/payment/create-intent", async (req, res) => {
           amount:   total,
           currency: "jpy",
           metadata: feeMetadata,
+          // カード決済のみ許可（Stripe Link は無効化 — 日本ユーザーには馴染みがないため）
+          payment_method_types: ["card"],
           // カスタマーを指定 → 次回以降は保存済みカードが自動表示される
           ...(customerId ? { customer: customerId, setup_future_usage: "off_session" } : {}),
         };

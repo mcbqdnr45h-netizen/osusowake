@@ -162,7 +162,7 @@ function PaymentForm({
         )}
         <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
           <Lock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-          <p>カード情報はSSLで暗号化され、Osusowakeのサーバーには一切保存されません。</p>
+          <p>カード情報はSSLで暗号化され、決済代行のStripe（PCI DSS準拠）に安全に保管されます。次回はワンタップで決済できます。</p>
         </div>
       </motion.div>
 
