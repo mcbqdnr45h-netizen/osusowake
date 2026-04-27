@@ -1724,23 +1724,42 @@ export default function StoreDashboard() {
         {/* ── 大きなCTAボタン ── */}
         <div className="pt-3">
         {(() => {
-          const stripeBlocked =
+          // ★ 出品ボタンの無効化条件:
+          //   1. Stripeアカウント未登録（store.stripeAccountId が null/undefined）
+          //   2. 店舗ステータスが approved 以外（pending/applied/pending_review/rejected）
+          //   3. Stripe ライブAPI判定で chargesEnabled または payoutsEnabled が false
+          //   いずれか1つでも該当すれば出品不可
+          const noStripeAccount = !store.stripeAccountId;
+          const notApproved = store.status !== 'approved';
+          const stripeApiBlocked =
             stripeStatus !== undefined &&
             (!stripeStatus.chargesEnabled || !stripeStatus.payoutsEnabled);
+          const stripeBlocked = noStripeAccount || notApproved || stripeApiBlocked;
+
+          // 警告メッセージ — どの理由でブロックされているかを優先順位付きで判定
+          const blockTitle = noStripeAccount
+            ? '振込先口座の登録が必要です'
+            : notApproved
+              ? '審査中のため出品できません'
+              : !stripeStatus?.chargesEnabled
+                ? '決済が停止中のため出品できません'
+                : '入金が一時停止中のため出品できません';
+          const blockDetail = noStripeAccount
+            ? '売上を受け取るための口座が未登録です。「振込先口座を登録する」から登録してください。'
+            : notApproved
+              ? 'Stripeの審査が完了していません。本人確認書類の提出と審査完了をお待ちください。'
+              : !stripeStatus?.chargesEnabled
+                ? 'Stripeの決済が制限されています。本人確認書類を提出して審査を完了させてください。'
+                : 'Stripeより本人確認書類の提出が必要です。このまま放置すると決済も停止されます。';
+
           return (
             <>
               {stripeBlocked && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                   <span className="text-amber-500 text-base mt-0.5">⚠️</span>
                   <div>
-                    <p className="text-xs font-black text-amber-800">
-                      {!stripeStatus?.chargesEnabled ? '決済が停止中のため出品できません' : '入金が一時停止中のため出品できません'}
-                    </p>
-                    <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
-                      {!stripeStatus?.chargesEnabled
-                        ? 'Stripeの決済が制限されています。本人確認書類を提出して審査を完了させてください。'
-                        : 'Stripeより本人確認書類の提出が必要です。このまま放置すると決済も停止されます。'}
-                    </p>
+                    <p className="text-xs font-black text-amber-800">{blockTitle}</p>
+                    <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">{blockDetail}</p>
                   </div>
                 </div>
               )}
