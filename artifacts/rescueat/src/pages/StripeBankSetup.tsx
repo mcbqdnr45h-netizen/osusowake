@@ -37,21 +37,30 @@ async function getStripeInstance(): Promise<Stripe | null> {
 }
 
 // ── 画像圧縮（本人確認書類用 — Stripe送信前に軽量化）────────────────────────────
+// ★ 失敗時は reject する（HEIC等ブラウザ未対応形式で巨大な data URL がそのまま state に
+//   入って WebView がフリーズする問題を防ぐため）
 async function compressIdImage(dataUrl: string, maxPx = 1280, quality = 0.82): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      let { width, height } = img;
-      if (width > maxPx || height > maxPx) {
-        if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
-        else { width = Math.round(width * maxPx / height); height = maxPx; }
+      try {
+        let { width, height } = img;
+        if (!width || !height) { reject(new Error('画像サイズが取得できませんでした')); return; }
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+          else { width = Math.round(width * maxPx / height); height = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('画像を描画できませんでした')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch (err: any) {
+        reject(err instanceof Error ? err : new Error(String(err)));
       }
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
     };
-    img.onerror = () => resolve(dataUrl);
+    img.onerror = () => reject(new Error('この画像は読み込めませんでした（HEIC/HEIF など非対応形式の可能性があります）。JPEG または PNG で撮り直してください。'));
     img.src = dataUrl;
   });
 }
@@ -580,29 +589,46 @@ export default function StripeBankSetup() {
     e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
     if (!file) return;
     setDocError(null);
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const raw = ev.target?.result as string;
-      // クライアント側で圧縮（Stripe 送信前に軽量化）
+    // ★ HEIC等で巨大化した data URL を state に入れないよう Promise化＋エラー時はユーザに通知
+    try {
+      const raw: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => resolve(ev.target?.result as string);
+        reader.onerror = () => reject(new Error('画像ファイルが読み込めませんでした。もう一度撮影してください。'));
+        reader.readAsDataURL(file);
+      });
       const compressed = await compressIdImage(raw);
       if (side === 'front') { setDocFrontFile(file); setDocFrontPreview(compressed); }
       else                  { setDocBackFile(file);  setDocBackPreview(compressed);  }
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      setDocError(err?.message ?? '画像を取り込めませんでした。JPEG または PNG で撮り直してください。');
+    }
   };
 
   const handleBizLicenseChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const raw = ev.target?.result as string;
-      const compressed = await compressIdImage(raw);
-      setBizLicenseFile(file);
-      setBizLicensePreview(compressed);
-    };
-    reader.readAsDataURL(file);
+    // ★ HEIC等で巨大化した data URL を state に入れないよう Promise化＋エラー時はユーザに通知
+    // PDF はそのまま設定（圧縮は画像のみ）
+    try {
+      const raw: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => resolve(ev.target?.result as string);
+        reader.onerror = () => reject(new Error('ファイルが読み込めませんでした。'));
+        reader.readAsDataURL(file);
+      });
+      if (file.type === 'application/pdf') {
+        setBizLicenseFile(file);
+        setBizLicensePreview(raw);
+      } else {
+        const compressed = await compressIdImage(raw);
+        setBizLicenseFile(file);
+        setBizLicensePreview(compressed);
+      }
+    } catch (err: any) {
+      setDocError(err?.message ?? 'ファイルを取り込めませんでした。JPEG・PNG・PDF を選んでください。');
+    }
   };
 
   const handleTosChange = (checked: boolean) => {
@@ -1373,9 +1399,12 @@ export default function StripeBankSetup() {
               <span className="text-red-500 font-medium">表面・裏面ともに必須</span>です。
             </p>
             {/* hidden inputs */}
-            <input ref={frontInputRef} type="file" accept="image/*,image/heic,image/heif" className="hidden"
+            {/* ★ accept は image/jpeg,image/png のみ（image/heic を含めると iOS が
+                HEIC のまま渡し、ブラウザでデコードできず WebView がフリーズする）。
+                JPEG/PNG 限定にすれば iOS が自動で HEIC→JPEG 変換してくれる。 */}
+            <input ref={frontInputRef} type="file" accept="image/jpeg,image/png" className="hidden"
               onChange={handleDocFileChange('front')} />
-            <input ref={backInputRef}  type="file" accept="image/*,image/heic,image/heif" className="hidden"
+            <input ref={backInputRef}  type="file" accept="image/jpeg,image/png" className="hidden"
               onChange={handleDocFileChange('back')}  />
 
             <div className="grid grid-cols-2 gap-3">
@@ -1445,7 +1474,7 @@ export default function StripeBankSetup() {
             <input
               ref={bizLicenseInputRef}
               type="file"
-              accept="image/*,image/heic,image/heif,application/pdf"
+              accept="image/jpeg,image/png,application/pdf"
               className="hidden"
               onChange={handleBizLicenseChange}
             />

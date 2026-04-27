@@ -28,6 +28,7 @@ FILES=(
   "src/components/PlaceSearchMap.tsx"
   "src/components/ReviewModal.tsx"
   "src/components/StoreReviewSheet.tsx"
+  "src/components/StoreSelector.tsx"
   "src/components/StoreLayout.tsx"
   "src/contexts/AuthContext.tsx"
   "src/contexts/FavoritesContext.tsx"

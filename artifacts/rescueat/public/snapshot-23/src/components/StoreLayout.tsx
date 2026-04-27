@@ -59,12 +59,21 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
             {/* ステータスバッジ */}
             {store && (() => {
               const s = store.status as string;
+              // ★ 「✓承認済み」緑バッジは Stripe 連携が完全に成立してから表示する
+              //   stripeAccountId が無い / chargesEnabled が true でない / payoutsEnabled が true でない場合は「セットアップ未完了」
+              const stripeFullyReady =
+                !!store.stripeAccountId &&
+                store.stripeChargesEnabled === true &&
+                store.stripePayoutsEnabled === true;
               const cfg =
-                s === 'approved' && store.stripeChargesEnabled === false
+                s === 'approved' && !store.stripeAccountId
+                                                          ? { label: 'セットアップ未完了', cls: 'bg-orange-50 text-orange-600 border border-orange-200' }
+                : s === 'approved' && store.stripeChargesEnabled === false
                                                           ? { label: '⚠️ 決済停止中', cls: 'bg-red-50 text-red-700 border border-red-200' }
                 : s === 'approved' && store.stripePayoutsEnabled === false
                                                           ? { label: '⚠️ 入金停止中', cls: 'bg-amber-50 text-amber-700 border border-amber-200' }
-                : s === 'approved'                        ? { label: '✓ 承認済み',    cls: 'bg-green-50 text-green-700 border border-green-200' }
+                : s === 'approved' && stripeFullyReady    ? { label: '✓ 承認済み',    cls: 'bg-green-50 text-green-700 border border-green-200' }
+                : s === 'approved'                        ? { label: '審査中',         cls: 'bg-blue-50 text-blue-700 border border-blue-200' }
                 : s === 'rejected'                        ? { label: '❌ 却下',       cls: 'bg-red-50 text-red-600 border border-red-200' }
                 : s === 'suspended'                       ? { label: '停止中',     cls: 'bg-gray-100 text-gray-500 border border-gray-200' }
                 : s === 'applied'                         ? { label: '本人確認中',    cls: 'bg-blue-50 text-blue-700 border border-blue-200' }

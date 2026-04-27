@@ -283,7 +283,11 @@ router.post("/stores/apply", async (req, res) => {
       }
     }
 
-    // 基本情報のみ保存 — 自動承認（管理者審査なし）
+    // 基本情報のみ保存
+    // ★ 重要: 「approved」になるのは Stripe 連携が完了している場合のみ
+    //   - 1店舗目（Stripe未登録）: status="pending" → bank-setup 完了で approved 化
+    //   - 2店舗目以降（既存Stripe流用）: status="approved" 即時公開可能
+    const initialStatus = existingStripeAccountId ? "approved" : "pending";
     const inserted = await db.insert(storesTable).values({
       name: body.name,
       description: body.description ?? null,
@@ -295,7 +299,7 @@ router.post("/stores/apply", async (req, res) => {
       imageUrl: body.imageUrl ?? null,
       phone: body.phone ?? null,
       isActive: false,
-      status: "approved",
+      status: initialStatus,
       ownerId: body.ownerId,
       // 2店舗目以降は既存のStripeアカウントIDを流用（bank-setup不要）
       stripeAccountId: existingStripeAccountId,

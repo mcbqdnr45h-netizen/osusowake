@@ -558,12 +558,22 @@ export default function MyPage() {
                 <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">所有店舗</p>
                 <div className="space-y-2">
                   {stores.map(s => {
+                    // ★ 「公開中」バッジは Stripe 連携が完全に成立してから表示する
+                    //   stripeAccountId が無い / chargesEnabled が true でない / payoutsEnabled が true でない場合は「セットアップ未完了」
+                    const stripeFullyReady =
+                      !!s.stripeAccountId &&
+                      s.stripeChargesEnabled === true &&
+                      s.stripePayoutsEnabled === true;
                     const statusMap: Record<string, { label: string; cls: string }> = {
-                      approved:      s.stripeChargesEnabled === false
-                        ? { label: '決済停止中', cls: 'bg-red-100 text-red-700' }
-                        : s.stripePayoutsEnabled === false
-                          ? { label: '入金停止中', cls: 'bg-amber-100 text-amber-800' }
-                          : { label: '公開中',     cls: 'bg-emerald-100 text-emerald-700' },
+                      approved:      !s.stripeAccountId
+                        ? { label: 'セットアップ未完了', cls: 'bg-orange-100 text-orange-700' }
+                        : s.stripeChargesEnabled === false
+                          ? { label: '決済停止中', cls: 'bg-red-100 text-red-700' }
+                          : s.stripePayoutsEnabled === false
+                            ? { label: '入金停止中', cls: 'bg-amber-100 text-amber-800' }
+                            : stripeFullyReady
+                              ? { label: '公開中',     cls: 'bg-emerald-100 text-emerald-700' }
+                              : { label: '審査中',     cls: 'bg-blue-100 text-blue-700' },
                       pending_review:{ label: '確認中',         cls: 'bg-amber-100 text-amber-700' },
                       applied:       { label: '口座登録済み', cls: 'bg-blue-100 text-blue-700' },
                       rejected:      { label: '却下',         cls: 'bg-red-100 text-red-700' },
