@@ -58,8 +58,9 @@ export default function MyPage() {
       return res.json();
     },
     enabled: !!storeId && !!store?.stripeAccountId,
-    staleTime: 60_000,
+    staleTime: 0,
     refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   // ── お知らせ（通知）──
@@ -118,19 +119,19 @@ export default function MyPage() {
 
   const isStoreOwner = profile?.role === 'store_owner';
 
-  // ★ profile 読み込み待ちのタイムアウト (3秒経ったら諦めて描画する → 永久スケルトン防止)
+  // ★ profile 読み込み待ちのタイムアウト (1.2秒経ったら諦めて描画する → 永久スケルトン防止)
   const [profileWaitElapsed, setProfileWaitElapsed] = useState(false);
   useEffect(() => {
     if (profile) { setProfileWaitElapsed(true); return; }
-    const t = setTimeout(() => setProfileWaitElapsed(true), 3000);
+    const t = setTimeout(() => setProfileWaitElapsed(true), 1200);
     return () => clearTimeout(t);
   }, [profile]);
 
   // Auth確定前はスケルトン表示でフラッシュを防ぐ
   // ★ profile が未ロード時もスケルトンを出す (店舗オーナーがカスタマー画面でフラッシュするバグ防止)
-  // ★ ただし最大3秒まで - それ以上は profile=null でも描画する (永久ロード防止)
-  // キャッシュから store が読めている場合はスケルトン不要
-  if (authLoading || (user && !profile && !profileWaitElapsed) || (isStoreOwner && loadingStore && store === null)) {
+  // ★ ただし最大1.2秒まで - それ以上は profile=null でも描画する (永久ロード防止)
+  // ★ store の読み込み待ちはスケルトンを出さない（profile が決まれば店舗カードはインラインローダーで表示）
+  if (authLoading || (user && !profile && !profileWaitElapsed)) {
     return (
       <Layout showBottomNav>
         <div className="w-full py-8 px-4 animate-pulse">

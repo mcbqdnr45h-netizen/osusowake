@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetReservation, useCancelReservation } from '@workspace/api-client-react';
@@ -9,7 +9,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import {
   Elements,
   PaymentElement,
@@ -17,10 +17,10 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK ?? '');
-
 const HOLD_MINUTES = 5;
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+// iOS Capacitor では BASE_URL='/' のため、API は本番ドメインを直接叩く必要がある。
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || BASE;
 
 function useCountdown(createdAt: string | Date | undefined, status: string | undefined) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -248,6 +248,27 @@ export default function Checkout() {
   const [intentError, setIntentError] = useState<string | null>(null);
   const creatingIntent = useRef(false);
 
+  // ── Stripe 公開鍵を実行時にサーバーから取得（iOSビルドで埋め込まれていなくても動くようにするため）──
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/stripe/public-config`, { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        const pk: string = data?.publishableKey || '';
+        if (!pk || !pk.startsWith('pk_')) {
+          if (!cancelled) setIntentError('Stripe公開鍵が取得できませんでした。サポートまでお問い合わせください。');
+          return;
+        }
+        if (!cancelled) setStripePromise(loadStripe(pk));
+      } catch (e) {
+        if (!cancelled) setIntentError('Stripe公開鍵の取得に失敗しました。通信環境を確認してください。');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const { data: reservation, isLoading } = useGetReservation(reservationId);
   const fromPath: string = (window.history.state as any)?.from || '';
 
@@ -270,7 +291,7 @@ export default function Checkout() {
     if (!reservation || reservation.paymentStatus === 'paid' || clientSecret || creatingIntent.current) return;
     creatingIntent.current = true;
 
-    fetch('/api/payment/create-intent', {
+    fetch(`${API_BASE}/api/payment/create-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reservationId, userId: user?.id }),
@@ -412,7 +433,7 @@ export default function Checkout() {
               <p className="font-bold">決済の準備に失敗しました</p>
               <p className="text-xs mt-1">{intentError}</p>
             </div>
-          ) : !clientSecret ? (
+          ) : !clientSecret || !stripePromise ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
               className="bg-card border border-border rounded-2xl p-8 shadow-sm flex items-center justify-center"

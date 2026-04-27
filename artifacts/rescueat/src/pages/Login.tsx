@@ -191,21 +191,19 @@ export default function Login() {
               </div>
             </div>
 
-            {/* パスワードを忘れた方はこちら */}
-            {!isStore && (
-              <div className="flex justify-end -mt-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowForgotPw(true); setForgotEmail(email); setForgotSent(false); setForgotError(''); }}
-                  className="text-[12px] text-primary font-bold hover:underline underline-offset-2"
-                >
-                  パスワードを忘れた方はこちら
-                </button>
-              </div>
-            )}
+            {/* パスワードを忘れた方はこちら（一般ユーザー・店舗側 両方に表示） */}
+            <div className="flex justify-end -mt-2">
+              <button
+                type="button"
+                onClick={() => { setShowForgotPw(true); setForgotEmail(email); setForgotSent(false); setForgotError(''); }}
+                className="text-[12px] text-primary font-bold hover:underline underline-offset-2"
+              >
+                パスワードを忘れた方はこちら
+              </button>
+            </div>
 
             {/* パスワードリセットパネル（常にDOMに存在、高さだけアニメーション）*/}
-            {!isStore && (
+            {(
               <motion.div
                 initial={false}
                 animate={{
