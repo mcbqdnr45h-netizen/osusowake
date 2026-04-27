@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { reservationsTable, surpriseBagsTable, storesTable, cartReservationsTable, notificationsTable } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, ne } from "drizzle-orm";
 import { sendWebPushToUser } from "../lib/push.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import {
@@ -270,16 +270,21 @@ router.post("/payment/confirm", async (req, res) => {
       return;
     }
 
-    await db
+    // ★ アトミック遷移: 既に paid の行は更新せず、実際に遷移したかを返り値で判定。
+    //   フロントの confirm と Stripe webhook (payment_intent.succeeded) が
+    //   並行して走った場合でも、店舗通知が二重に飛ぶことを防ぐ。
+    const transitioned = await db
       .update(reservationsTable)
       .set({
         paymentStatus: "paid",
         status: "confirmed",
         paymentIntentId: body.paymentIntentId,
       })
-      .where(eq(reservationsTable.id, body.reservationId));
+      .where(and(eq(reservationsTable.id, body.reservationId), ne(reservationsTable.paymentStatus, "paid")))
+      .returning({ id: reservationsTable.id });
+    const didTransition = transitioned.length > 0;
 
-    // 仮押さえを確定（在庫は戻さない）
+    // 仮押さえを確定（在庫は戻さない）— 冪等
     await db
       .update(cartReservationsTable)
       .set({ status: "confirmed" })
@@ -309,7 +314,11 @@ router.post("/payment/confirm", async (req, res) => {
       store: null,
     });
 
-    // 店舗オーナーへの購入通知（レスポンス後・非致命的）
+    // 店舗オーナーへの購入通知（レスポンス後・非致命的）— 実際に遷移した時のみ
+    if (!didTransition) {
+      console.log(`[payment] /confirm: reservation ${body.reservationId} は既に paid（通知スキップ）`);
+      return;
+    }
     setImmediate(async () => {
       try {
         const [store] = await db

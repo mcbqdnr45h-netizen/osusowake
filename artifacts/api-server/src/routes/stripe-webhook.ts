@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { db, pool } from "@workspace/db";
-import { storesTable, notificationsTable, surpriseBagsTable } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { storesTable, notificationsTable, surpriseBagsTable, reservationsTable, cartReservationsTable } from "@workspace/db/schema";
+import { eq, sql, and, ne } from "drizzle-orm";
 import { Resend } from "resend";
 import { sendStoreApprovalEmail } from "../utils/emails";
 
@@ -174,6 +174,100 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
       return;
     }
     console.warn("[stripe-webhook] ⚠️ STRIPE_WEBHOOK_SECRET未設定 — 署名検証なし（開発環境のみ許可）");
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 🛡 安全網: payment_intent.succeeded
+  // フロント (Checkout.tsx) の /api/payment/confirm 呼び出しが iOS の通信不調などで
+  // 失敗した場合に備え、Stripe からの確実な webhook で予約を paid/confirmed に
+  // 自動同期する。冪等（既に paid なら何もしない）。
+  // ─────────────────────────────────────────────────────────────────────────
+  if (event.type === "payment_intent.succeeded") {
+    try {
+      const intent = event.data.object as {
+        id: string;
+        amount: number;
+        metadata?: Record<string, string>;
+      };
+      const reservationIdStr = intent.metadata?.reservationId;
+      const reservationId = reservationIdStr ? parseInt(reservationIdStr, 10) : NaN;
+      if (!reservationId || Number.isNaN(reservationId)) {
+        console.warn(`[stripe-webhook] payment_intent.succeeded: metadata.reservationId なし — intent=${intent.id}`);
+        res.json({ received: true, type: event.type, handled: false, reason: "no_reservation_id" });
+        return;
+      }
+
+      // ★ アトミック遷移: paid でない行のみ更新し、戻り値で実際に遷移したか判定。
+      //   フロントの /api/payment/confirm と並行しても、通知が二重に飛ばない。
+      const transitioned = await db
+        .update(reservationsTable)
+        .set({
+          paymentStatus: "paid",
+          status: "confirmed",
+          paymentIntentId: intent.id,
+        })
+        .where(and(eq(reservationsTable.id, reservationId), ne(reservationsTable.paymentStatus, "paid")))
+        .returning({
+          id: reservationsTable.id,
+          storeId: reservationsTable.storeId,
+          pickupCode: reservationsTable.pickupCode,
+        });
+
+      if (transitioned.length === 0) {
+        // 既に paid（フロントが先に成功）または存在しない
+        const [check] = await db
+          .select({ id: reservationsTable.id, paymentStatus: reservationsTable.paymentStatus })
+          .from(reservationsTable)
+          .where(eq(reservationsTable.id, reservationId))
+          .limit(1);
+        if (!check) {
+          console.warn(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} 見つからず`);
+          res.json({ received: true, type: event.type, handled: false, reason: "reservation_not_found" });
+          return;
+        }
+        console.log(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} は既に paid（冪等スキップ）`);
+        res.json({ received: true, type: event.type, handled: true, idempotent: true });
+        return;
+      }
+
+      const [row] = transitioned;
+
+      // 仮押さえも確定（在庫は戻さない）— 冪等
+      await db
+        .update(cartReservationsTable)
+        .set({ status: "confirmed" })
+        .where(eq(cartReservationsTable.reservationId, reservationId))
+        .catch(() => {});
+
+      console.log(`[stripe-webhook] ✅ 安全網発動: reservation ${reservationId} を paid/confirmed に更新（intent=${intent.id}）`);
+
+      // 店舗オーナーへの購入通知 — 実際に遷移したこのパスからのみ送信
+      try {
+        const [store] = await db
+          .select({ ownerId: storesTable.ownerId, name: storesTable.name })
+          .from(storesTable)
+          .where(eq(storesTable.id, row.storeId))
+          .limit(1);
+        if (store?.ownerId) {
+          await db.insert(notificationsTable).values({
+            userId: store.ownerId,
+            type: "bag_sold",
+            title: "【重要】おすそわけバッグが購入されました！",
+            body: `受取コード: ${row.pickupCode ?? "---"} ｜ 受取準備をご確認ください`,
+            storeId: row.storeId,
+          });
+        }
+      } catch (notifErr) {
+        console.error('[stripe-webhook] 安全網からの店舗通知挿入失敗:', notifErr);
+      }
+
+      res.json({ received: true, type: event.type, handled: true, reservationId, action: "marked_paid" });
+      return;
+    } catch (err: any) {
+      console.error('[stripe-webhook] payment_intent.succeeded handler error:', err);
+      res.status(500).json({ error: "internal_error", message: err?.message });
+      return;
+    }
   }
 
   // ── account.updated イベントのみ処理 ────────────────────────────────────────

@@ -99,15 +99,35 @@ function PaymentForm({
       }
 
       if (result.paymentIntent?.status === 'succeeded') {
-        await fetch('/api/payment/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            reservationId,
-            paymentIntentId: result.paymentIntent.id,
-            status: 'confirmed',
-          }),
-        }).catch(() => {});
+        // ★ DB を「決済済み」に確定。iOS Capacitor では相対パスが capacitor://localhost を叩いて失敗するため
+        //   必ず API_BASE プレフィックスを使う。サイレント失敗禁止 — 失敗時はエラー表示。
+        try {
+          const confirmRes = await fetch(`${API_BASE}/api/payment/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reservationId,
+              paymentIntentId: result.paymentIntent.id,
+              status: 'confirmed',
+            }),
+          });
+          if (!confirmRes.ok) {
+            const detail = await confirmRes.json().catch(() => ({}));
+            console.error('[checkout] /api/payment/confirm failed', confirmRes.status, detail);
+            // Stripe webhook (payment_intent.succeeded) が後続でDB更新する安全網があるが、
+            // ユーザーにも認識してもらえるよう警告だけ出して画面遷移は継続。
+            toast({
+              title: '⚠️ 決済は成功しましたが反映が遅れる場合があります',
+              description: '数秒待って「マイバッグ」を再読み込みしてください。',
+            });
+          }
+        } catch (confirmErr) {
+          console.error('[checkout] /api/payment/confirm network error', confirmErr);
+          toast({
+            title: '⚠️ 決済は成功しましたが反映が遅れる場合があります',
+            description: '数秒待って「マイバッグ」を再読み込みしてください。',
+          });
+        }
         onSuccess();
       }
     } catch (err: any) {
