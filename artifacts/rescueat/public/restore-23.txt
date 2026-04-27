@@ -109,6 +109,9 @@ echo "--- 削除（4/23時点で存在しなかったファイル）---"
 rm -fv src/lib/api-base.ts
 rm -fv src/lib/cap-maps-fix.ts
 
+# ─── 実行権限付与 ──────────────────────────────────────────────
+chmod +x scripts/ios-setup.sh scripts/apply-info-plist.sh 2>/dev/null || true
+
 echo ""
 echo "=================================================="
 echo "  ビルド開始（時間かかります）"
@@ -122,11 +125,22 @@ pnpm install --filter @workspace/rescueat... 2>&1 | tail -5
 echo "--- vite build:cap ---"
 pnpm --filter @workspace/rescueat run build:cap || { echo "BUILD FAIL"; exit 1; }
 
+# ★ Info.plist にカメラ・写真・位置情報のプライバシー許可キーを必ず適用
+#   これが無いと iOS が "abort with payload" でアプリを silent-terminate（NSCameraUsageDescription crash）
+echo "--- Info.plist プライバシー許可キー適用（最重要）---"
+if [ -f ios/App/App/Info.plist ]; then
+  bash scripts/apply-info-plist.sh || { echo "INFO.PLIST PATCH FAIL"; exit 1; }
+else
+  echo "  ⚠ Info.plist が無いためスキップ（npx cap add ios 後に再実行してください）"
+fi
+
 echo "--- cap sync ios ---"
 pnpm --filter @workspace/rescueat exec cap sync ios || { echo "CAP SYNC FAIL"; exit 1; }
 
 echo ""
 echo "=================================================="
-echo "  完了！Xcode で ▶ Run してください"
-echo "  (4月23日の完璧状態 + iOS環境)"
+echo "  ✅ 完了！Xcode で:"
+echo "    1. Product > Clean Build Folder (⇧⌘K)"
+echo "    2. iPhone から古いアプリを削除"
+echo "    3. ▶ Run でインストールし直し"
 echo "=================================================="
