@@ -33,7 +33,9 @@ export default function MyPage() {
   const co2Saved       = +(pickedUpCount * 2.5).toFixed(1);
 
   // ── Stripe ライブステータス（payouts_enabled を DB 固定値ではなく API から取得）──
-  const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+  // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
+  const BASE_URL = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+                   (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
   const storeId = store?.id;
   const { data: stripeStatus } = useQuery<{
     connected: boolean;
@@ -49,7 +51,9 @@ export default function MyPage() {
     queryKey: [`/api/stores/${storeId}/connect/status`],
     queryFn: async () => {
       if (!storeId) return null;
-      const res = await fetch(`${BASE_URL}/api/stores/${storeId}/connect/status`);
+      // ★ iOS WKWebView の URL キャッシュを完全回避：no-store + cache-busting query
+      const bust = `_=${Date.now()}`;
+      const res = await fetch(`${BASE_URL}/api/stores/${storeId}/connect/status?${bust}`, { cache: 'no-store' });
       if (!res.ok) return null;
       return res.json();
     },

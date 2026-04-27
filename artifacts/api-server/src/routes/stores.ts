@@ -496,6 +496,11 @@ router.get("/stores/by-owner", async (req, res) => {
 // GET /api/stores/all-by-owner — オーナーの全店舗一覧（多店舗対応）
 router.get("/stores/all-by-owner", async (req, res) => {
   try {
+    // ★ iOS WKWebView などのキャッシュを完全に無効化
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+
     const userId = req.query.userId as string;
     if (!userId) {
       return res.status(400).json({ error: "bad_request", message: "userId is required" });
@@ -1175,6 +1180,11 @@ router.get("/stores/:storeId/today-sales", async (req, res) => {
 // Stripe アカウントのオンボーディング完了状況を返す
 router.get("/stores/:storeId/connect/status", async (req, res) => {
   try {
+    // ★ iOS WKWebView などのキャッシュを完全に無効化
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+
     const storeId = parseInt(req.params.storeId);
 
     const [store] = await db
