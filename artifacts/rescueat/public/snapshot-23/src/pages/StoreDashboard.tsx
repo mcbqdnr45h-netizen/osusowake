@@ -1780,7 +1780,7 @@ export default function StoreDashboard() {
                   <p className="font-black text-base leading-tight">本日のOsusowakeを出品する</p>
                 </div>
               </motion.button>
-            </>
+            </div>
           );
         })()}
         </div>
