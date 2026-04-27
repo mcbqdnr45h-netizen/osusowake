@@ -139,6 +139,32 @@ router.post("/payment/create-intent", async (req, res) => {
         const userId = body.userId;
         const customerId = userId ? await getOrCreateStripeCustomer(stripe, userId) : null;
 
+        // ── Customer Session（保存済カードの再表示・保存・削除 UI を有効化）─────────
+        // payment_method_types を ["card"] で固定すると、PaymentElement は customer_session
+        // が無いと saved methods を一切表示しない。ここで明示的にセッションを作る。
+        let customerSessionClientSecret: string | null = null;
+        if (customerId) {
+          try {
+            const session = await (stripe as any).customerSessions.create({
+              customer: customerId,
+              components: {
+                payment_element: {
+                  enabled: true,
+                  features: {
+                    payment_method_redisplay: "enabled",
+                    payment_method_save: "enabled",
+                    payment_method_save_usage: "off_session",
+                    payment_method_remove: "enabled",
+                  },
+                },
+              },
+            });
+            customerSessionClientSecret = session?.client_secret ?? null;
+          } catch (e: any) {
+            console.warn("[create-intent] customerSessions.create failed:", e?.message);
+          }
+        }
+
         // Stripeダッシュボードのメタデータで「どの店舗の売上か」を判別可能にする
         // store_id / store_name を必ず付与することで、1アカウント多店舗でも識別できる
         const feeMetadata = {
@@ -221,10 +247,11 @@ router.post("/payment/create-intent", async (req, res) => {
           .where(eq(reservationsTable.id, reservation.id));
 
         res.json({
-          clientSecret:       intent.client_secret,
-          paymentIntentId:    intent.id,
-          amount:             total,
-          currency:           "jpy",
+          clientSecret:                 intent.client_secret,
+          customerSessionClientSecret,
+          paymentIntentId:              intent.id,
+          amount:                       total,
+          currency:                     "jpy",
           platformRevenue,
           stripeFee,
           shopTransferAmount,

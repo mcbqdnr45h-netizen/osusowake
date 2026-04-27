@@ -577,8 +577,11 @@ export default function Home() {
         {/* ── スクロールエリア ── */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto bg-secondary/10 scroll-smooth-native"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-secondary/10 scroll-smooth-native"
+          style={{
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)',
+            WebkitOverflowScrolling: 'touch',
+          }}
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >

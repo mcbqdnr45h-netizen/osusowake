@@ -538,9 +538,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const origin = window.location.origin;
       const base = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.BASE_URL : '') ?? '';
-      const redirectTo = `${origin}${base.replace(/\/$/, '')}/reset-password`;
-      const BASE_URL = base.replace(/\/$/, '') || '';
-      const res = await fetch(`${BASE_URL}/api/auth/forgot-password`, {
+      // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) を使う必要がある
+      //   そうしないと capacitor://localhost/api/... を叩いてしまい絶対に届かない
+      const apiBase = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_API_BASE : '') ?? '';
+      const API_PREFIX = (apiBase || base).replace(/\/$/, '') || '';
+      // 再設定リンクの戻り先は本番ドメインに固定（iOS の capacitor://localhost を含めると無効リンクになる）
+      const redirectOrigin = apiBase || origin;
+      const redirectTo = `${redirectOrigin.replace(/\/$/, '')}${apiBase ? '/rescueat' : base.replace(/\/$/, '')}/reset-password`;
+      const res = await fetch(`${API_PREFIX}/api/auth/forgot-password`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ email: email.trim(), redirectTo }),

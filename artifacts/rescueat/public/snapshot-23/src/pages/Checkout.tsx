@@ -267,6 +267,7 @@ export default function Checkout() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
   const [intentError, setIntentError] = useState<string | null>(null);
   const creatingIntent = useRef(false);
 
@@ -322,7 +323,11 @@ export default function Checkout() {
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || '決済の準備に失敗しました'); }
         return r.json();
       })
-      .then((d) => { if (d.clientSecret) setClientSecret(d.clientSecret); else throw new Error('決済情報が取得できませんでした'); })
+      .then((d) => {
+        if (!d.clientSecret) throw new Error('決済情報が取得できませんでした');
+        setClientSecret(d.clientSecret);
+        if (d.customerSessionClientSecret) setCustomerSessionClientSecret(d.customerSessionClientSecret);
+      })
       .catch((err) => { setIntentError(err.message); creatingIntent.current = false; });
   }, [reservation, reservationId, user?.id, clientSecret]);
 
@@ -470,6 +475,8 @@ export default function Checkout() {
               stripe={stripePromise}
               options={{
                 clientSecret,
+                // ★ 保存済カードを表示・保存・削除するために customer_session を渡す
+                ...(customerSessionClientSecret ? { customerSessionClientSecret } : {}),
                 locale: 'ja',
                 appearance: {
                   theme: 'stripe',
