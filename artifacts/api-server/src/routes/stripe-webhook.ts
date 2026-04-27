@@ -153,27 +153,41 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
   }
 
   const sig = req.headers["stripe-signature"];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Stripe は「お客様のアカウント」用と「連結アカウント」用で別エンドポイント・別シークレット
+  // を発行するため、複数のシークレットを順に試して検証する。
+  const candidateSecrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET_CONNECT,
+    process.env.STRIPE_WEBHOOK_SECRET_2,
+  ].filter((s): s is string => typeof s === "string" && s.length > 0);
 
   let event: any;
 
-  if (webhookSecret && sig) {
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    } catch (err: any) {
-      console.error("[stripe-webhook] 署名検証失敗:", err.message);
-      res.status(400).json({ error: `Webhook Error: ${err.message}` });
+  if (candidateSecrets.length > 0 && sig) {
+    let lastErr: any = null;
+    for (const secret of candidateSecrets) {
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, secret);
+        lastErr = null;
+        break;
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+    if (!event) {
+      console.error("[stripe-webhook] 署名検証失敗（全候補シークレットで一致せず）:", lastErr?.message);
+      res.status(400).json({ error: `Webhook Error: ${lastErr?.message ?? "signature mismatch"}` });
       return;
     }
   } else {
-    // 開発環境では署名なしで受け取り（STRIPE_WEBHOOK_SECRET未設定時）
+    // 開発環境では署名なしで受け取り（シークレット未設定時）
     try {
       event = JSON.parse(req.body.toString());
     } catch {
       res.status(400).json({ error: "Invalid JSON body" });
       return;
     }
-    console.warn("[stripe-webhook] ⚠️ STRIPE_WEBHOOK_SECRET未設定 — 署名検証なし（開発環境のみ許可）");
+    console.warn("[stripe-webhook] ⚠️ STRIPE_WEBHOOK_SECRET 未設定 — 署名検証なし（開発環境のみ許可）");
   }
 
   // ─────────────────────────────────────────────────────────────────────────
