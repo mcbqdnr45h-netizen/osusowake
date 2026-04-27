@@ -1406,12 +1406,13 @@ export default function StripeBankSetup() {
               <span className="text-red-500 font-medium">表面・裏面ともに必須</span>です。
             </p>
             {/* hidden inputs */}
-            {/* ★ accept は image/jpeg,image/png のみ（image/heic を含めると iOS が
-                HEIC のまま渡し、ブラウザでデコードできず WebView がフリーズする）。
-                JPEG/PNG 限定にすれば iOS が自動で HEIC→JPEG 変換してくれる。 */}
-            <input ref={frontInputRef} type="file" accept="image/jpeg,image/png" className="hidden"
+            {/* ★ accept は image/* のみ。複数MIME列挙（image/jpeg,image/png）は
+                iOS WKWebView の Take Photo 経路でカメラインテントが固まる事例があるため
+                単一 wildcard に統一（同アプリ内 ImageUpload.tsx と同じパターン）。
+                HEIC は URL.createObjectURL → Image() で WKWebView がネイティブデコード可能。 */}
+            <input ref={frontInputRef} type="file" accept="image/*" className="hidden"
               onChange={handleDocFileChange('front')} />
-            <input ref={backInputRef}  type="file" accept="image/jpeg,image/png" className="hidden"
+            <input ref={backInputRef}  type="file" accept="image/*" className="hidden"
               onChange={handleDocFileChange('back')}  />
 
             <div className="grid grid-cols-2 gap-3">
@@ -1481,7 +1482,7 @@ export default function StripeBankSetup() {
             <input
               ref={bizLicenseInputRef}
               type="file"
-              accept="image/jpeg,image/png,application/pdf"
+              accept="image/*,application/pdf"
               className="hidden"
               onChange={handleBizLicenseChange}
             />

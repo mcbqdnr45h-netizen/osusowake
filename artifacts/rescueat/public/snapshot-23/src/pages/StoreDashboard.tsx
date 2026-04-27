@@ -1668,7 +1668,7 @@ export default function StoreDashboard() {
           </Link>
         </div>
 
-        <div className="px-4 space-y-6">
+        <div className="px-4 space-y-8">
 
         {/* ── PR文（おすそわけメッセージ）── */}
         {store.description ? (
