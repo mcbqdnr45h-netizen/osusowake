@@ -1202,6 +1202,22 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
     const account = await stripe.accounts.retrieve(store.stripeAccountId);
 
+    // ★ write-through キャッシュ: ライブ Stripe の値を DB の stripeChargesEnabled / stripePayoutsEnabled
+    //   に書き戻す。これで StoreLayout / StoreSelector / MyPage の DB ベース・バッジが最新化され、
+    //   StoreDashboard のライブ判定（出品ボタンブロック）と矛盾しなくなる。
+    //   （以前は webhook 任せだったため、Stripe が後から有効化したケースで DB が古いまま停止中表示が残っていた）
+    try {
+      await db
+        .update(storesTable)
+        .set({
+          stripeChargesEnabled: account.charges_enabled === true,
+          stripePayoutsEnabled: account.payouts_enabled === true,
+        })
+        .where(eq(storesTable.id, storeId));
+    } catch (syncErr) {
+      console.error("[connect/status] DB write-through failed (non-fatal):", syncErr);
+    }
+
     res.json({
       connected: true,
       accountId: store.stripeAccountId,
