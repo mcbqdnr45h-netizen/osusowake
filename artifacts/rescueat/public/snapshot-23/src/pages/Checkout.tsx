@@ -152,7 +152,9 @@ function PaymentForm({
           onReady={() => setElementsReady(true)}
           options={{
             layout: 'tabs',
+            wallets: { applePay: 'auto', googlePay: 'auto', link: 'never' },
             fields: { billingDetails: { name: 'auto' } },
+            terms: { card: 'never' },
           }}
         />
         {!elementsReady && (
