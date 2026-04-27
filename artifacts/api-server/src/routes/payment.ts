@@ -95,17 +95,58 @@ function isStripeConnectError(err: any): boolean {
   );
 }
 
+/**
+ * 既存 PaymentIntent を retrieve して「まだ支払い可能」な状態か判定し、
+ * 再利用できればその client_secret を返す。
+ * → チェックアウト画面を再ロード／戻る／ホットリロードしても新規 PI が
+ *   作成されず Stripe ダッシュボードの「未完了」が増殖しない。
+ */
+const REUSABLE_PI_STATUSES = new Set([
+  "requires_payment_method",
+  "requires_confirmation",
+  "requires_action",
+]);
+
+async function buildCustomerSessionSecret(
+  stripe: any,
+  customerId: string | null,
+): Promise<string | null> {
+  if (!customerId) return null;
+  try {
+    const session = await stripe.customerSessions.create({
+      customer: customerId,
+      components: {
+        payment_element: {
+          enabled:  true,
+          features: {
+            payment_method_redisplay:  "enabled",
+            payment_method_save:       "enabled",
+            payment_method_save_usage: "off_session",
+            payment_method_remove:     "enabled",
+          },
+        },
+      },
+    });
+    return session?.client_secret ?? null;
+  } catch (e: any) {
+    console.warn("[create-intent] customerSessions.create failed:", e?.message);
+    return null;
+  }
+}
+
 router.post("/payment/create-intent", async (req, res) => {
   try {
     const body = CreatePaymentIntentBody.parse(req.body);
 
     const [reservation] = await db
       .select({
-        id:            reservationsTable.id,
-        totalPrice:    reservationsTable.totalPrice,
-        paymentStatus: reservationsTable.paymentStatus,
-        bagId:         reservationsTable.bagId,
-        storeId:       reservationsTable.storeId,
+        id:              reservationsTable.id,
+        totalPrice:      reservationsTable.totalPrice,
+        paymentStatus:   reservationsTable.paymentStatus,
+        bagId:           reservationsTable.bagId,
+        storeId:         reservationsTable.storeId,
+        paymentIntentId: reservationsTable.paymentIntentId,
+        status:          reservationsTable.status,
       })
       .from(reservationsTable)
       .where(eq(reservationsTable.id, body.reservationId));
@@ -139,31 +180,72 @@ router.post("/payment/create-intent", async (req, res) => {
         const userId = body.userId;
         const customerId = userId ? await getOrCreateStripeCustomer(stripe, userId) : null;
 
+        // ── 既存 PI の再利用チェック（Stripe ダッシュボード「未完了」増殖防止）─────
+        // チェックアウト画面の戻る／再ロード／ホットリロードで毎回新しい PI を
+        // 作っていたため、放棄されたチェックアウトが大量に「未完了」として残っていた。
+        // 同じ予約・同じ金額・再利用可能ステータスなら既存 PI を返す。
+        const existingPiId = reservation.paymentIntentId;
+        if (
+          existingPiId &&
+          !existingPiId.startsWith("pi_mock_") &&
+          reservation.status !== "cancelled"
+        ) {
+          try {
+            const existing = await stripe.paymentIntents.retrieve(existingPiId);
+            const reusable =
+              REUSABLE_PI_STATUSES.has(existing.status) &&
+              existing.amount === total;
+            if (reusable) {
+              const sessSecret = await buildCustomerSessionSecret(
+                stripe as any,
+                customerId,
+              );
+              console.log(
+                `♻️  PaymentIntent reused: ${existing.id} (status=${existing.status})`,
+              );
+              res.json({
+                clientSecret:                existing.client_secret,
+                customerSessionClientSecret: sessSecret,
+                paymentIntentId:             existing.id,
+                amount:                      existing.amount,
+                currency:                    "jpy",
+                platformRevenue,
+                stripeFee,
+                shopTransferAmount,
+                chargeMode:                  "reused",
+              });
+              return;
+            }
+            // 金額が変わった等で再利用不可 → 古い PI は明示的にキャンセル
+            if (REUSABLE_PI_STATUSES.has(existing.status)) {
+              try {
+                await stripe.paymentIntents.cancel(existing.id);
+                console.log(
+                  `🗑️  Cancelled stale PI ${existing.id} (amount/status mismatch)`,
+                );
+              } catch (cancelErr: any) {
+                console.warn(
+                  `[create-intent] cancel stale PI failed:`,
+                  cancelErr?.message,
+                );
+              }
+            }
+          } catch (retrieveErr: any) {
+            console.warn(
+              `[create-intent] retrieve existing PI ${existingPiId} failed:`,
+              retrieveErr?.message,
+            );
+            // retrieve に失敗 → 新規作成へ進む
+          }
+        }
+
         // ── Customer Session（保存済カードの再表示・保存・削除 UI を有効化）─────────
         // payment_method_types を ["card"] で固定すると、PaymentElement は customer_session
         // が無いと saved methods を一切表示しない。ここで明示的にセッションを作る。
-        let customerSessionClientSecret: string | null = null;
-        if (customerId) {
-          try {
-            const session = await (stripe as any).customerSessions.create({
-              customer: customerId,
-              components: {
-                payment_element: {
-                  enabled: true,
-                  features: {
-                    payment_method_redisplay: "enabled",
-                    payment_method_save: "enabled",
-                    payment_method_save_usage: "off_session",
-                    payment_method_remove: "enabled",
-                  },
-                },
-              },
-            });
-            customerSessionClientSecret = session?.client_secret ?? null;
-          } catch (e: any) {
-            console.warn("[create-intent] customerSessions.create failed:", e?.message);
-          }
-        }
+        const customerSessionClientSecret = await buildCustomerSessionSecret(
+          stripe as any,
+          customerId,
+        );
 
         // Stripeダッシュボードのメタデータで「どの店舗の売上か」を判別可能にする
         // store_id / store_name を必ず付与することで、1アカウント多店舗でも識別できる

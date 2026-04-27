@@ -12,6 +12,37 @@ import { eq, and, sql, lt, isNotNull } from "drizzle-orm";
 
 const HOLD_MINUTES = 5;
 
+/** 再利用可能ステータス＝まだ未完了の PI。これらだけが Stripe で cancel 可能 */
+const CANCELLABLE_PI_STATUSES = new Set([
+  "requires_payment_method",
+  "requires_capture",
+  "requires_confirmation",
+  "requires_action",
+  "processing",
+]);
+
+/**
+ * Stripe PaymentIntent を安全に cancel する。
+ * - 既に成功・キャンセル済みなら no-op
+ * - mock id（pi_mock_*）はスキップ
+ * - エラーは握りつぶす（DB 側の cancel が主、Stripe 側は best-effort）
+ */
+async function cancelStripePI(piId: string | null | undefined): Promise<void> {
+  if (!piId || piId.startsWith("pi_mock_")) return;
+  const stripeKey = process.env["STRIPE_SECRET_KEY"];
+  if (!stripeKey) return;
+  try {
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+    const pi = await stripe.paymentIntents.retrieve(piId);
+    if (CANCELLABLE_PI_STATUSES.has(pi.status)) {
+      await stripe.paymentIntents.cancel(piId);
+      console.log(`🗑️  [stripe] cancelled PI ${piId} (was ${pi.status})`);
+    }
+  } catch (e: any) {
+    console.warn(`[stripe] cancel PI ${piId} failed:`, e?.message);
+  }
+}
+
 /**
  * 期限切れの cart_reservations を清算し、在庫を復元する
  *
@@ -59,6 +90,22 @@ export async function releaseExpiredCartReservations(): Promise<void> {
       .filter((id): id is number => id !== null);
 
     if (reservationIds.length > 0) {
+      // 期限切れ予約に紐付く PaymentIntent を Stripe 側でも cancel する
+      // → ダッシュボードの「未完了」が放置されないようにする
+      const piRows = await db
+        .select({
+          id:              reservationsTable.id,
+          paymentIntentId: reservationsTable.paymentIntentId,
+        })
+        .from(reservationsTable)
+        .where(
+          and(
+            sql`${reservationsTable.id} = ANY(${sql.raw(`ARRAY[${reservationIds.join(",")}]::int[]`)})`,
+            eq(reservationsTable.status, "pending"),
+            isNotNull(reservationsTable.paymentIntentId),
+          )
+        );
+
       await db
         .update(reservationsTable)
         .set({ status: "cancelled" })
@@ -68,6 +115,14 @@ export async function releaseExpiredCartReservations(): Promise<void> {
             eq(reservationsTable.status, "pending")
           )
         );
+
+      // Stripe 側の cancel は並列・best-effort
+      await Promise.all(
+        piRows
+          .map((r) => r.paymentIntentId)
+          .filter((pid): pid is string => !!pid)
+          .map((pid) => cancelStripePI(pid))
+      );
     }
 
     console.log(`[cart-reservations] released ${expired.length} expired holds`);
@@ -414,6 +469,11 @@ router.post("/reservations/:reservationId/cancel", async (req, res) => {
     } catch (crErr: unknown) {
       const msg = crErr instanceof Error ? crErr.message : String(crErr);
       console.error("[cancel] cart_reservation update failed (non-critical):", msg);
+    }
+
+    // ④ Stripe PaymentIntent を cancel（Stripe ダッシュボードの「未完了」放置防止）
+    if (existing.paymentIntentId) {
+      await cancelStripePI(existing.paymentIntentId);
     }
 
     const updated = await getReservationWithDetails(reservationId);
