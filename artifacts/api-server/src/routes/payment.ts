@@ -371,62 +371,142 @@ router.post("/payment/confirm", async (req, res) => {
   try {
     const body = ConfirmPaymentBody.parse(req.body);
 
-    const [reservation] = await db
-      .select()
-      .from(reservationsTable)
-      .where(eq(reservationsTable.id, body.reservationId));
+    // ★ アトミック決済確定（仮押さえ廃止後の中核ロジック）─────────────────────
+    //   ① 予約行を FOR UPDATE でロック
+    //   ② 既に paid → 冪等スキップ（フロント confirm と webhook の二重走行対策）
+    //   ③ 商品行を FOR UPDATE でロック → 在庫不足なら refund フラグを立てて終了
+    //   ④ 在庫を購入数だけデクリメント（0 になったら自動的に非公開化）
+    //   ⑤ 予約を paid/confirmed に遷移
+    //   トランザクションの直列化により「在庫1の同時決済」でも 1 人だけ確定する。
+    // ───────────────────────────────────────────────────────────────────────────
+    type ConfirmResult =
+      | { kind: "not_found" }
+      | { kind: "already_cancelled" }
+      | { kind: "already_paid"; reservation: typeof reservationsTable.$inferSelect }
+      | { kind: "out_of_stock"; reservation: typeof reservationsTable.$inferSelect }
+      | { kind: "paid";         reservation: typeof reservationsTable.$inferSelect; pickupCode: string | null };
 
-    if (!reservation) {
+    const result: ConfirmResult = await db.transaction(async (tx) => {
+      const [reservation] = await tx
+        .select()
+        .from(reservationsTable)
+        .where(eq(reservationsTable.id, body.reservationId))
+        .for("update");
+
+      if (!reservation) return { kind: "not_found" };
+
+      if (reservation.status === "cancelled" || reservation.paymentStatus === "refunded") {
+        return { kind: "already_cancelled" };
+      }
+
+      if (reservation.paymentStatus === "paid") {
+        return { kind: "already_paid", reservation };
+      }
+
+      // 商品在庫を行ロックして取得
+      const [bag] = await tx
+        .select()
+        .from(surpriseBagsTable)
+        .where(eq(surpriseBagsTable.id, reservation.bagId))
+        .for("update");
+
+      if (!bag || bag.stockCount < reservation.quantity) {
+        // 在庫切れ → 自動返金フラグを立てるため予約を refunded/cancelled に
+        await tx
+          .update(reservationsTable)
+          .set({
+            paymentStatus: "refunded",
+            status: "cancelled",
+            paymentIntentId: body.paymentIntentId,
+          })
+          .where(eq(reservationsTable.id, reservation.id));
+        return { kind: "out_of_stock", reservation };
+      }
+
+      // 在庫 OK → 原子的にデクリメント＋ paid 遷移
+      const newStock = bag.stockCount - reservation.quantity;
+      await tx
+        .update(surpriseBagsTable)
+        .set({
+          stockCount: newStock,
+          // 在庫が 0 になったら自動的に非公開
+          ...(newStock === 0 ? { isActive: false } : {}),
+        })
+        .where(eq(surpriseBagsTable.id, bag.id));
+
+      const [updated] = await tx
+        .update(reservationsTable)
+        .set({
+          paymentStatus: "paid",
+          status: "confirmed",
+          paymentIntentId: body.paymentIntentId,
+        })
+        .where(eq(reservationsTable.id, reservation.id))
+        .returning();
+
+      return { kind: "paid", reservation: updated, pickupCode: updated.pickupCode };
+    });
+
+    // ── 結果に応じてレスポンスとサイドエフェクト ──────────────────────────────
+    if (result.kind === "not_found") {
       res.status(404).json({ error: "not_found", message: "Reservation not found" });
       return;
     }
 
-    // ★ アトミック遷移: 既に paid の行は更新せず、実際に遷移したかを返り値で判定。
-    //   フロントの confirm と Stripe webhook (payment_intent.succeeded) が
-    //   並行して走った場合でも、店舗通知が二重に飛ぶことを防ぐ。
-    const transitioned = await db
-      .update(reservationsTable)
-      .set({
-        paymentStatus: "paid",
-        status: "confirmed",
-        paymentIntentId: body.paymentIntentId,
-      })
-      .where(and(eq(reservationsTable.id, body.reservationId), ne(reservationsTable.paymentStatus, "paid")))
-      .returning({ id: reservationsTable.id });
-    const didTransition = transitioned.length > 0;
+    if (result.kind === "already_cancelled") {
+      res.status(409).json({
+        error: "already_cancelled",
+        message: "この予約は既にキャンセル済みです。",
+      });
+      return;
+    }
 
-    // 仮押さえを確定（在庫は戻さない）— 冪等
-    await db
-      .update(cartReservationsTable)
-      .set({ status: "confirmed" })
-      .where(eq(cartReservationsTable.reservationId, body.reservationId))
-      .catch(() => {});
+    if (result.kind === "out_of_stock") {
+      // ❗ 決済は成立してしまったが在庫切れ → Stripe で自動返金
+      const stripeKey = process.env["STRIPE_SECRET_KEY"];
+      if (stripeKey && body.paymentIntentId && !body.paymentIntentId.startsWith("pi_mock_")) {
+        try {
+          const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+          await stripe.refunds.create({
+            payment_intent: body.paymentIntentId,
+            reason: "requested_by_customer",
+            metadata: {
+              reservationId: String(body.reservationId),
+              reason: "out_of_stock_after_payment",
+            },
+          });
+          console.log(`💸 自動返金実行: PI ${body.paymentIntentId} (reservation ${body.reservationId}, 在庫切れ)`);
+        } catch (refundErr: any) {
+          console.error(`[payment] /confirm: Stripe refund failed for ${body.paymentIntentId}:`, refundErr?.message);
+        }
+      }
+      res.status(409).json({
+        error: "sold_out_refunded",
+        message: "残念ながら他の方が一足先にご購入されました。お支払いは自動的に全額返金されます（数日以内に反映）。",
+      });
+      return;
+    }
 
-    const [updated] = await db
-      .select({
-        id: reservationsTable.id,
-        userId: reservationsTable.userId,
-        bagId: reservationsTable.bagId,
-        storeId: reservationsTable.storeId,
-        quantity: reservationsTable.quantity,
-        totalPrice: reservationsTable.totalPrice,
-        status: reservationsTable.status,
-        paymentIntentId: reservationsTable.paymentIntentId,
-        paymentStatus: reservationsTable.paymentStatus,
-        pickupCode: reservationsTable.pickupCode,
-        createdAt: reservationsTable.createdAt,
-      })
-      .from(reservationsTable)
-      .where(eq(reservationsTable.id, body.reservationId));
-
+    // 既に paid / 今回 paid に遷移 — どちらも updated を返す
+    const updated = result.reservation;
     res.json({
-      ...updated,
+      id:              updated.id,
+      userId:          updated.userId,
+      bagId:           updated.bagId,
+      storeId:         updated.storeId,
+      quantity:        updated.quantity,
+      totalPrice:      updated.totalPrice,
+      status:          updated.status,
+      paymentIntentId: updated.paymentIntentId,
+      paymentStatus:   updated.paymentStatus,
+      pickupCode:      updated.pickupCode,
+      createdAt:       updated.createdAt,
       bag: null,
       store: null,
     });
 
-    // 店舗オーナーへの購入通知（レスポンス後・非致命的）— 実際に遷移した時のみ
-    if (!didTransition) {
+    // 店舗オーナーへの購入通知 — 今回実際に paid に遷移した場合のみ送信（二重通知防止）
+    if (result.kind !== "paid") {
       console.log(`[payment] /confirm: reservation ${body.reservationId} は既に paid（通知スキップ）`);
       return;
     }
@@ -703,33 +783,115 @@ router.get("/checkout/verify", async (req, res) => {
       return;
     }
 
-    // 二重処理ガード: すでに paid なら Supabase/在庫処理をスキップして既存データを返す
-    const alreadyPaid = reservationFull.paymentStatus === "paid";
+    // ★ アトミック在庫デクリメント＋ paid 遷移（仮押さえ廃止後の中核ロジック）
+    //   Checkout Session 経由でも /payment/confirm と同じ排他制御で在庫整合性を担保する。
+    //   既に paid → 冪等スキップ。在庫不足 → 自動返金フラグを立てて 409 相当を返す。
+    type VerifyResult =
+      | { kind: "already_cancelled" }
+      | { kind: "already_paid" }
+      | { kind: "out_of_stock" }
+      | { kind: "paid" };
 
-    // ── 3. Drizzle 予約ステータス更新 ────────────────────────────
-    if (!alreadyPaid) {
-      await db
+    const finalizeResult: VerifyResult = await db.transaction(async (tx) => {
+      const [reservation] = await tx
+        .select()
+        .from(reservationsTable)
+        .where(eq(reservationsTable.id, reservationId))
+        .for("update");
+
+      if (!reservation) return { kind: "already_cancelled" };
+      if (reservation.status === "cancelled" || reservation.paymentStatus === "refunded") {
+        return { kind: "already_cancelled" };
+      }
+      if (reservation.paymentStatus === "paid") {
+        return { kind: "already_paid" };
+      }
+
+      const [bag] = await tx
+        .select()
+        .from(surpriseBagsTable)
+        .where(eq(surpriseBagsTable.id, reservation.bagId))
+        .for("update");
+
+      if (!bag || bag.stockCount < reservation.quantity) {
+        await tx
+          .update(reservationsTable)
+          .set({
+            paymentStatus: "refunded",
+            status: "cancelled",
+            ...(stripePaymentId ? { paymentIntentId: stripePaymentId } : {}),
+          })
+          .where(eq(reservationsTable.id, reservation.id));
+        return { kind: "out_of_stock" };
+      }
+
+      const newStock = bag.stockCount - reservation.quantity;
+      await tx
+        .update(surpriseBagsTable)
+        .set({
+          stockCount: newStock,
+          ...(newStock === 0 ? { isActive: false } : {}),
+        })
+        .where(eq(surpriseBagsTable.id, bag.id));
+
+      await tx
         .update(reservationsTable)
         .set({
           paymentStatus: "paid",
           status: "confirmed",
           ...(stripePaymentId ? { paymentIntentId: stripePaymentId } : {}),
         })
-        .where(eq(reservationsTable.id, reservationId));
+        .where(eq(reservationsTable.id, reservation.id));
 
-      // 仮押さえを確定（在庫は戻さない）
-      await db
-        .update(cartReservationsTable)
-        .set({ status: "confirmed" })
-        .where(eq(cartReservationsTable.reservationId, reservationId))
-        .catch(() => {});
+      return { kind: "paid" };
+    });
 
-      // ── 4. 店舗への Transfer（Separate Charges and Transfers）─────
-      // 【重要】chargeMode が "separate_charges_and_transfers" の場合のみ実行する。
-      // 過去の "direct_transfer"（application_fee_amount + transfer_data）方式の session は
-      // Stripe が自動送金済みのため、ここで Transfer を作ると二重送金・マイナス残高になる。
-      // 新実装では全 session が Separate C&T 方式のため chargeMode は常に一致するが、
-      // 旧データとの混在期間の安全弁としてガード条件を維持する。
+    if (finalizeResult.kind === "already_cancelled") {
+      // 既にキャンセル/返金済み — 副作用は実行せずにそのまま 409 を返す
+      res.status(409).json({
+        error: "already_cancelled",
+        message: "この予約は既にキャンセルまたは返金済みです。",
+      });
+      return;
+    }
+
+    if (finalizeResult.kind === "out_of_stock") {
+      // 決済成立後に在庫切れ判明 → Stripe で自動返金
+      if (stripeKey && stripePaymentId && stripePaymentId.startsWith("pi_")) {
+        try {
+          const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+          await stripe.refunds.create({
+            payment_intent: stripePaymentId,
+            reason: "requested_by_customer",
+            metadata: {
+              reservationId: String(reservationId),
+              reason: "out_of_stock_after_payment",
+            },
+          });
+          console.log(`💸 自動返金実行 (verify): PI ${stripePaymentId} (reservation ${reservationId}, 在庫切れ)`);
+        } catch (refundErr: any) {
+          console.error(`[payment] /verify: Stripe refund failed for ${stripePaymentId}:`, refundErr?.message);
+        }
+      }
+      res.status(409).json({
+        error: "sold_out_refunded",
+        message: "残念ながら他の方が一足先にご購入されました。お支払いは自動的に全額返金されます（数日以内に反映）。",
+      });
+      return;
+    }
+
+    // 仮押さえ（旧データ）の確定処理 — 在庫は戻さない（paid / already_paid 共通で実行可、冪等）
+    await db
+      .update(cartReservationsTable)
+      .set({ status: "confirmed" })
+      .where(eq(cartReservationsTable.reservationId, reservationId))
+      .catch(() => {});
+
+    // ── 4. 店舗への Transfer（Separate Charges and Transfers）─────
+    // 【重要】Webhook 経由で paid に遷移済みのケース（already_paid）でも実行する必要がある。
+    // → webhook は Transfer / Supabase orders 書き込みを行わないため、ここで補完する。
+    // Stripe idempotency_key を使うことで verify と他経路の二重実行でも 1 回だけ Transfer される。
+    {
       const isSeparateCT = piMetadata["chargeMode"] === "separate_charges_and_transfers";
       if (stripeKey && chargeIdForTransfer && piMetadata["storeStripeAccountId"] && isSeparateCT) {
         try {
@@ -750,6 +912,9 @@ router.get("/checkout/verify", async (req, res) => {
                 stripeFeeEst:    piMetadata["stripeFeeEstimate"] ?? "",
                 shopTransfer:    String(transferAmount),
               },
+            }, {
+              // 同一予約の Transfer は何度呼ばれても 1 回しか作成されない
+              idempotencyKey: `transfer:reservation:${reservationId}`,
             });
             console.log(
               `✅ Transfer成功: ${transferAmount}JPY → ${storeAccountId} ` +
@@ -810,22 +975,25 @@ router.get("/checkout/verify", async (req, res) => {
         }
       }
 
-      // 店舗オーナーへの購入通知（非同期・非致命的）
-      setImmediate(async () => {
-        try {
-          const ownerId = reservationFull.storeOwnerId;
-          if (ownerId) {
-            const title = "【重要】おすそわけバッグが購入されました！";
-            const body  = `受取コード: ${reservationFull.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
-            await Promise.all([
-              db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title, body, storeId: reservationFull.storeId ?? undefined }),
-              sendWebPushToUser(ownerId, { title, body, tag: `bag-sold-${reservationId}`, url: "/store/orders" }),
-            ]);
+      // 店舗オーナーへの購入通知 — 今回の verify 呼び出しが実際に paid 遷移した場合のみ送信。
+      // webhook が先に paid 遷移していれば、そちらで既に通知が挿入されているため、ここでは送らない（二重通知防止）。
+      if (finalizeResult.kind === "paid") {
+        setImmediate(async () => {
+          try {
+            const ownerId = reservationFull.storeOwnerId;
+            if (ownerId) {
+              const title = "【重要】おすそわけバッグが購入されました！";
+              const body  = `受取コード: ${reservationFull.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
+              await Promise.all([
+                db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title, body, storeId: reservationFull.storeId ?? undefined }),
+                sendWebPushToUser(ownerId, { title, body, tag: `bag-sold-${reservationId}`, url: "/store/orders" }),
+              ]);
+            }
+          } catch (e) {
+            console.error("[payment] verify-session store notification error:", e);
           }
-        } catch (e) {
-          console.error("[payment] verify-session store notification error:", e);
-        }
-      });
+        });
+      }
     }
 
     // ── 6. 受付票データを返す ────────────────────────────────────

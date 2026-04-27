@@ -211,42 +211,114 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         return;
       }
 
-      // ★ アトミック遷移: paid でない行のみ更新し、戻り値で実際に遷移したか判定。
-      //   フロントの /api/payment/confirm と並行しても、通知が二重に飛ばない。
-      const transitioned = await db
-        .update(reservationsTable)
-        .set({
-          paymentStatus: "paid",
-          status: "confirmed",
-          paymentIntentId: intent.id,
-        })
-        .where(and(eq(reservationsTable.id, reservationId), ne(reservationsTable.paymentStatus, "paid")))
-        .returning({
-          id: reservationsTable.id,
-          storeId: reservationsTable.storeId,
-          pickupCode: reservationsTable.pickupCode,
-        });
+      // ★ アトミック確定（仮押さえ廃止後）: 在庫ロック → 在庫不足なら自動返金、
+      //   足りていれば在庫デクリメント＋ paid 遷移。フロントの /api/payment/confirm
+      //   と並行しても DB トランザクションの直列化で 1 回だけ確定する。
+      type WebhookResult =
+        | { kind: "not_found" }
+        | { kind: "already_cancelled" }
+        | { kind: "already_paid" }
+        | { kind: "out_of_stock" }
+        | { kind: "paid"; storeId: number; pickupCode: string | null };
 
-      if (transitioned.length === 0) {
-        // 既に paid（フロントが先に成功）または存在しない
-        const [check] = await db
-          .select({ id: reservationsTable.id, paymentStatus: reservationsTable.paymentStatus })
+      const result: WebhookResult = await db.transaction(async (tx) => {
+        const [reservation] = await tx
+          .select()
           .from(reservationsTable)
           .where(eq(reservationsTable.id, reservationId))
-          .limit(1);
-        if (!check) {
-          console.warn(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} 見つからず`);
-          res.json({ received: true, type: event.type, handled: false, reason: "reservation_not_found" });
-          return;
+          .for("update");
+
+        if (!reservation) return { kind: "not_found" };
+
+        if (reservation.status === "cancelled" || reservation.paymentStatus === "refunded") {
+          return { kind: "already_cancelled" };
         }
+
+        if (reservation.paymentStatus === "paid") {
+          return { kind: "already_paid" };
+        }
+
+        const [bag] = await tx
+          .select()
+          .from(surpriseBagsTable)
+          .where(eq(surpriseBagsTable.id, reservation.bagId))
+          .for("update");
+
+        if (!bag || bag.stockCount < reservation.quantity) {
+          await tx
+            .update(reservationsTable)
+            .set({
+              paymentStatus: "refunded",
+              status: "cancelled",
+              paymentIntentId: intent.id,
+            })
+            .where(eq(reservationsTable.id, reservation.id));
+          return { kind: "out_of_stock" };
+        }
+
+        const newStock = bag.stockCount - reservation.quantity;
+        await tx
+          .update(surpriseBagsTable)
+          .set({
+            stockCount: newStock,
+            ...(newStock === 0 ? { isActive: false } : {}),
+          })
+          .where(eq(surpriseBagsTable.id, bag.id));
+
+        const [updated] = await tx
+          .update(reservationsTable)
+          .set({
+            paymentStatus: "paid",
+            status: "confirmed",
+            paymentIntentId: intent.id,
+          })
+          .where(eq(reservationsTable.id, reservation.id))
+          .returning({ storeId: reservationsTable.storeId, pickupCode: reservationsTable.pickupCode });
+
+        return { kind: "paid", storeId: updated.storeId, pickupCode: updated.pickupCode };
+      });
+
+      if (result.kind === "not_found") {
+        console.warn(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} 見つからず`);
+        res.json({ received: true, type: event.type, handled: false, reason: "reservation_not_found" });
+        return;
+      }
+      if (result.kind === "already_cancelled") {
+        console.log(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} は既にキャンセル済み（冪等スキップ）`);
+        res.json({ received: true, type: event.type, handled: true, idempotent: true, reason: "already_cancelled" });
+        return;
+      }
+      if (result.kind === "already_paid") {
         console.log(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} は既に paid（冪等スキップ）`);
         res.json({ received: true, type: event.type, handled: true, idempotent: true });
         return;
       }
+      if (result.kind === "out_of_stock") {
+        // 在庫切れ → Stripe 自動返金
+        try {
+          const stripe = await getStripe();
+          if (stripe) {
+            await stripe.refunds.create({
+              payment_intent: intent.id,
+              reason: "requested_by_customer",
+              metadata: {
+                reservationId: String(reservationId),
+                reason: "out_of_stock_after_payment",
+              },
+            });
+            console.log(`💸 webhook 自動返金: PI ${intent.id} (reservation ${reservationId}, 在庫切れ)`);
+          }
+        } catch (refundErr: any) {
+          console.error(`[stripe-webhook] auto-refund failed:`, refundErr?.message);
+        }
+        res.json({ received: true, type: event.type, handled: true, action: "refunded_oos" });
+        return;
+      }
 
-      const [row] = transitioned;
+      // ★ result.kind === "paid"
+      const row = { id: reservationId, storeId: result.storeId, pickupCode: result.pickupCode };
 
-      // 仮押さえも確定（在庫は戻さない）— 冪等
+      // 旧 cart_reservation テーブル（互換）— 残っていれば確定
       await db
         .update(cartReservationsTable)
         .set({ status: "confirmed" })

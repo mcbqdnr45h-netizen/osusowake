@@ -14,12 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { ReviewModal } from '@/components/ReviewModal';
 import type { ReviewTarget } from '@/components/ReviewModal';
 
-const HOLD_MS = 5 * 60 * 1000;
-
-function isHoldExpired(createdAt: string): boolean {
-  return Date.now() > new Date(createdAt).getTime() + HOLD_MS;
-}
-
 function isPickupExpired(pickupEnd?: string | null, createdAt?: string): boolean {
   const now = new Date();
   if (createdAt) {
@@ -209,7 +203,6 @@ export default function MyReservations() {
             .filter(r => {
               if (dismissedIds.has(r.id)) return false;
               if (r.status === 'cancelled')   return false;
-              if (r.status === 'pending' && isHoldExpired(r.createdAt)) return false;
               return true;
             })
             // 新しい順（降順）

@@ -296,31 +296,12 @@ router.post("/reservations", async (req, res) => {
         .set({ pickupCode })
         .where(eq(reservationsTable.id, reservation.id));
 
-      // 在庫を購入数だけ原子的にデクリメント（マイナスにならないよう GREATEST で保護）
-      const newStock = Math.max(0, bag.stockCount - body.quantity);
-      await tx
-        .update(surpriseBagsTable)
-        .set({
-          stockCount: newStock,
-          // 在庫がなくなったら自動的に非公開にする
-          ...(newStock === 0 ? { isActive: false } : {}),
-        })
-        .where(eq(surpriseBagsTable.id, body.bagId));
+      // ★ 仮押さえ廃止: ここで在庫は減らさない。
+      //   在庫の減算は /api/payment/confirm（および Stripe webhook）が
+      //   トランザクション内でアトミックに行う（早い者勝ち、在庫不足なら自動返金）。
+      //   これにより「カートに入れて放置で他人が買えない」問題を解消する。
 
       reservationId = reservation.id;
-
-      // ── 5分仮押さえ cart_reservation を作成 ──
-      const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
-      await tx
-        .insert(cartReservationsTable)
-        .values({
-          userId: body.userId,
-          bagId: body.bagId,
-          reservationId: reservation.id,
-          quantity: body.quantity,
-          expiresAt,
-          status: "active",
-        });
     });
 
     const full = await getReservationWithDetails(reservationId!);
@@ -438,24 +419,29 @@ router.post("/reservations/:reservationId/cancel", async (req, res) => {
       return;
     }
 
+    const wasPaid = existing.paymentStatus === "paid";
+
     // ① 予約ステータスを cancelled に更新（最重要・失敗したら 500）
     await db
       .update(reservationsTable)
       .set({ status: "cancelled" })
       .where(eq(reservationsTable.id, reservationId));
 
-    // ② 在庫を戻す（失敗しても cancel 自体は成功扱い）
-    try {
-      await db
-        .update(surpriseBagsTable)
-        .set({ stockCount: sql`${surpriseBagsTable.stockCount} + ${existing.quantity}` })
-        .where(eq(surpriseBagsTable.id, existing.bagId));
-    } catch (stockErr: unknown) {
-      const msg = stockErr instanceof Error ? stockErr.message : String(stockErr);
-      console.error("[cancel] stock restore failed (non-critical):", msg);
+    // ② 在庫を戻す — 仮押さえ廃止後は「決済済み(paid)の取り消し」のときだけ復元する。
+    //   未決済(unpaid)の予約は元から在庫を減らしていないので復元不要。
+    if (wasPaid) {
+      try {
+        await db
+          .update(surpriseBagsTable)
+          .set({ stockCount: sql`${surpriseBagsTable.stockCount} + ${existing.quantity}` })
+          .where(eq(surpriseBagsTable.id, existing.bagId));
+      } catch (stockErr: unknown) {
+        const msg = stockErr instanceof Error ? stockErr.message : String(stockErr);
+        console.error("[cancel] stock restore failed (non-critical):", msg);
+      }
     }
 
-    // ③ 紐付く cart_reservation を cancelled に更新（期限切れ時の二重復元を防ぐ）
+    // ③ 旧 cart_reservation テーブル — 互換のため既存行があれば cancelled にする
     try {
       await db
         .update(cartReservationsTable)

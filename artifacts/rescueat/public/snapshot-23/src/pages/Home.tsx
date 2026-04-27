@@ -287,19 +287,14 @@ export default function Home() {
     query: { refetchInterval: 60_000, staleTime: 30_000 },
   });
 
-  // 仮押さえ中の予約を取得
+  // 未決済の予約を取得（仮押さえ廃止後は期限なし — 未払いのまま残る）
   const { data: reservations } = useListReservations(
     { userId: userId || '' },
     { query: { enabled: !!userId, refetchInterval: 30_000, staleTime: 0 } },
   );
-  const HOLD_MS = 5 * 60 * 1000;
   const activeReservation = useMemo(() => {
     if (!reservations) return null;
-    return reservations.find(r => {
-      if (r.status !== 'pending') return false;
-      const expires = new Date(r.createdAt).getTime() + HOLD_MS;
-      return Date.now() < expires;
-    }) ?? null;
+    return reservations.find(r => r.status === 'pending' && r.paymentStatus !== 'paid') ?? null;
   }, [reservations]);
   const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
   const { coords: userCoords, loading: gpsLoading } = useUserLocation();
@@ -608,11 +603,11 @@ export default function Home() {
             )}
           </AnimatePresence>
 
-          {/* ── 仮押さえ中バナー ── */}
+          {/* ── 未決済の予約バナー ── */}
           <AnimatePresence>
             {activeReservation && (
               <motion.button
-                key="hold-banner"
+                key="pending-banner"
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -623,7 +618,7 @@ export default function Home() {
                   <ShoppingBag className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold opacity-90">仮押さえ中</p>
+                  <p className="text-xs font-bold opacity-90">未決済の予約があります</p>
                   <p className="text-sm font-black truncate">
                     {activeReservation.bag?.title ?? 'おすそわけバッグ'}
                   </p>
