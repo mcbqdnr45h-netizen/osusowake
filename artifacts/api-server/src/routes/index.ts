@@ -59,9 +59,22 @@ router.post("/auth/forgot-password", async (req, res) => {
     );
 
     if (genErr || !data?.properties?.action_link) {
-      // ユーザーが存在しない場合もセキュリティ上 ok を返す（メールアドレス漏洩防止）
-      console.warn("[forgot-password] generateLink failed for:", email.trim(), "reason:", genErr?.message ?? "no action_link");
-      res.json({ ok: true });
+      const reason = genErr?.message ?? "no action_link";
+      console.warn("[forgot-password] generateLink failed for:", email.trim(), "reason:", reason);
+      // 「ユーザーが存在しない」は明示的に伝える（silently ok はユーザーが「届かない」と誤解する）
+      const isNotFound = /not.?found|does.?not.?exist|user.+not/i.test(reason);
+      if (isNotFound) {
+        res.status(404).json({
+          error:   "user_not_found",
+          message: "このメールアドレスで登録されたアカウントは見つかりませんでした。新規登録するか、別のアドレスをお試しください。",
+        });
+        return;
+      }
+      // それ以外（Supabase 一時障害等）は 500 を返す
+      res.status(500).json({
+        error:   "generate_link_failed",
+        message: "リンク生成に失敗しました。しばらくしてからもう一度お試しください。",
+      });
       return;
     }
 

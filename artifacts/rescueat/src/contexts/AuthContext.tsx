@@ -553,7 +553,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        return { error: body.message || 'エラーが発生しました' };
+        // バックエンドが返す詳細メッセージを優先表示（未登録エラー等）
+        return { error: body.message || 'エラーが発生しました。しばらくしてからお試しください' };
       }
       return { error: null };
     } catch {
