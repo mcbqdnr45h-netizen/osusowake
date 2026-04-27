@@ -1668,7 +1668,7 @@ export default function StoreDashboard() {
           </Link>
         </div>
 
-        <div className="px-4 space-y-5">
+        <div className="px-4 space-y-6">
 
         {/* ── PR文（おすそわけメッセージ）── */}
         {store.description ? (
@@ -1753,7 +1753,7 @@ export default function StoreDashboard() {
                 : 'Stripeより本人確認書類の提出が必要です。このまま放置すると決済も停止されます。';
 
           return (
-            <>
+            <div className="space-y-3">
               {stripeBlocked && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                   <span className="text-amber-500 text-base mt-0.5">⚠️</span>

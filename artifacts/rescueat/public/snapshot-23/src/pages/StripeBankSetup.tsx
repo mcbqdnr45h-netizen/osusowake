@@ -37,15 +37,19 @@ async function getStripeInstance(): Promise<Stripe | null> {
 }
 
 // ── 画像圧縮（本人確認書類用 — Stripe送信前に軽量化）────────────────────────────
-// ★ 失敗時は reject する（HEIC等ブラウザ未対応形式で巨大な data URL がそのまま state に
-//   入って WebView がフリーズする問題を防ぐため）
-async function compressIdImage(dataUrl: string, maxPx = 1280, quality = 0.82): Promise<string> {
+// ★ 重要: File を直接 URL.createObjectURL() で渡す。FileReader.readAsDataURL は
+//   巨大HEIC（10MB+）を base64 エンコード（~13MB の文字列）してメモリ消費＋ UIスレッド
+//   ブロックを引き起こし WebView がフリーズする原因。blob URL なら即時／低コスト。
+//   失敗時は reject（HEIC等ブラウザ未対応形式の早期検知）。
+async function compressIdImageFromFile(file: File, maxPx = 1280, quality = 0.82): Promise<string> {
   return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
     const img = new Image();
+    const cleanup = () => { try { URL.revokeObjectURL(objectUrl); } catch {} };
     img.onload = () => {
       try {
-        let { width, height } = img;
-        if (!width || !height) { reject(new Error('画像サイズが取得できませんでした')); return; }
+        let { naturalWidth: width, naturalHeight: height } = img;
+        if (!width || !height) { cleanup(); reject(new Error('画像サイズが取得できませんでした')); return; }
         if (width > maxPx || height > maxPx) {
           if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
           else { width = Math.round(width * maxPx / height); height = maxPx; }
@@ -53,15 +57,24 @@ async function compressIdImage(dataUrl: string, maxPx = 1280, quality = 0.82): P
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) { reject(new Error('画像を描画できませんでした')); return; }
+        if (!ctx) { cleanup(); reject(new Error('画像を描画できませんでした')); return; }
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        // toDataURL は圧縮後の小さな画像（~100KB）にのみ実行 → 安全
+        const out = canvas.toDataURL('image/jpeg', quality);
+        cleanup();
+        resolve(out);
       } catch (err: any) {
+        cleanup();
         reject(err instanceof Error ? err : new Error(String(err)));
       }
     };
-    img.onerror = () => reject(new Error('この画像は読み込めませんでした（HEIC/HEIF など非対応形式の可能性があります）。JPEG または PNG で撮り直してください。'));
-    img.src = dataUrl;
+    img.onerror = () => {
+      cleanup();
+      reject(new Error('この画像は読み込めませんでした。HEIC/HEIF 形式の可能性があります。iPhoneの「設定 → カメラ → フォーマット → 互換性優先」を選んでから撮り直すか、JPEG/PNG をお選びください。'));
+    };
+    img.src = objectUrl;
   });
 }
 
@@ -589,15 +602,10 @@ export default function StripeBankSetup() {
     e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
     if (!file) return;
     setDocError(null);
-    // ★ HEIC等で巨大化した data URL を state に入れないよう Promise化＋エラー時はユーザに通知
+    // ★ File を直接 blob URL 経由で渡し、巨大HEICでもメモリを圧迫せず Image にロード。
+    //   失敗時のみエラー表示（巨大 dataURL を state に入れない）。
     try {
-      const raw: string = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target?.result as string);
-        reader.onerror = () => reject(new Error('画像ファイルが読み込めませんでした。もう一度撮影してください。'));
-        reader.readAsDataURL(file);
-      });
-      const compressed = await compressIdImage(raw);
+      const compressed = await compressIdImageFromFile(file);
       if (side === 'front') { setDocFrontFile(file); setDocFrontPreview(compressed); }
       else                  { setDocBackFile(file);  setDocBackPreview(compressed);  }
     } catch (err: any) {
@@ -609,20 +617,19 @@ export default function StripeBankSetup() {
     const file = e.target.files?.[0];
     e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
     if (!file) return;
-    // ★ HEIC等で巨大化した data URL を state に入れないよう Promise化＋エラー時はユーザに通知
-    // PDF はそのまま設定（圧縮は画像のみ）
+    // ★ PDF はそのまま data URL に変換（PDFは元から軽量）。画像は blob URL 経由で圧縮。
     try {
-      const raw: string = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target?.result as string);
-        reader.onerror = () => reject(new Error('ファイルが読み込めませんでした。'));
-        reader.readAsDataURL(file);
-      });
       if (file.type === 'application/pdf') {
+        const raw: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target?.result as string);
+          reader.onerror = () => reject(new Error('PDFが読み込めませんでした。'));
+          reader.readAsDataURL(file);
+        });
         setBizLicenseFile(file);
         setBizLicensePreview(raw);
       } else {
-        const compressed = await compressIdImage(raw);
+        const compressed = await compressIdImageFromFile(file);
         setBizLicenseFile(file);
         setBizLicensePreview(compressed);
       }
