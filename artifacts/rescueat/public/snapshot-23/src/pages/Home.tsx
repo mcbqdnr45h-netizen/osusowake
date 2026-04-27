@@ -577,7 +577,8 @@ export default function Home() {
         {/* ── スクロールエリア ── */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto bg-secondary/10 scroll-smooth-native pb-4"
+          className="flex-1 overflow-y-auto bg-secondary/10 scroll-smooth-native"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >

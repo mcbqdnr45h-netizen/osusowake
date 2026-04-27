@@ -7,7 +7,7 @@ import { sendStoreApprovalEmail } from "../utils/emails";
 
 const router = Router();
 
-const ADMIN_EMAIL = "yuuhi0125416@icloud.com";
+const ADMIN_EMAIL = "hello@osusowakejapan.org";
 
 // ── Stripe インスタンスを返すヘルパー（ESM 対応 dynamic import）────────────────
 async function getStripe() {
