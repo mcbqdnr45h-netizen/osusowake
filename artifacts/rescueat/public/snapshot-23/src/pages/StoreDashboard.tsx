@@ -1703,7 +1703,7 @@ export default function StoreDashboard() {
 
         {/* ── 振込先口座未登録のお知らせ（自動リダイレクトなし・手動遷移のみ）── */}
         {store.status === 'approved' && !store.stripeAccountId && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+          <div className="!mt-8 bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
             <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
               <CreditCard className="w-5 h-5 text-blue-600" />
             </div>

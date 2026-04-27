@@ -69,6 +69,13 @@ else
   npx cap add ios
 fi
 
+# ─── Info.plist プライバシー許可キー適用 ────────────────────────────────────
+# ★ 重要: NSCameraUsageDescription が無いと Take Photo タップで iOS がアプリを
+#   silent-terminate（フリーズに見える）。必ず cap sync の前に適用すること。
+echo ""
+echo "▶ Info.plist プライバシー許可キー適用..."
+bash "${SCRIPT_DIR}/apply-info-plist.sh"
+
 # ─── Capacitor 同期 ─────────────────────────────────────────────────────────
 echo ""
 echo "▶ cap sync ios (Web アセット → iOS プロジェクトへコピー)..."

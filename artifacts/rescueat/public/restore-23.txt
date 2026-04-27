@@ -70,6 +70,8 @@ FILES=(
   "src/pages/SupabaseTest.tsx"
   "src/pages/VerifyEmail.tsx"
   "src/pages/MyTownPage.tsx"
+  "scripts/ios-setup.sh"
+  "scripts/apply-info-plist.sh"
 )
 
 OK=0
