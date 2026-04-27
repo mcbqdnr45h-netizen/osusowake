@@ -7,7 +7,9 @@ import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, M
 import { TimePicker } from '@/components/TimePicker';
 import { motion } from 'framer-motion';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+// ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
+const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+             (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
 
 const CATEGORY_OPTIONS = [
   { value: 'meals',         label: '料理・お惣菜',  emoji: '🍱' },

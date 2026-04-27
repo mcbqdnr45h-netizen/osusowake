@@ -1240,7 +1240,9 @@ export default function StoreDashboard() {
     }, open ? 50 : 0);
   }
 
-  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+  // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
+  const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+               (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
 
   const { data: reservations = [], isLoading: resLoading, refetch } =
     useListReservations({ storeId: storeId ?? 0 }, { query: { enabled: !!storeId } });

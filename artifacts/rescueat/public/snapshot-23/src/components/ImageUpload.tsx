@@ -1,7 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { ImagePlus, X, RefreshCw, AlertCircle } from 'lucide-react';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+// ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
+const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+             (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
 
 interface ImageUploadProps {
   value: string | null;
