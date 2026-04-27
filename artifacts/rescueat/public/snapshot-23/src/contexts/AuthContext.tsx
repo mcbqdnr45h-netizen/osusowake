@@ -542,9 +542,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       //   そうしないと capacitor://localhost/api/... を叩いてしまい絶対に届かない
       const apiBase = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_API_BASE : '') ?? '';
       const API_PREFIX = (apiBase || base).replace(/\/$/, '') || '';
-      // 再設定リンクの戻り先は本番ドメインに固定（iOS の capacitor://localhost を含めると無効リンクになる）
-      const redirectOrigin = apiBase || origin;
-      const redirectTo = `${redirectOrigin.replace(/\/$/, '')}${apiBase ? '/rescueat' : base.replace(/\/$/, '')}/reset-password`;
+      // 再設定リンクの戻り先は HTTPS 必須（iOS の capacitor://localhost は Supabase に拒否される）
+      // 本番デプロイの SPA は `/` 直下なので `/reset-password` にする（`/rescueat/...` ではない）
+      const redirectOrigin = (apiBase || origin).replace(/\/$/, '');
+      const redirectTo = `${redirectOrigin}/reset-password`;
       const res = await fetch(`${API_PREFIX}/api/auth/forgot-password`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
