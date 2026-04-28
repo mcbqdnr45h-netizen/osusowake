@@ -20,8 +20,24 @@ export default function ResetPassword() {
     let cancelled = false;
 
     async function init() {
-      // ① PKCE フロー: URL に ?code= がある場合はセッション交換
       const searchParams = new URLSearchParams(window.location.search);
+
+      // ① OTP token フロー: メールテンプレを直接アプリリンクに変更してる場合
+      //    例: https://osusowakejapan.org/reset-password?token=xxx&type=recovery
+      //    Supabase 経由のリダイレクトを挟まないので一瞬の Supabase 表示が無くなる
+      const tokenHash = searchParams.get('token_hash') || searchParams.get('token');
+      if (tokenHash) {
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'recovery',
+        });
+        if (!cancelled && data?.session?.user && !error) {
+          setLinkStatus('ready');
+          return;
+        }
+      }
+
+      // ② PKCE フロー: URL に ?code= がある場合はセッション交換
       const code = searchParams.get('code');
       if (code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -31,7 +47,7 @@ export default function ResetPassword() {
         }
       }
 
-      // ② 既存セッションを確認（SDK がハッシュを処理済みの場合）
+      // ③ 既存セッションを確認（SDK がハッシュを処理済みの場合）
       const { data: { session } } = await supabase.auth.getSession();
       if (!cancelled && session?.user) {
         setLinkStatus('ready');
@@ -103,8 +119,11 @@ export default function ResetPassword() {
       return;
     }
 
+    // パスワード変更成功後はセッションを破棄してから login へ
+    // → 管理者ユーザーが継続セッションで「神モードMFA」画面に飛ぶのを防ぐ
+    await supabase.auth.signOut().catch(() => {});
     setDone(true);
-    setTimeout(() => navigate('/login'), 3000);
+    setTimeout(() => navigate('/login'), 2000);
   }
 
   return (

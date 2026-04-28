@@ -155,10 +155,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(sess);
         setUser(sess?.user ?? null);
         if (sess?.user) {
-          // パスワードリセット中 (URL に type=recovery) は管理者チェックをスキップ
+          // パスワードリセット中は管理者チェックをスキップ
+          // 判定条件:
+          //   1. URL pathname が /reset-password (PKCE/implicit 共通の最終的な経路)
+          //   2. URL hash に type=recovery (implicit フロー)
+          //   3. URL search に type=recovery (旧 OTP フロー)
+          //   4. URL search に code= かつ token_hash= (PKCE recovery / token 直接フロー)
+          const search = new URLSearchParams(window.location.search);
           const isRecoveryFlow =
+            window.location.pathname === '/reset-password' ||
             window.location.hash.includes('type=recovery') ||
-            new URLSearchParams(window.location.search).get('type') === 'recovery';
+            search.get('type') === 'recovery' ||
+            search.has('token_hash') ||
+            search.has('token');
 
           // セッション復元時: 管理者チェック + MFA 検証確認（回復フロー時はスキップ）
           if (sess.access_token && !isRecoveryFlow) {
