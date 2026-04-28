@@ -290,17 +290,8 @@ export function GuestRoute({
   const { user, profile, isLoading } = useAuth();
   const [, navigate] = useLocation();
 
-  const wasAlreadyLoggedIn = useRef<boolean | null>(null);
-
-  useEffect(() => {
-    if (!isLoading && wasAlreadyLoggedIn.current === null) {
-      wasAlreadyLoggedIn.current = !!user;
-    }
-  }, [isLoading, user]);
-
   useEffect(() => {
     if (isLoading || !user) return;
-    if (!wasAlreadyLoggedIn.current) return;
 
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get('redirect');
@@ -319,7 +310,8 @@ export function GuestRoute({
   }, [isLoading, user, profile, navigate]);
 
   if (isLoading) return null;
-  if (user && wasAlreadyLoggedIn.current) return null;
+  // ログイン済み (user あり) なら遷移完了まで何も表示しない (再ログイン画面の無限ループ防止)
+  if (user) return null;
 
   return <Component />;
 }
