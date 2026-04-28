@@ -224,18 +224,9 @@ function AnimatedRoutes() {
 
   return (
     <>
-      <PageTransitionOverlay />
       <ErrorBoundary>
       <Suspense fallback={<PageSkeleton />}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location}
-            variants={pageVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            style={{ display: 'contents' }}
-          >
+        <div style={{ display: 'contents' }}>
             <Switch>
               {/* ── パブリックページ ── */}
               <Route path="/" component={HomeRouter} />
@@ -294,8 +285,7 @@ function AnimatedRoutes() {
 
               <Route component={NotFound} />
             </Switch>
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </Suspense>
       </ErrorBoundary>
     </>
