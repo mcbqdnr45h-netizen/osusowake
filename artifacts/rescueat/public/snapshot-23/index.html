@@ -10,19 +10,19 @@
     <title>Osusowake - おすそ分けアプリ</title>
 
     <!-- PWA -->
-    <link rel="manifest" href="/rescueat/manifest.json" />
+    <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#E8786C" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Osusowake" />
-    <link rel="apple-touch-icon" href="/rescueat/images/logo.jpg" />
+    <link rel="apple-touch-icon" href="/images/logo.jpg" />
 
     <!-- SEO / OGP -->
     <meta name="description" content="お近くのお店からお得なおすそ分けバッグをゲットしよう。毎日更新されるサプライズバッグで、美味しさをおすそ分け。" />
     <meta property="og:title" content="Osusowake - おすそ分けアプリ" />
     <meta property="og:description" content="お近くのお店からお得なサプライズバッグをゲットしよう" />
-    <meta property="og:image" content="/rescueat/opengraph.jpg" />
+    <meta property="og:image" content="/opengraph.jpg" />
     <meta property="og:type" content="website" />
 
     <!-- Fonts: Noto Sans JP (body) + Outfit (display) -->
@@ -31,7 +31,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/rescueat/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
     <div id="root"></div>
@@ -40,7 +40,7 @@
       // SW is only registered in production (not Replit dev proxy)
       if ('serviceWorker' in navigator && location.hostname !== 'localhost' && !location.hostname.includes('replit')) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/rescueat/sw.js', { scope: '/rescueat/' })
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
             .then(reg => console.log('[SW] registered:', reg.scope))
             .catch(err => console.warn('[SW] registration failed:', err));
         });
