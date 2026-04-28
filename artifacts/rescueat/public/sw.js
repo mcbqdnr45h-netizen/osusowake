@@ -1,4 +1,6 @@
-const CACHE_NAME = 'osusowake-v3';
+// ⚠️ デプロイ時にこの数字を必ず上げること（v4 → v5 → v6 ...）
+// バンプしないと iOS / PWA が古いキャッシュを掴み続けます
+const CACHE_NAME = 'osusowake-v4';
 const BASE = '/rescueat';
 
 const PRECACHE_URLS = [
@@ -22,23 +24,51 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// 画像・フォントなど不変アセットの判定
+function isStaticAsset(url) {
+  return /\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf|otf|eot)$/i.test(url.pathname);
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
   if (request.method !== 'GET') return;
   if (url.pathname.startsWith(`${BASE}/api/`)) return;
+  // Vite ビルドのハッシュ付き JS/CSS や Supabase / Stripe などはキャッシュ対象外
+  if (url.origin !== self.location.origin) return;
 
+  // 画像・フォントは cache-first（変わらないので速度優先）
+  if (isStaticAsset(url)) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response && response.status === 200 && response.type !== 'opaque') {
+            const toCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, toCache));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // HTML / JS / CSS など更新が反映されるべきファイルは network-first
+  // 失敗時のみキャッシュにフォールバック（オフライン対応）
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        if (!response || response.status !== 200 || response.type === 'opaque') return response;
-        const toCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, toCache));
+    fetch(request)
+      .then((response) => {
+        if (response && response.status === 200 && response.type !== 'opaque') {
+          const toCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, toCache));
+        }
         return response;
-      }).catch(() => caches.match(`${BASE}/`));
-    })
+      })
+      .catch(() =>
+        caches.match(request).then((cached) => cached || caches.match(`${BASE}/`))
+      )
   );
 });
 
