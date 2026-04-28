@@ -13,7 +13,7 @@ import {
 import { Resend } from "resend";
 import { sendStoreApprovalEmail } from "../utils/emails";
 
-const REPORT_TYPES = ["closed", "temp_closed", "wrong_hours", "wrong_info", "other"] as const;
+const REPORT_TYPES = ["closed", "temp_closed", "wrong_hours", "wrong_info", "inappropriate_review", "other"] as const;
 type ReportType = typeof REPORT_TYPES[number];
 
 /** 日本の電話番号を Stripe が要求する E.164 形式（+81...）に変換するサーバーサイド安全変換 */
