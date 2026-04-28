@@ -95,9 +95,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-              <img src={logoUrl} alt="Osusowake" className="w-8 h-8 rounded-[10px] object-cover shadow-sm transition-transform duration-200 group-hover:scale-105" />
+              <img src={logoUrl} alt="おすそわけ" className="w-8 h-8 rounded-[10px] object-cover shadow-sm transition-transform duration-200 group-hover:scale-105" />
               <span className="leading-none font-black text-[19px]" style={{ letterSpacing: '-0.04em' }}>
-                <span className="text-foreground">Osus</span><span className="text-primary">Owake</span>
+                <span className="text-foreground">おすそわけ</span>
               </span>
             </Link>
 
@@ -288,9 +288,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
               {/* Brand column */}
               <div className="col-span-1">
                 <div className="flex items-center gap-2.5 mb-3">
-                  <img src={logoUrl} alt="Osusowake" className="w-7 h-7 rounded-[8px] object-cover shrink-0" />
+                  <img src={logoUrl} alt="おすそわけ" className="w-7 h-7 rounded-[8px] object-cover shrink-0" />
                   <span className="font-black text-[17px]" style={{ letterSpacing: '-0.03em' }}>
-                    <span className="text-foreground">Osus</span><span className="text-primary">Owake</span>
+                    <span className="text-foreground">おすそわけ</span>
                   </span>
                 </div>
                 <p className="text-[13px] text-muted-foreground leading-relaxed">
@@ -390,7 +390,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             {/* Copyright row */}
             <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
               <p className="text-[12px] text-muted-foreground/55 font-medium">
-                © 2026 Osusowake. All rights reserved.
+                © 2026 おすそわけ. All rights reserved.
               </p>
               <p className="text-[11px] text-muted-foreground/40">
                 初期費用・月額0円。成果報酬型（手数料25%）
@@ -434,7 +434,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             </div>
 
             <p className="text-center text-[11px] text-muted-foreground/40 font-medium">
-              © 2026 Osusowake. All rights reserved.
+              © 2026 おすそわけ. All rights reserved.
             </p>
           </div>
         </footer>

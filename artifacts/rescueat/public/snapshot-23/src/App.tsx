@@ -165,7 +165,7 @@ function PageTransitionOverlay() {
               />
               <img
                 src={logoUrl}
-                alt="Osusowake"
+                alt="おすそわけ"
                 className="relative w-14 h-14 rounded-2xl object-cover"
               />
             </div>

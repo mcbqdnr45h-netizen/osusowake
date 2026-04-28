@@ -266,7 +266,7 @@ function PostBagModal({
         {/* モーダルヘッダー */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-lg font-black text-foreground">本日のOsusowakeを出品する</h2>
+            <h2 className="text-lg font-black text-foreground">本日のおすそわけを出品する</h2>
             <p className="text-xs text-muted-foreground mt-0.5">今日おすそわけできる商品を選んでください</p>
           </div>
           <button
@@ -1779,7 +1779,7 @@ export default function StoreDashboard() {
                   <Plus className="w-6 h-6" />
                 </div>
                 <div className="text-left">
-                  <p className="font-black text-base leading-tight">本日のOsusowakeを出品する</p>
+                  <p className="font-black text-base leading-tight">本日のおすそわけを出品する</p>
                 </div>
               </motion.button>
             </div>

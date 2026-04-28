@@ -805,7 +805,7 @@ export default function MyPage() {
                   </div>
                   <div className="flex-1">
                     <div className="font-bold text-foreground text-sm">食品ロスのお店を教えて</div>
-                    <div className="text-xs text-muted-foreground">Osusowakeスタッフが直接お伺いします</div>
+                    <div className="text-xs text-muted-foreground">おすそわけスタッフが直接お伺いします</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </Link>
@@ -866,7 +866,7 @@ export default function MyPage() {
               <Link href="/privacy" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
                 プライバシーポリシー
               </Link>
-              <p className="w-full text-center text-[10px] text-muted-foreground/40 mt-1">© 2025 Osusowake All rights reserved.</p>
+              <p className="w-full text-center text-[10px] text-muted-foreground/40 mt-1">© 2025 おすそわけ All rights reserved.</p>
             </div>
 
           </div>
@@ -1070,7 +1070,7 @@ export default function MyPage() {
                     </div>
                     <div className="flex-1">
                       <div className="font-bold text-foreground text-sm">食品ロスのお店を教えて</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Osusowakeスタッフが直接お伺いします</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">おすそわけスタッフが直接お伺いします</div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
                   </Link>
@@ -1122,7 +1122,7 @@ export default function MyPage() {
                 <Link href="/privacy" onClick={() => setShowSettings(false)} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
                   プライバシーポリシー
                 </Link>
-                <p className="w-full text-center text-[10px] text-muted-foreground/40 mt-1">© 2025 Osusowake All rights reserved.</p>
+                <p className="w-full text-center text-[10px] text-muted-foreground/40 mt-1">© 2025 おすそわけ All rights reserved.</p>
               </div>
             </div>
           </motion.div>

@@ -114,9 +114,9 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
   }
 
   async function handleShare() {
-    const text = `Osusowake 電子領収書\n${storeName}\n${bagTitle}\n金額: ¥${total.toLocaleString()}\n${orderId}`;
+    const text = `おすそわけ 電子領収書\n${storeName}\n${bagTitle}\n金額: ¥${total.toLocaleString()}\n${orderId}`;
     if (navigator.share) {
-      try { await navigator.share({ title: 'Osusowake 電子領収書', text }); } catch {}
+      try { await navigator.share({ title: 'おすそわけ 電子領収書', text }); } catch {}
     }
   }
 
@@ -313,7 +313,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                   <p className="text-[10px] font-bold text-emerald-700 leading-tight">環境貢献実績</p>
                   <p className="text-xs font-black text-emerald-800">CO₂ {co2Saved}kg 削減</p>
                 </div>
-                <span className="text-[9px] text-emerald-500 font-sans">Osusowake</span>
+                <span className="text-[9px] text-emerald-500 font-sans">おすそわけ</span>
               </div>
             </div>
 
@@ -321,7 +321,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
             <p className="text-center text-[9px] text-gray-400 font-sans mt-4">
               本書はアプリ内「購入履歴」から発行した電子領収書です。<br />
               印刷またはPDFとして保存してご使用ください。<br />
-              Osusowake — お店の余ったおいしさを、あなたへ。
+              おすそわけ — お店の余ったおいしさを、あなたへ。
             </p>
           </div>
 

@@ -368,7 +368,7 @@ export default function StoreOnboarding() {
           <div>
             <h1 className="text-xl font-black">{isAddMode ? '店舗を追加する' : 'お店を登録する'}</h1>
             <p className="text-xs text-muted-foreground">
-              {isInherited ? '営業許可証のみ提出してください' : 'Osusowakeに参加して、フードロスを減らしましょう'}
+              {isInherited ? '営業許可証のみ提出してください' : 'おすそわけに参加して、フードロスを減らしましょう'}
             </p>
           </div>
         </div>
@@ -551,7 +551,7 @@ export default function StoreOnboarding() {
                 onClick={() => setPledgeSigned(v => !v)}
               >
                 <span className="font-black block mb-1">利用規約への同意 <span className="text-destructive">*</span></span>
-                食品衛生法を遵守し、営業許可証に基づいて営業していることを誓約します。また、Osusowakeの
+                食品衛生法を遵守し、営業許可証に基づいて営業していることを誓約します。また、おすそわけの
                 <span className="text-primary font-bold">利用規約</span>に同意の上、申請します。
               </p>
             </div>

@@ -144,7 +144,7 @@ export default function Login() {
               >
                 {isStore
                   ? <Store className="w-7 h-7 text-primary" strokeWidth={2.4} />
-                  : <img src={logoUrl} alt="Osusowake" className="w-full h-full rounded-2xl object-cover" />
+                  : <img src={logoUrl} alt="おすそわけ" className="w-full h-full rounded-2xl object-cover" />
                 }
               </div>
               {/* パルスドット */}
@@ -155,7 +155,7 @@ export default function Login() {
                 transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
             </motion.div>
-            <p className="text-[10px] font-black tracking-[0.25em] text-primary/80 mb-1.5">OSUSOWAKE</p>
+            <p className="text-[10px] font-black tracking-[0.25em] text-primary/80 mb-1.5">おすそわけ</p>
             <h1 className="text-[28px] font-black text-foreground leading-tight" style={{ letterSpacing: '-0.03em' }}>
               {isStore ? (
                 <>店舗管理画面へ</>

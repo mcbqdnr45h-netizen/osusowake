@@ -20,7 +20,7 @@ export default function Terms() {
           <p className="text-xs text-muted-foreground mb-8">最終更新日：2026年3月26日</p>
 
           <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-            Osusowake（以下「本サービス」）をご利用いただくにあたり、以下の利用規約（以下「本規約」）をよくお読みください。本サービスを利用することで、本規約に同意したものとみなします。
+            おすそわけ（以下「本サービス」）をご利用いただくにあたり、以下の利用規約（以下「本規約」）をよくお読みください。本サービスを利用することで、本規約に同意したものとみなします。
           </p>
 
           <Section title="第1条（定義）">
@@ -29,7 +29,7 @@ export default function Terms() {
               <li>「利用者」とは、本サービスを利用するすべての方を指します。</li>
               <li>「出品者」とは、本サービスを通じておすそわけバッグを販売する飲食店・食料品店等の事業者を指します。</li>
               <li>「おすそわけバッグ」とは、出品者が廃棄予定の食品をまとめて販売する商品を指します。</li>
-              <li>「運営者」とは、本サービスを運営するOsusowake 事務局を指します。</li>
+              <li>「運営者」とは、本サービスを運営するおすそわけ 事務局を指します。</li>
             </ul>
           </Section>
 
@@ -121,7 +121,7 @@ export default function Terms() {
           </Section>
 
           <div className="mt-10 pt-6 border-t border-border text-xs text-muted-foreground text-center">
-            <p>Osusowake 事務局</p>
+            <p>おすそわけ 事務局</p>
             <p className="mt-1">
               お問い合わせ：
               <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 ml-1">

@@ -74,10 +74,10 @@ export default function Welcome() {
           className="flex items-center gap-2.5">
           <div className="relative">
             <div aria-hidden className="absolute inset-0 rounded-[12px] bg-amber-200/30 blur-md" />
-            <img src={logoUrl} alt="Osusowake" className="relative w-9 h-9 rounded-[11px] object-cover ring-1 ring-white/30" />
+            <img src={logoUrl} alt="おすそわけ" className="relative w-9 h-9 rounded-[11px] object-cover ring-1 ring-white/30" />
           </div>
           <span className="font-black text-[20px] tracking-[-0.03em] leading-none">
-            <span className="text-white">Osus</span><span className="text-amber-200">Owake</span>
+            <span className="text-white">おすそわけ</span>
           </span>
         </motion.div>
 
@@ -96,7 +96,7 @@ export default function Welcome() {
         {/* 大見出し */}
         <motion.div custom={1} variants={rise} initial="hidden" animate="show" className="mb-6 sm:mb-7">
           <p className="text-amber-200/90 text-[10px] font-black uppercase tracking-[0.28em] mb-3">
-            OSUSOWAKE · おすそわけ
+            おすそわけ
           </p>
           <h1 className="text-[34px] sm:text-[44px] font-black text-white leading-[1.08] tracking-[-0.025em]">
             お店の余った<br />

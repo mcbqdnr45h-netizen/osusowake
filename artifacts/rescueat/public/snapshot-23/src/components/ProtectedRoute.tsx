@@ -15,7 +15,7 @@ function AuthLoadingScreen() {
       <div className="flex flex-col items-center gap-4">
         <div className="relative">
           <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl animate-pulse" />
-          <img src={logoUrl} alt="Osusowake" className="relative w-16 h-16 rounded-2xl object-cover shadow-lg ring-1 ring-black/5" />
+          <img src={logoUrl} alt="おすそわけ" className="relative w-16 h-16 rounded-2xl object-cover shadow-lg ring-1 ring-black/5" />
         </div>
         <Loader2 className="w-5 h-5 animate-spin text-primary" />
         <p className="text-xs text-muted-foreground font-medium tracking-wide">読み込み中…</p>
@@ -75,7 +75,7 @@ function GuestPlaceholderScreen() {
         >
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/30 to-orange-300/30 blur-xl" />
           <div className="relative w-14 h-14 rounded-2xl overflow-hidden ring-1 ring-black/5 shadow-lg shadow-primary/10 bg-white">
-            <img src={logoUrl} alt="Osusowake" className="w-full h-full object-cover" />
+            <img src={logoUrl} alt="おすそわけ" className="w-full h-full object-cover" />
           </div>
           <motion.div
             aria-hidden
@@ -92,7 +92,7 @@ function GuestPlaceholderScreen() {
           transition={{ delay: 0.06, duration: 0.45 }}
           className="text-center mb-1 shrink-0"
         >
-          <p className="text-[9px] font-black tracking-[0.25em] text-primary/80 mb-1">OSUSOWAKE</p>
+          <p className="text-[9px] font-black tracking-[0.25em] text-primary/80 mb-1">おすそわけ</p>
           <h1 className="text-[19px] font-black text-foreground leading-[1.3] tracking-tight">
             ログインして、<br />
             <span className="bg-gradient-to-r from-primary to-orange-500 bg-clip-text text-transparent">

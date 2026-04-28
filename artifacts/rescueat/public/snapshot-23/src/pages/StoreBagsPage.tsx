@@ -363,7 +363,7 @@ export default function StoreBagsPage() {
                   return (
                     <div className="mt-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5 space-y-1">
                       <div className="flex justify-between text-[11px] text-muted-foreground">
-                        <span>Osusowake 手数料 (25%)</span>
+                        <span>おすそわけ 手数料 (25%)</span>
                         <span>-¥{platFee.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-[11px] text-muted-foreground">

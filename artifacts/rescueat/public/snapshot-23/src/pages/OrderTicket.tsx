@@ -525,7 +525,7 @@ export default function OrderTicket() {
                   ${isPickedUp ? 'bg-slate-50 text-slate-400' : 'bg-primary/5 text-primary/50'}`}
                 >
                   <span>#{String(reservationId).padStart(8, '0')}</span>
-                  <span className="font-black tracking-wide">Osusowake</span>
+                  <span className="font-black tracking-wide">おすそわけ</span>
                   <span>¥{reservation.totalPrice.toLocaleString()}</span>
                 </div>
               </>

@@ -884,7 +884,7 @@ export default function StripeBankSetup() {
           {!store.stripeAccountId && (
             <div className="text-left bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 space-y-2 w-full">
               <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">⏱️ 審査期間：通常 1〜3営業日</p>
-              <p className="text-xs text-orange-700 leading-relaxed">審査結果（承認・修正依頼ともに）は<strong>Osusowake事務局</strong>よりメールでご連絡します。</p>
+              <p className="text-xs text-orange-700 leading-relaxed">審査結果（承認・修正依頼ともに）は<strong>おすそわけ事務局</strong>よりメールでご連絡します。</p>
               <div className="border-t border-orange-200 pt-2">
                 <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">💰 振込：毎週月曜日（初回は約7営業日後）</p>
               </div>
@@ -995,7 +995,7 @@ export default function StripeBankSetup() {
               <div>
                 <p className="text-sm font-black text-orange-900">審査期間の目安</p>
                 <p className="text-xs text-orange-700 leading-relaxed mt-0.5">
-                  通常<strong>1〜3営業日</strong>で審査が完了します。審査結果（承認・修正依頼ともに）は<strong>Osusowake事務局</strong>よりメールでご連絡します。
+                  通常<strong>1〜3営業日</strong>で審査が完了します。審査結果（承認・修正依頼ともに）は<strong>おすそわけ事務局</strong>よりメールでご連絡します。
                 </p>
               </div>
             </div>
@@ -1127,7 +1127,7 @@ export default function StripeBankSetup() {
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-5 flex gap-3">
           <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
           <p className="text-sm text-blue-700 leading-relaxed">
-            口座・本人確認情報は安全なサーバーで直接処理されます。Osusowakeのサーバーには口座番号は一切保存されません。
+            口座・本人確認情報は安全なサーバーで直接処理されます。おすそわけのサーバーには口座番号は一切保存されません。
           </p>
         </div>
 
@@ -1554,7 +1554,7 @@ export default function StripeBankSetup() {
                 <a href="/terms" target="_blank" rel="noopener noreferrer"
                   className="text-orange-600 font-bold underline underline-offset-2"
                   onClick={e => e.stopPropagation()}>
-                  Osusowakeの利用規約
+                  おすそわけの利用規約
                 </a>
                 および
                 <a href="https://stripe.com/jp/connect-account/legal" target="_blank" rel="noopener noreferrer"
