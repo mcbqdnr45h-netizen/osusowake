@@ -142,24 +142,56 @@ export default function SignUp() {
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-col flex-1"
         >
-          {/* ── ヒーロー ── */}
+          {/* ── ヒーロー（プレミアム） ── */}
           <div className="mb-6">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
-              style={{
-                background: 'linear-gradient(135deg, #FFF8F0 0%, #FFE8D0 100%)',
-                boxShadow: '0 2px 12px rgba(242,100,25,0.14)',
-              }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+              className="relative inline-block mb-4"
             >
-              {isStore ? <Store className="w-6 h-6 text-primary" /> : <img src={logoUrl} alt="Osusowake" className="w-10 h-10 rounded-xl object-cover" />}
-            </div>
-            <h1 className="text-[30px] font-black text-foreground leading-tight" style={{ letterSpacing: '-0.03em' }}>
-              {isStore ? '店舗オーナー登録' : 'アカウント作成'}
+              <div
+                aria-hidden
+                className="absolute inset-0 rounded-2xl blur-xl"
+                style={{
+                  background: isStore
+                    ? 'linear-gradient(135deg, rgba(242,100,25,0.35), rgba(246,174,45,0.25))'
+                    : 'linear-gradient(135deg, rgba(242,100,25,0.30), rgba(255,180,100,0.25))',
+                }}
+              />
+              <div
+                className="relative w-16 h-16 rounded-2xl flex items-center justify-center ring-1 ring-black/5 shadow-lg"
+                style={{
+                  background: isStore
+                    ? 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)'
+                    : '#FFFFFF',
+                  boxShadow: '0 6px 20px rgba(242,100,25,0.18)',
+                }}
+              >
+                {isStore
+                  ? <Store className="w-7 h-7 text-primary" strokeWidth={2.4} />
+                  : <img src={logoUrl} alt="Osusowake" className="w-full h-full rounded-2xl object-cover" />
+                }
+              </div>
+              <motion.div
+                aria-hidden
+                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary"
+                animate={{ scale: [1, 1.4, 1], opacity: [1, 0.4, 1] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            </motion.div>
+            <p className="text-[10px] font-black tracking-[0.25em] text-primary/80 mb-1.5">OSUSOWAKE</p>
+            <h1 className="text-[28px] font-black text-foreground leading-tight" style={{ letterSpacing: '-0.03em' }}>
+              {isStore ? (
+                <>店舗オーナー登録</>
+              ) : (
+                <>はじめまして<span className="text-primary">。</span></>
+              )}
             </h1>
-            <p className="text-[14px] text-muted-foreground mt-2 font-medium leading-snug">
+            <p className="text-[13.5px] text-muted-foreground mt-2 font-medium leading-snug">
               {isStore
                 ? '余剰食品をおすそわけして、新しい常連客を増やしましょう'
-                : '全国の美味しいおすそわけを、もっと身近に'
+                : '全国の美味しいおすそわけを、もっと身近に。'
               }
             </p>
           </div>
