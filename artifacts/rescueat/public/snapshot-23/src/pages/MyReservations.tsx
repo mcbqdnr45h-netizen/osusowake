@@ -264,7 +264,7 @@ export default function MyReservations() {
                             key={res.id}
                             layout
                             initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: isFaded ? 0.55 : 1, y: 0 }}
+                            animate={{ opacity: isFaded ? 0.78 : 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
                             transition={{ delay: i * 0.04 }}
                             className="relative bg-card overflow-hidden"
@@ -325,12 +325,16 @@ export default function MyReservations() {
                                 {(res.status === 'confirmed' || (res.status === 'pending' && !expired) || res.status === 'picked_up' || showDismiss) && (
                                   <div className="flex items-center flex-wrap gap-2 mt-2">
                                     {res.status === 'confirmed' && (
-                                      <Link href={`/orders/${res.id}`}>
-                                        <span className="inline-flex items-center gap-1.5 bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-primary/20 active:scale-95 transition-transform">
-                                          <Ticket className="w-3 h-3" />
-                                          チケットを表示
-                                        </span>
-                                      </Link>
+                                      // ★ iOS WebView でも確実にタップが拾われるよう <button> + onClick で実装
+                                      // （以前は <Link> + <span> だったが、稀にタップが拾われない事象あり）
+                                      <button
+                                        type="button"
+                                        onClick={() => navigate(`/orders/${res.id}`)}
+                                        className="inline-flex items-center gap-1.5 bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-primary/20 active:scale-95 transition-transform"
+                                      >
+                                        <Ticket className="w-3 h-3" />
+                                        チケットを表示
+                                      </button>
                                     )}
                                     {res.status === 'pending' && !expired && (
                                       <button

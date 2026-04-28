@@ -228,6 +228,45 @@ export default function OrderTicket() {
   const initialStatusRef = useRef<string | null>(null);
   // このセッションでボタン操作により受取完了した場合は true（レビューモーダル優先）
   const justCompletedRef = useRef(false);
+  // 自動遷移用タイマー群（モーダル未表示時のフォールバック / レビューモーダル表示用 / 409遷移用）
+  // すべて ref で保持し、アンマウント・モーダル表示・遷移時にまとめて解除する
+  const autoNavTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showReviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigatingRef      = useRef(false);
+
+  const clearAllTimers = useCallback(() => {
+    if (autoNavTimerRef.current) {
+      clearTimeout(autoNavTimerRef.current);
+      autoNavTimerRef.current = null;
+    }
+    if (showReviewTimerRef.current) {
+      clearTimeout(showReviewTimerRef.current);
+      showReviewTimerRef.current = null;
+    }
+  }, []);
+
+  // 履歴へ戻る（重複呼び出し防止 + タイマー解除）
+  const goToHistory = useCallback(() => {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+    clearAllTimers();
+    queryClient.invalidateQueries({ predicate: q => q.queryKey.join('/').includes('reservations') });
+    navigate('/my-reservations');
+  }, [navigate, queryClient, clearAllTimers]);
+
+  // アンマウント時にタイマー解除
+  useEffect(() => {
+    return () => clearAllTimers();
+  }, [clearAllTimers]);
+
+  // ★ レビューモーダルが表示されたら、フォールバック自動遷移タイマーを解除する
+  //    （レビュー入力中に強制遷移されてしまうのを防ぐ）
+  useEffect(() => {
+    if (showReview && autoNavTimerRef.current) {
+      clearTimeout(autoNavTimerRef.current);
+      autoNavTimerRef.current = null;
+    }
+  }, [showReview]);
 
   // DBのステータスと同期
   useEffect(() => {
@@ -263,11 +302,13 @@ export default function OrderTicket() {
     const res = await fetch(`/api/reservations/${reservationId}/pickup`, { method: 'POST' });
 
     if (res.status === 409) {
-      // 既に使用済み
+      // 既に使用済み → 即座に履歴へ
       const record: TicketRecord = { status: 'picked_up', pickedUpAt: new Date().toISOString() };
       writeTicket(reservationId, record);
       setTicket(record);
-      refetch();
+      toast({ title: 'このチケットは既に使用済みです', description: '履歴に戻ります' });
+      // タイマーを ref で保持してアンマウント・goToHistory 時に解除されるようにする
+      autoNavTimerRef.current = setTimeout(() => goToHistory(), 600);
       throw new Error('already_used');
     }
     if (!res.ok) {
@@ -276,7 +317,7 @@ export default function OrderTicket() {
       throw new Error('failed');
     }
 
-    // ボタン操作による完了 → レビューモーダルを優先するため自動遷移をスキップ
+    // ボタン操作による完了 → 自動遷移を一時停止（レビューモーダル優先）
     justCompletedRef.current = true;
     const record: TicketRecord = { status: 'picked_up', pickedUpAt: new Date().toISOString() };
     writeTicket(reservationId, record);
@@ -284,8 +325,19 @@ export default function OrderTicket() {
     await refetch();
     queryClient.invalidateQueries({ predicate: q => q.queryKey.join('/').includes('reservations') });
     toast({ title: '受取完了 ✅', description: 'お食事をお楽しみください！' });
-    setTimeout(() => setShowReview(true), 800);
-  }, [reservationId, refetch, toast]);
+
+    if (userId) {
+      // userId が取れていればレビューモーダルを優先表示。
+      // フォールバック自動遷移（5秒）を予約するが、モーダル表示時は useEffect で解除される。
+      // → モーダルが実際に開いた瞬間にタイマー解除 → ユーザーがゆっくり書ける。
+      // → モーダルが何らかの理由で開かない場合のみ5秒後に履歴へ。
+      showReviewTimerRef.current = setTimeout(() => setShowReview(true), 800);
+      autoNavTimerRef.current   = setTimeout(() => goToHistory(), 5000);
+    } else {
+      // userId 取得失敗 → レビューモーダルは表示せず1.2秒後に履歴へ
+      autoNavTimerRef.current = setTimeout(() => goToHistory(), 1200);
+    }
+  }, [reservationId, refetch, toast, userId, goToHistory, queryClient]);
 
   // ─── ローディング ──
   if (isLoading || !reservation) {
@@ -317,7 +369,7 @@ export default function OrderTicket() {
             userId={userId}
             onClose={() => {
               setShowReview(false);
-              navigate('/my-reservations');
+              goToHistory();
             }}
           />
         )}
@@ -488,10 +540,21 @@ export default function OrderTicket() {
                   <motion.div
                     key="used"
                     initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                    className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3"
+                    className="space-y-3"
                   >
-                    <CheckCircle2 className="w-5 h-5 text-slate-400 shrink-0" />
-                    <p className="text-sm font-bold text-slate-400">このチケットは既に使用済みです</p>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-slate-400 shrink-0" />
+                      <p className="text-sm font-bold text-slate-400">このチケットは既に使用済みです</p>
+                    </div>
+                    {/* ★ 確実に履歴へ戻れるボタン（モーダルが出ない場合の保険） */}
+                    <button
+                      type="button"
+                      onClick={goToHistory}
+                      className="w-full h-12 rounded-2xl bg-primary text-white font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-primary/25 active:scale-[0.98] transition-all"
+                    >
+                      履歴に戻る
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </motion.div>
                 ) : (
                   <motion.div key="swipe" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
