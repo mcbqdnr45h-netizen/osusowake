@@ -33,8 +33,5 @@ channel = "stable-25_05"
 [userenv.shared]
 Maps_API_KEY = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U"
 VITE_MAPS_API_KEY = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U"
-VAPID_PUBLIC_KEY = "BD2DItmpLTR9sf3-oHwNU93UpXCniyd_-_FJJhRzZZafjDVVjuxY9-WDdXVUh0KqLPkPtaRlc3_C1GPkFHYji1Q"
-VAPID_PRIVATE_KEY = "2h9tnuiNNucXQRa3dtqaUdW0CN1CGhaOvaxILue9CkE"
 VAPID_SUBJECT = "mailto:support@osusowakejapan.org"
-ADMIN_APPROVAL_SECRET = "NQFlDJmr3QvoLqsHE1XwBDqZVU8VQib0Jtm_ImynI41kxdatU5Saudj2sAdaHzxe0FKqDMr_bzqu91UrOR2-kQ"
 APP_URL = "https://osusowakejapan.org"
