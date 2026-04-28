@@ -348,7 +348,10 @@ router.post("/admin/stores/:storeId/refresh-stripe-status", requireAdmin, async 
 });
 
 // ── POST /admin/stores/batch-refresh-stripe ───────────────────────────────────
-// stripeAccountId を持つ全店舗の charges_enabled をまとめて更新して返す
+// stripeAccountId を持つ全店舗の charges_enabled をまとめて更新して返す。
+// 1万店舗規模では同一 stripeAccountId が複数店舗で共有されるため、
+// 「ユニークな accountId 単位」でAPIコールし、重複呼び出しを排除して rate limit 衝突を回避。
+// 加えて並列上限（CONCURRENCY=8）で Stripe rate limit (~100 req/sec) に余裕を持たせる。
 router.post("/admin/stores/batch-refresh-stripe", requireAdmin, async (req, res) => {
   const stripeKey = process.env["STRIPE_SECRET_KEY"];
   if (!stripeKey) { res.status(503).json({ error: "stripe_not_configured" }); return; }
@@ -358,32 +361,52 @@ router.post("/admin/stores/batch-refresh-stripe", requireAdmin, async (req, res)
       .from(storesTable)
       .where(isNotNull(storesTable.stripeAccountId));
 
+    // accountId → [storeId, ...] にグルーピング（同一オーナー多店舗を1コールにまとめる）
+    const accountIdToStoreIds = new Map<string, number[]>();
+    for (const row of rows) {
+      const acct = row.stripeAccountId!;
+      const list = accountIdToStoreIds.get(acct) ?? [];
+      list.push(row.id);
+      accountIdToStoreIds.set(acct, list);
+    }
+    const accountIds = Array.from(accountIdToStoreIds.keys());
+
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-    const results = await Promise.allSettled(
-      rows.map(async (row) => {
-        const account = await stripe.accounts.retrieve(row.stripeAccountId!);
-        const metaFileId = (account.metadata as any)?.license_file_id;
-        const licenseFileId: string | null = metaFileId?.startsWith?.("file_") ? metaFileId : null;
-        const patch: Record<string, any> = {
-          stripeChargesEnabled: account.charges_enabled,
-          stripePayoutsEnabled: account.payouts_enabled,
-        };
-        if (licenseFileId) patch.stripeLicenseFileId = licenseFileId;
-        await db
-          .update(storesTable)
-          .set(patch as any)
-          .where(eq(storesTable.id, row.id));
-        return { id: row.id, chargesEnabled: account.charges_enabled, payoutsEnabled: account.payouts_enabled, licenseFileId };
-      })
-    );
-
+    // 並列数制限ヘルパー（外部依存追加なし）
+    const CONCURRENCY = 8;
     const updated: Record<number, boolean> = {};
-    for (const r of results) {
-      if (r.status === "fulfilled") updated[r.value.id] = r.value.chargesEnabled;
-    }
+    let cursor = 0;
+    const workers = Array.from({ length: Math.min(CONCURRENCY, accountIds.length) }, async () => {
+      while (cursor < accountIds.length) {
+        const idx = cursor++;
+        const acct = accountIds[idx];
+        const storeIds = accountIdToStoreIds.get(acct) ?? [];
+        try {
+          const account = await stripe.accounts.retrieve(acct);
+          const metaFileId = (account.metadata as any)?.license_file_id;
+          const licenseFileId: string | null = metaFileId?.startsWith?.("file_") ? metaFileId : null;
+          const patch: Record<string, any> = {
+            stripeChargesEnabled: account.charges_enabled,
+            stripePayoutsEnabled: account.payouts_enabled,
+          };
+          if (licenseFileId) patch.stripeLicenseFileId = licenseFileId;
 
-    res.json({ updated });
+          // 同一 accountId を持つ全店舗を 1 クエリで一括更新
+          await db
+            .update(storesTable)
+            .set(patch as any)
+            .where(eq(storesTable.stripeAccountId, acct));
+
+          for (const sid of storeIds) updated[sid] = !!account.charges_enabled;
+        } catch (innerErr: any) {
+          console.warn(`[admin/batch-refresh-stripe] account ${acct} 失敗: ${innerErr?.message}`);
+        }
+      }
+    });
+    await Promise.all(workers);
+
+    res.json({ updated, accounts: accountIds.length, stores: rows.length });
   } catch (err: any) {
     console.error("[admin/batch-refresh-stripe]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });

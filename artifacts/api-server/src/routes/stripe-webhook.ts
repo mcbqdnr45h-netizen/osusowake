@@ -180,7 +180,13 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
       return;
     }
   } else {
-    // 開発環境では署名なしで受け取り（シークレット未設定時）
+    // 本番環境では fail-closed（シークレット未設定 = 偽イベント注入を許容しないため拒否）
+    // 開発環境（NODE_ENV !== "production"）のみ署名なしで受け付ける
+    if (process.env.NODE_ENV === "production") {
+      console.error("[stripe-webhook] ❌ 本番で webhook シークレット未設定 — 署名検証必須のため拒否");
+      res.status(503).json({ error: "webhook_secret_not_configured" });
+      return;
+    }
     try {
       event = JSON.parse(req.body.toString());
     } catch {
@@ -190,24 +196,114 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
     console.warn("[stripe-webhook] ⚠️ STRIPE_WEBHOOK_SECRET 未設定 — 署名検証なし（開発環境のみ許可）");
   }
 
-  // ── Idempotency: 同じ event.id を二回処理しない ─────────────────────────────
+  // ── Idempotency: 「先行 claim 型」 ───────────────────────────────────────
   // Stripe は配信失敗時に最大3日間リトライするため、重複処理で二重請求/二重発送を起こす可能性。
-  // event.id を PRIMARY KEY とする stripe_webhook_events テーブルに INSERT し、
-  // 重複（unique violation = code 23505）なら 200 を返して即終了。
+  // 設計: Postgres のユニーク制約 (event_id PK) を使って 1 つの worker だけが
+  // 'processing' を取得できるようにする → 同一 event.id の並列処理を物理的に排除。
+  //
+  //  - INSERT (status='processing') を試行
+  //    - 成功 → 自分が処理担当。res.on("finish") で 'succeeded'/'failed' に確定
+  //    - 23505 (重複) → 既存 row を SELECT
+  //        - 'succeeded' → スキップ
+  //        - 'processing' で stale (>10分) → UPDATE で奪取して処理
+  //        - 'processing' で fresh → スキップ（別 worker が処理中）
+  //        - 'failed'    → UPDATE で奪取して再処理
+  //
+  // 個々のハンドラ（payment_intent.succeeded / account.updated 等）は DB 内で
+  // 冪等な更新を行う前提だが、この先行 claim によりそもそも並列実行が起きない。
+  let webhookClaimed = false;
   if (event?.id) {
+    const eventId = event.id as string;
+    const eventType = (event.type ?? "unknown") as string;
     try {
-      await pool.query(
-        `INSERT INTO stripe_webhook_events (event_id, event_type) VALUES ($1, $2)`,
-        [event.id, event.type ?? "unknown"]
+      const ins = await pool.query(
+        `INSERT INTO stripe_webhook_events (event_id, event_type, status, received_at, updated_at)
+         VALUES ($1, $2, 'processing', NOW(), NOW())
+         ON CONFLICT (event_id) DO NOTHING
+         RETURNING event_id`,
+        [eventId, eventType]
       );
-    } catch (err: any) {
-      if (err?.code === "23505") {
-        console.log(`[stripe-webhook] 🔁 重複イベント受信 (idempotency): ${event.id} (${event.type}) — スキップ`);
-        res.json({ received: true, duplicate: true });
-        return;
+      if ((ins.rowCount ?? 0) > 0) {
+        webhookClaimed = true;
+      } else {
+        // 既存 row 検査
+        const existing = await pool.query(
+          `SELECT status, updated_at FROM stripe_webhook_events WHERE event_id = $1 LIMIT 1`,
+          [eventId]
+        );
+        const row = existing.rows[0] as { status: string; updated_at: Date } | undefined;
+        if (!row || row.status === "succeeded") {
+          console.log(`[stripe-webhook] 🔁 重複イベント受信 (succeeded): ${eventId} (${eventType}) — スキップ`);
+          res.json({ received: true, duplicate: true });
+          return;
+        }
+        if (row.status === "processing") {
+          const ageMs = Date.now() - new Date(row.updated_at).getTime();
+          if (ageMs < 10 * 60 * 1000) {
+            // ★ fresh processing: 先行 worker が生存中の可能性大。ただしクラッシュしている可能性も
+            // 排除できないので 503 を返して Stripe に再送させる（指数バックオフ）。
+            // 再送時に先行 worker が完了していれば 'succeeded' で重複スキップされ取りこぼしなし。
+            console.log(`[stripe-webhook] 🔁 並列処理中 (age=${Math.round(ageMs/1000)}s): ${eventId} — 503 で Stripe 再送依頼`);
+            res.status(503).json({ error: "in_progress", message: "still processing — retry later" });
+            return;
+          }
+          // stale → DB 時刻基準で原子的に奪取（updated_at 完全一致だと精度差で失敗するため interval を使う）
+          const claim = await pool.query(
+            `UPDATE stripe_webhook_events SET status = 'processing', updated_at = NOW()
+              WHERE event_id = $1 AND status = 'processing' AND updated_at < NOW() - INTERVAL '10 minutes'
+              RETURNING event_id`,
+            [eventId]
+          );
+          if ((claim.rowCount ?? 0) > 0) {
+            console.warn(`[stripe-webhook] ⚠️ stale processing を奪取 (age=${Math.round(ageMs/1000)}s): ${eventId}`);
+            webhookClaimed = true;
+          } else {
+            // 競合で他 worker が奪取済 → 同じく Stripe に再送依頼
+            console.log(`[stripe-webhook] 別 worker が奪取済: ${eventId} — 503`);
+            res.status(503).json({ error: "in_progress", message: "another worker took over" });
+            return;
+          }
+        } else {
+          // failed → 奪取して再処理
+          const claim = await pool.query(
+            `UPDATE stripe_webhook_events SET status = 'processing', updated_at = NOW()
+              WHERE event_id = $1 AND status = 'failed'
+              RETURNING event_id`,
+            [eventId]
+          );
+          if ((claim.rowCount ?? 0) > 0) {
+            console.log(`[stripe-webhook] 🔄 failed → 再処理: ${eventId}`);
+            webhookClaimed = true;
+          } else {
+            // 他 worker が先に奪取した → 503 で再送依頼（取りこぼし防止のため fail-closed）
+            console.log(`[stripe-webhook] failed 奪取失敗（他 worker が処理中）: ${eventId} — 503`);
+            res.status(503).json({ error: "in_progress", message: "another worker took over" });
+            return;
+          }
+        }
       }
-      // テーブル未作成や接続エラーは処理続行（可用性優先）
-      console.warn("[stripe-webhook] idempotency 記録失敗（処理は継続）:", err?.message);
+    } catch (claimErr: any) {
+      // ★ fail-closed: DB エラーで claim できない場合は 503 を返して Stripe にリトライさせる。
+      //   処理続行すると並列重複実行のリスクがあるため、整合性を優先する。
+      console.error("[stripe-webhook] ❌ idempotency claim 失敗 — 503 で Stripe 再送依頼:", claimErr?.message);
+      res.status(503).json({ error: "idempotency_unavailable", message: "retry later" });
+      return;
+    }
+
+    // 処理完了後に最終ステータスを確定
+    if (webhookClaimed) {
+      res.on("finish", () => {
+        const finalStatus = (res.statusCode >= 200 && res.statusCode < 300) ? "succeeded" : "failed";
+        pool.query(
+          `UPDATE stripe_webhook_events SET status = $2, updated_at = NOW() WHERE event_id = $1`,
+          [eventId, finalStatus]
+        ).catch((updErr: any) => {
+          console.warn(`[stripe-webhook] 最終ステータス更新失敗 (event=${eventId}, status=${finalStatus}):`, updErr?.message);
+        });
+        if (finalStatus === "failed") {
+          console.log(`[stripe-webhook] event ${eventId} status=failed (HTTP ${res.statusCode}) — Stripe が再送します`);
+        }
+      });
     }
   }
 

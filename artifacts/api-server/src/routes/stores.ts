@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { storesTable, surpriseBagsTable, reportsTable, reviewsTable, reservationsTable, notificationsTable } from "@workspace/db/schema";
 import { eq, sql, and, ne, gte, count, desc } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
+import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
 import {
   ListStoresQueryParams,
   CreateStoreBody,
@@ -139,23 +140,22 @@ router.post("/stores", async (req, res) => {
 });
 
 // Public: apply for store registration — sets status to "pending" for admin review
-router.post("/stores/apply", async (req, res) => {
+router.post("/stores/apply", requireAuth, async (req, res) => {
   try {
     const body = req.body;
-    console.log("[/stores/apply] 申請受付 ownerId=", body.ownerId, "name=", body.name);
+    // ★ ownerId は認証トークンから取得（リクエストボディの ownerId は無視 = なりすまし防止）
+    const ownerId = req.authUser!.id;
+    console.log("[/stores/apply] 申請受付 ownerId=", ownerId, "name=", body.name);
 
     if (!body.name || !body.address || !body.city) {
       return res.status(400).json({ error: "bad_request", message: "必須項目（店舗名・住所・市区町村）が不足しています" });
-    }
-    if (!body.ownerId) {
-      return res.status(400).json({ error: "bad_request", message: "ログインが必要です" });
     }
 
     // 既存店舗のStripeアカウントIDを取得（2店舗目以降で流用するため）
     const existingStores = await db
       .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId })
       .from(storesTable)
-      .where(eq(storesTable.ownerId, body.ownerId))
+      .where(eq(storesTable.ownerId, ownerId))
       .orderBy(desc(storesTable.id));
 
     // 既存店舗のStripeアカウントIDを流用（最初にStripeが設定されている店舗を使用）
@@ -173,7 +173,7 @@ router.post("/stores/apply", async (req, res) => {
           const contentType = match[1];
           const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
           const buffer = Buffer.from(match[2], "base64");
-          const filePath = `${body.ownerId}/${Date.now()}-license.${ext}`;
+          const filePath = `${ownerId}/${Date.now()}-license.${ext}`;
           const { error: uploadError } = await supabaseAdmin.storage
             .from("store-documents")
             .upload(filePath, buffer, { contentType, upsert: false });
@@ -298,7 +298,7 @@ router.post("/stores/apply", async (req, res) => {
       phone: body.phone ?? null,
       isActive: false,
       status: initialStatus,
-      ownerId: body.ownerId,
+      ownerId: ownerId,
       // 2店舗目以降は既存のStripeアカウントIDを流用（bank-setup不要）
       stripeAccountId: existingStripeAccountId,
       licenseNumber: resolvedLicenseNumber,
@@ -312,7 +312,7 @@ router.post("/stores/apply", async (req, res) => {
 
     // サイレントエラー防止: .returning() が行を返さなかった場合は明示的にエラー
     if (!store?.id) {
-      console.error("[/stores/apply] ❌ INSERT は実行されたが返却行なし — ownerId=", body.ownerId);
+      console.error("[/stores/apply] ❌ INSERT は実行されたが返却行なし — ownerId=", ownerId);
       return res.status(500).json({ error: "insert_no_result", message: "店舗情報の保存が確認できませんでした。再度お試しください。" });
     }
 
@@ -324,9 +324,9 @@ router.post("/stores/apply", async (req, res) => {
       const { error: roleErr } = await supabaseAdmin
         .from("users")
         .update({ role: "store_owner" })
-        .eq("id", body.ownerId);
+        .eq("id", ownerId);
       if (roleErr) console.warn("[/stores/apply] users.role 更新失敗:", roleErr.message);
-      else console.log("[/stores/apply] ✅ users.role → store_owner (ownerId=", body.ownerId, ")");
+      else console.log("[/stores/apply] ✅ users.role → store_owner (ownerId=", ownerId, ")");
     } catch (roleEx: any) {
       console.warn("[/stores/apply] users.role 更新例外:", roleEx?.message);
     }
@@ -428,7 +428,7 @@ router.post("/stores/upload-document", async (req, res) => {
 // Approval is manual, performed by an admin in the admin dashboard
 router.post("/stores/:storeId/auto-review", async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     const [store] = await db
       .select()
       .from(storesTable)
@@ -1108,7 +1108,7 @@ router.put("/stores/:storeId", async (req, res) => {
 // 今日の売上（手数料25%控除後の店舗受取額）を Stripe Transfers から取得
 router.get("/stores/:storeId/today-sales", async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
       return;
@@ -1176,14 +1176,14 @@ router.get("/stores/:storeId/today-sales", async (req, res) => {
 
 // GET /api/stores/:storeId/connect/status
 // Stripe アカウントのオンボーディング完了状況を返す
-router.get("/stores/:storeId/connect/status", async (req, res) => {
+router.get("/stores/:storeId/connect/status", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     // ★ iOS WKWebView などのキャッシュを完全に無効化
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
 
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
 
     const [store] = await db
       .select({ stripeAccountId: storesTable.stripeAccountId })
@@ -1254,9 +1254,9 @@ router.get("/stores/:storeId/connect/status", async (req, res) => {
 // ─── Stripe 保存済みデータ取得（フォーム事前入力用） ────────────────────────────
 // GET /api/stores/:storeId/connect/account-data
 // Stripe に保存済みの個人情報・口座情報を返す（再申請時のフォーム事前入力用）
-router.get("/stores/:storeId/connect/account-data", async (req, res) => {
+router.get("/stores/:storeId/connect/account-data", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) return res.status(400).json({ error: "bad_request" });
 
     const [store] = await db
@@ -1367,9 +1367,9 @@ router.get("/stores/:storeId/connect/account-data", async (req, res) => {
 // ─── Stripe アカウント切断（再連携用） ────────────────────────────────────────
 // POST /api/stores/:storeId/stripe-disconnect
 // stripeAccountId を NULL にリセットして、オーナーが新しい口座で再連携できるようにする
-router.post("/stores/:storeId/stripe-disconnect", async (req, res) => {
+router.post("/stores/:storeId/stripe-disconnect", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) return res.status(400).json({ error: "bad_request" });
 
     const [store] = await db
@@ -1394,9 +1394,9 @@ router.post("/stores/:storeId/stripe-disconnect", async (req, res) => {
 // ─── Stripe 強制再同期 ────────────────────────────────────────────────────────
 // POST /api/stores/:storeId/stripe-sync
 // Stripe API から最新ステータスを取得して DB を上書きする（管理者・オーナー両用）
-router.post("/stores/:storeId/stripe-sync", async (req, res) => {
+router.post("/stores/:storeId/stripe-sync", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
       return res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
     }
@@ -1492,9 +1492,9 @@ router.post("/stores/:storeId/stripe-sync", async (req, res) => {
 // ─── Stripe Account Link（インクリメンタル認証）──────────────────────────────
 // POST /api/stores/:storeId/connect/account-link
 // requirements.currently_due を確認し、不足情報だけを補完するためのStripe管理ページURLを生成する
-router.post("/stores/:storeId/connect/account-link", async (req, res) => {
+router.post("/stores/:storeId/connect/account-link", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
       return;
@@ -1572,8 +1572,8 @@ router.post("/stores/:storeId/connect/account-link", async (req, res) => {
 
 // ─── Stripe 残高・ペイアウト情報 ─────────────────────────────────────────────
 // GET /api/stores/:storeId/connect/balance
-router.get("/stores/:storeId/connect/balance", async (req, res) => {
-  const storeId = parseInt(req.params.storeId);
+router.get("/stores/:storeId/connect/balance", requireAuth, requireStoreOwner, async (req, res) => {
+  const storeId = parseInt(String(req.params.storeId));
   if (isNaN(storeId)) return res.status(400).json({ error: "bad_request" });
 
   const stripeKey = process.env["STRIPE_SECRET_KEY"];
@@ -1723,9 +1723,9 @@ router.get("/stores/:storeId/connect/balance", async (req, res) => {
 // ─── Stripe KYC 情報送信 ────────────────────────────────────────────────────
 // PUT /api/stores/:storeId/connect/kyc
 // 代表者情報・事業形態・事業内容を Stripe Account Update API に送信する
-router.put("/stores/:storeId/connect/kyc", async (req, res) => {
+router.put("/stores/:storeId/connect/kyc", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     const { businessType, companyNameKanji, companyNameKana, companyStructure, representative, businessProfile } = req.body as {
       businessType: "individual" | "company";
       companyNameKanji?: string;
@@ -2053,9 +2053,9 @@ router.put("/stores/:storeId/connect/kyc", async (req, res) => {
 // 1. base64 画像を Stripe Files API (purpose=identity_document) にアップロード
 // 2. 取得した fileId を individual.verification.document.front/back にセット
 // 3. requirements が完全にゼロになれば DB を 'approved' に更新
-router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
+router.post("/stores/:storeId/connect/kyc-document", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     const { imageBase64, mimeType, side } = req.body as {
       imageBase64: string;          // "data:image/jpeg;base64,..." or raw base64
       mimeType: string;             // "image/jpeg" | "image/png"
@@ -2174,9 +2174,9 @@ router.post("/stores/:storeId/connect/kyc-document", async (req, res) => {
 // STEP1-2（アカウント作成＋口座登録）を同期で実行してクライアントにレスポンスを返し、
 // STEP3-5（書類アップロード＋KYC更新＋DB更新）をバックグラウンドで継続する。
 // ※ 全ての変数を try 外に宣言してバックグラウンドクロージャのスコープ問題を回避する。
-router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
+router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwner, async (req, res) => {
   // ── 変数を try の外側に宣言（BGクロージャがスコープを共有できるようにする）──
-  const storeId = parseInt(req.params.storeId);
+  const storeId = parseInt(String(req.params.storeId));
   if (isNaN(storeId)) {
     res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
     return;
@@ -2812,8 +2812,8 @@ router.post("/stores/:storeId/connect/bank-setup", async (req, res) => {
 // ─── 既存 Stripe アカウントの requirements 充足（テストデータで一括完了）──────
 // POST /api/stores/:storeId/connect/fill-requirements
 // currently_due / eventually_due のフィールドをテスト値で埋め、アカウントを Active にする
-router.post("/stores/:storeId/connect/fill-requirements", async (req, res) => {
-  const storeId = parseInt(req.params.storeId);
+router.post("/stores/:storeId/connect/fill-requirements", requireAuth, requireStoreOwner, async (req, res) => {
+  const storeId = parseInt(String(req.params.storeId));
   if (isNaN(storeId)) return res.status(400).json({ error: "bad_request" });
 
   const stripeKey = process.env["STRIPE_SECRET_KEY"];
@@ -3115,7 +3115,7 @@ router.post("/stores/notify-approval", async (req, res) => {
 // ─── 店舗オーナー向けレビュー一覧（バッグ名 join）─────────────────────────────
 router.get("/stores/:storeId/owner-reviews", async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
       return;
@@ -3148,7 +3148,7 @@ router.get("/stores/:storeId/owner-reviews", async (req, res) => {
 // ─── レビューへの返信（店舗オーナー）─────────────────────────────────────────
 router.patch("/stores/:storeId/reviews/:reviewId/reply", async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     const reviewId = parseInt(req.params.reviewId);
     const { reply } = req.body as { reply: string };
 
@@ -3177,7 +3177,7 @@ router.patch("/stores/:storeId/reviews/:reviewId/reply", async (req, res) => {
 // ─── 店舗プロフィール更新（カバー写真・紹介文・営業時間等）─────────────────
 router.put("/stores/:storeId/profile", async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
       return;
@@ -3209,9 +3209,9 @@ router.put("/stores/:storeId/profile", async (req, res) => {
 
 // ─── Stripe情報を特商法フォームの初期値として取得 ─────────────────────────────
 // GET /api/stores/:storeId/connect/stripe-prefill
-router.get("/stores/:storeId/connect/stripe-prefill", async (req, res) => {
+router.get("/stores/:storeId/connect/stripe-prefill", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
       return;
@@ -3345,7 +3345,7 @@ router.get("/stores/:storeId/connect/stripe-prefill", async (req, res) => {
 
 router.get("/stores/:storeId/legal", async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
       return;
@@ -3378,7 +3378,7 @@ router.get("/stores/:storeId/legal", async (req, res) => {
 // ─── 特定商取引法表記 更新（店舗オーナー）──────────────────────────────────────
 router.put("/stores/:storeId/legal", async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId);
+    const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId" });
       return;

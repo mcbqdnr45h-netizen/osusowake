@@ -466,16 +466,33 @@ async function runMigrations() {
     console.log('[migration] stores.stripe_needs_bank_reregister ✅');
 
     // ── Stripe webhook idempotency 用テーブル（重複処理防止）─────────────────
+    // 設計: 「先行 claim 型」── 受信時に INSERT を試行（status='processing'）。
+    // PK 重複（23505）→ 既存 row が processing/succeeded/failed のいずれかを判定し、
+    // succeeded ならスキップ、processing で stale（>10分）なら奪取、failed なら奪取して再処理。
+    // これにより同一 event の並列処理を Postgres ユニーク制約で 1 つに絞り込む。
     await client.query(`
       CREATE TABLE IF NOT EXISTS stripe_webhook_events (
         event_id    TEXT PRIMARY KEY,
         event_type  TEXT NOT NULL,
-        received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        status      TEXT NOT NULL DEFAULT 'succeeded',
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
-    // 30日より古い処理済みイベントを削除（テーブル肥大化防止）
+    await client.query(`ALTER TABLE stripe_webhook_events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'succeeded';`);
+    await client.query(`ALTER TABLE stripe_webhook_events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`);
+    // stale processing を奪取できるよう updated_at の index を作成
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_stripe_webhook_events_status ON stripe_webhook_events (status, updated_at);`);
+    // 30日より古い succeeded イベントを削除（テーブル肥大化防止）
     await client.query(`
-      DELETE FROM stripe_webhook_events WHERE received_at < NOW() - INTERVAL '30 days';
+      DELETE FROM stripe_webhook_events
+       WHERE status = 'succeeded' AND received_at < NOW() - INTERVAL '30 days';
+    `);
+    // 7日経過した failed/processing 行も削除（実質再送が止まる Stripe の3日リトライ＋余裕）。
+    // 残しておくと Stripe が後刻同じ event_id を送信した際の重複判定が誤動作するため。
+    await client.query(`
+      DELETE FROM stripe_webhook_events
+       WHERE status IN ('failed','processing') AND received_at < NOW() - INTERVAL '7 days';
     `);
     console.log('[migration] stripe_webhook_events table ✅');
 

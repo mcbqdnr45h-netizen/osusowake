@@ -4,6 +4,7 @@ import { reservationsTable, surpriseBagsTable, storesTable, cartReservationsTabl
 import { eq, sql, and, ne } from "drizzle-orm";
 import { sendWebPushToUser } from "../lib/push.js";
 import { supabaseAdmin } from "../lib/supabase.js";
+import { requireAuth } from "../middlewares/auth.js";
 import {
   CreatePaymentIntentBody,
   ConfirmPaymentBody,
@@ -134,13 +135,14 @@ async function buildCustomerSessionSecret(
   }
 }
 
-router.post("/payment/create-intent", async (req, res) => {
+router.post("/payment/create-intent", requireAuth, async (req, res) => {
   try {
     const body = CreatePaymentIntentBody.parse(req.body);
 
     const [reservation] = await db
       .select({
         id:              reservationsTable.id,
+        userId:          reservationsTable.userId,
         totalPrice:      reservationsTable.totalPrice,
         paymentStatus:   reservationsTable.paymentStatus,
         bagId:           reservationsTable.bagId,
@@ -153,6 +155,13 @@ router.post("/payment/create-intent", async (req, res) => {
 
     if (!reservation) {
       res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+
+    // ★ 認可: 予約の所有者本人のみ PaymentIntent を作成可能
+    if (reservation.userId !== req.authUser!.id) {
+      console.warn(`[SECURITY] /payment/create-intent: reservation ${reservation.id} owner=${reservation.userId} requester=${req.authUser!.id}`);
+      res.status(403).json({ error: "forbidden", message: "この予約を操作する権限がありません" });
       return;
     }
 
@@ -367,9 +376,71 @@ router.post("/payment/create-intent", async (req, res) => {
   }
 });
 
-router.post("/payment/confirm", async (req, res) => {
+router.post("/payment/confirm", requireAuth, async (req, res) => {
   try {
     const body = ConfirmPaymentBody.parse(req.body);
+
+    // ★ 事前チェック: 予約所有者の本人確認
+    const [preReservation] = await db
+      .select({
+        id:         reservationsTable.id,
+        userId:     reservationsTable.userId,
+        totalPrice: reservationsTable.totalPrice,
+      })
+      .from(reservationsTable)
+      .where(eq(reservationsTable.id, body.reservationId));
+
+    if (!preReservation) {
+      res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+    if (preReservation.userId !== req.authUser!.id) {
+      console.warn(`[SECURITY] /payment/confirm: reservation ${preReservation.id} owner=${preReservation.userId} requester=${req.authUser!.id}`);
+      res.status(403).json({ error: "forbidden", message: "この予約を操作する権限がありません" });
+      return;
+    }
+
+    // ★ Stripe 検証: 本物の paymentIntent が succeeded であることをサーバ側で確認
+    //   これがないと、攻撃者が任意の文字列を paymentIntentId として送るだけで
+    //   無料で予約を paid にできてしまう（致命的脆弱性）。
+    //   テスト用 mock (`pi_mock_`) は STRIPE_SECRET_KEY 未設定時のみ許可する。
+    const stripeKeyForVerify = process.env["STRIPE_SECRET_KEY"];
+    const isMock = body.paymentIntentId.startsWith("pi_mock_");
+    if (!isMock) {
+      if (!stripeKeyForVerify) {
+        res.status(503).json({ error: "stripe_not_configured", message: "Stripe が設定されていません" });
+        return;
+      }
+      try {
+        const stripeVerify = await import("stripe").then((m) => new m.default(stripeKeyForVerify));
+        const intent = await stripeVerify.paymentIntents.retrieve(body.paymentIntentId);
+        if (intent.status !== "succeeded") {
+          console.warn(`[SECURITY] /payment/confirm: PI ${intent.id} status=${intent.status} (not succeeded) reservation=${body.reservationId}`);
+          res.status(402).json({ error: "payment_not_succeeded", message: "決済が完了していません", stripeStatus: intent.status });
+          return;
+        }
+        const piReservationId = parseInt(intent.metadata?.reservationId ?? "", 10);
+        if (piReservationId !== body.reservationId) {
+          console.warn(`[SECURITY] /payment/confirm: PI ${intent.id} metadata.reservationId=${piReservationId} mismatch with body.reservationId=${body.reservationId}`);
+          res.status(403).json({ error: "reservation_mismatch", message: "決済情報と予約が一致しません" });
+          return;
+        }
+        if (intent.amount !== Math.round(preReservation.totalPrice)) {
+          console.warn(`[SECURITY] /payment/confirm: PI ${intent.id} amount=${intent.amount} mismatch with reservation.totalPrice=${preReservation.totalPrice}`);
+          res.status(403).json({ error: "amount_mismatch", message: "決済金額が一致しません" });
+          return;
+        }
+      } catch (verifyErr: any) {
+        console.error(`[SECURITY] /payment/confirm: Stripe verify failed for PI ${body.paymentIntentId}:`, verifyErr?.message);
+        res.status(402).json({ error: "stripe_verify_failed", message: "決済情報の検証に失敗しました" });
+        return;
+      }
+    } else if (stripeKeyForVerify) {
+      // 本番モードで mock を弾く
+      console.warn(`[SECURITY] /payment/confirm: pi_mock_ rejected because Stripe is configured (reservation=${body.reservationId})`);
+      res.status(403).json({ error: "mock_not_allowed", message: "テスト用の決済IDは本番で使用できません" });
+      return;
+    }
 
     // ★ アトミック決済確定（仮押さえ廃止後の中核ロジック）─────────────────────
     //   ① 予約行を FOR UPDATE でロック
