@@ -1797,6 +1797,7 @@ export default function StoreDashboard() {
           const notApproved = store.status !== 'approved';
           const stripeApiBlocked =
             stripeStatus !== undefined &&
+            stripeStatus !== null &&
             (!stripeStatus.chargesEnabled || !stripeStatus.payoutsEnabled);
           const stripeBlocked = noStripeAccount || notApproved || stripeApiBlocked;
 

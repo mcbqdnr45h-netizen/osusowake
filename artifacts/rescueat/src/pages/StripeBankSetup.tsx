@@ -120,6 +120,7 @@ type DraftState = {
   accountNumber: string; holderName: string;
   companyNameKanji?: string; companyNameKana?: string;
   companyNameLatin?: string; companyTaxId?: string;
+  companyStructure?: string;
   representativeTitle?: string;
 };
 function draftKey(storeId: number) { return `${DRAFT_KEY_PREFIX}${storeId}`; }
