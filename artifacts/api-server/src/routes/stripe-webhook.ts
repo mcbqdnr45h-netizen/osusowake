@@ -52,7 +52,12 @@ async function sendAdminKycEmail(store: {
   const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
   const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
   const crypto = await import('node:crypto');
-  const secret = process.env.ADMIN_APPROVAL_SECRET ?? "osusowake-admin-secret";
+  // 認可: ADMIN_APPROVAL_SECRET が未設定なら fail-closed（デフォルト値を使わない）
+  const secret = process.env.ADMIN_APPROVAL_SECRET;
+  if (!secret) {
+    console.error("[stripe-webhook] ADMIN_APPROVAL_SECRET 未設定 → 承認メール送信を中止 (fail-closed)");
+    return false;
+  }
   const token = crypto.createHmac('sha256', secret).update(String(store.id)).digest('hex');
   const approveUrl = `${appUrl}/api/admin/approve-store?storeId=${store.id}&token=${token}`;
   const adminUrl = `${appUrl}/admin`;
