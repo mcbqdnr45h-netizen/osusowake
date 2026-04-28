@@ -1352,6 +1352,11 @@ export default function StoreDashboard() {
   const todayPickedUp = (reservations as Reservation[]).filter(
     r => isTodaysReservation(r) && r.status === 'picked_up'
   );
+  // 過去日付の未処理予約（pending/confirmed のまま放置されているもの）
+  // 日付フィルタに関わらず受取済みにできるようにし、売上が曖昧にならないようにする
+  const oldUnprocessed = (reservations as Reservation[])
+    .filter(r => !isTodaysReservation(r) && (r.status === 'pending' || r.status === 'confirmed'))
+    .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
   const now = new Date();
   const activeBags     = (bags as any[]).filter((b: any) => getBagStatus(b, now) === 'active');
   // 出品中（active・soldout のみ — expired は除外）
@@ -2161,6 +2166,36 @@ export default function StoreDashboard() {
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
+        )}
+
+        {/* ── 過去の未処理予約（pending/confirmed のまま放置） ── */}
+        {oldUnprocessed.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-black text-foreground flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+                未処理の過去予約
+              </h2>
+              <span className="text-xs font-black text-amber-700 bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-full">
+                {oldUnprocessed.length}件
+              </span>
+            </div>
+            <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-3 mb-3">
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                <strong>受取済み</strong>になっていない過去の予約があります。お客様にお渡し済みであれば「受取済みにする」を押して完了させてください。受取済みにしないと売上集計が正確になりません。
+              </p>
+            </div>
+            <div className="space-y-3">
+              {oldUnprocessed.map(res => (
+                <ReservationCard
+                  key={res.id}
+                  res={res as Reservation}
+                  onPickedUp={handlePickedUp}
+                  loading={markingId === res.id}
+                />
+              ))}
+            </div>
           </div>
         )}
 
