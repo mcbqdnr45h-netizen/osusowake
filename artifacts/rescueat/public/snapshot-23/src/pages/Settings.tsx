@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
@@ -10,6 +10,41 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+
+const AVATAR_KEY_PREFIX = 'osusowake_avatar_v1_';
+
+/** 画像ファイルを max W/H にリサイズして JPEG DataURL を返す */
+function resizeImageToDataUrl(file: File, maxW: number, maxH: number, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read_failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('image_load_failed'));
+      img.onload = () => {
+        const ratio = Math.min(maxW / img.width, maxH / img.height, 1);
+        const w = Math.max(1, Math.round(img.width * ratio));
+        const h = Math.max(1, Math.round(img.height * ratio));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('canvas_unsupported'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error('canvas_export_failed'));
+        }
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 const GENRES = ['ベーカリー', 'お弁当', 'カフェ', 'レストラン', 'スーパー', 'コンビニ', 'スイーツ', '和食'];
 
@@ -296,6 +331,76 @@ export default function Settings() {
   // Avatar initials
   const initials = displayName.trim().slice(0, 2) || 'GU';
 
+  // ── アバター画像（端末ローカル保存）──
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // ユーザー切替時にローカル保存から復元
+  useEffect(() => {
+    if (!user?.id) {
+      setAvatarDataUrl(null);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(`${AVATAR_KEY_PREFIX}${user.id}`);
+      setAvatarDataUrl(saved);
+    } catch {
+      setAvatarDataUrl(null);
+    }
+  }, [user?.id]);
+
+  async function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // 同じファイルを連続で選び直しても発火するように value をクリア
+    e.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: '画像ファイルを選択してください',
+        description: 'JPEG / PNG / HEIC などの画像形式が対応しています。',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({
+        title: '画像のサイズが大きすぎます',
+        description: '8MB以下の画像を選んでください。',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 256, 256, 0.85);
+      if (user?.id) {
+        try {
+          localStorage.setItem(`${AVATAR_KEY_PREFIX}${user.id}`, dataUrl);
+        } catch {
+          toast({
+            title: '保存できませんでした',
+            description: '端末の保存容量が不足しています。',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+      setAvatarDataUrl(dataUrl);
+      toast({ title: 'アイコンを変更しました ✅' });
+    } catch (err) {
+      toast({
+        title: '画像を読み込めませんでした',
+        description: String(err instanceof Error ? err.message : err),
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
   function toggleGenre(g: string) {
     setFavoriteGenres(prev =>
       prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]
@@ -414,15 +519,42 @@ export default function Settings() {
 
             {/* Avatar row */}
             <div className="flex items-center gap-4 px-4 py-5 border-b border-border/60">
+              {/* hidden file input - カメラボタンから起動 */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarFileChange}
+                aria-hidden="true"
+              />
               <div className="relative shrink-0">
                 <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-black shadow-md"
-                  style={{ background: 'linear-gradient(135deg, #2D5A51, #4A8C7F)' }}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-black shadow-md overflow-hidden"
+                  style={avatarDataUrl ? undefined : { background: 'linear-gradient(135deg, #2D5A51, #4A8C7F)' }}
                 >
-                  {initials}
+                  {avatarDataUrl ? (
+                    <img
+                      src={avatarDataUrl}
+                      alt="プロフィールアイコン"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
                 </div>
-                <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-sm hover:bg-primary/90 transition-colors">
-                  <Camera className="w-3 h-3" />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  aria-label="プロフィール写真を変更"
+                  className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-sm hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {uploadingAvatar ? (
+                    <span className="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="w-3 h-3" />
+                  )}
                 </button>
               </div>
               <div className="flex-1 min-w-0">
