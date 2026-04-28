@@ -190,6 +190,27 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
     console.warn("[stripe-webhook] ⚠️ STRIPE_WEBHOOK_SECRET 未設定 — 署名検証なし（開発環境のみ許可）");
   }
 
+  // ── Idempotency: 同じ event.id を二回処理しない ─────────────────────────────
+  // Stripe は配信失敗時に最大3日間リトライするため、重複処理で二重請求/二重発送を起こす可能性。
+  // event.id を PRIMARY KEY とする stripe_webhook_events テーブルに INSERT し、
+  // 重複（unique violation = code 23505）なら 200 を返して即終了。
+  if (event?.id) {
+    try {
+      await pool.query(
+        `INSERT INTO stripe_webhook_events (event_id, event_type) VALUES ($1, $2)`,
+        [event.id, event.type ?? "unknown"]
+      );
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        console.log(`[stripe-webhook] 🔁 重複イベント受信 (idempotency): ${event.id} (${event.type}) — スキップ`);
+        res.json({ received: true, duplicate: true });
+        return;
+      }
+      // テーブル未作成や接続エラーは処理続行（可用性優先）
+      console.warn("[stripe-webhook] idempotency 記録失敗（処理は継続）:", err?.message);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // 🛡 安全網: payment_intent.succeeded
   // フロント (Checkout.tsx) の /api/payment/confirm 呼び出しが iOS の通信不調などで

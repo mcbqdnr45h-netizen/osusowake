@@ -465,12 +465,34 @@ async function runMigrations() {
     `);
     console.log('[migration] stores.stripe_needs_bank_reregister ✅');
 
+    // ── Stripe webhook idempotency 用テーブル（重複処理防止）─────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+        event_id    TEXT PRIMARY KEY,
+        event_type  TEXT NOT NULL,
+        received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    // 30日より古い処理済みイベントを削除（テーブル肥大化防止）
+    await client.query(`
+      DELETE FROM stripe_webhook_events WHERE received_at < NOW() - INTERVAL '30 days';
+    `);
+    console.log('[migration] stripe_webhook_events table ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {
     client.release();
   }
 }
+
+// ── 致命エラー捕捉（プロセス即死を防止し、サービス継続性を確保）──────────────
+process.on("uncaughtException", (err) => {
+  console.error("[fatal] uncaughtException — プロセスは継続:", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[fatal] unhandledRejection — プロセスは継続:", reason);
+});
 
 const rawPort = process.env["PORT"];
 
