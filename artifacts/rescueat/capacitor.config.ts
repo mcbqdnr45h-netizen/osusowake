@@ -36,8 +36,12 @@ const config: CapacitorConfig = {
   },
 
   server: {
+    // ⚠️ url を設定することで初めてリモートロードになります
+    // hostname だけだとローカル dist-cap が使われ、Web 修正が反映されません
+    url: 'https://osusowakejapan.org/',
     hostname: 'osusowakejapan.org',
     iosScheme: 'https',
+    cleartext: false,
     allowNavigation: [
       'maps.googleapis.com',
       'maps.gstatic.com',
