@@ -13,7 +13,7 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useMyStore } from '@/hooks/use-my-store';
-import { useUserLocation, haversineMeters } from '@/hooks/use-user-location';
+import { useUserLocation, haversineMeters, requestGpsManually } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
 import { useAppSettings } from '@/hooks/use-app-settings';
 
@@ -297,7 +297,25 @@ export default function Home() {
     return reservations.find(r => r.status === 'pending' && r.paymentStatus !== 'paid') ?? null;
   }, [reservations]);
   const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
-  const { coords: userCoords, loading: gpsLoading } = useUserLocation();
+  const { coords: userCoords, loading: gpsLoading, denied: gpsDenied } = useUserLocation();
+
+  // 「現在地ON」ボタン: GPS と都市名の両方を再取得
+  // ブラウザ側で permission が denied のままだと再 prompt は出ない → ガイダンス表示
+  const handleAllowLocation = useCallback(async () => {
+    const coords = await requestGpsManually();
+    if (coords) {
+      // GPS 取得成功 → 都市名も再取得
+      retryGeo();
+    } else {
+      // 拒否 or タイムアウト
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      alert(
+        isIos
+          ? '位置情報の使用が許可されていません。\n\n「設定」→「プライバシーとセキュリティ」→「位置情報サービス」→「Safari」を「このAppの使用中のみ許可」に設定してください。'
+          : '位置情報の使用が許可されていません。\nブラウザのアドレスバー左の鍵アイコンから位置情報を許可してください。',
+      );
+    }
+  }, [retryGeo]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -702,7 +720,7 @@ export default function Home() {
                 className="pb-6"
               >
                 {/* 全国モードバナー */}
-                {!geoLoading && geoDenied && <NationwideBanner onAllow={retryGeo} />}
+                {!geoLoading && (geoDenied || gpsDenied) && <NationwideBanner onAllow={handleAllowLocation} />}
 
                 {/* ① もうすぐ終わるおすそわけ */}
                 {(isLoadingBags || urgentBags.length > 0) && (
