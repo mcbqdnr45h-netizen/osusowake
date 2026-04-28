@@ -4,6 +4,7 @@ import { surpriseBagsTable, storesTable, reservationsTable, favoritesTable, noti
 import { eq, and, sql } from "drizzle-orm";
 import { releaseExpiredCartReservations } from "./reservations";
 import { sendWebPushToUsers } from "../lib/push.js";
+import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
 import {
   ListStoreBagsParams,
   CreateBagParams,
@@ -213,7 +214,7 @@ router.get("/stores/:storeId/bags", async (req, res) => {
   }
 });
 
-router.post("/stores/:storeId/bags", async (req, res) => {
+router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const { storeId } = CreateBagParams.parse(req.params);
 
@@ -318,7 +319,7 @@ router.post("/stores/:storeId/bags", async (req, res) => {
   }
 });
 
-router.put("/bags/:bagId", async (req, res) => {
+router.put("/bags/:bagId", requireAuth, async (req, res) => {
   try {
     const { bagId } = UpdateBagParams.parse(req.params);
     const body = UpdateBagBody.parse(req.body);
@@ -329,6 +330,23 @@ router.put("/bags/:bagId", async (req, res) => {
         error: "price_too_low",
         message: "Stripeの決済制限により、価格は50円以上に設定してください",
       });
+    }
+
+    // 認可: bag → store → ownerId が認証ユーザと一致するか確認
+    const [bagOwner] = await db
+      .select({ ownerId: storesTable.ownerId, storeId: surpriseBagsTable.storeId })
+      .from(surpriseBagsTable)
+      .leftJoin(storesTable, eq(surpriseBagsTable.storeId, storesTable.id))
+      .where(eq(surpriseBagsTable.id, bagId))
+      .limit(1);
+    if (!bagOwner) {
+      res.status(404).json({ error: "not_found", message: "Bag not found" });
+      return;
+    }
+    if (bagOwner.ownerId !== req.authUser!.id) {
+      console.warn(`[SECURITY] PUT /bags/${bagId}: store owner=${bagOwner.ownerId} requester=${req.authUser!.id}`);
+      res.status(403).json({ error: "forbidden", message: "このバッグを編集する権限がありません" });
+      return;
     }
 
     const [updated] = await db
@@ -349,10 +367,10 @@ router.put("/bags/:bagId", async (req, res) => {
 });
 
 // 非公開バッグの削除（isActive=false のものだけ削除可能）
-router.delete("/stores/:storeId/bags/:bagId", async (req, res) => {
+router.delete("/stores/:storeId/bags/:bagId", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId, 10);
-    const bagId = parseInt(req.params.bagId, 10);
+    const storeId = parseInt(String(req.params.storeId ?? ""), 10);
+    const bagId = parseInt(String(req.params.bagId ?? ""), 10);
     if (isNaN(storeId) || isNaN(bagId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId or bagId" });
       return;
@@ -396,10 +414,10 @@ router.delete("/stores/:storeId/bags/:bagId", async (req, res) => {
 
 // 店舗オーナーによる個別バッグ更新（公開/非公開トグルなど）
 // storeId を含めることで所有権チェックを行う
-router.patch("/stores/:storeId/bags/:bagId", async (req, res) => {
+router.patch("/stores/:storeId/bags/:bagId", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId, 10);
-    const bagId = parseInt(req.params.bagId, 10);
+    const storeId = parseInt(String(req.params.storeId ?? ""), 10);
+    const bagId = parseInt(String(req.params.bagId ?? ""), 10);
     if (isNaN(storeId) || isNaN(bagId)) {
       res.status(400).json({ error: "bad_request", message: "Invalid storeId or bagId" });
       return;

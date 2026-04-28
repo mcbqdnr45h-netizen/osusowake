@@ -8,7 +8,8 @@ import {
   reviewsTable,
   insertReservationSchema,
 } from "@workspace/db/schema";
-import { eq, and, sql, lt, isNotNull } from "drizzle-orm";
+import { eq, and, sql, lt, isNotNull, inArray } from "drizzle-orm";
+import { requireAuth } from "../middlewares/auth.js";
 
 const HOLD_MINUTES = 5;
 
@@ -100,7 +101,7 @@ export async function releaseExpiredCartReservations(): Promise<void> {
         .from(reservationsTable)
         .where(
           and(
-            sql`${reservationsTable.id} = ANY(${sql.raw(`ARRAY[${reservationIds.join(",")}]::int[]`)})`,
+            inArray(reservationsTable.id, reservationIds),
             eq(reservationsTable.status, "pending"),
             isNotNull(reservationsTable.paymentIntentId),
           )
@@ -111,7 +112,7 @@ export async function releaseExpiredCartReservations(): Promise<void> {
         .set({ status: "cancelled" })
         .where(
           and(
-            sql`${reservationsTable.id} = ANY(${sql.raw(`ARRAY[${reservationIds.join(",")}]::int[]`)})`,
+            inArray(reservationsTable.id, reservationIds),
             eq(reservationsTable.status, "pending")
           )
         );
@@ -174,6 +175,23 @@ function generatePickupCode(id: number): string {
   return String(n);
 }
 
+/**
+ * 予約 ID から「buyer の userId」と「店舗オーナーの userId」をまとめて引く。
+ * 認可チェック（自分の予約 or 自分の店舗の予約）に使う。
+ */
+async function loadReservationOwners(id: number): Promise<{ userId: string; storeOwnerId: string | null } | null> {
+  const [row] = await db
+    .select({
+      userId: reservationsTable.userId,
+      storeOwnerId: storesTable.ownerId,
+    })
+    .from(reservationsTable)
+    .innerJoin(storesTable, eq(reservationsTable.storeId, storesTable.id))
+    .where(eq(reservationsTable.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
 async function getReservationWithDetails(id: number) {
   const [res] = await db
     .select({
@@ -204,15 +222,16 @@ async function getReservationWithDetails(id: number) {
   };
 }
 
-router.get("/reservations", async (req, res) => {
+router.get("/reservations", requireAuth, async (req, res) => {
   // 期限切れ仮押さえを非同期でクリーンアップ（レスポンスはブロックしない）
   releaseExpiredCartReservations().catch(() => {});
 
   try {
     const query = ListReservationsQueryParams.parse(req.query);
 
-    const conditions = [];
-    if (query.userId) conditions.push(eq(reservationsTable.userId, query.userId));
+    // 認可: 「自分の予約」しか返さない。query.userId が指定されていても
+    // 認証ユーザ ID で強制上書きする（他人の予約は絶対に見えない）。
+    const conditions = [eq(reservationsTable.userId, req.authUser!.id)];
     if (query.storeId) conditions.push(eq(reservationsTable.storeId, query.storeId));
     if (query.status) conditions.push(eq(reservationsTable.status, query.status as "pending" | "confirmed" | "picked_up" | "cancelled"));
 
@@ -251,7 +270,7 @@ router.get("/reservations", async (req, res) => {
   }
 });
 
-router.post("/reservations", async (req, res) => {
+router.post("/reservations", requireAuth, async (req, res) => {
   try {
     const body = CreateReservationBody.parse(req.body);
 
@@ -280,7 +299,8 @@ router.post("/reservations", async (req, res) => {
 
       const totalPrice = bag.discountedPrice * body.quantity;
       const parsed = insertReservationSchema.parse({
-        userId: body.userId,
+        // 認可: body.userId は信用しない。常に認証ユーザの ID で予約を作る。
+        userId: req.authUser!.id,
         bagId: body.bagId,
         storeId: bag.storeId,
         quantity: body.quantity,
@@ -324,9 +344,22 @@ router.post("/reservations", async (req, res) => {
   }
 });
 
-router.get("/reservations/:reservationId", async (req, res) => {
+router.get("/reservations/:reservationId", requireAuth, async (req, res) => {
   try {
     const { reservationId } = GetReservationParams.parse(req.params);
+
+    // 認可: buyer 本人 or 店舗オーナー のみ閲覧可
+    const owners = await loadReservationOwners(reservationId);
+    if (!owners) {
+      res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+    const me = req.authUser!.id;
+    if (owners.userId !== me && owners.storeOwnerId !== me) {
+      res.status(403).json({ error: "forbidden", message: "この予約を閲覧する権限がありません" });
+      return;
+    }
+
     const reservation = await getReservationWithDetails(reservationId);
     if (!reservation) {
       res.status(404).json({ error: "not_found", message: "Reservation not found" });
@@ -339,10 +372,21 @@ router.get("/reservations/:reservationId", async (req, res) => {
   }
 });
 
-router.put("/reservations/:reservationId", async (req, res) => {
+router.put("/reservations/:reservationId", requireAuth, async (req, res) => {
   try {
     const { reservationId } = UpdateReservationStatusParams.parse(req.params);
     const body = UpdateReservationStatusBody.parse(req.body);
+
+    // 認可: buyer 本人のみ status 更新可
+    const owners = await loadReservationOwners(reservationId);
+    if (!owners) {
+      res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+    if (owners.userId !== req.authUser!.id) {
+      res.status(403).json({ error: "forbidden", message: "この予約を更新する権限がありません" });
+      return;
+    }
 
     await db
       .update(reservationsTable)
@@ -362,10 +406,22 @@ router.put("/reservations/:reservationId", async (req, res) => {
 });
 
 // ─── Pickup confirmation (もぎり) ───────────────────────────────────────────
-router.post("/reservations/:reservationId/pickup", async (req, res) => {
+// 認可: buyer 本人 または 店舗オーナー のみ
+router.post("/reservations/:reservationId/pickup", requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.reservationId, 10);
+    const id = parseInt(String(req.params.reservationId ?? ""), 10);
     if (!id) { res.status(400).json({ error: "bad_request", message: "Invalid id" }); return; }
+
+    const owners = await loadReservationOwners(id);
+    if (!owners) {
+      res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+    const me = req.authUser!.id;
+    if (owners.userId !== me && owners.storeOwnerId !== me) {
+      res.status(403).json({ error: "forbidden", message: "この予約をもぎる権限がありません" });
+      return;
+    }
 
     const [existing] = await db
       .select()
@@ -400,7 +456,7 @@ router.post("/reservations/:reservationId/pickup", async (req, res) => {
   }
 });
 
-router.post("/reservations/:reservationId/cancel", async (req, res) => {
+router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res) => {
   try {
     const { reservationId } = CancelReservationParams.parse(req.params);
 
@@ -411,6 +467,13 @@ router.post("/reservations/:reservationId/cancel", async (req, res) => {
 
     if (!existing) {
       res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+
+    // 認可: buyer 本人のみキャンセル可。他人がキャンセル → 自動返金されてしまうので致命的。
+    if (existing.userId !== req.authUser!.id) {
+      console.warn(`[SECURITY] /reservations/${reservationId}/cancel: owner=${existing.userId} requester=${req.authUser!.id}`);
+      res.status(403).json({ error: "forbidden", message: "この予約をキャンセルする権限がありません" });
       return;
     }
 

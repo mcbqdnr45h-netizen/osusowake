@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { escapeHtml } from "../lib/escape.js";
 
 function getResend(): { resend: Resend; from: string } | null {
   const key = process.env.RESEND_API_KEY;
@@ -48,7 +49,7 @@ export async function sendStoreApprovalEmail(params: {
     <!-- 本文 -->
     <div style="padding:32px;">
       <p style="color:#333333;font-size:15px;line-height:1.8;margin:0 0 24px;">
-        <strong>${params.storeName}</strong> オーナー様<br><br>
+        <strong>${escapeHtml(params.storeName)}</strong> オーナー様<br><br>
         おすそわけ へのご登録ありがとうございます。<br>
         Stripe 本人確認（KYC）が完了し、<strong>店舗がおすそわけに公開</strong>されました。<br>
         さっそく「おすそわけバッグ」を出品して、食品ロスを一緒に減らしましょう！

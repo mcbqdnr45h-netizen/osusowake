@@ -3,7 +3,9 @@ import { db } from "@workspace/db";
 import { storesTable, surpriseBagsTable, reportsTable, reviewsTable, reservationsTable, notificationsTable } from "@workspace/db/schema";
 import { eq, sql, and, ne, gte, count, desc } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
+import { escapeHtml } from "../lib/escape.js";
 import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
+import { requireAdmin } from "./admin.js";
 import {
   ListStoresQueryParams,
   CreateStoreBody,
@@ -114,7 +116,8 @@ router.get("/stores", async (req, res) => {
 });
 
 // Public: create a new store — immediately active (no manual approval needed)
-router.post("/stores", async (req, res) => {
+// 直接登録は admin のみ。一般ユーザは /stores/apply 経由で申請する。
+router.post("/stores", requireAdmin, async (req, res) => {
   try {
     const body = CreateStoreBody.parse(req.body);
     const [store] = await db.insert(storesTable).values({
@@ -340,7 +343,7 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
 
 // POST /api/stores/fix-owner-role
 // ストアを所有するユーザーの role を store_owner に修正（既存ユーザー向け救済エンドポイント）
-router.post("/stores/fix-owner-role", async (req, res) => {
+router.post("/stores/fix-owner-role", requireAdmin, async (req, res) => {
   try {
     const { ownerId } = req.body;
     if (!ownerId) {
@@ -377,13 +380,15 @@ router.post("/stores/fix-owner-role", async (req, res) => {
   }
 });
 
-// Public: upload a store document image to Supabase Storage
-router.post("/stores/upload-document", async (req, res) => {
+// Authenticated: upload a store document image to Supabase Storage
+// 認可: userId はクライアント送信を信頼せず、必ず認証済みユーザの ID を使う
+router.post("/stores/upload-document", requireAuth, async (req, res) => {
   try {
-    const { imageBase64, fileType, userId } = req.body;
+    const { imageBase64, fileType } = req.body;
+    const userId = req.authUser!.id;
 
-    if (!imageBase64 || !fileType || !userId) {
-      return res.status(400).json({ error: "bad_request", message: "imageBase64, fileType, userId は必須です" });
+    if (!imageBase64 || !fileType) {
+      return res.status(400).json({ error: "bad_request", message: "imageBase64, fileType は必須です" });
     }
 
     // Extract MIME type and raw base64 data
@@ -426,7 +431,7 @@ router.post("/stores/upload-document", async (req, res) => {
 
 // Public: review readiness check — validates required fields but does NOT auto-approve
 // Approval is manual, performed by an admin in the admin dashboard
-router.post("/stores/:storeId/auto-review", async (req, res) => {
+router.post("/stores/:storeId/auto-review", requireAdmin, async (req, res) => {
   try {
     const storeId = parseInt(String(req.params.storeId));
     const [store] = await db
@@ -466,11 +471,14 @@ router.post("/stores/:storeId/auto-review", async (req, res) => {
 });
 
 // Public: get the store owned by a specific user
-router.get("/stores/by-owner", async (req, res) => {
+router.get("/stores/by-owner", requireAuth, async (req, res) => {
   try {
-    const userId = req.query.userId as string;
-    if (!userId) {
-      return res.status(400).json({ error: "bad_request", message: "userId is required" });
+    // 認可: 自分の店舗しか見れない。query.userId が指定されていても、
+    // 認証ユーザの ID と一致しなければ 403。
+    const userId = req.authUser!.id;
+    const queriedUserId = (req.query.userId as string | undefined) ?? userId;
+    if (queriedUserId !== userId) {
+      return res.status(403).json({ error: "forbidden", message: "他のオーナーの店舗は閲覧できません" });
     }
     const [store] = await db
       .select(storeSelectFields)
@@ -492,16 +500,18 @@ router.get("/stores/by-owner", async (req, res) => {
 });
 
 // GET /api/stores/all-by-owner — オーナーの全店舗一覧（多店舗対応）
-router.get("/stores/all-by-owner", async (req, res) => {
+router.get("/stores/all-by-owner", requireAuth, async (req, res) => {
   try {
     // ★ iOS WKWebView などのキャッシュを完全に無効化
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
 
-    const userId = req.query.userId as string;
-    if (!userId) {
-      return res.status(400).json({ error: "bad_request", message: "userId is required" });
+    // 認可: 自分の店舗一覧しか見れない。
+    const userId = req.authUser!.id;
+    const queriedUserId = (req.query.userId as string | undefined) ?? userId;
+    if (queriedUserId !== userId) {
+      return res.status(403).json({ error: "forbidden", message: "他のオーナーの店舗一覧は閲覧できません" });
     }
     const stores = await db
       .select(storeSelectFields)
@@ -519,7 +529,7 @@ router.get("/stores/all-by-owner", async (req, res) => {
 });
 
 // Admin: list all pending stores awaiting approval
-router.get("/admin/stores/pending", async (_req, res) => {
+router.get("/admin/stores/pending", requireAdmin, async (_req, res) => {
   try {
     const stores = await db
       .select(storeSelectFields)
@@ -537,7 +547,7 @@ router.get("/admin/stores/pending", async (_req, res) => {
 });
 
 // Admin: list all stores (all statuses)
-router.get("/admin/stores", async (_req, res) => {
+router.get("/admin/stores", requireAdmin, async (_req, res) => {
   try {
     const stores = await db
       .select(storeSelectFields)
@@ -554,7 +564,7 @@ router.get("/admin/stores", async (_req, res) => {
 });
 
 // Admin: approve a store
-router.post("/admin/stores/:storeId/approve", async (req, res) => {
+router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);
     if (isNaN(storeId)) {
@@ -678,7 +688,7 @@ router.post("/admin/stores/:storeId/approve", async (req, res) => {
 });
 
 // Admin: reject a store (with optional rejection reason)
-router.post("/admin/stores/:storeId/reject", async (req, res) => {
+router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);
     if (isNaN(storeId)) {
@@ -723,7 +733,7 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
             await resend.emails.send({
               from: `おすそわけ <${fromDomain}>`,
               to: ownerEmail,
-              subject: `【おすそわけ】店舗審査の結果について：${updated.name}`,
+              subject: `【おすそわけ】店舗審査の結果について：${escapeHtml(updated.name)}`,
               html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -737,12 +747,12 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
     <div style="padding:32px;">
       <p style="font-size:15px;color:#333;line-height:1.7;margin-bottom:20px;">
         この度は おすそわけ にご申請いただきありがとうございます。<br>
-        誠に申し訳ございませんが、<strong>${updated.name}</strong> の店舗申請について、今回は審査を通過できませんでした。
+        誠に申し訳ございませんが、<strong>${escapeHtml(updated.name)}</strong> の店舗申請について、今回は審査を通過できませんでした。
       </p>
       ${rejectionReason ? `
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
         <p style="font-size:12px;font-weight:900;color:#dc2626;margin:0 0 8px;">却下理由</p>
-        <p style="font-size:14px;color:#333;margin:0;line-height:1.6;">${rejectionReason}</p>
+        <p style="font-size:14px;color:#333;margin:0;line-height:1.6;">${escapeHtml(rejectionReason)}</p>
       </div>` : ''}
       <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:24px;">
         情報を修正のうえ、アプリより再申請していただくことが可能です。
@@ -774,7 +784,7 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
 });
 
 // Store owner: reapply after rejection
-router.post("/stores/:storeId/reapply", async (req, res) => {
+router.post("/stores/:storeId/reapply", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);
     if (isNaN(storeId)) {
@@ -921,7 +931,7 @@ router.post("/stores/:storeId/report", async (req, res) => {
 });
 
 // Admin: list all reports with store names
-router.get("/admin/reports", async (_req, res) => {
+router.get("/admin/reports", requireAdmin, async (_req, res) => {
   try {
     const reports = await db
       .select({
@@ -946,7 +956,7 @@ router.get("/admin/reports", async (_req, res) => {
 });
 
 // Admin: dismiss reports for a store (reset pending_review → approved)
-router.post("/admin/stores/:storeId/dismiss-reports", async (req, res) => {
+router.post("/admin/stores/:storeId/dismiss-reports", requireAdmin, async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);
     if (isNaN(storeId)) {
@@ -1082,7 +1092,7 @@ router.post("/stores/:storeId/reviews", async (req, res) => {
   }
 });
 
-router.put("/stores/:storeId", async (req, res) => {
+router.put("/stores/:storeId", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const { storeId } = UpdateStoreParams.parse(req.params);
     const body = UpdateStoreBody.parse(req.body);
@@ -1106,7 +1116,7 @@ router.put("/stores/:storeId", async (req, res) => {
 
 // GET /api/stores/:storeId/today-sales
 // 今日の売上（手数料25%控除後の店舗受取額）を Stripe Transfers から取得
-router.get("/stores/:storeId/today-sales", async (req, res) => {
+router.get("/stores/:storeId/today-sales", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
@@ -3029,7 +3039,7 @@ router.post("/stores/:storeId/connect/fill-requirements", requireAuth, requireSt
 });
 
 // ── 審査承認通知（メール + アプリ内通知） ───────────────────────────────────
-router.post("/stores/notify-approval", async (req, res) => {
+router.post("/stores/notify-approval", requireAdmin, async (req, res) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) {
@@ -3113,7 +3123,7 @@ router.post("/stores/notify-approval", async (req, res) => {
 });
 
 // ─── 店舗オーナー向けレビュー一覧（バッグ名 join）─────────────────────────────
-router.get("/stores/:storeId/owner-reviews", async (req, res) => {
+router.get("/stores/:storeId/owner-reviews", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
@@ -3146,10 +3156,10 @@ router.get("/stores/:storeId/owner-reviews", async (req, res) => {
 });
 
 // ─── レビューへの返信（店舗オーナー）─────────────────────────────────────────
-router.patch("/stores/:storeId/reviews/:reviewId/reply", async (req, res) => {
+router.patch("/stores/:storeId/reviews/:reviewId/reply", requireAuth, requireStoreOwner, async (req, res) => {
   try {
-    const storeId = parseInt(String(req.params.storeId));
-    const reviewId = parseInt(req.params.reviewId);
+    const storeId = parseInt(String(req.params.storeId ?? ""));
+    const reviewId = parseInt(String(req.params.reviewId ?? ""));
     const { reply } = req.body as { reply: string };
 
     if (isNaN(storeId) || isNaN(reviewId)) {
@@ -3175,7 +3185,7 @@ router.patch("/stores/:storeId/reviews/:reviewId/reply", async (req, res) => {
 });
 
 // ─── 店舗プロフィール更新（カバー写真・紹介文・営業時間等）─────────────────
-router.put("/stores/:storeId/profile", async (req, res) => {
+router.put("/stores/:storeId/profile", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
@@ -3343,7 +3353,7 @@ router.get("/stores/:storeId/connect/stripe-prefill", requireAuth, requireStoreO
   }
 });
 
-router.get("/stores/:storeId/legal", async (req, res) => {
+router.get("/stores/:storeId/legal", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {
@@ -3376,7 +3386,7 @@ router.get("/stores/:storeId/legal", async (req, res) => {
 });
 
 // ─── 特定商取引法表記 更新（店舗オーナー）──────────────────────────────────────
-router.put("/stores/:storeId/legal", async (req, res) => {
+router.put("/stores/:storeId/legal", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const storeId = parseInt(String(req.params.storeId));
     if (isNaN(storeId)) {

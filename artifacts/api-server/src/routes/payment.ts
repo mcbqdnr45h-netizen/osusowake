@@ -607,13 +607,12 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
 });
 
 // ─── Stripe Checkout Session ───────────────────────────────────────────────
-router.post("/checkout/session", async (req, res) => {
+router.post("/checkout/session", requireAuth, async (req, res) => {
   try {
-    const { reservationId, successUrl, cancelUrl, userId } = req.body as {
+    const { reservationId, successUrl, cancelUrl } = req.body as {
       reservationId: number;
       successUrl: string;
       cancelUrl: string;
-      userId?: string;
     };
 
     if (!reservationId || !successUrl || !cancelUrl) {
@@ -624,6 +623,7 @@ router.post("/checkout/session", async (req, res) => {
     const [reservation] = await db
       .select({
         id: reservationsTable.id,
+        userId: reservationsTable.userId,
         totalPrice: reservationsTable.totalPrice,
         paymentStatus: reservationsTable.paymentStatus,
         bagId: reservationsTable.bagId,
@@ -634,6 +634,13 @@ router.post("/checkout/session", async (req, res) => {
 
     if (!reservation) {
       res.status(404).json({ error: "not_found", message: "Reservation not found" });
+      return;
+    }
+
+    // 認可: 予約の所有者のみ checkout session を作成可
+    if (reservation.userId !== req.authUser!.id) {
+      console.warn(`[SECURITY] /checkout/session: reservation ${reservation.id} owner=${reservation.userId} requester=${req.authUser!.id}`);
+      res.status(403).json({ error: "forbidden", message: "この予約の決済を開始する権限がありません" });
       return;
     }
 
@@ -720,6 +727,8 @@ router.post("/checkout/session", async (req, res) => {
     //    → 自動送金は発生しない → 二重送金なし → マイナス処理なし
 
     // ── Stripe Customer の取得または作成（カード2回目以降の自動入力のため）──
+    // 認可: userId は信頼せず、必ず認証済みユーザの ID を使う
+    const userId = req.authUser!.id;
     const customerId = userId ? await getOrCreateStripeCustomer(stripe, userId) : null;
 
     const session = await stripe.checkout.sessions.create({

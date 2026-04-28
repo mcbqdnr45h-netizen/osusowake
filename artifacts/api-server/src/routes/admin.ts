@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { storesTable, announcementsTable, webPushSubscriptionsTable, notificationsTable, salesLeadsTable } from "@workspace/db/schema";
 import { eq, sql, desc, isNotNull } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
+import { escapeHtml } from "../lib/escape.js";
 import { Resend } from "resend";
 import crypto from "node:crypto";
 import { rateLimit } from "express-rate-limit";
@@ -97,7 +98,8 @@ async function getAuthUser(req: Request) {
 }
 
 // ── 管理者専用ミドルウェア（IP ブロック + 監査ログ付き） ───────────────────────
-async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+// ※ stores.ts 内に残る admin 系ルートからも使えるよう export している。
+export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const ip = getClientIp(req);
 
   // ① IP ブロックチェック
@@ -473,7 +475,7 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
   </div>
   <div style="padding:36px 32px;">
     <p style="font-size:15px;line-height:1.8;color:#333;margin:0 0 20px;">
-      <strong>${updated.name}</strong> オーナー様<br><br>
+      <strong>${escapeHtml(updated.name)}</strong> オーナー様<br><br>
       この度はおすそわけにご参加いただき、ありがとうございます。<br>
       審査が完了し、<strong style="color:#F26419;">本日よりおすそわけバッグの出品が可能</strong>になりました！<br><br>
       地域の食品ロス削減に、ぜひご一緒しましょう。応援しています 🧡
@@ -583,13 +585,13 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
   </div>
   <div style="padding:36px 32px;">
     <p style="font-size:15px;line-height:1.8;color:#333;margin:0 0 20px;">
-      <strong>${updated.name}</strong> オーナー様<br><br>
+      <strong>${escapeHtml(updated.name)}</strong> オーナー様<br><br>
       この度はおすそわけへご申請いただき、誠にありがとうございます。<br>
       事務局にて内容を確認しましたところ、いくつかご確認いただきたい点がございました。
     </p>
     <div style="background:#fff3cd;border-left:4px solid #F6AE2D;border-radius:0 12px 12px 0;padding:16px 20px;margin:0 0 24px;">
       <p style="font-size:13px;font-weight:900;color:#856404;margin:0 0 8px;">📝 事務局からのメッセージ</p>
-      <p style="font-size:14px;color:#333;line-height:1.7;margin:0;">${reason}</p>
+      <p style="font-size:14px;color:#333;line-height:1.7;margin:0;">${escapeHtml(reason)}</p>
     </div>
     <p style="font-size:14px;line-height:1.8;color:#555;margin:0 0 24px;">
       修正・再申請いただければ、改めて事務局にて確認いたします。<br>
