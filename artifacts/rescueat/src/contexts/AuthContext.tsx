@@ -155,8 +155,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(sess);
         setUser(sess?.user ?? null);
         if (sess?.user) {
-          // セッション復元時: 管理者チェック + MFA 検証確認
-          if (sess.access_token) {
+          // パスワードリセット中 (URL に type=recovery) は管理者チェックをスキップ
+          const isRecoveryFlow =
+            window.location.hash.includes('type=recovery') ||
+            new URLSearchParams(window.location.search).get('type') === 'recovery';
+
+          // セッション復元時: 管理者チェック + MFA 検証確認（回復フロー時はスキップ）
+          if (sess.access_token && !isRecoveryFlow) {
             const adminCheck = await checkIsAdmin(sess.access_token);
             if (adminCheck) {
               if (isMfaVerifiedInSession()) {
@@ -187,8 +192,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         if (cancelled) return;
+
+        // PASSWORD_RECOVERY: パスワードリセット中は管理者フローに入らせない
+        // SIGNED_OUT: ログアウト時は何もしない
+        if (event === 'PASSWORD_RECOVERY') {
+          // セッションはセットするがプロフィール・管理者チェックはスキップ
+          setSession(session);
+          setUser(session?.user ?? null);
+          return;
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
