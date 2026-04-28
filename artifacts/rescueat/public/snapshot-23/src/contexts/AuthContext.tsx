@@ -255,6 +255,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // メールアドレスの実在性検証（形式・MX・使い捨てメール）
+  async function validateEmail(email: string): Promise<{ valid: boolean; message?: string }> {
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/check-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) return { valid: true }; // サーバーエラー時は通過
+      const { valid, reason } = await res.json();
+      if (valid) return { valid: true };
+      const msg =
+        reason === 'invalid_format' ? 'メールアドレスの形式が正しくありません' :
+        reason === 'disposable'     ? '使い捨てメールアドレスは使用できません。普段使いのメールアドレスを入力してください' :
+        reason === 'no_mx' || reason === 'domain_not_found'
+                                    ? 'このメールアドレスは存在しません。正しいアドレスを入力してください'
+                                    : 'メールアドレスを確認してください';
+      return { valid: false, message: msg };
+    } catch {
+      return { valid: true }; // ネットワークエラー時は通過
+    }
+  }
+
   async function cleanupOrphanedAuthUser(token: string) {
     try {
       await fetch(`${getApiBase()}/api/auth/cleanup-user`, {
@@ -266,6 +289,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signUp(email: string, password: string, name: string, phone: string) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
+
+    // メールアドレスの実在性チェック（存在しないメールでの登録を防止）
+    const emailCheck = await validateEmail(email);
+    if (!emailCheck.valid) {
+      return { error: emailCheck.message ?? 'メールアドレスを確認してください', needsConfirmation: false };
+    }
 
     // サーバーサイドでphone重複チェック（RLSをバイパス）
     const phoneAvailable = await checkPhoneAvailable(normalizedPhone);
@@ -308,6 +337,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signUpAsStore(email: string, password: string, name: string, phone: string) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
+
+    // メールアドレスの実在性チェック（存在しないメールでの登録を防止）
+    const emailCheck = await validateEmail(email);
+    if (!emailCheck.valid) {
+      return { error: emailCheck.message ?? 'メールアドレスを確認してください', needsConfirmation: false };
+    }
 
     // サーバーサイドでphone重複チェック（RLSをバイパス）
     const phoneAvailable = await checkPhoneAvailable(normalizedPhone);

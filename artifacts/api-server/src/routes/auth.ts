@@ -3,6 +3,65 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import { Resend } from "resend";
+import { promises as dnsPromises } from "node:dns";
+
+// ── 使い捨てメールドメインのブロックリスト（代表例） ─────────────────────────
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  "mailinator.com", "guerrillamail.com", "guerrillamail.info", "guerrillamail.biz",
+  "guerrillamail.de", "guerrillamail.net", "guerrillamail.org", "sharklasers.com",
+  "10minutemail.com", "10minutemail.net", "tempmail.com", "tempmail.net",
+  "temp-mail.org", "temp-mail.io", "throwaway.email", "throwawaymail.com",
+  "yopmail.com", "yopmail.net", "yopmail.fr", "trashmail.com", "trashmail.net",
+  "trashmail.de", "maildrop.cc", "mintemail.com", "fakeinbox.com", "fakemail.net",
+  "getairmail.com", "dispostable.com", "spamgourmet.com", "mytemp.email",
+  "tempinbox.com", "tempr.email", "mohmal.com", "moakt.com", "emailondeck.com",
+  "burnermail.io", "discard.email", "mvrht.net", "spamex.com", "anonbox.net",
+  "mailcatch.com", "spambox.us", "tempmailo.com", "mintemail.email", "mailnesia.com",
+  "smailpro.com", "tempail.com", "tempmail.plus", "mailtothis.com", "wegwerfemail.de",
+  "byom.de", "trbvm.com", "spam4.me", "0815.ru", "33mail.com",
+  "muehlemann.org", "mailtemp.info", "anonmail.top", "spamavert.com", "mt2015.com",
+]);
+
+// メールアドレスの形式とドメインの実在性（MX レコード）を検証
+async function validateEmailExistence(email: string): Promise<{ valid: boolean; reason?: string }> {
+  const trimmed = email.trim().toLowerCase();
+  // 1. 形式チェック（RFC5322 簡易版）
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!re.test(trimmed)) {
+    return { valid: false, reason: "invalid_format" };
+  }
+  const domain = trimmed.split("@")[1];
+  if (!domain || domain.length > 253) {
+    return { valid: false, reason: "invalid_format" };
+  }
+  // 2. 使い捨てメールドメインを拒否
+  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) {
+    return { valid: false, reason: "disposable" };
+  }
+  // 3. MX レコードを引いてドメインがメール受信可能か確認（タイポや偽ドメイン排除）
+  try {
+    const records = await dnsPromises.resolveMx(domain);
+    if (!records || records.length === 0) {
+      // MX が無い場合 A レコードでもメール配送可能なケースがあるが厳しめに弾く
+      try {
+        await dnsPromises.resolve4(domain);
+        // A レコードはあるが MX が無い → 受信できない可能性が高い
+        return { valid: false, reason: "no_mx" };
+      } catch {
+        return { valid: false, reason: "no_mx" };
+      }
+    }
+    return { valid: true };
+  } catch (err: any) {
+    // DNS ルックアップ失敗 → ドメイン存在しない
+    if (err?.code === "ENOTFOUND" || err?.code === "ENODATA") {
+      return { valid: false, reason: "domain_not_found" };
+    }
+    // タイムアウトなど一時的な障害は通過させる（誤判定で正常ユーザー弾かないため）
+    console.warn("[validateEmailExistence] DNS lookup error:", err?.code, err?.message);
+    return { valid: true };
+  }
+}
 
 // ── 管理者 OTP ストア（インメモリ） ──────────────────────────────────────────
 interface OtpEntry {
@@ -228,6 +287,24 @@ router.patch("/auth/update-role", async (req: Request, res: Response) => {
     res.json({ ok: true, role: currentRole, action: "noop" });
   } catch (err: any) {
     res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── POST /auth/check-email ─────────────────────────────────────────────────────
+// メールアドレスの実在性検証（形式・MX レコード・使い捨てメールドメイン）
+router.post("/auth/check-email", async (req: Request, res: Response) => {
+  const { email } = req.body as { email?: string };
+  if (!email?.trim()) {
+    res.status(400).json({ valid: false, reason: "email_required" });
+    return;
+  }
+  try {
+    const result = await validateEmailExistence(email);
+    res.json(result);
+  } catch (err: any) {
+    console.error("[auth/check-email]", err);
+    // エラー時は通過させる（誤判定で正常ユーザー弾かないため）
+    res.json({ valid: true });
   }
 });
 
