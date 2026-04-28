@@ -159,6 +159,33 @@ function PostBagModal({
     setBagCategory(pastBag.category ?? '');
   }, [pastBag]);
 
+  /**
+   * 受取終了時間（HH:MM）が現在時刻を過ぎているかチェック
+   * 過ぎていれば true（出品ブロック対象）。
+   * pickupStart >= pickupEnd の「日付またぎ」設定（例: 22:00〜02:00）の場合は
+   * 終了時刻を翌日として扱い、過ぎていないものとみなす。
+   */
+  function isPickupEndPassed(pickupStart: string, pickupEnd: string): boolean {
+    if (!pickupEnd || !/^\d{1,2}:\d{2}$/.test(pickupEnd)) return false;
+    const [eh, em] = pickupEnd.split(':').map(Number);
+    const now = new Date();
+    const endToday = new Date(
+      now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0, 0
+    );
+
+    // 日付またぎ判定: start >= end なら end は翌日扱い
+    if (pickupStart && /^\d{1,2}:\d{2}$/.test(pickupStart)) {
+      const [sh, sm] = pickupStart.split(':').map(Number);
+      const startMin = sh * 60 + sm;
+      const endMin = eh * 60 + em;
+      if (startMin >= endMin) {
+        // 翌日跨ぎ → 過ぎていないとみなす
+        return false;
+      }
+    }
+    return now.getTime() > endToday.getTime();
+  }
+
   async function handleQuickSubmit() {
     if (!pastBag) {
       toast({ title: '商品を選択してください', variant: 'destructive' });
@@ -170,6 +197,15 @@ function PostBagModal({
     }
     if (!imageUrl) {
       toast({ title: '写真を追加してください', variant: 'destructive' });
+      return;
+    }
+    // ★ 時間切れチェック: 受取終了時間が現在時刻を過ぎていたら API を呼ばずに中断
+    if (isPickupEndPassed(quickPickupStart, quickPickupEnd)) {
+      toast({
+        title: '出品できませんでした',
+        description: '本日の受取時間を過ぎています。受取時間を未来の時刻に設定してください。',
+        variant: 'destructive',
+      });
       return;
     }
     setIsSubmitting(true);
@@ -194,6 +230,7 @@ function PostBagModal({
           itemType: (pastBag.itemType as 'bag' | 'item') ?? 'bag',
         } as any,
       });
+      // ★ 成功 toast は API が完全に成功した後のみ表示（await 後）
       toast({ title: '出品しました！', description: `${pastBag.title} × ${qty}個` });
       onSuccess();
     } catch (err: any) {
@@ -217,6 +254,15 @@ function PostBagModal({
       toast({ title: '写真を追加してください', variant: 'destructive' });
       return;
     }
+    // ★ 時間切れチェック: 受取終了時間が現在時刻を過ぎていたら API を呼ばずに中断
+    if (isPickupEndPassed(form.pickupStart, form.pickupEnd)) {
+      toast({
+        title: '出品できませんでした',
+        description: '本日の受取時間を過ぎています。受取時間を未来の時刻に設定してください。',
+        variant: 'destructive',
+      });
+      return;
+    }
     setIsSubmitting(true);
     try {
       await createBag.mutateAsync({
@@ -236,6 +282,7 @@ function PostBagModal({
           itemType,
         } as any,
       });
+      // ★ 成功 toast は API が完全に成功した後のみ表示（await 後）
       toast({ title: '出品しました！' });
       onSuccess();
     } catch (err: any) {
