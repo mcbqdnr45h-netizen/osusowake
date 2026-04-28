@@ -6,7 +6,18 @@ import { useLocation } from 'wouter';
 
 export function AdminMfaModal() {
   const { pendingAdminMfa, sendAdminMfa, verifyAdminMfa, signOut } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+
+  // パスワード再設定フローでは絶対に MFA モーダルを表示しない
+  // （PKCE/implicit/OTP どのリンク経路でも /reset-password で開かれる）
+  const isRecoveryFlow =
+    location === '/reset-password' ||
+    (typeof window !== 'undefined' && (
+      window.location.pathname === '/reset-password' ||
+      window.location.hash.includes('type=recovery') ||
+      new URLSearchParams(window.location.search).get('type') === 'recovery' ||
+      new URLSearchParams(window.location.search).has('token_hash')
+    ));
 
   const [code, setCode]         = useState(['', '', '', '', '', '']);
   const [error, setError]       = useState('');
@@ -105,6 +116,7 @@ export function AdminMfaModal() {
   }
 
   if (!pendingAdminMfa) return null;
+  if (isRecoveryFlow) return null;
 
   const fullCode = code.join('');
 
