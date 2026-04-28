@@ -6,6 +6,7 @@ export const reportTypeEnum = pgEnum("report_type", [
   "temp_closed",
   "wrong_hours",
   "wrong_info",
+  "inappropriate_review",
   "other",
 ]);
 

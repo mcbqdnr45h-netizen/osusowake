@@ -40,7 +40,7 @@ async function sendAdminKycEmail(store: {
   chargesEnabled: boolean;
   detailsSubmitted: boolean;
   payoutsEnabled: boolean;
-  ownerId: string;
+  ownerId: string | null;
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) {
@@ -439,13 +439,15 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
                 return f;
               }).filter((v, i, a) => a.indexOf(v) === i);
 
-              await db.insert(notificationsTable).values({
-                userId: store.ownerId,
-                type: 'store_action_required',
-                title: '⚠️ 本人確認情報の再入力が必要です',
-                body: `決済システムによる審査で確認が必要な項目があります（${missingLabels.join('・')}など）。店舗ダッシュボードから再登録してください。`,
-                read: false,
-              });
+              if (store.ownerId) {
+                await db.insert(notificationsTable).values({
+                  userId: store.ownerId,
+                  type: 'store_action_required',
+                  title: '⚠️ 本人確認情報の再入力が必要です',
+                  body: `決済システムによる審査で確認が必要な項目があります（${missingLabels.join('・')}など）。店舗ダッシュボードから再登録してください。`,
+                  read: false,
+                });
+              }
             } catch (notifErr) {
               console.error('[stripe-webhook] notification insert error:', notifErr);
             }
@@ -513,16 +515,18 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
       console.log(`[stripe-webhook] ✅ 自動承認: store ${store.id} (${store.name})`);
 
       // 店舗オーナーに通知
-      try {
-        await db.insert(notificationsTable).values({
-          userId: store.ownerId,
-          type: "store_approved",
-          title: "🎉 店舗が承認されました！",
-          body: `${store.name} がOsusowakeに公開されました。おすそわけバッグを出品しましょう！`,
-          read: false,
-        });
-      } catch (e) {
-        console.error("[stripe-webhook] notification insert error:", e);
+      if (store.ownerId) {
+        try {
+          await db.insert(notificationsTable).values({
+            userId: store.ownerId,
+            type: "store_approved",
+            title: "🎉 店舗が承認されました！",
+            body: `${store.name} がOsusowakeに公開されました。おすそわけバッグを出品しましょう！`,
+            read: false,
+          });
+        } catch (e) {
+          console.error("[stripe-webhook] notification insert error:", e);
+        }
       }
 
       // ── 店舗オーナーに承認メール送信（approval_email_sent フラグで重複防止）──

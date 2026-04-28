@@ -214,11 +214,9 @@ router.post("/stores/apply", async (req, res) => {
 
         if (licenseBuffer) {
           // Stripe Files API にアップロード（purpose: additional_verification — 追加書類）
-          const { Readable } = await import("stream");
-          const fileStream = Readable.from(licenseBuffer);
           const stripeFile = await stripe.files.create(
             {
-              file: { data: fileStream, name: `license-${Date.now()}.${licenseMime.split("/")[1] || "jpg"}`, type: licenseMime },
+              file: { data: licenseBuffer, name: `license-${Date.now()}.${licenseMime.split("/")[1] || "jpg"}`, type: licenseMime },
               purpose: "additional_verification",
             },
             { stripeAccount: existingStripeAccountId }

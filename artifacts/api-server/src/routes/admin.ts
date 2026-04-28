@@ -956,10 +956,9 @@ router.post("/admin/stores/batch-patch-stripe-license", requireAdmin, async (_re
         const mime = ct.split(";")[0].trim();
         const buf = Buffer.from(await imgResp.arrayBuffer());
         const ext = mime.split("/")[1] ?? "jpg";
-        const fileStream = Readable.from(buf);
         const stripeFile = await stripe.files.create(
           {
-            file: { data: fileStream, name: `license-${store.id}-backfill.${ext}`, type: mime },
+            file: { data: buf, name: `license-${store.id}-backfill.${ext}`, type: mime },
             purpose: "additional_verification",
           },
           { stripeAccount: store.stripeAccountId! }

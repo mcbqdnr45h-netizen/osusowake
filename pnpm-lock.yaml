@@ -218,6 +218,9 @@ importers:
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6
+      '@types/multer':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5
@@ -449,6 +452,12 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.99.3
         version: 2.99.3
+      '@types/leaflet':
+        specifier: ^1.9.21
+        version: 1.9.21
+      '@types/leaflet.markercluster':
+        specifier: ^1.5.6
+        version: 1.5.6
       '@types/uuid':
         specifier: ^11.0.0
         version: 11.0.0
@@ -585,12 +594,6 @@ importers:
       '@types/google.maps':
         specifier: ^3.58.1
         version: 3.58.1
-      '@types/leaflet':
-        specifier: ^1.9.21
-        version: 1.9.21
-      '@types/leaflet.markercluster':
-        specifier: ^1.5.6
-        version: 1.5.6
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5
@@ -2453,6 +2456,9 @@ packages:
 
   '@types/minimist@1.2.5':
     resolution: {integrity: sha512-hov8bUuiLiyFPGyFPE1lwWhmzYbirOXQNNo40+y3zow8aFVTeyn3VWL0VFFfdNddA8S4Vf0Tc062rzyNr7Paag==}
+
+  '@types/multer@2.1.0':
+    resolution: {integrity: sha512-zYZb0+nJhOHtPpGDb3vqPjwpdeGlGC157VpkqNQL+UU2qwoacoQ7MpsAmUptI/0Oa127X32JzWDqQVEXp2RcIA==}
 
   '@types/node@25.3.5':
     resolution: {integrity: sha512-oX8xrhvpiyRCQkG1MFchB09f+cXftgIXb3a7UUa4Y3wpmZPw5tyZGTLWhlESOLq1Rq6oDlc8npVU2/9xiCuXMA==}
@@ -8095,6 +8101,10 @@ snapshots:
       '@types/geojson': 7946.0.16
 
   '@types/minimist@1.2.5': {}
+
+  '@types/multer@2.1.0':
+    dependencies:
+      '@types/express': 5.0.6
 
   '@types/node@25.3.5':
     dependencies:
