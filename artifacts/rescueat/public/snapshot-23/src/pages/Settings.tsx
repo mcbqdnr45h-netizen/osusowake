@@ -457,32 +457,65 @@ export default function Settings() {
 
   async function handleDeleteAccount() {
     setDeletingAccount(true);
+
+    // ── ① サーバーへ削除リクエスト ──────────────────────────────
+    let serverDeleted = false;
+    let failureMessage = 'もう一度お試しください。';
     try {
       const { supabase } = await import('@/lib/supabase');
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) throw new Error('ログインセッションが切れています。再ログインしてください。');
-
-      const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
-      const res = await fetch(`${base}/api/user/account`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
-        throw new Error(err.message || 'アカウントの削除に失敗しました');
+      if (!token) {
+        failureMessage = 'ログインセッションが切れています。再ログインしてください。';
+      } else {
+        const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
+        const res = await fetch(`${base}/api/user/account`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          serverDeleted = true;
+        } else if (res.status === 401 || res.status === 404) {
+          // 既に削除済（残っていたトークンでの再試行）も成功扱い
+          serverDeleted = true;
+          console.info('[Settings] account already deleted server-side (status=', res.status, ')');
+        } else {
+          const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
+          failureMessage = err.message || `削除に失敗しました（${res.status}）`;
+          console.error('[Settings] delete API failed:', res.status, err);
+        }
       }
-      // セッション破棄 → ウェルカム画面へ
-      await authSignOut();
-      navigate('/welcome');
-      toast({ title: 'アカウントを削除しました', description: 'ご利用いただきありがとうございました。' });
     } catch (err: any) {
-      console.error('[Settings] deleteAccount error:', err);
-      toast({ title: '削除に失敗しました', description: err.message || 'もう一度お試しください。', variant: 'destructive' });
-    } finally {
+      console.error('[Settings] deleteAccount network error:', err);
+      failureMessage = String(err?.message ?? err);
+    }
+
+    // ── ② 失敗時：エラー表示して終了 ────────────────────────────
+    if (!serverDeleted) {
       setDeletingAccount(false);
       setShowDeleteAccount(false);
+      toast({
+        title: 'アカウントの削除に失敗しました',
+        description: failureMessage,
+        variant: 'destructive',
+      });
+      return;
     }
+
+    // ── ③ 削除成功：signOut の例外は想定内（auth.users が既に消えている → 403）──
+    try {
+      await authSignOut();
+    } catch (signOutErr) {
+      console.warn('[Settings] signOut after delete threw (expected):', signOutErr);
+    }
+
+    setDeletingAccount(false);
+    setShowDeleteAccount(false);
+    toast({
+      title: 'アカウントを削除しました',
+      description: 'ご利用いただきありがとうございました。',
+    });
+    navigate('/welcome');
   }
 
   return (

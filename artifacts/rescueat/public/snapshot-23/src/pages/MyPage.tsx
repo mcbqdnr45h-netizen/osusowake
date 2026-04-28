@@ -9,12 +9,14 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MyPage() {
   const userId = useUserId();
   const { currentStore: store, stores, selectedStoreId, setSelectedStoreId, loading: loadingStore, fetchError, isApprovedOwner, needsBankSetup, refetch } = useMyStores();
   const [location, navigate] = useLocation();
   const { user, profile, session, isLoading: authLoading, signOut, isAdmin } = useAuth();
+  const { toast } = useToast();
 
   // MyPageが表示されるたびに最新データを取得（bank-setup完了後の古いキャッシュ表示を防ぐ）
   useEffect(() => {
@@ -102,19 +104,57 @@ export default function MyPage() {
   async function handleDeleteAccount() {
     if (!session?.access_token) return;
     setDeletingAccount(true);
+
+    // ── ① サーバーに削除リクエスト ──────────────────────────────
+    let serverDeleted = false;
     try {
       const res = await fetch(`${BASE_URL}/api/user/account`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      if (!res.ok) throw new Error('delete failed');
-      await signOut();
-      navigate('/welcome');
-    } catch {
+      if (res.ok) {
+        serverDeleted = true;
+      } else {
+        // すでに削除済（401: ユーザー消滅後のトークン）も成功扱い
+        if (res.status === 401 || res.status === 404) {
+          serverDeleted = true;
+          console.info('[MyPage] account already deleted server-side (status=', res.status, ')');
+        } else {
+          const errBody = await res.json().catch(() => ({} as { error?: string; message?: string }));
+          console.error('[MyPage] delete API failed:', res.status, errBody);
+        }
+      }
+    } catch (err) {
+      console.error('[MyPage] delete fetch error:', err);
+    }
+
+    // ── ② 削除失敗ならエラー toast を出して終了 ──────────────────
+    if (!serverDeleted) {
       setDeletingAccount(false);
       setShowDeleteConfirm(false);
-      alert('アカウントの削除に失敗しました。しばらくしてから再試行してください。');
+      toast({
+        title: 'アカウントの削除に失敗しました',
+        description: 'しばらくしてから再試行してください。',
+        variant: 'destructive',
+      });
+      return;
     }
+
+    // ── ③ 削除成功：signOut の失敗は想定内（auth.users 既に削除済 → 403）──
+    // signOut のエラーは catch して握り潰す。失敗しても navigate はする。
+    try {
+      await signOut();
+    } catch (signOutErr) {
+      console.warn('[MyPage] signOut after delete threw (expected):', signOutErr);
+    }
+
+    setDeletingAccount(false);
+    setShowDeleteConfirm(false);
+    toast({
+      title: 'アカウントを削除しました',
+      description: 'ご利用いただきありがとうございました。',
+    });
+    navigate('/welcome');
   }
 
   const isStoreOwner = profile?.role === 'store_owner';
