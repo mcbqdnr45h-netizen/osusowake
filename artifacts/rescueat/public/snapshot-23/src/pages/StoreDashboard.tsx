@@ -12,7 +12,7 @@ import {
 import {
   Plus, Minus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
   Loader2, AlertCircle, BarChart2, RefreshCw, Ticket, Eye, ArrowRight,
-  History, CreditCard, Zap, Pencil, Trash2, Save, Store, XCircle,
+  History, CreditCard, Zap, Pencil, Trash2, Save, Store, XCircle, Search,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1268,6 +1268,7 @@ export default function StoreDashboard() {
   const [stripeError, setStripeError]     = useState<string | null>(null);
   const [markingId, setMarkingId]         = useState<number | null>(null);
   const [togglingId, setTogglingId]       = useState<number | null>(null);
+  const [searchCode, setSearchCode]       = useState('');
   const [adjustingId, setAdjustingId]     = useState<number | null>(null);
   const [deletingId, setDeletingId]       = useState<number | null>(null);
   const [confirmId, setConfirmId]         = useState<number | null>(null);
@@ -1357,6 +1358,15 @@ export default function StoreDashboard() {
   const oldUnprocessed = (reservations as Reservation[])
     .filter(r => !isTodaysReservation(r) && (r.status === 'pending' || r.status === 'confirmed'))
     .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
+
+  // 受取コードで絞り込み（数字のみ抽出して部分一致）
+  const searchDigits = searchCode.replace(/\D/g, '');
+  const matchesSearch = (r: Reservation) =>
+    !searchDigits || (r.pickupCode ?? '').includes(searchDigits);
+  const filteredTodayPending  = todayPending.filter(matchesSearch);
+  const filteredTodayPickedUp = todayPickedUp.filter(matchesSearch);
+  const filteredOldUnprocessed = oldUnprocessed.filter(matchesSearch);
+  const totalSearchHits = filteredTodayPending.length + filteredTodayPickedUp.length + filteredOldUnprocessed.length;
   const now = new Date();
   const activeBags     = (bags as any[]).filter((b: any) => getBagStatus(b, now) === 'active');
   // 出品中（active・soldout のみ — expired は除外）
@@ -2169,8 +2179,44 @@ export default function StoreDashboard() {
           </div>
         )}
 
+        {/* ── 受取コード検索バー ── */}
+        {(todayPending.length + todayPickedUp.length + oldUnprocessed.length) > 0 && (
+          <div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={searchCode}
+                onChange={(e) => setSearchCode(e.target.value)}
+                placeholder="受取コードで検索（例: 916117）"
+                className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-border bg-white text-sm font-mono tracking-widest placeholder:font-sans placeholder:tracking-normal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              />
+              {searchCode && (
+                <button
+                  type="button"
+                  onClick={() => setSearchCode('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full hover:bg-secondary flex items-center justify-center"
+                  aria-label="クリア"
+                >
+                  <X className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            {searchDigits && (
+              <p className="text-[11px] text-muted-foreground mt-1.5 px-1">
+                {totalSearchHits > 0
+                  ? <>「<span className="font-mono font-bold text-foreground">{searchDigits}</span>」に該当する予約: <strong>{totalSearchHits}件</strong></>
+                  : <>「<span className="font-mono font-bold text-foreground">{searchDigits}</span>」に該当する予約はありません</>
+                }
+              </p>
+            )}
+          </div>
+        )}
+
         {/* ── 過去の未処理予約（pending/confirmed のまま放置） ── */}
-        {oldUnprocessed.length > 0 && (
+        {filteredOldUnprocessed.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-black text-foreground flex items-center gap-2">
@@ -2178,16 +2224,18 @@ export default function StoreDashboard() {
                 未処理の過去予約
               </h2>
               <span className="text-xs font-black text-amber-700 bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-full">
-                {oldUnprocessed.length}件
+                {filteredOldUnprocessed.length}件
               </span>
             </div>
-            <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-3 mb-3">
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                <strong>受取済み</strong>になっていない過去の予約があります。お客様にお渡し済みであれば「受取済みにする」を押して完了させてください。受取済みにしないと売上集計が正確になりません。
-              </p>
-            </div>
+            {!searchDigits && (
+              <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-3 mb-3">
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  <strong>受取済み</strong>になっていない過去の予約があります。お客様にお渡し済みであれば「受取済みにする」を押して完了させてください。受取済みにしないと売上集計が正確になりません。
+                </p>
+              </div>
+            )}
             <div className="space-y-3">
-              {oldUnprocessed.map(res => (
+              {filteredOldUnprocessed.map(res => (
                 <ReservationCard
                   key={res.id}
                   res={res as Reservation}
@@ -2207,7 +2255,7 @@ export default function StoreDashboard() {
               本日の受取予定
             </h2>
             <span className="text-xs font-bold text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
-              {todayPending.length}件
+              {filteredTodayPending.length}件
             </span>
           </div>
 
@@ -2216,15 +2264,22 @@ export default function StoreDashboard() {
               <Loader2 className="w-5 h-5 animate-spin" />
               <span className="text-sm font-medium">読み込み中...</span>
             </div>
-          ) : todayPending.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-dashed border-border p-8 text-center">
-              <p className="text-3xl mb-3">📭</p>
-              <p className="text-sm font-bold text-foreground">本日の予約はまだありません</p>
-              <p className="text-xs text-muted-foreground mt-1">上のボタンから商品を出品してみましょう</p>
-            </div>
+          ) : filteredTodayPending.length === 0 ? (
+            searchDigits ? (
+              <div className="bg-white rounded-2xl border border-dashed border-border p-6 text-center">
+                <p className="text-2xl mb-2">🔍</p>
+                <p className="text-sm font-bold text-foreground">該当する本日の予約はありません</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-dashed border-border p-8 text-center">
+                <p className="text-3xl mb-3">📭</p>
+                <p className="text-sm font-bold text-foreground">本日の予約はまだありません</p>
+                <p className="text-xs text-muted-foreground mt-1">上のボタンから商品を出品してみましょう</p>
+              </div>
+            )
           ) : (
             <div className="space-y-3">
-              {todayPending.map(res => (
+              {filteredTodayPending.map(res => (
                 <ReservationCard
                   key={res.id}
                   res={res as Reservation}
@@ -2237,14 +2292,14 @@ export default function StoreDashboard() {
         </div>
 
         {/* ── 本日受取済み（折りたたみ）── */}
-        {todayPickedUp.length > 0 && (
+        {filteredTodayPickedUp.length > 0 && (
           <div ref={pickedUpRef}>
             <button
               onClick={() => setShowPickedUp(v => !v)}
               className="flex items-center gap-2 w-full text-left text-sm font-bold text-muted-foreground select-none"
             >
               <CheckCircle2 className="w-4 h-4 text-green-500" />
-              本日の受取済み（{todayPickedUp.length}件）
+              本日の受取済み（{filteredTodayPickedUp.length}件）
               <span className="ml-auto text-xs text-muted-foreground/60">
                 {showPickedUp ? '▲ 閉じる' : '▼ 表示'}
               </span>
@@ -2259,7 +2314,7 @@ export default function StoreDashboard() {
                   className="overflow-hidden"
                 >
                   <div className="mt-3 space-y-3 opacity-60">
-                    {todayPickedUp.map(res => (
+                    {filteredTodayPickedUp.map(res => (
                       <ReservationCard
                         key={res.id}
                         res={res as Reservation}
