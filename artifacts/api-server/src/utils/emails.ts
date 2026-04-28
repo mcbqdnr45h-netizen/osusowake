@@ -28,9 +28,9 @@ export async function sendStoreApprovalEmail(params: {
   const appUrl = process.env.APP_URL ?? "https://osusowake.app";
 
   const { error } = await r.resend.emails.send({
-    from:    `Osusowake <${r.from}>`,
+    from:    `おすそわけ <${r.from}>`,
     to:      params.ownerEmail,
-    subject: "【Osusowake】店舗が公開されました🎉",
+    subject: "【おすそわけ】店舗が公開されました🎉",
     html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -49,8 +49,8 @@ export async function sendStoreApprovalEmail(params: {
     <div style="padding:32px;">
       <p style="color:#333333;font-size:15px;line-height:1.8;margin:0 0 24px;">
         <strong>${params.storeName}</strong> オーナー様<br><br>
-        Osusowake へのご登録ありがとうございます。<br>
-        Stripe 本人確認（KYC）が完了し、<strong>店舗がOsusowakeに公開</strong>されました。<br>
+        おすそわけ へのご登録ありがとうございます。<br>
+        Stripe 本人確認（KYC）が完了し、<strong>店舗がおすそわけに公開</strong>されました。<br>
         さっそく「おすそわけバッグ」を出品して、食品ロスを一緒に減らしましょう！
       </p>
 
@@ -75,13 +75,13 @@ export async function sendStoreApprovalEmail(params: {
 
       <p style="color:#999999;font-size:12px;line-height:1.7;margin:0;text-align:center;">
         ご不明な点はアプリ内のサポート（マイページ → ヘルプ）からご連絡ください。<br>
-        Osusowake 運営チーム
+        おすそわけ 運営チーム
       </p>
     </div>
 
     <!-- フッター -->
     <div style="background:#f5f5f0;padding:20px 32px;text-align:center;">
-      <p style="color:#aaaaaa;font-size:11px;margin:0;">Osusowake — お店の余ったおいしさを、あなたへ。</p>
+      <p style="color:#aaaaaa;font-size:11px;margin:0;">おすそわけ — お店の余ったおいしさを、あなたへ。</p>
     </div>
   </div>
 </body>

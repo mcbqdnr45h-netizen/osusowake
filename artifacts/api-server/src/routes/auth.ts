@@ -86,7 +86,7 @@ function buildAdminOtpHtml(code: string): string {
 <table width="480" cellpadding="0" cellspacing="0"
   style="max-width:480px;width:100%;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.09);">
   <tr><td style="background:linear-gradient(135deg,#7C3AED,#4F46E5);padding:32px 40px;text-align:center;">
-    <div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:-0.5px;">🛡️ Osusowake</div>
+    <div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:-0.5px;">🛡️ おすそわけ</div>
     <div style="color:rgba(255,255,255,0.80);font-size:13px;margin-top:6px;">管理者ログイン確認コード</div>
   </td></tr>
   <tr><td style="padding:40px 40px 32px;">
@@ -412,9 +412,9 @@ router.post("/auth/admin-otp/send", async (req: Request, res: Response) => {
     const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
     const resend = new Resend(resendKey);
     await resend.emails.send({
-      from:    `Osusowake 事務局 <${fromDomain}>`,
+      from:    `おすそわけ事務局 <${fromDomain}>`,
       to:      email,
-      subject: "【Osusowake管理者】ログイン確認コード",
+      subject: "【おすそわけ管理者】ログイン確認コード",
       html:    buildAdminOtpHtml(code),
     });
     console.log(`[admin-otp/send] OTP sent to admin`);

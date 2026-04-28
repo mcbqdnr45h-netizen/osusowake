@@ -425,7 +425,7 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
         read: false,
       }).catch(() => {});
 
-      // オーナーへの承認メール（Osusowake事務局から）
+      // オーナーへの承認メール（おすそわけ事務局から）
       const resendApiKey = process.env.RESEND_API_KEY;
       if (resendApiKey) {
         try {
@@ -436,9 +436,9 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
           const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
           if (ownerEmail) {
             await resend.emails.send({
-              from: `Osusowake事務局 <${fromDomain}>`,
+              from: `おすそわけ事務局 <${fromDomain}>`,
               to: ownerEmail,
-              subject: `【Osusowake】${updated.name}の審査が完了しました 🎉`,
+              subject: `【おすそわけ】${updated.name}の審査が完了しました 🎉`,
               html: `
 <!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#fff8f0;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -451,7 +451,7 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
   <div style="padding:36px 32px;">
     <p style="font-size:15px;line-height:1.8;color:#333;margin:0 0 20px;">
       <strong>${updated.name}</strong> オーナー様<br><br>
-      この度はOsusowakeにご参加いただき、ありがとうございます。<br>
+      この度はおすそわけにご参加いただき、ありがとうございます。<br>
       審査が完了し、<strong style="color:#F26419;">本日よりおすそわけバッグの出品が可能</strong>になりました！<br><br>
       地域の食品ロス削減に、ぜひご一緒しましょう。応援しています 🧡
     </p>
@@ -460,7 +460,7 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
       <p style="font-size:13px;color:#555;line-height:1.7;margin:0;">
         ① ストアダッシュボードから銀行口座を登録する<br>
         ② 口座審査が完了したら（通常1〜3営業日）出品開始！<br>
-        ③ 審査完了のご連絡はOsusowake事務局よりお送りします
+        ③ 審査完了のご連絡はおすそわけ事務局よりお送りします
       </p>
     </div>
     <div style="text-align:center;">
@@ -469,7 +469,7 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
       </a>
     </div>
     <p style="font-size:12px;color:#aaa;margin:28px 0 0;text-align:center;">
-      Osusowake事務局 ｜ ご不明な点はアプリ内LINEサポートへ
+      おすそわけ事務局 ｜ ご不明な点はアプリ内LINEサポートへ
     </p>
   </div>
 </div>
@@ -530,11 +530,11 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
         userId: updated.ownerId,
         type: "store_rejected",
         title: "📋 申請内容についてご連絡があります",
-        body: `${updated.name} の申請について、Osusowake事務局よりご連絡があります。アプリをご確認ください。`,
+        body: `${updated.name} の申請について、おすそわけ事務局よりご連絡があります。アプリをご確認ください。`,
         read: false,
       }).catch(() => {});
 
-      // 却下メール（Osusowake事務局から）
+      // 却下メール（おすそわけ事務局から）
       const resendApiKey = process.env.RESEND_API_KEY;
       if (resendApiKey) {
         try {
@@ -546,9 +546,9 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
           const reason = rejectionReason?.trim() ?? "申請内容に確認が必要な点がございました。";
           if (ownerEmail) {
             await resend.emails.send({
-              from: `Osusowake事務局 <${fromDomain}>`,
+              from: `おすそわけ事務局 <${fromDomain}>`,
               to: ownerEmail,
-              subject: `【Osusowake】${updated.name}の申請についてご連絡`,
+              subject: `【おすそわけ】${updated.name}の申請についてご連絡`,
               html: `
 <!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#fff8f0;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -556,12 +556,12 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
   <div style="background:linear-gradient(135deg,#F26419 0%,#F6AE2D 100%);padding:44px 32px 36px;text-align:center;">
     <div style="font-size:52px;margin-bottom:14px;">📋</div>
     <h1 style="color:#fff;font-size:22px;font-weight:900;margin:0 0 8px;">申請内容についてご連絡</h1>
-    <p style="color:rgba(255,255,255,0.9);font-size:14px;margin:0;">Osusowake事務局</p>
+    <p style="color:rgba(255,255,255,0.9);font-size:14px;margin:0;">おすそわけ事務局</p>
   </div>
   <div style="padding:36px 32px;">
     <p style="font-size:15px;line-height:1.8;color:#333;margin:0 0 20px;">
       <strong>${updated.name}</strong> オーナー様<br><br>
-      この度はOsusowakeへご申請いただき、誠にありがとうございます。<br>
+      この度はおすそわけへご申請いただき、誠にありがとうございます。<br>
       事務局にて内容を確認しましたところ、いくつかご確認いただきたい点がございました。
     </p>
     <div style="background:#fff3cd;border-left:4px solid #F6AE2D;border-radius:0 12px 12px 0;padding:16px 20px;margin:0 0 24px;">
@@ -579,7 +579,7 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
       </a>
     </div>
     <p style="font-size:12px;color:#aaa;margin:28px 0 0;text-align:center;">
-      Osusowake事務局 ｜ ご不明な点はアプリ内LINEサポートへ
+      おすそわけ事務局 ｜ ご不明な点はアプリ内LINEサポートへ
     </p>
   </div>
 </div>

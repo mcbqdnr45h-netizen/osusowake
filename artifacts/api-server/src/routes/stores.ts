@@ -721,9 +721,9 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
           const ownerEmail = userData?.user?.email;
           if (ownerEmail) {
             await resend.emails.send({
-              from: `Osusowake <${fromDomain}>`,
+              from: `おすそわけ <${fromDomain}>`,
               to: ownerEmail,
-              subject: `【Osusowake】店舗審査の結果について：${updated.name}`,
+              subject: `【おすそわけ】店舗審査の結果について：${updated.name}`,
               html: `
 <!DOCTYPE html>
 <html lang="ja">
@@ -736,7 +736,7 @@ router.post("/admin/stores/:storeId/reject", async (req, res) => {
     </div>
     <div style="padding:32px;">
       <p style="font-size:15px;color:#333;line-height:1.7;margin-bottom:20px;">
-        この度は Osusowake にご申請いただきありがとうございます。<br>
+        この度は おすそわけ にご申請いただきありがとうございます。<br>
         誠に申し訳ございませんが、<strong>${updated.name}</strong> の店舗申請について、今回は審査を通過できませんでした。
       </p>
       ${rejectionReason ? `
