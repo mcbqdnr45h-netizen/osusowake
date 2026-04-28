@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
-import { Link } from 'wouter';
+import { useLocation } from 'wouter';
 
 interface AuthShellProps {
   children: React.ReactNode;
@@ -18,13 +18,17 @@ export function AuthShell({
   onTabChange,
   mode,
 }: AuthShellProps) {
+  const [, navigate] = useLocation();
   const userHref  = mode === 'login' ? '/login'       : '/signup';
   const storeHref = mode === 'login' ? '/store/login' : '/store/signup';
 
   function handleTab(tab: 'user' | 'store') {
     if (onTabChange) {
       onTabChange(tab);
+      return;
     }
+    // フォールバック: コールバックが無い場合はナビゲーションでタブ切替
+    navigate(tab === 'user' ? userHref : storeHref);
   }
 
   const tabs: { id: 'user' | 'store'; label: string; emoji: string }[] = [
@@ -55,16 +59,17 @@ export function AuthShell({
 
       {/* ── ヘッダー ── */}
       <div className="relative z-10 flex items-center px-6 pt-safe-or-5 pb-2">
-        <Link href={backHref}>
-          <motion.button
-            whileHover={{ scale: 1.06, backgroundColor: 'rgba(255,255,255,0.96)' }}
-            whileTap={{ scale: 0.92 }}
-            className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm border border-border/30 shadow-sm flex items-center justify-center transition-colors"
-            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-          >
-            <ChevronLeft className="w-5 h-5 text-foreground" />
-          </motion.button>
-        </Link>
+        <motion.button
+          type="button"
+          aria-label="戻る"
+          onClick={() => navigate(backHref)}
+          whileHover={{ scale: 1.06, backgroundColor: 'rgba(255,255,255,0.96)' }}
+          whileTap={{ scale: 0.92 }}
+          className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm border border-border/30 shadow-sm flex items-center justify-center transition-colors"
+          style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+        >
+          <ChevronLeft className="w-5 h-5 text-foreground" />
+        </motion.button>
       </div>
 
       {/* ── メインコンテンツ ── */}
@@ -80,9 +85,8 @@ export function AuthShell({
         >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
-            const href = tab.id === 'user' ? userHref : storeHref;
 
-            const inner = (
+            return (
               <motion.button
                 key={tab.id}
                 type="button"
@@ -124,14 +128,6 @@ export function AuthShell({
                   />
                 )}
               </motion.button>
-            );
-
-            return onTabChange ? (
-              <React.Fragment key={tab.id}>{inner}</React.Fragment>
-            ) : (
-              <Link key={tab.id} href={href} className="flex-1">
-                {inner}
-              </Link>
             );
           })}
         </motion.div>

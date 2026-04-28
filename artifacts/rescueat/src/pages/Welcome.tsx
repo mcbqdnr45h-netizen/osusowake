@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useLocation } from 'wouter';
 import logoUrl from '@/lib/logo';
 import { motion } from 'framer-motion';
 import { ArrowRight, MapPin, Gift, Sparkles, ShieldCheck } from 'lucide-react';
@@ -138,8 +138,11 @@ export default function Welcome() {
 
         {/* CTA */}
         <motion.div custom={3} variants={rise} initial="hidden" animate="show" className="space-y-2.5">
-          <Link href={signupHref}>
-            <button className="relative w-full overflow-hidden bg-white text-[#D9604F] font-black text-[16px] sm:text-[17px] py-[16px] sm:py-[17px] rounded-2xl shadow-xl shadow-black/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(signupHref)}
+            className="relative w-full overflow-hidden bg-white text-[#D9604F] font-black text-[16px] sm:text-[17px] py-[16px] sm:py-[17px] rounded-2xl shadow-xl shadow-black/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+          >
               {/* 上部光沢 */}
               <span
                 aria-hidden
@@ -151,13 +154,14 @@ export default function Welcome() {
                 <ArrowRight className="w-5 h-5" strokeWidth={3} />
               </span>
             </button>
-          </Link>
 
-          <Link href={loginHref}>
-            <button className="w-full bg-white/10 backdrop-blur-sm border border-white/30 text-white font-bold text-[15px] py-[14px] sm:py-[15px] rounded-2xl active:scale-[0.98] transition-transform hover:bg-white/15">
-              ログイン
-            </button>
-          </Link>
+          <button
+            type="button"
+            onClick={() => navigate(loginHref)}
+            className="w-full bg-white/10 backdrop-blur-sm border border-white/30 text-white font-bold text-[15px] py-[14px] sm:py-[15px] rounded-2xl active:scale-[0.98] transition-transform hover:bg-white/15"
+          >
+            ログイン
+          </button>
         </motion.div>
       </div>
 

@@ -252,58 +252,115 @@ export default function MyPage() {
           </div>
         )}
 
-        {/* Profile Card */}
-        <div className="bg-card rounded-2xl p-3 mb-2"
-          style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0 border border-primary/30">
-              <User className="w-6 h-6" />
+        {/* Profile Card（プレミアム） */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="relative overflow-hidden rounded-2xl p-3.5 mb-2"
+          style={{
+            background:
+              profile?.role === 'store_owner'
+                ? 'linear-gradient(135deg, #FFFBF2 0%, #FFF3DC 100%)'
+                : 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F4 100%)',
+            boxShadow: '0 2px 12px -2px rgba(10,8,6,0.10), 0 1px 3px -1px rgba(10,8,6,0.05)',
+            border: '1px solid rgba(242,100,25,0.10)',
+          }}
+        >
+          {/* 背景装飾（淡い光） */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-8 -right-8 w-24 h-24 rounded-full"
+            style={{
+              background:
+                profile?.role === 'store_owner'
+                  ? 'radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(242,100,25,0.14) 0%, transparent 70%)',
+            }}
+          />
+
+          <div className="relative flex items-center gap-3">
+            {/* アバター（光彩リング付き） */}
+            <div className="relative shrink-0">
+              <div
+                aria-hidden
+                className="absolute inset-0 rounded-full blur-md"
+                style={{
+                  background:
+                    profile?.role === 'store_owner'
+                      ? 'radial-gradient(circle, rgba(245,158,11,0.45) 0%, transparent 70%)'
+                      : 'radial-gradient(circle, rgba(242,100,25,0.40) 0%, transparent 70%)',
+                }}
+              />
+              <div
+                className="relative w-12 h-12 rounded-full flex items-center justify-center text-white ring-2 ring-white shadow-md"
+                style={{
+                  background:
+                    profile?.role === 'store_owner'
+                      ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
+                      : 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(12 80% 60%) 100%)',
+                }}
+              >
+                {profile?.role === 'store_owner'
+                  ? <StoreIcon className="w-5 h-5" strokeWidth={2.4} />
+                  : <User className="w-5 h-5" strokeWidth={2.4} />}
+              </div>
+              {user && profile?.role === 'store_owner' && isApprovedOwner && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 ring-2 ring-white flex items-center justify-center">
+                  <CheckCircle className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                </div>
+              )}
             </div>
+
             <div className="min-w-0 flex-1">
               {user ? (
                 <>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-black text-foreground truncate">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h2 className="text-[16px] font-black text-foreground truncate leading-tight tracking-tight">
                       {profile?.role === 'store_owner' && store?.name
                         ? store.name
                         : profile?.display_name || user.email?.split('@')[0] || user.email}
                     </h2>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0
+                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 leading-none
                       ${profile?.role === 'store_owner'
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                        : 'bg-primary/10 text-primary'
+                        ? 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/20'
+                        : 'bg-primary/10 text-primary ring-1 ring-primary/15'
                       }`}>
-                      {profile?.role === 'store_owner' ? '🏪 店舗オーナー' : '👤 お客様'}
+                      {profile?.role === 'store_owner' ? '店舗オーナー' : 'メンバー'}
                     </span>
                   </div>
                   {profile?.role === 'store_owner' && store?.name ? (
                     isApprovedOwner ? (
-                      <p className="text-xs text-green-600 font-bold mt-1 flex items-center gap-1">
-                        ✅ 決済連携済み・公式パートナー
+                      <p className="text-[11px] text-green-600 font-bold mt-1 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" strokeWidth={2.5} />
+                        決済連携済み・公式パートナー
                       </p>
                     ) : (
-                      <p className="text-xs text-amber-600 font-bold mt-1">公式パートナー（審査中）</p>
+                      <p className="text-[11px] text-amber-600 font-bold mt-1 flex items-center gap-1">
+                        <Clock className="w-3 h-3" strokeWidth={2.5} />
+                        公式パートナー（審査中）
+                      </p>
                     )
                   ) : (
-                    <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
-                      <Mail className="w-3 h-3" />
-                      <span>{user.email}</span>
+                    <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground">
+                      <Mail className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{user.email}</span>
                     </div>
                   )}
                 </>
               ) : (
                 <>
-                  <h2 className="text-xl font-bold text-foreground">ゲストユーザー</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    <Link href="/login" className="text-primary font-bold underline underline-offset-2">ログイン</Link>
+                  <h2 className="text-[16px] font-black text-foreground leading-tight">ゲストユーザー</h2>
+                  <p className="text-[12px] text-muted-foreground mt-1">
+                    <Link href="/login" className="text-primary font-black underline underline-offset-2">ログイン</Link>
                     {' '}または{' '}
-                    <Link href="/signup" className="text-primary font-bold underline underline-offset-2">新規登録</Link>
+                    <Link href="/signup" className="text-primary font-black underline underline-offset-2">新規登録</Link>
                   </p>
                 </>
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* ── おすそわけスコア（カスタマーのみ） ── */}
         {!isStoreOwner && <div className="mb-2 -mx-4">
