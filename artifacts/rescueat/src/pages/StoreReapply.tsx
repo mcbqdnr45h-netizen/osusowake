@@ -6,6 +6,7 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { StoreLayout } from '@/components/StoreLayout';
+import { authedFetch } from '@/lib/authed-fetch';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -106,7 +107,7 @@ export default function StoreReapply() {
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${BASE}/api/stores/${store.id}/reapply`, {
+      const res = await authedFetch(`${BASE}/api/stores/${store.id}/reapply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),

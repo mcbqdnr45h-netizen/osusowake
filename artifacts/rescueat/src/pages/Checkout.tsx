@@ -9,6 +9,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authed-fetch';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -76,7 +77,7 @@ function PaymentForm({
         // ★ 仮押さえ廃止後: サーバーは在庫アトミック減算を行う。在庫切れなら 409 を返し、
         //   Stripe で全額自動返金される（ユーザー操作不要）。その場合は決済成功扱いせず戻す。
         try {
-          const confirmRes = await fetch(`${API_BASE}/api/payment/confirm`, {
+          const confirmRes = await authedFetch(`${API_BASE}/api/payment/confirm`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -279,7 +280,7 @@ export default function Checkout() {
     if (!reservation || reservation.paymentStatus === 'paid' || clientSecret || creatingIntent.current) return;
     creatingIntent.current = true;
 
-    fetch(`${API_BASE}/api/payment/create-intent`, {
+    authedFetch(`${API_BASE}/api/payment/create-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reservationId, userId: user?.id }),

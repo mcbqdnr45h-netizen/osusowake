@@ -5,6 +5,7 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Star, MessageSquare, Send, Package2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { authedFetch } from '@/lib/authed-fetch';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -46,9 +47,10 @@ export default function StoreReviews() {
   useEffect(() => {
     if (!store) return;
     setFetching(true);
-    fetch(`${BASE}/api/stores/${store.id}/owner-reviews`)
+    authedFetch(`${BASE}/api/stores/${store.id}/owner-reviews`)
       .then(r => r.ok ? r.json() : { reviews: [] })
       .then(data => setReviews(data.reviews ?? []))
+      .catch(err => { console.error('[StoreReviews] fetch error', err); })
       .finally(() => setFetching(false));
   }, [store]);
 
@@ -61,12 +63,15 @@ export default function StoreReviews() {
     if (!store) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${BASE}/api/stores/${store.id}/reviews/${reviewId}/reply`, {
+      const res = await authedFetch(`${BASE}/api/stores/${store.id}/reviews/${reviewId}/reply`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reply: replyText }),
       });
-      if (!res.ok) throw new Error('失敗');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `返信の保存に失敗しました (HTTP ${res.status})`);
+      }
       const updated = await res.json();
       setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, reply: updated.reply, repliedAt: updated.repliedAt } : r));
       setReplyingId(null);

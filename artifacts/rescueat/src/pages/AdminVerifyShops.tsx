@@ -6,6 +6,7 @@ import {
   Clock, AlertCircle, Flag, MessageSquare, ShieldAlert,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { authedFetch } from '@/lib/authed-fetch';
 
 interface AdminStore {
   id: number;
@@ -39,28 +40,43 @@ interface AdminReport {
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 async function fetchAllAdminStores(): Promise<AdminStore[]> {
-  const res = await fetch(`${BASE}/api/admin/stores`);
-  if (!res.ok) throw new Error('Failed to fetch');
+  const res = await authedFetch(`${BASE}/api/admin/stores`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? body.error ?? `店舗一覧の取得に失敗しました (HTTP ${res.status})`);
+  }
   return res.json();
 }
 async function fetchAllReports(): Promise<AdminReport[]> {
-  const res = await fetch(`${BASE}/api/admin/reports`);
-  if (!res.ok) throw new Error('Failed to fetch reports');
+  const res = await authedFetch(`${BASE}/api/admin/reports`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? body.error ?? `通報一覧の取得に失敗しました (HTTP ${res.status})`);
+  }
   return res.json();
 }
 async function rejectStore(storeId: number): Promise<AdminStore> {
-  const res = await fetch(`${BASE}/api/admin/stores/${storeId}/reject`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to reject');
+  const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/reject`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? body.error ?? `却下に失敗しました (HTTP ${res.status})`);
+  }
   return res.json();
 }
 async function reactivateStore(storeId: number): Promise<AdminStore> {
-  const res = await fetch(`${BASE}/api/admin/stores/${storeId}/approve`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to reactivate');
+  const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/approve`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? body.error ?? `承認に失敗しました (HTTP ${res.status})`);
+  }
   return res.json();
 }
 async function dismissReports(storeId: number) {
-  const res = await fetch(`${BASE}/api/admin/stores/${storeId}/dismiss-reports`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to dismiss');
+  const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/dismiss-reports`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? body.error ?? `通報の処理に失敗しました (HTTP ${res.status})`);
+  }
   return res.json();
 }
 
