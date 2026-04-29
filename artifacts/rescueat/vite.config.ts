@@ -68,6 +68,28 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // ── 巨大ライブラリを別チャンクに切り出し、 初回 JS の体感速度を改善 ──
+    // 初期表示で必要ない (Stripe/Recharts/Maps) 系は遅延ロード対象。
+    // React 系コアと UI ライブラリは vendor として共通キャッシュ可能に。
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("react-dom") || id.includes("/react/") || id.includes("scheduler")) return "vendor-react";
+          if (id.includes("@radix-ui")) return "vendor-radix";
+          if (id.includes("@tanstack")) return "vendor-query";
+          if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
+          if (id.includes("@stripe")) return "vendor-stripe";
+          if (id.includes("@supabase")) return "vendor-supabase";
+          if (id.includes("framer-motion")) return "vendor-motion";
+          if (id.includes("lucide-react") || id.includes("@radix-ui/react-icons")) return "vendor-icons";
+          if (id.includes("date-fns") || id.includes("zod")) return "vendor-utils";
+          return "vendor-misc";
+        },
+      },
+    },
+    // 既存警告閾値を上げる (vendor-react/radix は仕様上ある程度大きくなる)
+    chunkSizeWarningLimit: 700,
   },
   server: {
     port,

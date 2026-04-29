@@ -74,7 +74,11 @@ export function loadGoogleMapsScript(): Promise<void> {
 
     const script = document.createElement('script');
     script.id = SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&libraries=places&v=weekly&language=ja&region=JP`;
+    // loading=async: Google Maps JS API の新しい非同期ロードモード opt-in。
+    // これにより "loaded directly without loading=async" 警告が消え、
+    // メインスレッドのブロッキングが減る。 既存の `google.maps.Map` 等の
+    // グローバルアクセスは維持されるので、 呼び出し側コードの修正は不要。
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&libraries=places&v=weekly&language=ja&region=JP&loading=async`;
     script.async = true;
     script.defer = true;
     script.onload = () => {
