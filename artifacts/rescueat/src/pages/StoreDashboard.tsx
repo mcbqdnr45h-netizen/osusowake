@@ -18,6 +18,7 @@ import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { authedFetch } from '@/lib/authed-fetch';
 import { format, isToday, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ImageUpload } from '@/components/ImageUpload';
@@ -1309,7 +1310,7 @@ export default function StoreDashboard() {
     queryKey: [`/api/stores/${storeId}/connect/balance`],
     queryFn: async () => {
       if (!storeId) return null;
-      const res = await fetch(`${BASE}/api/stores/${storeId}/connect/balance`);
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/connect/balance`);
       if (!res.ok) return null;
       return res.json();
     },
@@ -1335,7 +1336,7 @@ export default function StoreDashboard() {
     queryKey: [`/api/stores/${storeId}/connect/status`],
     queryFn: async () => {
       if (!storeId) return null;
-      const res = await fetch(`${BASE}/api/stores/${storeId}/connect/status`);
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/connect/status`);
       if (!res.ok) return null;
       return res.json();
     },

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authed-fetch';
 
 // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
 const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
@@ -101,7 +102,7 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
     setLoading(true); setFetchError(false);
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 
-    return fetch(`${BASE}/api/stores/all-by-owner?userId=${encodeURIComponent(uid)}`, { cache: 'no-store' })
+    return authedFetch(`${BASE}/api/stores/all-by-owner?userId=${encodeURIComponent(uid)}`, { cache: 'no-store' })
       .then(r => {
         if (r.ok) return r.json() as Promise<MyStore[]>;
         if (r.status === 404) return [] as MyStore[];

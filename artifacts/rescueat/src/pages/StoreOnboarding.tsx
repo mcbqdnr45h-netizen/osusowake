@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyStores } from '@/hooks/use-my-stores';
+import { authedFetch } from '@/lib/authed-fetch';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
@@ -257,7 +258,7 @@ export default function StoreOnboarding() {
         console.error('[StoreOnboarding] ❌ 登録レスポンスに id がない:', { status: res.status, contentType: res.headers.get('content-type'), bodyPreview: rawText.slice(0, 200) });
         // ★ サーバー側では INSERT 成功している可能性が高い (JSON経路の問題のみ) → 即座に確認
         try {
-          const check = await fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
+          const check = await authedFetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
           if (check.ok) {
             const checkStore = await check.json().catch(() => null);
             if (checkStore?.id) {
@@ -309,7 +310,7 @@ export default function StoreOnboarding() {
       if (err instanceof Error && err.name === 'AbortError') {
         console.warn('[StoreOnboarding] タイムアウト — 店舗作成を確認中...');
         try {
-          const check = await fetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
+          const check = await authedFetch(`${BASE}/api/stores/by-owner?userId=${encodeURIComponent(user.id)}`, { cache: 'no-store' });
           if (check.ok) {
             const checkStore = await check.json().catch(() => null);
             clearOnboardingDraft();

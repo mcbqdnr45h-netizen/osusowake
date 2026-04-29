@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authed-fetch';
 import {
   ChevronLeft, Loader2, CheckCircle2, AlertCircle,
   ShieldCheck, User, Building2, MapPin, FileText,
@@ -796,7 +797,7 @@ export default function StripeKYCPage() {
                     type="button"
                     onClick={async () => {
                       const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-                      await fetch(`${BASE}/api/stores/${store.id}/stripe-disconnect`, { method: 'POST' });
+                      await authedFetch(`${BASE}/api/stores/${store.id}/stripe-disconnect`, { method: 'POST' });
                       navigate('/store/bank-setup');
                     }}
                     className="mt-1.5 text-[10px] font-black text-amber-700 underline underline-offset-2"

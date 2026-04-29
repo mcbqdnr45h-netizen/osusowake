@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { authedFetch } from '@/lib/authed-fetch';
 
 export default function MyPage() {
   const userId = useUserId();
@@ -55,7 +56,7 @@ export default function MyPage() {
       if (!storeId) return null;
       // ★ iOS WKWebView の URL キャッシュを完全回避：no-store + cache-busting query
       const bust = `_=${Date.now()}`;
-      const res = await fetch(`${BASE_URL}/api/stores/${storeId}/connect/status?${bust}`, { cache: 'no-store' });
+      const res = await authedFetch(`${BASE_URL}/api/stores/${storeId}/connect/status?${bust}`, { cache: 'no-store' });
       if (!res.ok) return null;
       return res.json();
     },
@@ -616,7 +617,7 @@ export default function MyPage() {
                 onClick={async () => {
                   if (!storeId) return;
                   const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-                  await fetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, { method: 'POST' });
+                  await authedFetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, { method: 'POST' });
                   navigate('/store/bank-setup');
                 }}
                 className="w-full py-1.5 text-[11px] font-black bg-red-600 text-white rounded-lg"

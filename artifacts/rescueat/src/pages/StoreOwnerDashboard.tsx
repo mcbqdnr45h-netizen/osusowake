@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation, Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authed-fetch';
 import { StoreLayout } from '@/components/StoreLayout';
 import {
   Store, Package, LogOut, RefreshCw, Loader2, AlertCircle,
@@ -207,14 +208,14 @@ export default function StoreOwnerDashboard() {
     if (cached) {
       setStore(cached);
       setLoadingStore(false);
-      fetch(`/api/stores/by-owner?userId=${userId}`)
+      authedFetch(`/api/stores/by-owner?userId=${userId}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d) { setStore(d); writeCache(cacheKey, d); } })
         .catch(() => {});
       return cached;
     }
     try {
-      const res = await fetch(`/api/stores/by-owner?userId=${userId}`);
+      const res = await authedFetch(`/api/stores/by-owner?userId=${userId}`);
       if (res.status === 404) { setStore(null); return null; }
       if (!res.ok) throw new Error('店舗情報の取得に失敗しました');
       const data = await res.json();
@@ -283,7 +284,7 @@ export default function StoreOwnerDashboard() {
 
   const fetchConnectStatus = useCallback(async (storeId: number) => {
     try {
-      const res = await fetch(`/api/stores/${storeId}/connect/status`);
+      const res = await authedFetch(`/api/stores/${storeId}/connect/status`);
       if (res.ok) setConnectStatus(await res.json());
     } catch {}
   }, []);
@@ -391,7 +392,7 @@ export default function StoreOwnerDashboard() {
     setAccountLinkLoading(true);
     try {
       const currentUrl = window.location.href;
-      const res = await fetch(`/api/stores/${store.id}/connect/account-link`, {
+      const res = await authedFetch(`/api/stores/${store.id}/connect/account-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ returnUrl: currentUrl, refreshUrl: currentUrl }),

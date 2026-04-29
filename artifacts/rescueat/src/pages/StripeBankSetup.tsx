@@ -4,6 +4,7 @@ import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authed-fetch';
 import {
   Building2, ChevronLeft, Loader2, CheckCircle2,
   AlertCircle, ShieldCheck, Info, CreditCard, PartyPopper,
@@ -436,7 +437,7 @@ export default function StripeBankSetup() {
     const stripeHasIssue =
       store.stripeChargesEnabled === false || store.stripePayoutsEnabled === false;
     if (!stripeHasIssue) return;
-    fetch(`${BASE}/api/stores/${store.id}/connect/status`)
+    authedFetch(`${BASE}/api/stores/${store.id}/connect/status`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.requirements) {
@@ -458,7 +459,7 @@ export default function StripeBankSetup() {
     if (!store?.stripeAccountId || !store?.id) return;
     if (stripeDataLoadedRef.current) return;
     stripeDataLoadedRef.current = true;
-    fetch(`${BASE}/api/stores/${store.id}/connect/account-data`)
+    authedFetch(`${BASE}/api/stores/${store.id}/connect/account-data`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data?.hasAccount || !data.individual) return;
@@ -726,7 +727,7 @@ export default function StripeBankSetup() {
       }
 
       // ② 全データを一括送信（口座登録 + KYC + 書類アップロード + DB approved 更新）
-      const res = await fetch(`${BASE}/api/stores/${store.id}/connect/bank-setup`, {
+      const res = await authedFetch(`${BASE}/api/stores/${store.id}/connect/bank-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,

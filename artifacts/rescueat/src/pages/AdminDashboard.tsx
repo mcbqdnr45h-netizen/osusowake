@@ -10,6 +10,7 @@ import {
   LogOut, ExternalLink, Package, Receipt, Flag, MapPin, Trash2, FileWarning, Link2 as LinkIcon,
 } from 'lucide-react';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
+import { authedFetch } from '@/lib/authed-fetch';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -481,7 +482,7 @@ export default function AdminDashboard() {
     if (!token) { toast({ title: 'ログインが必要です', variant: 'destructive' }); return; }
     const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
     try {
-      const res = await fetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
