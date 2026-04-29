@@ -313,17 +313,26 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
         const gMaps = (window as any).google.maps as typeof google.maps;
 
-        const map = new gMaps.Map(containerRef.current, {
+        // ★ Cloud-based Map Style 適用: VITE_GOOGLE_MAP_ID があればクラウド配信スタイルを優先。
+        //   Map ID 指定時は inline `styles` プロパティが警告を出すため除外する。
+        //   未設定時は従来の inline styles へフォールバック (ローカル開発でも壊れない)。
+        const mapId = (import.meta.env.VITE_GOOGLE_MAP_ID as string) || '';
+        const mapOptions: google.maps.MapOptions = {
           center: startCenter,
           zoom: zoom ?? 14,
           disableDefaultUI: true,
           zoomControl: false,
           mapTypeControl: false,
           gestureHandling: 'greedy',
-          styles: MAP_STYLES,
           clickableIcons: false,
           backgroundColor: '#f2f0eb',
-        });
+        };
+        if (mapId) {
+          mapOptions.mapId = mapId;
+        } else {
+          mapOptions.styles = MAP_STYLES;
+        }
+        const map = new gMaps.Map(containerRef.current, mapOptions);
 
         mapRef.current = map;
 
@@ -520,11 +529,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map = mapRef.current;
     if (!map || status !== 'ready') return;
     map.setMapTypeId(mapType);
-    // satellite では styles が無効化されるので、roadmap 復帰時のみスタイルを再適用
-    if (mapType === 'roadmap') {
-      map.setOptions({ styles: MAP_STYLES });
-    } else {
-      map.setOptions({ styles: [] });
+    // ★ Map ID が設定されている場合はクラウド配信スタイルが優先されるため、
+    //   inline styles の上書きをスキップ (warning 抑制)。
+    //   未設定時のみ従来通り roadmap でカスタムスタイル / satellite で素地を適用。
+    const hasMapId = !!(import.meta.env.VITE_GOOGLE_MAP_ID as string);
+    if (!hasMapId) {
+      if (mapType === 'roadmap') {
+        map.setOptions({ styles: MAP_STYLES });
+      } else {
+        map.setOptions({ styles: [] });
+      }
     }
   }, [mapType, status]);
 

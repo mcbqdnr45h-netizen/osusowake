@@ -4,6 +4,11 @@
 // referer に "https://osusowakejapan.org/*" を追加すれば動作する。
 export const MAPS_API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
 
+// ★ Cloud-based Map Style 用 Map ID (Google Cloud Console で発行)
+//   AdvancedMarkerElement やクラウド配信スタイルを有効化するために Map に渡す。
+//   公開可: API キーと同様、リファラ制限で保護される client-side 値。
+export const GOOGLE_MAP_ID = (import.meta.env.VITE_GOOGLE_MAP_ID as string) || '';
+
 // ─── Capacitor: Suppress Google Maps auth failure dialog (triple approach) ───
 if (import.meta.env.VITE_IS_CAPACITOR === 'true') {
 
