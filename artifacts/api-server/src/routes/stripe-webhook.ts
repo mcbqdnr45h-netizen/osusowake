@@ -671,8 +671,9 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
       }
 
       // 自動承認の場合でも管理者にメール送信（KYC完了記録として）
+      // 送信成功時のみフラグを立てる (失敗時は次回 webhook で再試行)
       if (!(store as any).stripeKycAdminEmailSent) {
-        await sendAdminKycEmail({
+        const ok = await sendAdminKycEmail({
           id: store.id,
           name: store.name,
           imageUrl: store.imageUrl,
@@ -684,7 +685,11 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
           payoutsEnabled: account.payouts_enabled,
           ownerId: store.ownerId,
         });
-        await db.execute(sql`UPDATE stores SET stripe_kyc_admin_email_sent = true WHERE id = ${store.id}`);
+        if (ok) {
+          await db.execute(sql`UPDATE stores SET stripe_kyc_admin_email_sent = true WHERE id = ${store.id}`);
+        } else {
+          console.warn(`[stripe-webhook] auto-approve KYC メール送信失敗 — 次回 webhook で再試行: store ${store.id}`);
+        }
       }
 
       res.json({ received: true, action: "auto_approved", storeId: store.id });
