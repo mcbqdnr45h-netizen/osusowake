@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import router from "./routes";
 
@@ -7,6 +8,19 @@ const app: Express = express();
 
 // プロキシ越しの実 IP を取得するため Replit/CDN の X-Forwarded-For を信頼
 app.set("trust proxy", 1);
+
+// ── セキュリティヘッダ（Helmet）────────────────────────────────────────────────
+// API サーバーなので CSP は不要（フロント側 Vite が制御）。HSTS / X-Content-Type-Options /
+// Referrer-Policy / X-DNS-Prefetch-Control / X-Download-Options などのデフォルトを有効化。
+// crossOriginResourcePolicy は same-site だと Capacitor から呼べないので緩めに cross-origin。
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  hsts: process.env.NODE_ENV === "production"
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
+}));
 
 app.use(cors());
 

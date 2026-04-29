@@ -50,3 +50,11 @@ Thumbs.db
 
 # Local backups (not for git/deploy)
 .local/backups/
+
+# Environment / secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json

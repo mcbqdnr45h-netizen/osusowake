@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ImagePlus, X, RefreshCw, AlertCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
 const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
@@ -77,8 +78,16 @@ export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
 
       const formData = new FormData();
       formData.append('image', compressed);
+
+      // ── 認証必須エンドポイントなので Bearer token を付与 ──
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('ログインが必要です');
+      }
+
       const res = await fetch(`${BASE}/api/upload/bag-image`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: formData,
       });
       if (!res.ok) {

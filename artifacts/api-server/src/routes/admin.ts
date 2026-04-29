@@ -879,11 +879,19 @@ router.post("/sales-leads", async (req, res) => {
       res.status(400).json({ error: "bad_request", message: "店舗名と場所は必須です" });
       return;
     }
+    // 入力長制限（DB肥大 / abuse 防止）
+    const trimmedStoreName = storeName.trim().slice(0, 200);
+    const trimmedLocation  = location.trim().slice(0, 300);
+    const trimmedMemo      = memo?.trim().slice(0, 1000) ?? null;
+    if (trimmedStoreName.length < 1 || trimmedLocation.length < 1) {
+      res.status(400).json({ error: "bad_request", message: "入力が短すぎます" });
+      return;
+    }
     const [lead] = await db.insert(salesLeadsTable).values({
       reportedBy: user?.id ?? null,
-      storeName:  storeName.trim(),
-      location:   location.trim(),
-      memo:       memo?.trim() ?? null,
+      storeName:  trimmedStoreName,
+      location:   trimmedLocation,
+      memo:       trimmedMemo,
       status:     "new",
     }).returning();
 
