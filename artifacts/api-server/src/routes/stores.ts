@@ -343,11 +343,18 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
 
 // POST /api/stores/fix-owner-role
 // ストアを所有するユーザーの role を store_owner に修正（既存ユーザー向け救済エンドポイント）
-router.post("/stores/fix-owner-role", requireAdmin, async (req, res) => {
+// 認可: 認証済みユーザ本人が、自分のストア所有を根拠に role を直す。他人の ownerId 指定は拒否。
+router.post("/stores/fix-owner-role", requireAuth, async (req, res) => {
   try {
+    const authUserId = req.authUser!.id;
     const { ownerId } = req.body;
     if (!ownerId) {
       return res.status(400).json({ error: "bad_request", message: "ownerId は必須です" });
+    }
+
+    // 本人以外を直すのは禁止（権限昇格防止）
+    if (ownerId !== authUserId) {
+      return res.status(403).json({ error: "forbidden", message: "他人の権限は修正できません" });
     }
 
     // 本当にストアを所有しているか確認

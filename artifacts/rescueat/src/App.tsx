@@ -317,9 +317,19 @@ function RoleReconciler() {
 
     const doFix = async () => {
       try {
+        // 認証必須エンドポイントなので Bearer token を付与（自分の role しか直せない）
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          // 未ログインなら静かに何もしない
+          return;
+        }
         const res = await fetch(`${BASE}/api/stores/fix-owner-role`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
           body: JSON.stringify({ ownerId: user.id }),
         });
         if (res.ok) {
