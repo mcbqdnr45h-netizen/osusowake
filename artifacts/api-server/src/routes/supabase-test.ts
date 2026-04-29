@@ -1,7 +1,18 @@
-import { Router, type IRouter } from 'express';
+import { Router, type IRouter, type Request, type Response, type NextFunction } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 
 const router: IRouter = Router();
+
+// 開発環境専用ガード — 本番では完全に 404 にする (情報漏洩 / テスト書き込み防止)
+function devOnly(_req: Request, res: Response, next: NextFunction) {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ error: 'not_found' });
+    return;
+  }
+  next();
+}
+
+router.use(devOnly);
 
 router.get('/supabase/health', async (_req, res) => {
   try {

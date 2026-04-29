@@ -854,7 +854,7 @@ router.get("/stores/:storeId", async (req, res) => {
 });
 
 // User: report a store
-router.post("/stores/:storeId/report", async (req, res) => {
+router.post("/stores/:storeId/report", requireAuth, async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);
     if (isNaN(storeId)) {
@@ -862,16 +862,13 @@ router.post("/stores/:storeId/report", async (req, res) => {
       return;
     }
 
-    const { userId, reportType, comment } = req.body as {
-      userId?: string;
+    // 認証済みユーザーIDを使う（body.userId は信頼しない＝なりすまし防止）
+    const userId = req.authUser!.id;
+    const { reportType, comment } = req.body as {
       reportType?: string;
       comment?: string;
     };
 
-    if (!userId || typeof userId !== "string" || userId.trim() === "") {
-      res.status(401).json({ error: "unauthorized", message: "userId is required" });
-      return;
-    }
     if (!reportType || !REPORT_TYPES.includes(reportType as ReportType)) {
       res.status(400).json({ error: "bad_request", message: "Invalid reportType" });
       return;
@@ -1018,7 +1015,7 @@ router.get("/stores/:storeId/reviews", async (req, res) => {
 });
 
 // User: post a review (must have a picked_up reservation for this store)
-router.post("/stores/:storeId/reviews", async (req, res) => {
+router.post("/stores/:storeId/reviews", requireAuth, async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);
     if (isNaN(storeId)) {
@@ -1026,17 +1023,14 @@ router.post("/stores/:storeId/reviews", async (req, res) => {
       return;
     }
 
-    const { userId, reservationId, rating, comment } = req.body as {
-      userId?: string;
+    // 認証済みユーザーIDを使う（body.userId は信頼しない＝なりすまし防止）
+    const userId = req.authUser!.id;
+    const { reservationId, rating, comment } = req.body as {
       reservationId?: number;
       rating?: number;
       comment?: string;
     };
 
-    if (!userId || typeof userId !== "string" || userId.trim() === "") {
-      res.status(401).json({ error: "unauthorized", message: "userId is required" });
-      return;
-    }
     if (!reservationId || typeof reservationId !== "number") {
       res.status(400).json({ error: "bad_request", message: "reservationId is required" });
       return;

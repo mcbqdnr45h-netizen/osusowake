@@ -5,6 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 const BLOCKED_KEY = 'osusowake_blocked_reviewers_v1';
@@ -95,11 +96,19 @@ function ReviewReportModal({
     if (!reason) return;
     setSubmitting(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({ title: 'ログインが必要です', description: '通報するにはログインしてください', variant: 'destructive' });
+        onClose();
+        return;
+      }
       const res = await fetch(`${BASE}/api/stores/${storeId}/report`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
-          userId,
           reportType: 'inappropriate_review',
           comment: `[review_id=${reviewId}] [reviewer=${reviewerId}] [reason=${reason}] ${comment.trim()}`.slice(0, 500),
         }),

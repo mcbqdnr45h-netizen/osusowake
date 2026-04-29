@@ -9,6 +9,7 @@ import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -44,10 +45,19 @@ function ReportModal({ storeId, storeName, userId, onClose }: {
     if (!reportType) return;
     setIsSubmitting(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({ title: 'ログインが必要です', description: '通報するにはログインしてください', variant: 'destructive' });
+        onClose();
+        return;
+      }
       const res = await fetch(`${BASE}/api/stores/${storeId}/report`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, reportType, comment }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ reportType, comment }),
       });
       if (res.status === 429) {
         toast({ title: '報告済みです', description: 'この店舗は24時間以内に既に報告されています', variant: 'destructive' });
