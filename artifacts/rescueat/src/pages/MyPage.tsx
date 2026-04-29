@@ -89,12 +89,10 @@ export default function MyPage() {
     // 複数店舗オーナーの場合、現在選択中の店舗の通知のみ表示
     // store_id=NULL の全体通知（管理者お知らせ等）は常に含まれる
     const storeFilter = storeId ? `?storeId=${storeId}` : '';
-    fetch(`${BASE_URL}/api/notifications${storeFilter}`, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    })
+    authedFetch(`${BASE_URL}/api/notifications${storeFilter}`)
       .then(r => r.ok ? r.json() : { notifications: [], unreadCount: 0 })
       .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unreadCount || 0); })
-      .catch(() => {});
+      .catch((err) => { console.warn('[MyPage] notifications fetch failed', err); });
   }, [userId, session?.access_token, storeId]);
 
   async function handleLogout() {
@@ -109,9 +107,8 @@ export default function MyPage() {
     // ── ① サーバーに削除リクエスト ──────────────────────────────
     let serverDeleted = false;
     try {
-      const res = await fetch(`${BASE_URL}/api/user/account`, {
+      const res = await authedFetch(`${BASE_URL}/api/user/account`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) {
         serverDeleted = true;

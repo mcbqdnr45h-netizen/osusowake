@@ -278,10 +278,10 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const [mRes, sRes, aRes, lRes] = await Promise.all([
-        fetch(`${BASE}/api/admin/metrics`,       { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${BASE}/api/admin/stores`,        { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${BASE}/api/admin/announcements`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${BASE}/api/admin/sales-leads`,   { headers: { Authorization: `Bearer ${token}` } }),
+        authedFetch(`${BASE}/api/admin/metrics`,       { headers: {} }),
+        authedFetch(`${BASE}/api/admin/stores`,        { headers: {} }),
+        authedFetch(`${BASE}/api/admin/announcements`, { headers: {} }),
+        authedFetch(`${BASE}/api/admin/sales-leads`,   { headers: {} }),
       ]);
       if (mRes.ok) setMetrics(await mRes.json());
       if (sRes.ok) {
@@ -289,9 +289,9 @@ export default function AdminDashboard() {
         setStores(storeData);
         // Stripe アカウントを持つ店舗のステータスをバックグラウンドで自動更新
         if (storeData.some(s => s.stripe_account_id)) {
-          fetch(`${BASE}/api/admin/stores/batch-refresh-stripe`, {
+          authedFetch(`${BASE}/api/admin/stores/batch-refresh-stripe`, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
+            headers: {},
           })
             .then(r => r.ok ? r.json() : null)
             .then(data => {
@@ -324,9 +324,9 @@ export default function AdminDashboard() {
   async function saveSettings() {
     setSettingsSaving(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/settings`, {
+      const res = await authedFetch(`${BASE}/api/admin/settings`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           catchphrase:                  catchphrase.trim(),
           sub_catchphrase:              subCatchphrase.trim(),
@@ -352,9 +352,9 @@ export default function AdminDashboard() {
   async function approveStore(storeId: number) {
     setActionLoading(storeId);
     try {
-      const res = await fetch(`${BASE}/api/admin/stores/${storeId}/approve`, {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/approve`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {},
       });
       if (res.ok) {
         const data = await res.json();
@@ -384,9 +384,9 @@ export default function AdminDashboard() {
     if (!confirm('この店舗を一時停止しますか？')) return;
     setActionLoading(storeId);
     try {
-      const res = await fetch(`${BASE}/api/admin/stores/${storeId}/suspend`, {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/suspend`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {},
       });
       if (res.ok) { toast({ title: '⏸ 一時停止しました' }); await fetchAll(); }
       else toast({ title: 'エラー', variant: 'destructive' });
@@ -404,9 +404,9 @@ export default function AdminDashboard() {
     setActionLoading(storeId);
     setRejectDialog(null);
     try {
-      const res = await fetch(`${BASE}/api/admin/stores/${storeId}/reject`, {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rejectionReason: rejectReason.trim() || null }),
       });
       if (res.ok) { toast({ title: '❌ 却下しました。オーナーに通知を送信しました。' }); await fetchAll(); }
@@ -418,9 +418,9 @@ export default function AdminDashboard() {
     if (!confirm(`「${storeName}」を完全に削除しますか？\nこの操作は取り消せません。`)) return;
     setActionLoading(storeId);
     try {
-      const res = await fetch(`${BASE}/api/admin/stores/${storeId}`, {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {},
       });
       if (res.ok) { toast({ title: '🗑 店舗を削除しました' }); await fetchAll(); }
       else toast({ title: 'エラー', description: '削除に失敗しました', variant: 'destructive' });
@@ -431,9 +431,9 @@ export default function AdminDashboard() {
     if (!token) { toast({ title: 'ログインが必要です', variant: 'destructive' }); return; }
     setSyncingStripe(storeId);
     try {
-      const res = await fetch(`${BASE}/api/stores/${storeId}/stripe-sync`, {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/stripe-sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
       if (res.ok) {
@@ -484,7 +484,7 @@ export default function AdminDashboard() {
     try {
       const res = await authedFetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {},
       });
       if (res.ok) {
         setStores(prev => prev.map(s => s.id === storeId ? { ...s, stripe_account_id: null, stripe_charges_enabled: false, stripe_payouts_enabled: false } : s));
@@ -506,9 +506,9 @@ export default function AdminDashboard() {
     if (!linkStripeDialog || !linkStripeInput.startsWith('acct_')) return;
     setLinkStripeLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/stores/${linkStripeDialog.storeId}/link-stripe-account`, {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${linkStripeDialog.storeId}/link-stripe-account`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stripeAccountId: linkStripeInput.trim() }),
       });
       if (res.ok) {
@@ -536,9 +536,9 @@ export default function AdminDashboard() {
     }
     setAnnSending(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/announcements`, {
+      const res = await authedFetch(`${BASE}/api/admin/announcements`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: annTitle.trim(), body: annBody.trim() }),
       });
       const data = await res.json();
@@ -558,9 +558,9 @@ export default function AdminDashboard() {
     }
     setNotifSending(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/notifications/broadcast`, {
+      const res = await authedFetch(`${BASE}/api/admin/notifications/broadcast`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: notifTitle.trim(), body: notifBody.trim() || undefined }),
       });
       const data = await res.json();
@@ -577,8 +577,8 @@ export default function AdminDashboard() {
     if (storeDetails[storeId] || detailLoading === storeId) return;
     setDetailLoading(storeId);
     try {
-      const res = await fetch(`${BASE}/api/admin/stores/${storeId}/detail`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/detail`, {
+        headers: {},
       });
       if (res.ok) {
         const data = await res.json();
@@ -1539,9 +1539,9 @@ export default function AdminDashboard() {
                                 value={lead.status}
                                 onChange={async (e) => {
                                   const newStatus = e.target.value;
-                                  await fetch(`${BASE}/api/admin/sales-leads/${lead.id}`, {
+                                  await authedFetch(`${BASE}/api/admin/sales-leads/${lead.id}`, {
                                     method:  'PATCH',
-                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                    headers: { 'Content-Type': 'application/json' },
                                     body:    JSON.stringify({ status: newStatus }),
                                   });
                                   setSalesLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: newStatus } : l));

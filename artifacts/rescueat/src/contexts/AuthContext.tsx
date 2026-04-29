@@ -46,7 +46,9 @@ function writeCachedProfile(p: PublicUser | null) {
   try {
     if (p) localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(p));
     else   localStorage.removeItem(PROFILE_CACHE_KEY);
-  } catch {}
+  } catch (err) {
+    console.warn('[AuthContext] writeCachedProfile failed', err);
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

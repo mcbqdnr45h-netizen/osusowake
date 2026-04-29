@@ -410,22 +410,21 @@ export default function Settings() {
   async function handleSaveProfile() {
     setSavingName(true);
     try {
-      // ① display_name を Supabase に保存
-      const session = await import('@/lib/supabase').then(m => m.supabase.auth.getSession());
-      const token = session.data.session?.access_token;
-      if (token && displayName.trim()) {
+      // ① display_name を Supabase に保存 (authedFetch が Bearer 自動付与)
+      if (displayName.trim()) {
+        const { authedFetch } = await import('@/lib/authed-fetch');
         // ★ Capacitor (iOS) でも動くよう VITE_API_BASE → BASE_URL の順で解決
         const apiBase =
           ((import.meta as any).env?.VITE_API_BASE as string) ||
           ((import.meta.env.BASE_URL as string) || '').replace(/\/$/, '');
-        const res = await fetch(`${apiBase}/api/user/display-name`, {
+        const res = await authedFetch(`${apiBase}/api/user/display-name`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ displayName: displayName.trim() }),
         });
+        if (res.status === 401) throw new Error('ログインセッションが切れています。再ログインしてください。');
         if (!res.ok) {
           const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
-          // サーバの message を優先 (例: 「店舗が見つかりません」), なければ error コード, それも無ければ status
           const msg = err.message || err.error || `HTTP ${res.status}`;
           throw new Error(msg);
         }
@@ -464,32 +463,23 @@ export default function Settings() {
   async function handleDeleteAccount() {
     setDeletingAccount(true);
 
-    // ── ① サーバーへ削除リクエスト ──────────────────────────────
+    // ── ① サーバーへ削除リクエスト (authedFetch が Bearer 自動付与) ──
     let serverDeleted = false;
     let failureMessage = 'もう一度お試しください。';
     try {
-      const { supabase } = await import('@/lib/supabase');
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
-        failureMessage = 'ログインセッションが切れています。再ログインしてください。';
+      const { authedFetch } = await import('@/lib/authed-fetch');
+      const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
+      const res = await authedFetch(`${base}/api/user/account`, { method: 'DELETE' });
+      if (res.ok) {
+        serverDeleted = true;
+      } else if (res.status === 401 || res.status === 404) {
+        // 既に削除済（残っていたトークンでの再試行）も成功扱い
+        serverDeleted = true;
+        console.info('[Settings] account already deleted server-side (status=', res.status, ')');
       } else {
-        const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
-        const res = await fetch(`${base}/api/user/account`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          serverDeleted = true;
-        } else if (res.status === 401 || res.status === 404) {
-          // 既に削除済（残っていたトークンでの再試行）も成功扱い
-          serverDeleted = true;
-          console.info('[Settings] account already deleted server-side (status=', res.status, ')');
-        } else {
-          const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
-          failureMessage = err.message || `削除に失敗しました（${res.status}）`;
-          console.error('[Settings] delete API failed:', res.status, err);
-        }
+        const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
+        failureMessage = err.message || `削除に失敗しました（${res.status}）`;
+        console.error('[Settings] delete API failed:', res.status, err);
       }
     } catch (err: any) {
       console.error('[Settings] deleteAccount network error:', err);

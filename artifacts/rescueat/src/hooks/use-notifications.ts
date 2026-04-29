@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authed-fetch';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -23,14 +24,13 @@ export function useNotifications() {
     if (!session?.access_token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/notifications`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      const res = await authedFetch(`${BASE}/api/notifications`);
       if (!res.ok) return;
       const data = await res.json();
       setNotifications(data.notifications ?? []);
       setUnreadCount(data.unreadCount ?? 0);
-    } catch {
+    } catch (err) {
+      console.warn('[use-notifications] fetch failed', err);
     } finally {
       setLoading(false);
     }
@@ -40,20 +40,22 @@ export function useNotifications() {
     if (!session?.access_token) return;
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
-    await fetch(`${BASE}/api/notifications/${id}/read`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
+    try {
+      await authedFetch(`${BASE}/api/notifications/${id}/read`, { method: 'PATCH' });
+    } catch (err) {
+      console.warn('[use-notifications] markRead failed', err);
+    }
   }, [session?.access_token]);
 
   const markAllRead = useCallback(async () => {
     if (!session?.access_token) return;
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
-    await fetch(`${BASE}/api/notifications/read-all`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
+    try {
+      await authedFetch(`${BASE}/api/notifications/read-all`, { method: 'PATCH' });
+    } catch (err) {
+      console.warn('[use-notifications] markAllRead failed', err);
+    }
   }, [session?.access_token]);
 
   useEffect(() => {

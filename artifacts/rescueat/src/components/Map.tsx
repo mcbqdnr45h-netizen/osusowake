@@ -210,6 +210,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => { onMapIdleRef.current            = onMapIdle;            }, [onMapIdle]);
 
   const prevUserPositionRef = useRef<[number, number] | null | undefined>(userPosition);
+  const cleanupTouchRef     = useRef<(() => void) | null>(null);
   useEffect(() => {
     const prev = prevUserPositionRef.current;
     prevUserPositionRef.current = userPosition;
@@ -333,7 +334,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const touchHandler = (e: TouchEvent) => {
           if (e.touches.length >= 2) hasUserInteractedRef.current = true;
         };
-        containerRef.current?.addEventListener('touchstart', touchHandler, { passive: true });
+        const touchEl = containerRef.current;
+        touchEl?.addEventListener('touchstart', touchHandler, { passive: true });
+        // ★ クリーンアップで touch listener を確実に外す (cancelled フラグ経由で
+        //   このスコープを cleanup から参照可能にする)
+        cleanupTouchRef.current = () => {
+          touchEl?.removeEventListener('touchstart', touchHandler);
+        };
 
         map.addListener('idle', () => {
           const bounds = map.getBounds();
@@ -363,7 +370,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
 
     init();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // ★ touch listener を確実に外す (リーク防止)
+      if (cleanupTouchRef.current) {
+        cleanupTouchRef.current();
+        cleanupTouchRef.current = null;
+      }
+    };
   }, []);
 
   // ── 店舗マーカー（オレンジ/グレー色分け + クラスタリング）──────────────────

@@ -12,6 +12,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ReviewModal } from '@/components/ReviewModal';
 import { useUserId } from '@/hooks/use-user';
+import { authedFetch } from '@/lib/authed-fetch';
 
 // ─── localStorage helpers ─────────────────────────────────────────────────
 
@@ -299,7 +300,7 @@ export default function OrderTicket() {
   }, [reservation, ticket, navigate]);
 
   const handleConfirmPickup = useCallback(async () => {
-    const res = await fetch(`/api/reservations/${reservationId}/pickup`, { method: 'POST' });
+    const res = await authedFetch(`/api/reservations/${reservationId}/pickup`, { method: 'POST' });
 
     if (res.status === 409) {
       // 既に使用済み → 即座に履歴へ

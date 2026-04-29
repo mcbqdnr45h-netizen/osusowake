@@ -375,14 +375,11 @@ export default function StripeKYCPage() {
     setDocError(null);
     setResult(null);
 
-    const authHeader: Record<string, string> = session?.access_token
-      ? { Authorization: `Bearer ${session.access_token}` } : {};
-
     try {
-      // ① KYC テキスト情報送信
-      const kycFetch = fetch(`/api/stores/${store.id}/connect/kyc`, {
+      // ① KYC テキスト情報送信 (authedFetch が Bearer 自動付与)
+      const kycFetch = authedFetch(`/api/stores/${store.id}/connect/kyc`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...authHeader },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           businessType,
           ...(businessType === 'company' ? {
@@ -414,14 +411,14 @@ export default function StripeKYCPage() {
         }),
       });
 
-      // ② 書類アップロード（表面・裏面を並行送信）
+      // ② 書類アップロード（表面・裏面を並行送信、authedFetch が Bearer 自動付与）
       const docFetch = (side: 'front' | 'back') => {
         const preview = side === 'front' ? docFrontPreview : docBackPreview;
         const file    = side === 'front' ? docFrontFile    : docBackFile;
         if (!preview || !file) return Promise.resolve(null);
-        return fetch(`/api/stores/${store.id}/connect/kyc-document`, {
+        return authedFetch(`/api/stores/${store.id}/connect/kyc-document`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageBase64: preview, mimeType: file.type || 'image/jpeg', side }),
         });
       };
@@ -454,18 +451,33 @@ export default function StripeKYCPage() {
       }
 
       // ── 書類アップロード結果処理 ──
+      // ★ 致命的バグ修正: 書類失敗時はドラフト削除 / refetch / setResult をスキップ
+      //   → ユーザーが KYC 完了画面に遷移して書類エラーを見落とすことを防ぐ
+      let docFailed = false;
       if (frontRes) {
         const d = await frontRes.json();
         if (frontRes.ok) setDocFrontDone(true);
-        else setDocError(`書類（表面）のアップロードに失敗しました: ${d.message ?? ''}`);
+        else {
+          setDocError(`書類（表面）のアップロードに失敗しました: ${d.message ?? ''}`);
+          docFailed = true;
+        }
       }
       if (backRes) {
         const d = await backRes.json();
         if (backRes.ok) setDocBackDone(true);
-        else setDocError(`書類（裏面）のアップロードに失敗しました: ${d.message ?? ''}`);
+        else {
+          setDocError(`書類（裏面）のアップロードに失敗しました: ${d.message ?? ''}`);
+          docFailed = true;
+        }
       }
 
-      // ── 成功 → ドラフト削除 + refetch ──
+      if (docFailed) {
+        // 書類エラー時はドラフトを保持 (ユーザーが再アップロードできるように)
+        // refetch / setResult もしない (KYC 完了画面への遷移を防ぐ)
+        return;
+      }
+
+      // ── 完全成功 → ドラフト削除 + refetch ──
       try { localStorage.removeItem(KYC_DRAFT_KEY); localStorage.removeItem('osusowake_kyc_draft_pending'); } catch (_) {}
       await refetch();
       setResult(kycData);
@@ -501,12 +513,9 @@ export default function StripeKYCPage() {
     setDocLoading(side);
     setDocError(null);
     try {
-      const res = await fetch(`/api/stores/${store.id}/connect/kyc-document`, {
+      const res = await authedFetch(`/api/stores/${store.id}/connect/kyc-document`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageBase64: preview,          // data:image/jpeg;base64,... 形式
           mimeType:    file.type || 'image/jpeg',

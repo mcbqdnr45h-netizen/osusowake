@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ImagePlus, X, RefreshCw, AlertCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { authedFetch } from '@/lib/authed-fetch';
 
 // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
 const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
@@ -79,20 +79,17 @@ export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
       const formData = new FormData();
       formData.append('image', compressed);
 
-      // ── 認証必須エンドポイントなので Bearer token を付与 ──
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('ログインが必要です');
-      }
-
-      const res = await fetch(`${BASE}/api/upload/bag-image`, {
+      // ── 認証必須エンドポイント (authedFetch が Bearer 自動付与) ──
+      const res = await authedFetch(`${BASE}/api/upload/bag-image`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
         body: formData,
       });
+      if (res.status === 401) {
+        throw new Error('ログインが必要です');
+      }
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.message ?? 'アップロードに失敗しました');
+        throw new Error(d.message ?? d.error ?? `アップロードに失敗しました (HTTP ${res.status})`);
       }
       const { url } = await res.json();
       onChange(url);

@@ -148,23 +148,37 @@ router.post("/auth/create-profile", async (req: Request, res: Response) => {
   }
 
   try {
-    const { error: upsertErr } = await supabaseAdmin
-      .from("users")
-      .upsert({
-        id: user.id,
-        email: user.email!,
-        role,
-        full_name: full_name.trim(),
-        phone_number: phone_number.trim(),
-      }, { onConflict: "id" });
-
-    if (upsertErr) {
-      console.error("[auth/create-profile] upsert error:", upsertErr);
-      if (upsertErr.code === "23505" || upsertErr.message?.includes("unique")) {
-        res.status(409).json({ error: "phone_taken", message: "この電話番号は既に登録されています" });
-      } else {
-        res.status(500).json({ error: "db_error", message: upsertErr.message });
+    // ★ 原子的 UPSERT: INSERT ... ON CONFLICT (id) DO UPDATE で
+    //   email/role/full_name/phone_number のみ更新。display_name 等は EXCLUDED に
+    //   含めないため既存値を完全に保持する (race-free / 競合状態なし)。
+    //   制約名で 23505 を分類し、phone_number の重複と id の重複を区別する。
+    try {
+      await db.execute(sql`
+        INSERT INTO users (id, email, role, full_name, phone_number)
+        VALUES (${user.id}, ${user.email!}, ${role}, ${full_name.trim()}, ${phone_number.trim()})
+        ON CONFLICT (id) DO UPDATE SET
+          email = EXCLUDED.email,
+          role = EXCLUDED.role,
+          full_name = EXCLUDED.full_name,
+          phone_number = EXCLUDED.phone_number
+      `);
+    } catch (dbErr: any) {
+      const code = dbErr?.code ?? dbErr?.cause?.code;
+      const constraint = dbErr?.constraint ?? dbErr?.cause?.constraint ?? "";
+      const detail = dbErr?.detail ?? dbErr?.cause?.detail ?? "";
+      console.error("[auth/create-profile] write error:", { code, constraint, detail, message: dbErr?.message });
+      if (code === "23505") {
+        // 制約名 / detail から phone_number 重複を識別
+        const isPhone = constraint.includes("phone") || detail.includes("phone");
+        if (isPhone) {
+          res.status(409).json({ error: "phone_taken", message: "この電話番号は既に登録されています" });
+          return;
+        }
+        // それ以外の unique 違反は内部エラー扱い (id 衝突は通常起こり得ない: id は auth.users 由来で一意)
+        res.status(500).json({ error: "db_error", message: "ユーザー情報の保存に失敗しました" });
+        return;
       }
+      res.status(500).json({ error: "db_error", message: dbErr?.message ?? "DB error" });
       return;
     }
 

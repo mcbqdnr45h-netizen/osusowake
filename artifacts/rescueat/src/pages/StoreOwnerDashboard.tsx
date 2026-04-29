@@ -236,7 +236,7 @@ export default function StoreOwnerDashboard() {
     const cached = readCache<BagData[]>(cacheKey, 60 * 1000);
     if (cached && !silent) {
       setBags(cached);
-      fetch(`/api/stores/${storeId}/bags`)
+      authedFetch(`/api/stores/${storeId}/bags`)
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d) { setBags(d); writeCache(cacheKey, d); } })
         .catch(() => {});
@@ -244,7 +244,7 @@ export default function StoreOwnerDashboard() {
     }
     if (!silent) setLoadingBags(true);
     try {
-      const res = await fetch(`/api/stores/${storeId}/bags`);
+      const res = await authedFetch(`/api/stores/${storeId}/bags`);
       if (!res.ok) throw new Error('商品の取得に失敗しました');
       const data = await res.json();
       setBags(data);
@@ -267,7 +267,7 @@ export default function StoreOwnerDashboard() {
     }
     setSalesError(false);
     try {
-      const res = await fetch(`/api/stores/${storeId}/today-sales`);
+      const res = await authedFetch(`/api/stores/${storeId}/today-sales`);
       if (res.ok) {
         const data = await res.json();
         setTodaySales(data);
@@ -292,7 +292,7 @@ export default function StoreOwnerDashboard() {
   const fetchTodayReservations = useCallback(async (storeId: number, silent = false) => {
     if (!silent) setLoadingReservations(true);
     try {
-      const res = await fetch(`/api/reservations?storeId=${storeId}`);
+      const res = await authedFetch(`/api/reservations?storeId=${storeId}`);
       if (res.ok) {
         const all = await res.json();
         const todayPending = all.filter((r: any) =>
@@ -343,7 +343,7 @@ export default function StoreOwnerDashboard() {
 
   const updateBag = useCallback(async (bagId: number, patch: Partial<{ stockCount: number; isActive: boolean }>) => {
     try {
-      const res = await fetch(`/api/bags/${bagId}`, {
+      const res = await authedFetch(`/api/bags/${bagId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
@@ -376,6 +376,7 @@ export default function StoreOwnerDashboard() {
     updateBag(bag.id, { isActive: newActive });
   };
 
+  const emergencyStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleEmergencyStop = async () => {
     if (bags.length === 0) return;
     setEmergencyStopping(true);
@@ -384,8 +385,15 @@ export default function StoreOwnerDashboard() {
     await Promise.all(activeBagIds.map(id => updateBag(id, { isActive: false })));
     setEmergencyStopping(false);
     setEmergencyStopped(true);
-    setTimeout(() => setEmergencyStopped(false), 3000);
+    if (emergencyStopTimerRef.current) clearTimeout(emergencyStopTimerRef.current);
+    emergencyStopTimerRef.current = setTimeout(() => setEmergencyStopped(false), 3000);
   };
+  // ★ アンマウント時に全 setTimeout をクリア (リーク防止)
+  useEffect(() => () => {
+    if (emergencyStopTimerRef.current) clearTimeout(emergencyStopTimerRef.current);
+    flashTimers.current.forEach(t => clearTimeout(t));
+    flashTimers.current.clear();
+  }, []);
 
   const handleAccountLink = useCallback(async () => {
     if (!store) return;

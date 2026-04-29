@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { authedFetch } from '@/lib/authed-fetch';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -58,35 +58,34 @@ export function ReviewModal({ reservation, userId, onClose, onSuccess }: ReviewM
     if (rating === 0) return;
     setIsSubmitting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        toast({ title: 'ログインが必要です', description: '口コミを投稿するにはログインしてください', variant: 'destructive' });
-        onClose();
-        return;
-      }
-      const res = await fetch(`${BASE}/api/stores/${reservation.storeId}/reviews`, {
+      const res = await authedFetch(`${BASE}/api/stores/${reservation.storeId}/reviews`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reservationId: reservation.id,
           rating,
           comment: comment.trim() || undefined,
         }),
       });
+      if (res.status === 401) {
+        toast({ title: 'ログインが必要です', description: '口コミを投稿するにはログインしてください', variant: 'destructive' });
+        onClose();
+        return;
+      }
       if (res.status === 409) {
         toast({ title: '投稿済みです', description: 'この注文の口コミは既に投稿されています', variant: 'destructive' });
         onClose();
         return;
       }
-      if (!res.ok) throw new Error('failed');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `送信に失敗しました (HTTP ${res.status})`);
+      }
       toast({ title: '口コミを投稿しました！', description: 'ありがとうございます 🌟' });
       onSuccess?.();
       onClose();
-    } catch {
-      toast({ title: '送信に失敗しました', description: 'もう一度お試しください', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: '送信に失敗しました', description: err?.message ?? 'もう一度お試しください', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -102,7 +101,8 @@ export function ReviewModal({ reservation, userId, onClose, onSuccess }: ReviewM
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
         transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-        className="bg-card w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl"
+        className="bg-card w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 md:hidden">

@@ -138,7 +138,8 @@ function ReviewReportModal({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-        className="bg-card w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl"
+        className="bg-card w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 md:hidden">
@@ -308,8 +309,8 @@ export function StoreReviewSheet({ storeId, storeName, avgRating, reviewCount, o
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="w-full max-w-lg bg-card rounded-t-3xl shadow-2xl overflow-hidden"
-        style={{ maxHeight: '85dvh' }}
+        className="w-full max-w-lg bg-card rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
+        style={{ maxHeight: '85dvh', paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* ドラッグハンドル */}

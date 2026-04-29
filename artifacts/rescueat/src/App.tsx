@@ -302,6 +302,8 @@ function RoleReconciler() {
   const { stores, loading: storesLoading } = useMyStoresContext();
   const fixedRef = useRef(false);
   const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelledRef = useRef(false);
   const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
 
   useEffect(() => {
@@ -314,46 +316,55 @@ function RoleReconciler() {
     if (fixedRef.current) return;
 
     fixedRef.current = true;
+    cancelledRef.current = false;
 
     const doFix = async () => {
+      if (cancelledRef.current) return;
       try {
         // 認証必須エンドポイントなので Bearer token を付与（自分の role しか直せない）
-        const { supabase } = await import('@/lib/supabase');
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          // 未ログインなら静かに何もしない
-          return;
-        }
-        const res = await fetch(`${BASE}/api/stores/fix-owner-role`, {
+        const { authedFetch } = await import('@/lib/authed-fetch');
+        const res = await authedFetch(`${BASE}/api/stores/fix-owner-role`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ownerId: user.id }),
         });
+        if (cancelledRef.current) return;
         if (res.ok) {
           await refreshProfile();
+        } else if (res.status === 401) {
+          // ★ 一時的なセッション未確立 (起動直後など) の可能性 → fixedRef を解除し、
+          //    profile/session が再評価される次回 effect 起動で再試行できるようにする。
+          //    ただし即座に setTimeout は組まない (auth state 変化トリガーに任せる)
+          fixedRef.current = false;
+          return;
         } else {
           console.warn('[RoleReconciler] fix-owner-role HTTP error:', res.status);
-          // リトライ（最大2回）
           if (retryCountRef.current < 2) {
             retryCountRef.current += 1;
             fixedRef.current = false;
-            setTimeout(doFix, 3000);
+            retryTimerRef.current = setTimeout(doFix, 3000);
           }
         }
       } catch (err) {
+        if (cancelledRef.current) return;
         console.warn('[RoleReconciler] fix-owner-role 例外:', err);
         if (retryCountRef.current < 2) {
           retryCountRef.current += 1;
           fixedRef.current = false;
-          setTimeout(doFix, 3000);
+          retryTimerRef.current = setTimeout(doFix, 3000);
         }
       }
     };
 
     doFix();
+
+    return () => {
+      cancelledRef.current = true;
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, storesLoading, user?.id, profile?.role, stores.length]);
 

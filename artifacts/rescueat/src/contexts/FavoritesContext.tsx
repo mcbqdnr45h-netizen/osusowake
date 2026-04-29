@@ -21,7 +21,10 @@ function loadFromStorage(userId: string | null): Set<number> {
 function saveToStorage(favorites: Set<number>, userId: string | null) {
   try {
     localStorage.setItem(getUserKey(userId), JSON.stringify([...favorites]));
-  } catch {}
+  } catch (err) {
+    // Safari Private Mode 等で localStorage が書き込めない場合に備えて log のみ
+    console.warn('[favorites] saveToStorage failed (likely localStorage quota / private mode)', err);
+  }
 }
 
 interface FavoritesContextValue {

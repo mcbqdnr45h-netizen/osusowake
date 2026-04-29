@@ -9,7 +9,7 @@ import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { authedFetch } from '@/lib/authed-fetch';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -45,29 +45,28 @@ function ReportModal({ storeId, storeName, userId, onClose }: {
     if (!reportType) return;
     setIsSubmitting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportType, comment }),
+      });
+      if (res.status === 401) {
         toast({ title: 'ログインが必要です', description: '通報するにはログインしてください', variant: 'destructive' });
         onClose();
         return;
       }
-      const res = await fetch(`${BASE}/api/stores/${storeId}/report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ reportType, comment }),
-      });
       if (res.status === 429) {
         toast({ title: '報告済みです', description: 'この店舗は24時間以内に既に報告されています', variant: 'destructive' });
         onClose();
         return;
       }
-      if (!res.ok) throw new Error('failed');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `送信に失敗しました (HTTP ${res.status})`);
+      }
       setDone(true);
-    } catch {
-      toast({ title: '送信に失敗しました', description: 'もう一度お試しください', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: '送信に失敗しました', description: err?.message ?? 'もう一度お試しください', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
