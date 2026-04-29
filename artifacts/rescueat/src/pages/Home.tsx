@@ -288,9 +288,11 @@ export default function Home() {
   });
 
   // 未決済の予約を取得（仮押さえ廃止後は期限なし — 未払いのまま残る）
+  // ゲスト UUID では予約は存在し得ない & サーバ側 requireAuth で 401 になるため
+  // Supabase ログイン済み (user 取得済み) のときだけ fire させる。
   const { data: reservations } = useListReservations(
-    { userId: userId || '' },
-    { query: { enabled: !!userId, refetchInterval: 30_000, staleTime: 0 } },
+    { userId: user?.id || '' },
+    { query: { enabled: !!user?.id, refetchInterval: 30_000, staleTime: 0 } },
   );
   const activeReservation = useMemo(() => {
     if (!reservations) return null;

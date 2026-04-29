@@ -1,14 +1,16 @@
 import React from 'react';
 import { Layout } from '@/components/Layout';
 import { MyTown } from '@/components/MyTown';
-import { useUserId } from '@/hooks/use-user';
+import { useAuth } from '@/contexts/AuthContext';
 import { useListReservations } from '@workspace/api-client-react';
 
 export default function MyTownPage() {
-  const userId = useUserId();
+  // ゲスト UUID では予約は存在しない & サーバ側 requireAuth で 401 になるため
+  // Supabase ログイン済み (user 取得済み) のときだけ fire させる。
+  const { user } = useAuth();
 
-  const { data: reservations } = useListReservations({ userId: userId || '' }, {
-    query: { enabled: !!userId }
+  const { data: reservations } = useListReservations({ userId: user?.id || '' }, {
+    query: { enabled: !!user?.id }
   });
 
   const pickedUpCount = reservations?.filter(r => r.status === 'picked_up').length ?? 0;

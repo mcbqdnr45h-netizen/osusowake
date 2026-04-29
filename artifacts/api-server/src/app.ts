@@ -57,6 +57,17 @@ const authLimiter = rateLimit({
 app.use("/api/auth", authLimiter);
 app.use("/api", generalLimiter);
 
+// ── 401/403 を返したエンドポイントをログ出力（運用監視・デバッグ用）──
+// 攻撃の試行検知・フロント認証バグの早期発見に役立つ。本番でも有用なので残す。
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    if (res.statusCode === 401 || res.statusCode === 403) {
+      console.warn(`[auth] ${res.statusCode} ${req.method} ${req.originalUrl}`);
+    }
+  });
+  next();
+});
+
 app.use("/api", router);
 
 export default app;

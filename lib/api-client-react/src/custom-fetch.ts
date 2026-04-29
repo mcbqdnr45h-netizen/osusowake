@@ -284,6 +284,28 @@ function applyApiBase(input: RequestInfo | URL): RequestInfo | URL {
   return input;
 }
 
+// ── Authorization token provider ──────────────────────────────────────────────
+// アプリ側 (Supabase Auth など) でセッション取得関数を登録する。
+// 登録後、 customFetch は呼び出し側が明示的にヘッダを付けない限り
+// 自動的に `Authorization: Bearer <token>` を付与する。
+// 未登録または取得不能なら何もしない (401 はサーバ側で正しく返る)。
+type TokenProvider = () => Promise<string | null> | string | null;
+let tokenProvider: TokenProvider | null = null;
+
+export function setAuthTokenProvider(fn: TokenProvider | null): void {
+  tokenProvider = fn;
+}
+
+async function resolveAuthToken(): Promise<string | null> {
+  if (!tokenProvider) return null;
+  try {
+    const result = tokenProvider();
+    return result instanceof Promise ? await result : result;
+  } catch {
+    return null;
+  }
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
@@ -309,6 +331,15 @@ export async function customFetch<T = unknown>(
 
   if (!headers.has("accept")) {
     headers.set("accept", DEFAULT_JSON_ACCEPT);
+  }
+
+  // 呼び出し側が明示的に Authorization ヘッダを付けていなければ
+  // 登録済み TokenProvider から自動取得して付与する。
+  if (!headers.has("authorization")) {
+    const token = await resolveAuthToken();
+    if (token) {
+      headers.set("authorization", `Bearer ${token}`);
+    }
   }
 
   const requestInfo = { method, url: resolveUrl(input) };
