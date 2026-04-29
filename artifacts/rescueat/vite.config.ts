@@ -68,28 +68,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    // ── 巨大ライブラリを別チャンクに切り出し、 初回 JS の体感速度を改善 ──
-    // 初期表示で必要ない (Stripe/Recharts/Maps) 系は遅延ロード対象。
-    // React 系コアと UI ライブラリは vendor として共通キャッシュ可能に。
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (!id.includes("node_modules")) return undefined;
-          if (id.includes("react-dom") || id.includes("/react/") || id.includes("scheduler")) return "vendor-react";
-          if (id.includes("@radix-ui")) return "vendor-radix";
-          if (id.includes("@tanstack")) return "vendor-query";
-          if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
-          if (id.includes("@stripe")) return "vendor-stripe";
-          if (id.includes("@supabase")) return "vendor-supabase";
-          if (id.includes("framer-motion")) return "vendor-motion";
-          if (id.includes("lucide-react") || id.includes("@radix-ui/react-icons")) return "vendor-icons";
-          if (id.includes("date-fns") || id.includes("zod")) return "vendor-utils";
-          return "vendor-misc";
-        },
-      },
-    },
-    // 既存警告閾値を上げる (vendor-react/radix は仕様上ある程度大きくなる)
-    chunkSizeWarningLimit: 700,
+    // ⚠️ manualChunks は「真っ白事故」を避けるため使わない方針。
+    //   過去に id.includes("/react/") で framer-motion 内部の react path を
+    //   誤マッチさせ、 React copy が複数 chunk に分散して hooks エラー →
+    //   本番アプリが完全に立ち上がらなくなる障害が発生した。
+    //   サイズ最適化が必要になった時は、 framer-motion のような React 内部を
+    //   持つ巨大 lib を node_modules **絶対パス前提の正規表現** で厳密に
+    //   切り出す形で再導入すること。 文字列 includes は絶対 NG。
+    chunkSizeWarningLimit: 1500,
   },
   server: {
     port,
