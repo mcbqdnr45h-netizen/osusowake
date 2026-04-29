@@ -229,22 +229,42 @@ router.put("/user/display-name", async (req, res) => {
     const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
     if (authErr || !user) { res.status(401).json({ error: "unauthorized", message: "セッションが無効です" }); return; }
 
-    // ★ 防御的 upsert: public.users 行が auth.users と sync されていない場合
+    // ★ 防御的 2-step 保存: public.users 行が auth.users と sync されていない場合
     // (sync trigger 失敗・古い登録ユーザー等) でも保存できるようにする。
-    // onConflict='id' で既存行は update、 行が無ければ insert される。
-    const { error } = await supabaseAdmin
+    // upsert を使うと既存行の email も上書きされ得るため、 既存行有無で分岐する。
+    const { data: existing, error: selErr } = await supabaseAdmin
       .from("users")
-      .upsert(
-        { id: user.id, email: user.email ?? null, display_name: trimmed },
-        { onConflict: "id" },
-      );
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    if (error) {
-      console.error("[/user/display-name] upsert failed:", error.message, error.details);
-      // ユーザー側に解読しやすいメッセージで返す
+    if (selErr) {
+      console.error("[/user/display-name] select failed:", selErr.message);
+      res.status(500).json({ error: "save_failed", message: `保存に失敗しました (${selErr.code || "DB"})` });
+      return;
+    }
+
+    let dbErr;
+    if (existing) {
+      // 既存行 → display_name のみ更新 (email を null で上書きしない)
+      const { error } = await supabaseAdmin
+        .from("users")
+        .update({ display_name: trimmed })
+        .eq("id", user.id);
+      dbErr = error;
+    } else {
+      // 行なし → email を含めて insert
+      const { error } = await supabaseAdmin
+        .from("users")
+        .insert({ id: user.id, email: user.email ?? null, display_name: trimmed });
+      dbErr = error;
+    }
+
+    if (dbErr) {
+      console.error("[/user/display-name] save failed:", dbErr.message, dbErr.details);
       res.status(500).json({
         error: "save_failed",
-        message: `保存に失敗しました (${error.code || "DB"})`,
+        message: `保存に失敗しました (${dbErr.code || "DB"})`,
       });
       return;
     }

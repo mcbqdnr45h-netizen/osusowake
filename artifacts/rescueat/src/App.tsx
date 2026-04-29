@@ -376,6 +376,14 @@ function MaintenanceGate({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  // 起動時に「前回の印刷で残ってしまった osusowake-print-root」 を削除する。
+  // iOS Safari など afterprint が発火しないブラウザで stuck し、
+  // 商品詳細ページなどの下部に領収書 DOM が見えてしまう問題への保険。
+  useEffect(() => {
+    const stale = document.getElementById('osusowake-print-root');
+    if (stale && stale.parentNode) stale.parentNode.removeChild(stale);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

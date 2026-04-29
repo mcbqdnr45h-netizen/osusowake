@@ -871,7 +871,7 @@ function EditBagModal({
   async function handleSave() {
     setSaving(true);
     try {
-      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -884,11 +884,14 @@ function EditBagModal({
           itemType:        form.itemType,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `更新に失敗しました (HTTP ${res.status})`);
+      }
       toast({ title: '商品情報を更新しました ✓' });
       onSaved();
-    } catch {
-      toast({ title: '更新に失敗しました', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: err.message ?? '更新に失敗しました', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -899,18 +902,18 @@ function EditBagModal({
     try {
       // 公開中の場合は先に非公開にしてから削除
       if (bag.isActive) {
-        await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+        await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isActive: false }),
         });
       }
-      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
         method: 'DELETE',
       });
       if (!res.ok && res.status !== 204) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message ?? '削除に失敗しました');
+        throw new Error(body.message ?? body.error ?? `削除に失敗しました (HTTP ${res.status})`);
       }
       toast({ title: '商品を削除しました' });
       onDeleted();
@@ -1462,16 +1465,19 @@ export default function StoreDashboard() {
     if (!storeId) return;
     setTogglingId(bag.id);
     try {
-      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !bag.isActive }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `更新に失敗しました (HTTP ${res.status})`);
+      }
       queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
       toast({ title: bag.isActive ? '非公開にしました' : '公開しました' });
-    } catch {
-      toast({ title: '更新に失敗しました', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: err.message ?? '更新に失敗しました', variant: 'destructive' });
     } finally {
       setTogglingId(null);
     }
@@ -1483,15 +1489,18 @@ export default function StoreDashboard() {
     const next = Math.max(0, bag.stockCount + delta);
     setAdjustingId(bag.id);
     try {
-      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stockCount: next }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `在庫の更新に失敗しました (HTTP ${res.status})`);
+      }
       queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
-    } catch {
-      toast({ title: '在庫の更新に失敗しました', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: err.message ?? '在庫の更新に失敗しました', variant: 'destructive' });
     } finally {
       setAdjustingId(null);
     }
@@ -1503,12 +1512,12 @@ export default function StoreDashboard() {
     setDeletingId(bag.id);
     setConfirmId(null);
     try {
-      const res = await fetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
         method: 'DELETE',
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message ?? '削除に失敗しました');
+        throw new Error(body.message ?? body.error ?? `削除に失敗しました (HTTP ${res.status})`);
       }
       queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
       toast({ title: '商品を削除しました' });

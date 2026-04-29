@@ -128,3 +128,22 @@
 - `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` - Supabase Auth
 - `STRIPE_SECRET_KEY` - Stripeシークレットキー（任意・未設定でモック）
 - `VITE_STRIPE_PUBLIC_KEY` - Stripeパブリックキー（任意）
+
+## Recent Bug Fixes (2026-04-29)
+
+8件のユーザー報告バグを一括修正：
+
+1. **Stripe再同期 401**: `StoreDashboard.tsx#syncStripeStatus` を `authedFetch` 化 + 失敗詳細表示
+2. **店舗プロフィール保存 401**: `StoreProfileEdit.tsx` 3 箇所 (GET/upload/PUT) を `authedFetch` 化
+3. **店舗の商品 CRUD 401**: `StoreDashboard.tsx` の bag PATCH/DELETE 6 箇所を `authedFetch` 化
+4. **お客様プロフィール not_found**: `Settings.tsx` で `VITE_API_BASE` 解決 + status code 含むエラー toast。 サーバ `/user/display-name` を「行有無で update / insert 分岐」 に変更し、 既存行の email を null で破壊しないよう保護
+5. **食品ロス削減量 1kg の根拠不明**: `MyPage.tsx` に「※ おすそわけバッグ1個 ≒ 約500g 換算」 注釈
+6. **営業時間ピッカー下部切れ**: `TimePicker.tsx` paddingBottom を `calc(6rem + safe-area-inset)`、 `z-[60]`、 `shadow-2xl`
+7. **iOS 印刷ボタン無反応**: `Orders.tsx#handlePrint` で Capacitor.isNativePlatform / iOS UA 判定 → ネイティブでは `navigator.share` ＋ 失敗時はスクリーンショット案内 alert (AbortError キャンセル時は黙って終了)
+8. **キャンセル済注文の領収書発行**: `Orders.tsx` `selected = picked_up` のみ
+9. **商品詳細ページ下部に領収書 DOM が見える**: 原因は `window.print()` 後 iOS Safari で `afterprint` 不発 → `osusowake-print-root` が body 残存。 `matchMedia('print') change` リスナー + 30 秒 setTimeout の double-fail-safe で確実 cleanup。 `App.tsx` 起動時に既に stuck な print-root を削除する保険も追加
+
+### 設計メモ
+- `lib/authed-fetch.ts` は Supabase session から Bearer 自動付与。 認証必須 API 呼び出しは必ずこれを使う
+- vite manualChunks は **絶対 NG** (framer-motion 内 react path 誤マッチで真っ白事故)
+- Capacitor 8 server.url=https://osusowakejapan.org/ リモートロード方式 → web デプロイで iOS 自動反映

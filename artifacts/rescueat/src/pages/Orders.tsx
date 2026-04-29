@@ -106,10 +106,20 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
       // iOS アプリ内では window.print() が機能しない。
       // スクリーンショット保存 を案内し、 Share Sheet も併用できるようにする。
       const text = `おすそわけ 電子領収書\n${storeName}\n${bagTitle}\n金額: ¥${total.toLocaleString()}\n注文番号: ${orderId}\n発行日: ${issueDateStr}`;
-      if ((navigator as any).share) {
-        (navigator as any).share({ title: 'おすそわけ 電子領収書', text }).catch(() => {});
-      } else {
+      const fallbackAlert = () => {
         alert('スクリーンショットで保存してください\n\nアプリ画面をスクリーンショットすることで、 領収書をカメラロールに保存できます。');
+      };
+      if ((navigator as any).share) {
+        (navigator as any)
+          .share({ title: 'おすそわけ 電子領収書', text })
+          .catch((err: any) => {
+            // ユーザーがキャンセルしただけ (AbortError) の場合は何も案内しない。
+            // それ以外の失敗 (NotAllowedError 等) はスクリーンショット案内へフォールバック。
+            const name = err?.name || '';
+            if (name !== 'AbortError') fallbackAlert();
+          });
+      } else {
+        fallbackAlert();
       }
       return;
     }
@@ -119,7 +129,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
 
     // 既存の印刷コンテナがあれば削除（念のため）
     const existing = document.getElementById('osusowake-print-root');
-    if (existing) document.body.removeChild(existing);
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
 
     // 領収書のHTMLをクローンして <body> 直下に挿入
     // → モーダルの overflow/max-height 制約から完全に切り離す
@@ -129,12 +139,32 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
     document.body.appendChild(printRoot);
 
     // 印刷ダイアログを開き、完了後にクローンを削除
+    // ★ iOS Safari など `afterprint` が発火しないブラウザ・印刷キャンセル時にも
+    //    確実にクリーンアップするため、 mediaQueryList と setTimeout の double-fail-safe を追加。
+    //    残ったままだと他ページ (商品詳細など) の下部に領収書 DOM が見えてしまう。
+    let cleaned = false;
     const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
       const el = document.getElementById('osusowake-print-root');
-      if (el) document.body.removeChild(el);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
       window.removeEventListener('afterprint', cleanup);
+      try { mql?.removeEventListener?.('change', mqlListener); } catch { /* noop */ }
     };
     window.addEventListener('afterprint', cleanup);
+
+    // matchMedia('print') の change → 印刷モード解除を検知 (Safari 系の保険)
+    let mql: MediaQueryList | null = null;
+    let mqlListener: (e: MediaQueryListEvent) => void = () => {};
+    try {
+      mql = window.matchMedia('print');
+      mqlListener = (e) => { if (!e.matches) cleanup(); };
+      mql.addEventListener?.('change', mqlListener);
+    } catch { /* unsupported */ }
+
+    // どの環境でも 30 秒で確実に消す最終フォールバック
+    setTimeout(cleanup, 30_000);
+
     window.print();
   }
 
