@@ -32,6 +32,8 @@ export const storesTable = pgTable("stores", {
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
   imageUrl: text("image_url"),
+  // ★ 地図ピン用カスタムアイコン (URL)。未設定時はカテゴリ絵文字ピンへフォールバック。
+  iconUrl: text("icon_url"),
   phone: text("phone"),
   openTime: text("open_time"),
   closeTime: text("close_time"),

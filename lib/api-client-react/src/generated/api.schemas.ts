@@ -51,6 +51,7 @@ export interface Store {
   lat: number;
   lng: number;
   imageUrl?: string;
+  iconUrl?: string;
   phone?: string;
   openTime?: string;
   closeTime?: string;

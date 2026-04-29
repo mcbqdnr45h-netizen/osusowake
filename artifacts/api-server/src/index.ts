@@ -146,6 +146,7 @@ async function runMigrations() {
       ['legal_email',          'TEXT'],
       ['legal_other',          'TEXT'],
       ['rejection_reason',     'TEXT'],
+      ['icon_url',             'TEXT'],
     ];
     for (const [col, type] of storeExtraCols) {
       await client.query(`

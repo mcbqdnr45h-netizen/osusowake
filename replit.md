@@ -129,6 +129,17 @@
 - `STRIPE_SECRET_KEY` - Stripeシークレットキー（任意・未設定でモック）
 - `VITE_STRIPE_PUBLIC_KEY` - Stripeパブリックキー（任意）
 
+## Recent Updates (2026-04-29)
+
+### 売上¥0バグ + 店舗カスタムアイコン機能
+- **売上¥0バグ修正**: `routes/reservations.ts` GET /reservations が常に `userId` フィルタ強制 → 店舗オーナーが自店売上見ても本人購入分だけ返却。`?storeId=X` + `stores.ownerId === req.authUser.id` の場合のみ `userId` フィルタを外す `isStoreOwnerView` 分岐を追加。
+- **店舗カスタムアイコン機能**: 
+  - DB: `stores.icon_url TEXT` カラム追加 (`storeExtraCols` 経由)
+  - API: `PUT /api/stores/:storeId/profile` の allowed リストに `iconUrl` + `category` 追加
+  - UI: `StoreProfileEdit.tsx` に「地図のピンに使うアイコン」セクション (円形プレビュー、選択/削除ボタン、サイズ上限 3MB)
+  - Map: `Map.tsx` の `makeIconPinUrl(iconUrl, isActive)` でカスタム円形フレームピン (オレンジ枠/グレー枠) を SVG 生成。`safeIconHref()` で http(s) 限定 + XML 属性エスケープによる SVG injection 防御。`store.iconUrl` 不正/未設定時はカテゴリ絵文字ピンへフォールバック
+- **クライアント側型同期**: `lib/api-client-react` は composite TS project なので `tsc -b --force` でリビルド必要 (`dist/*.d.ts` が project reference 経由で参照される)
+
 ## Recent Bug Fixes (2026-04-29)
 
 8件のユーザー報告バグを一括修正：

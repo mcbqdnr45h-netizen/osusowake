@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, MapPin, Loader2 } from 'lucide-react';
+import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, MapPin, Loader2, MapPinned, X as XIcon } from 'lucide-react';
 import { TimePicker } from '@/components/TimePicker';
 import { motion } from 'framer-motion';
 import { authedFetch } from '@/lib/authed-fetch';
@@ -22,6 +22,7 @@ type StoreProfile = {
   name: string;
   description: string;
   imageUrl: string;
+  iconUrl: string;
   phone: string;
   address: string;
   city: string;
@@ -41,6 +42,7 @@ export default function StoreProfileEdit() {
     name: '',
     description: '',
     imageUrl: '',
+    iconUrl: '',
     phone: '',
     address: '',
     city: '',
@@ -50,10 +52,13 @@ export default function StoreProfileEdit() {
     pickupHours: '',
     category: 'other',
   });
-  const [saving, setSaving]     = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [saving, setSaving]         = useState(false);
+  const [uploading, setUploading]   = useState(false);
+  const [iconUploading, setIconUploading] = useState(false);
+  const [previewUrl, setPreviewUrl]       = useState('');
+  const [iconPreviewUrl, setIconPreviewUrl] = useState('');
+  const fileRef     = useRef<HTMLInputElement>(null);
+  const iconFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!store) return;
@@ -65,6 +70,7 @@ export default function StoreProfileEdit() {
           name:         data.name         ?? '',
           description:  data.description  ?? '',
           imageUrl:     data.imageUrl     ?? '',
+          iconUrl:      data.iconUrl      ?? '',
           phone:        data.phone        ?? '',
           address:      data.address      ?? '',
           city:         data.city         ?? '',
@@ -75,6 +81,7 @@ export default function StoreProfileEdit() {
           category:     data.category     ?? 'meals',
         });
         setPreviewUrl(data.imageUrl ?? '');
+        setIconPreviewUrl(data.iconUrl ?? '');
       });
   }, [store]);
 
@@ -96,6 +103,36 @@ export default function StoreProfileEdit() {
     } finally {
       setUploading(false);
     }
+  };
+
+  // ★ 地図ピン用アイコンの選択 (正方形推奨・自動で角丸表示)
+  const handleIconChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      toast({ title: 'ファイルが大きすぎます', description: '3MB 以下の画像を選択してください', variant: 'destructive' });
+      return;
+    }
+    setIconUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('アップロード失敗');
+      const { url } = await res.json();
+      setIconPreviewUrl(url);
+      setForm(f => ({ ...f, iconUrl: url }));
+    } catch {
+      toast({ title: 'アップロードエラー', description: 'アイコンの送信に失敗しました', variant: 'destructive' });
+    } finally {
+      setIconUploading(false);
+    }
+  };
+
+  const handleIconRemove = () => {
+    setIconPreviewUrl('');
+    setForm(f => ({ ...f, iconUrl: '' }));
   };
 
   const handleSave = async () => {
@@ -244,6 +281,79 @@ export default function StoreProfileEdit() {
         </div>
 
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+
+        {/* ── 地図ピン用アイコン (任意) ───────────────────────────────────── */}
+        <div className="px-4 pt-5">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm"
+          >
+            <div className="px-5 pt-5 pb-3 border-b border-border/50">
+              <h2 className="font-black text-sm flex items-center gap-2">
+                <MapPinned className="w-4 h-4 text-primary" />
+                地図のピンに使うアイコン
+                <span className="ml-auto text-[10px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">任意</span>
+              </h2>
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                マップ画面で表示されるオリジナルピンに使います。未設定なら、カテゴリ絵文字のピンが自動で表示されます。<br />
+                <span className="text-[10px] text-muted-foreground/80">推奨: 正方形・PNG/JPG・512×512px 程度</span>
+              </p>
+            </div>
+            <div className="p-5 flex items-center gap-4">
+              {/* アイコンプレビュー (正方形・角丸 → 円形) */}
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => iconFileRef.current?.click()}
+                  disabled={iconUploading}
+                  className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-primary/30 shadow-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-60"
+                  aria-label="アイコンを変更"
+                >
+                  {iconPreviewUrl ? (
+                    <img src={iconPreviewUrl} alt="店舗アイコン" className="w-full h-full object-cover" />
+                  ) : iconUploading ? (
+                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  ) : (
+                    <Camera className="w-6 h-6 text-primary" />
+                  )}
+                </button>
+                {/* 削除ボタン */}
+                {iconPreviewUrl && !iconUploading && (
+                  <button
+                    type="button"
+                    onClick={handleIconRemove}
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white border border-border shadow-md flex items-center justify-center hover:bg-red-50 active:scale-90 transition-all"
+                    aria-label="アイコンを削除"
+                  >
+                    <XIcon className="w-3.5 h-3.5 text-red-500" />
+                  </button>
+                )}
+              </div>
+
+              {/* 説明と切替ボタン */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-foreground">
+                  {iconPreviewUrl ? 'カスタムアイコン設定済み' : 'まだ設定されていません'}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+                  {iconPreviewUrl
+                    ? 'お客様のマップ上にこのアイコンが表示されます'
+                    : 'カテゴリ絵文字のピンで表示されます'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => iconFileRef.current?.click()}
+                  disabled={iconUploading}
+                  className="mt-2 text-xs font-bold text-primary hover:underline disabled:opacity-60"
+                >
+                  {iconUploading ? 'アップロード中…' : iconPreviewUrl ? 'アイコンを変更' : 'アイコンを選ぶ'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+          <input ref={iconFileRef} type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
+        </div>
 
         {/* ── フォームカード群 ── */}
         <div className="px-4 py-5 space-y-5">

@@ -59,6 +59,64 @@ const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: 'administrative.neighborhood',elementType: 'labels',            stylers: [{ visibility: 'off' }] },
 ];
 
+// ── カスタムアイコン用フレームピン (店舗 iconUrl をピンの「滴」内にはめ込む) ──
+//   オレンジ枠 (active) / グレー枠 (inactive) の2バリアント。
+//   <image href="..."/> でクリッピングし円形に収める。
+//   セキュリティ: iconUrl は信頼できる Supabase Storage URL のみを想定するが、
+//   防御的に XML 属性用エスケープ + http(s) スキーム以外を拒否する。
+function safeIconHref(rawUrl: string): string | null {
+  if (!rawUrl) return null;
+  // http(s) スキーム以外 (javascript:, data:, file: 等) を一律拒否
+  if (!/^https?:\/\//i.test(rawUrl)) return null;
+  // XML 属性として安全になるようエスケープ
+  return rawUrl
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function makeIconPinUrl(iconUrl: string, isActive: boolean): string | null {
+  const safeHref = safeIconHref(iconUrl);
+  if (!safeHref) return null;
+  if (isActive) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="70" viewBox="0 0 56 70">
+      <defs>
+        <radialGradient id="ig1" cx="38%" cy="28%" r="72%">
+          <stop offset="0%" stop-color="#FA9455"/>
+          <stop offset="100%" stop-color="#D44A00"/>
+        </radialGradient>
+        <filter id="ids1" x="-25%" y="-10%" width="150%" height="135%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="rgba(160,50,0,0.42)"/>
+        </filter>
+        <clipPath id="clip1"><circle cx="28" cy="26" r="16"/></clipPath>
+      </defs>
+      <ellipse cx="28" cy="67" rx="9" ry="3" fill="rgba(0,0,0,0.16)"/>
+      <path d="M28 63 Q11 45, 7 26 A21 21 0 1 1 49 26 Q45 45, 28 63 Z"
+        fill="url(#ig1)" stroke="rgba(255,255,255,0.65)" stroke-width="1.8" filter="url(#ids1)"/>
+      <circle cx="28" cy="26" r="17" fill="white"/>
+      <image href="${safeHref}" x="12" y="10" width="32" height="32" clip-path="url(#clip1)" preserveAspectRatio="xMidYMid slice"/>
+    </svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  } else {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+      <defs>
+        <filter id="ids2" x="-25%" y="-10%" width="150%" height="135%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.18)"/>
+        </filter>
+        <clipPath id="clip2"><circle cx="24" cy="22" r="13"/></clipPath>
+      </defs>
+      <ellipse cx="24" cy="57" rx="7" ry="2.5" fill="rgba(0,0,0,0.10)"/>
+      <path d="M24 54 Q9 38, 6 22 A18 18 0 1 1 42 22 Q39 38, 24 54 Z"
+        fill="#b8c0cc" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" filter="url(#ids2)"/>
+      <circle cx="24" cy="22" r="14" fill="white" opacity="0.9"/>
+      <image href="${safeHref}" x="11" y="9" width="26" height="26" clip-path="url(#clip2)" preserveAspectRatio="xMidYMid slice" opacity="0.78"/>
+    </svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }
+}
+
 // ── オレンジピン（在庫あり・受取時間内）─────────────────────────────────────
 function makeActivePinUrl(category: string): string {
   const emoji = getCategoryIcon(category);
@@ -422,8 +480,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         isInPickupWindow(b.pickupStart, b.pickupEnd)
       );
 
-      const pinUrl = isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category);
-      const [w, h, ax, ay] = isActive ? [52, 66, 26, 59] : [44, 56, 22, 50];
+      // ★ 店舗が独自アイコン (iconUrl) を設定している場合はそれを優先表示。
+      //   未設定 / 不正URLならカテゴリ絵文字ピンへフォールバック。
+      const customPinUrl = store.iconUrl ? makeIconPinUrl(store.iconUrl, isActive) : null;
+      const useCustom    = customPinUrl !== null;
+      const pinUrl       = useCustom
+        ? customPinUrl
+        : (isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category));
+      const [w, h, ax, ay] = useCustom
+        ? (isActive ? [56, 70, 28, 63] : [48, 60, 24, 54])
+        : (isActive ? [52, 66, 26, 59] : [44, 56, 22, 50]);
 
       const marker = new gMaps.Marker({
         position: { lat: store.lat, lng: store.lng },

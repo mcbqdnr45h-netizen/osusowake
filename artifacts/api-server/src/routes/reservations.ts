@@ -229,10 +229,31 @@ router.get("/reservations", requireAuth, async (req, res) => {
   try {
     const query = ListReservationsQueryParams.parse(req.query);
 
-    // 認可: 「自分の予約」しか返さない。query.userId が指定されていても
-    // 認証ユーザ ID で強制上書きする（他人の予約は絶対に見えない）。
-    const conditions = [eq(reservationsTable.userId, req.authUser!.id)];
-    if (query.storeId) conditions.push(eq(reservationsTable.storeId, query.storeId));
+    // ★ 認可ロジック:
+    //   - 通常: リクエスト者本人の予約のみ返却 (顧客側のマイ予約一覧)
+    //   - 例外: storeId が指定されており、リクエスト者がその店舗のオーナーである場合は
+    //     その店舗のすべての予約を返却 (店舗オーナー側の売上ダッシュボード用)
+    //   これにより「店舗オーナーが自店の累計売上を確認できない (常に¥0表示) バグ」を解消。
+    let isStoreOwnerView = false;
+    if (query.storeId) {
+      const [storeRow] = await db
+        .select({ ownerId: storesTable.ownerId })
+        .from(storesTable)
+        .where(eq(storesTable.id, query.storeId));
+      if (storeRow?.ownerId && storeRow.ownerId === req.authUser!.id) {
+        isStoreOwnerView = true;
+      }
+    }
+
+    const conditions = [];
+    if (isStoreOwnerView) {
+      // 店舗オーナー視点: 自店の全予約を取得 (userId フィルタ無し)
+      conditions.push(eq(reservationsTable.storeId, query.storeId!));
+    } else {
+      // 通常視点: 本人の予約のみ (query.userId が指定されていても無視して認証ユーザ ID で強制)
+      conditions.push(eq(reservationsTable.userId, req.authUser!.id));
+      if (query.storeId) conditions.push(eq(reservationsTable.storeId, query.storeId));
+    }
     if (query.status) conditions.push(eq(reservationsTable.status, query.status as "pending" | "confirmed" | "picked_up" | "cancelled"));
 
     const rows = await db
