@@ -141,8 +141,8 @@ export function TimePicker({ value, onChange, label }: TimePickerProps) {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl px-6 pt-4 max-w-xl mx-auto"
-              style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-background rounded-t-3xl px-6 pt-4 max-w-xl mx-auto shadow-2xl"
+              style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
             >
               <div className="w-10 h-1.5 bg-border rounded-full mx-auto mb-5" />
               {label && (

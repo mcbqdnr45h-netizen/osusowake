@@ -420,12 +420,15 @@ export default function MyPage() {
             <div className="relative px-4 py-3 flex items-center gap-4">
               {/* 左：メイン数値 */}
               <div className="flex-1 min-w-0">
-                <p className="text-white/70 text-[10px] font-medium">食品ロス削減量</p>
+                <p className="text-white/70 text-[10px] font-medium">食品ロス削減量（推計）</p>
                 <div className="flex items-end gap-1 mt-0.5">
                   <span className="text-2xl font-black text-white leading-none">{foodSavedKg}</span>
                   <span className="text-white/90 text-xs font-bold mb-0.5">kg</span>
                 </div>
-                <p className="text-white/80 text-[10px] font-medium mt-0.5">
+                <p className="text-white/60 text-[9px] font-medium mt-0.5">
+                  ※ おすそわけバッグ1個 ≒ 約500g 換算
+                </p>
+                <p className="text-white/80 text-[10px] font-medium mt-1">
                   {pickedUpCount === 0
                     ? '🌟 最初のおすそわけで街が変わる'
                     : pickedUpCount < 5

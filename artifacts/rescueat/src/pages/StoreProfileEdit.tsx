@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, MapPin, Loader2 } from 'lucide-react';
 import { TimePicker } from '@/components/TimePicker';
 import { motion } from 'framer-motion';
+import { authedFetch } from '@/lib/authed-fetch';
 
 // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
 const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
@@ -56,7 +57,7 @@ export default function StoreProfileEdit() {
 
   useEffect(() => {
     if (!store) return;
-    fetch(`${BASE}/api/stores/${store.id}`)
+    authedFetch(`${BASE}/api/stores/${store.id}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return;
@@ -85,7 +86,7 @@ export default function StoreProfileEdit() {
     try {
       const fd = new FormData();
       fd.append('image', file);
-      const res = await fetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
+      const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
       if (!res.ok) throw new Error('アップロード失敗');
       const { url } = await res.json();
       setPreviewUrl(url);
@@ -101,16 +102,20 @@ export default function StoreProfileEdit() {
     if (!store) return;
     setSaving(true);
     try {
-      const res = await fetch(`${BASE}/api/stores/${store.id}/profile`, {
+      const res = await authedFetch(`${BASE}/api/stores/${store.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error('保存失敗');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({} as any));
+        const msg = body?.message || body?.error || `HTTP ${res.status}`;
+        throw new Error(String(msg));
+      }
       toast({ title: '保存しました', description: '店舗プロフィールを更新しました' });
       navigate('/mypage');
-    } catch {
-      toast({ title: 'エラー', description: '保存に失敗しました', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: '保存に失敗しました', description: String(err?.message ?? err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

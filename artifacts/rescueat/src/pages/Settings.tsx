@@ -414,15 +414,20 @@ export default function Settings() {
       const session = await import('@/lib/supabase').then(m => m.supabase.auth.getSession());
       const token = session.data.session?.access_token;
       if (token && displayName.trim()) {
-        const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
-        const res = await fetch(`${base}/api/user/display-name`, {
+        // ★ Capacitor (iOS) でも動くよう VITE_API_BASE → BASE_URL の順で解決
+        const apiBase =
+          ((import.meta as any).env?.VITE_API_BASE as string) ||
+          ((import.meta.env.BASE_URL as string) || '').replace(/\/$/, '');
+        const res = await fetch(`${apiBase}/api/user/display-name`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ displayName: displayName.trim() }),
         });
         if (!res.ok) {
-          const err = await res.json().catch(() => ({})) as { error?: string };
-          throw new Error(err.error || 'save failed');
+          const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
+          // サーバの message を優先 (例: 「店舗が見つかりません」), なければ error コード, それも無ければ status
+          const msg = err.message || err.error || `HTTP ${res.status}`;
+          throw new Error(msg);
         }
         await refreshProfile();
       }
@@ -432,9 +437,10 @@ export default function Settings() {
       setSaved_(true);
       setTimeout(() => setSaved_(false), 2000);
       toast({ title: '表示名を保存しました ✅' });
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Settings] saveDisplayName error:', err);
-      toast({ title: '保存に失敗しました', description: String(err), variant: 'destructive' });
+      const desc = err?.message ? String(err.message) : String(err);
+      toast({ title: '保存に失敗しました', description: desc, variant: 'destructive' });
     } finally {
       setSavingName(false);
     }

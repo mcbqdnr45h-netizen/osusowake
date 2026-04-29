@@ -217,29 +217,42 @@ function buildPasswordResetHtml(resetLink: string): string {
 router.put("/user/display-name", async (req, res) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
+  if (!token) { res.status(401).json({ error: "unauthorized", message: "ログインが必要です" }); return; }
 
   const { displayName } = req.body as { displayName?: string };
   if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0) {
-    res.status(400).json({ error: "display_name is required" }); return;
+    res.status(400).json({ error: "bad_request", message: "表示名を入力してください" }); return;
   }
   const trimmed = displayName.trim().slice(0, 40);
 
   try {
     const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-    if (authErr || !user) { res.status(401).json({ error: "unauthorized" }); return; }
+    if (authErr || !user) { res.status(401).json({ error: "unauthorized", message: "セッションが無効です" }); return; }
 
+    // ★ 防御的 upsert: public.users 行が auth.users と sync されていない場合
+    // (sync trigger 失敗・古い登録ユーザー等) でも保存できるようにする。
+    // onConflict='id' で既存行は update、 行が無ければ insert される。
     const { error } = await supabaseAdmin
       .from("users")
-      .update({ display_name: trimmed })
-      .eq("id", user.id);
+      .upsert(
+        { id: user.id, email: user.email ?? null, display_name: trimmed },
+        { onConflict: "id" },
+      );
 
-    if (error) throw error;
+    if (error) {
+      console.error("[/user/display-name] upsert failed:", error.message, error.details);
+      // ユーザー側に解読しやすいメッセージで返す
+      res.status(500).json({
+        error: "save_failed",
+        message: `保存に失敗しました (${error.code || "DB"})`,
+      });
+      return;
+    }
     res.json({ ok: true, display_name: trimmed });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[/user/display-name] error:", msg);
-    res.status(500).json({ error: msg });
+    res.status(500).json({ error: "save_failed", message: msg });
   }
 });
 

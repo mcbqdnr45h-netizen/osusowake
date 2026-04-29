@@ -88,7 +88,32 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
     return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
   })();
 
+  // iOS Capacitor (WKWebView) では window.print() が無効なので
+  // ネイティブアプリ判定して、 ネイティブでは案内 + Share へ誘導する
+  const isNativeApp = (): boolean => {
+    try {
+      const w = window as any;
+      if (w?.Capacitor?.isNativePlatform?.()) return true;
+      const ua = navigator.userAgent || '';
+      // iOS WKWebView (in-app webview) のヒューリスティック判定
+      const isIOSStandalone = /iPhone|iPad|iPod/i.test(ua) && !/Safari/i.test(ua);
+      return isIOSStandalone;
+    } catch { return false; }
+  };
+
   function handlePrint() {
+    if (isNativeApp()) {
+      // iOS アプリ内では window.print() が機能しない。
+      // スクリーンショット保存 を案内し、 Share Sheet も併用できるようにする。
+      const text = `おすそわけ 電子領収書\n${storeName}\n${bagTitle}\n金額: ¥${total.toLocaleString()}\n注文番号: ${orderId}\n発行日: ${issueDateStr}`;
+      if ((navigator as any).share) {
+        (navigator as any).share({ title: 'おすそわけ 電子領収書', text }).catch(() => {});
+      } else {
+        alert('スクリーンショットで保存してください\n\nアプリ画面をスクリーンショットすることで、 領収書をカメラロールに保存できます。');
+      }
+      return;
+    }
+
     const receiptEl = document.getElementById('receipt-printable');
     if (!receiptEl) { window.print(); return; }
 
@@ -117,6 +142,13 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
     const text = `おすそわけ 電子領収書\n${storeName}\n${bagTitle}\n金額: ¥${total.toLocaleString()}\n${orderId}`;
     if (navigator.share) {
       try { await navigator.share({ title: 'おすそわけ 電子領収書', text }); } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        alert('領収書情報をコピーしました');
+      } catch {
+        alert('シェアに対応していないデバイスです');
+      }
     }
   }
 
@@ -375,7 +407,9 @@ export default function Orders() {
     return true;
   });
 
-  const selected = reservations?.find(r => r.id === selectedId);
+  // 領収書は受取完了 (picked_up) のみ発行可能。 キャンセル/no_show/未受取は不可。
+  const selectedRaw = reservations?.find(r => r.id === selectedId);
+  const selected = selectedRaw?.status === 'picked_up' ? selectedRaw : null;
 
   const totalSpent = (reservations || [])
     .filter(r => r.status === 'picked_up')

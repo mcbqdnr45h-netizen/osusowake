@@ -1414,11 +1414,11 @@ export default function StoreDashboard() {
     if (!storeId) return;
     setSyncingStripe(true);
     try {
-      const res = await fetch(`${BASE}/api/stores/${storeId}/stripe-sync`, {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/stripe-sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({} as any));
       if (res.ok) {
         if (data.stripeError) {
           setStripeError(data.stripeError);
@@ -1433,10 +1433,11 @@ export default function StoreDashboard() {
           queryClient.invalidateQueries({ queryKey: [`/api/stores/${storeId}/connect/status`] });
         }
       } else {
-        toast({ title: 'エラー', description: '再同期に失敗しました', variant: 'destructive' });
+        const msg = data?.message || data?.error || `HTTP ${res.status}`;
+        toast({ title: '再同期に失敗しました', description: String(msg), variant: 'destructive' });
       }
-    } catch {
-      toast({ title: 'エラー', description: 'サーバーへの接続に失敗しました', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: '通信エラー', description: String(err?.message ?? err), variant: 'destructive' });
     } finally {
       setSyncingStripe(false);
     }
