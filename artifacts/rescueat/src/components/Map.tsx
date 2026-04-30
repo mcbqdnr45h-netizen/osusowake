@@ -298,6 +298,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const onMapIdleRef            = useRef(onMapIdle);
   const isFirstIdleRef          = useRef(true);
   const hasUserInteractedRef    = useRef(false);
+  const resizeObserverRef       = useRef<ResizeObserver | null>(null);
 
   const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>('loading');
   const [locating,        setLocating]       = useState(false);
@@ -416,6 +417,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         await loadGoogleMapsScript();
         if (cancelled || !containerRef.current) return;
 
+        // ★ Flexレイアウト確定を待つ (1フレーム遅延)
+        //   マウント直後はコンテナ高さが 0 → 後で flex で確定する場合があり、
+        //   その状態で Map を作るとタイルが小さい解像度で生成されて拡大表示で
+        //   ぼやける (iOS で顕著)。 1 rAF 待つだけで実寸が確定する。
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        if (cancelled || !containerRef.current) return;
+
         const gMaps = (window as any).google.maps as typeof google.maps;
 
         // ★ Cloud-based Map Style 適用: VITE_GOOGLE_MAP_ID があればクラウド配信スタイルを優先。
@@ -440,6 +448,33 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const map = new gMaps.Map(containerRef.current, mapOptions);
 
         mapRef.current = map;
+
+        // ★ 初期化直後 + その後のコンテナサイズ変化を監視し、resize を発火。
+        //   これでタイルが拡大表示でぼやける現象 (特に iOS / 起動直後) を解消する。
+        try {
+          const targetEl = containerRef.current;
+          if (targetEl && typeof ResizeObserver !== 'undefined') {
+            let lastW = targetEl.clientWidth;
+            let lastH = targetEl.clientHeight;
+            // 初回も明示的に発火 (タイル再フェッチ → 正しい解像度に戻す)
+            requestAnimationFrame(() => {
+              if (mapRef.current) gMaps.event.trigger(mapRef.current, 'resize');
+            });
+            const ro = new ResizeObserver(entries => {
+              for (const e of entries) {
+                const w = Math.round(e.contentRect.width);
+                const h = Math.round(e.contentRect.height);
+                if (w === lastW && h === lastH) continue;
+                lastW = w; lastH = h;
+                if (mapRef.current) gMaps.event.trigger(mapRef.current, 'resize');
+              }
+            });
+            ro.observe(targetEl);
+            resizeObserverRef.current = ro;
+          }
+        } catch {
+          // ResizeObserver 未対応環境は無視
+        }
 
         // ユーザーが地図を実際に動かしたかどうかを追跡
         // (プログラムによる pan/zoom ではボタンを出さない)
@@ -490,6 +525,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       if (cleanupTouchRef.current) {
         cleanupTouchRef.current();
         cleanupTouchRef.current = null;
+      }
+      // ★ ResizeObserver も解除 (リーク防止)
+      if (resizeObserverRef.current) {
+        try { resizeObserverRef.current.disconnect(); } catch { /* noop */ }
+        resizeObserverRef.current = null;
       }
     };
   }, []);
