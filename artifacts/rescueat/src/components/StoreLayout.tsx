@@ -31,6 +31,11 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
     }
   };
 
+  // ★ 出品管理 (/store/dashboard) は店舗フローのルート。 ここに戻るボタンを置くと
+  //   「どこに戻るんや」 となるので非表示。 サブページ (出品編集 / 売上詳細 / 銀行設定 等) のみ表示。
+  const isStoreRoot = location === '/store/dashboard' || location === '/store';
+  const showBackButton = !isStoreRoot;
+
   // ナビ表示条件:
   // - pending/pending_review → StoreDashboard が既に <Layout> を返すので StoreLayout には来ない
   // - applied/approved/suspended/rejected → StoreLayout が使われるのでナビを表示
@@ -48,16 +53,18 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
       {showHeader && (
         <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-orange-100 shadow-[0_1px_8px_rgba(255,140,0,0.07)] shrink-0"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="px-2 h-14 flex items-center gap-2">
-            {/* 戻るボタン (マイページ等に戻る) */}
-            <button
-              type="button"
-              onClick={handleBack}
-              aria-label="戻る"
-              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 hover:bg-orange-50 active:bg-orange-100 active:scale-95 transition-all"
-            >
-              <ChevronLeft className="w-5 h-5 text-foreground" strokeWidth={2.5} />
-            </button>
+          <div className={`${showBackButton ? 'px-2' : 'px-3'} h-14 flex items-center gap-2`}>
+            {/* 戻るボタン (サブページのみ表示。出品管理ルートでは非表示) */}
+            {showBackButton && (
+              <button
+                type="button"
+                onClick={handleBack}
+                aria-label="戻る"
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 hover:bg-orange-50 active:bg-orange-100 active:scale-95 transition-all"
+              >
+                <ChevronLeft className="w-5 h-5 text-foreground" strokeWidth={2.5} />
+              </button>
+            )}
 
             {/* ブランドマーク */}
             <div className="w-8 h-8 rounded-[10px] bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
