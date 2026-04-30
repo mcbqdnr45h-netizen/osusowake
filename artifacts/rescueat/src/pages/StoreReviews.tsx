@@ -222,7 +222,9 @@ export default function StoreReviews() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end"
+            // ★ z-[60]: 店舗ナビ (z-50, fixed bottom-0) より前面に出さないと
+            //   「返信する」ボタンがナビバーに隠れてタップできない
+            className="fixed inset-0 bg-black/50 z-[60] flex items-end"
             onClick={() => setReplyingId(null)}
           >
             <motion.div
@@ -230,7 +232,9 @@ export default function StoreReviews() {
               animate={{ y: 0 }}
               exit={{ y: 100 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="w-full bg-background rounded-t-3xl p-6 max-w-xl mx-auto"
+              className="w-full bg-background rounded-t-3xl px-6 pt-6 max-w-xl mx-auto"
+              // ★ paddingBottom: ホームインジケータ (safe-area) を避けて送信ボタンを出す
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
