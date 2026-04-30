@@ -23,16 +23,23 @@ import Welcome from "./pages/Welcome";
 import NotFound from "./pages/not-found";
 
 // ── 残りのページはすべて lazy import（コード分割でバンドルを小型化）──
-const BagDetail          = React.lazy(() => import("./pages/BagDetail"));
+// ★ 高頻度ページは import 関数を抽出 → PrefetchOnAuth で事前ロードに利用
+const importBagDetail = () => import("./pages/BagDetail");
+const BagDetail          = React.lazy(importBagDetail);
 const Checkout           = React.lazy(() => import("./pages/Checkout"));
 const importMyReservations = () => import("./pages/MyReservations");
 const MyReservations     = React.lazy(importMyReservations);
-const StoreDashboard     = React.lazy(() => import("./pages/StoreDashboard"));
-const StoreOwnerDashboard= React.lazy(() => import("./pages/StoreOwnerDashboard"));
+const importStoreDashboard = () => import("./pages/StoreDashboard");
+const StoreDashboard     = React.lazy(importStoreDashboard);
+const importStoreOwnerDashboard = () => import("./pages/StoreOwnerDashboard");
+const StoreOwnerDashboard= React.lazy(importStoreOwnerDashboard);
 const StoreReapply       = React.lazy(() => import("./pages/StoreReapply"));
-const StoreBagsPage      = React.lazy(() => import("./pages/StoreBagsPage"));
-const StoreSalesPage     = React.lazy(() => import("./pages/StoreSalesPage"));
-const FavoritesPage      = React.lazy(() => import("./pages/FavoritesPage"));
+const importStoreBagsPage = () => import("./pages/StoreBagsPage");
+const StoreBagsPage      = React.lazy(importStoreBagsPage);
+const importStoreSalesPage = () => import("./pages/StoreSalesPage");
+const StoreSalesPage     = React.lazy(importStoreSalesPage);
+const importFavoritesPage = () => import("./pages/FavoritesPage");
+const FavoritesPage      = React.lazy(importFavoritesPage);
 const importMyPage = () => import("./pages/MyPage");
 const MyPage             = React.lazy(importMyPage);
 // RegisterStore は廃止 — /register-store は /store-onboarding へリダイレクト
@@ -436,11 +443,18 @@ function PrefetchOnAuth() {
       queryFn: ({ signal }) => listReservations(params, { signal }),
       staleTime: 1000 * 60 * 2,
     }).catch(() => {});
-    // ★ 高頻度ページ (マイバッグ / マイページ / 購入履歴) の lazy chunk もバックグラウンドで取得。
+    // ★ 高頻度ページの lazy chunk をバックグラウンドで取得。
     //   こうしておくと初遷移時に Suspense フォールバックがほぼ出ない。
+    //   並列で複数チャンクをダウンロード。
     importMyReservations().catch(() => {});
     importMyPage().catch(() => {});
     importOrders().catch(() => {});
+    importBagDetail().catch(() => {});
+    importFavoritesPage().catch(() => {});
+    importStoreDashboard().catch(() => {});
+    importStoreOwnerDashboard().catch(() => {});
+    importStoreBagsPage().catch(() => {});
+    importStoreSalesPage().catch(() => {});
   }, [user?.id]);
   return null;
 }
