@@ -535,58 +535,10 @@ export default function MyPage() {
                  アドレスバー表示状態に追従するモバイル単位。 */}
         {!isStoreOwner && (
           <div className="-mx-4 mb-3">
-            {/* ── 月間ランキング 連動カード (タップで /ranking へ) ─────────────
-                ★ 仕様: 「現在の月間順位：○位 / あと○回でランクアップ！」
-                ★ 累計リセットなし、 ランキングは毎月 1 日 0:00(JST) リセット
-                ★ rank=-1 は opt-out (Settings で非表示中) を意味する。 */}
-            <button
-              type="button"
-              onClick={() => navigate('/ranking')}
-              className="mx-4 mb-3 group bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border border-amber-200/70 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-transform shadow-sm w-[calc(100%-2rem)]"
-              aria-label="今月のおすそわけランキングを見る"
-            >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 text-white flex items-center justify-center shrink-0 shadow">
-                <Trophy className="w-5 h-5" strokeWidth={2.4} />
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <div className="text-[10px] font-bold text-amber-700 leading-none mb-1">
-                  今月のおすそわけランキング
-                </div>
-                {monthlyRanking ? (
-                  monthlyRanking.optedOut ? (
-                    <div className="text-sm font-bold text-foreground leading-tight">
-                      ランキング非表示中
-                    </div>
-                  ) : monthlyRanking.myRank && monthlyRanking.myRank.rank > 0 ? (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-base font-black text-foreground leading-none">
-                        現在の月間順位：{monthlyRanking.myRank.rank}位
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="text-sm font-bold text-foreground leading-tight">
-                      現在の月間順位：圏外
-                    </div>
-                  )
-                ) : (
-                  <div className="h-3.5 w-32 bg-amber-200/40 rounded animate-pulse" />
-                )}
-                {monthlyRanking && (
-                  <div className="text-[11px] text-muted-foreground font-bold mt-0.5">
-                    {monthlyRanking.optedOut
-                      ? '設定からいつでも参加できます'
-                      : monthlyRanking.nextRankDelta === 0
-                        ? '🏆 頂点キープ中！'
-                        : `あと${monthlyRanking.nextRankDelta}回でランクアップ！`}
-                  </div>
-                )}
-              </div>
-              <ChevronRight className="w-5 h-5 text-amber-600 shrink-0 group-active:translate-x-0.5 transition-transform" />
-            </button>
-
             {/* ── マイタウン 縮小カード (タップで詳細ページへ) ─────────────
-                ★ A案: 設定リストを本ページに同居させるため、 マイタウンは 140px の
-                  サムネ風カードに圧縮。 大きく見たいときは /my-town へ。 */}
+                ★ 旧フルワイドのランキングカードは スコアカード横の 50/50 配置に
+                  統合済み (上の grid grid-cols-2 ブロック参照)。 ここはマイタウン
+                  サムネのみ (110px、 タップで /my-town へ)。 */}
             <button
               type="button"
               onClick={() => navigate('/my-town')}
