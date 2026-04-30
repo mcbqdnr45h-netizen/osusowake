@@ -289,17 +289,38 @@ function applyApiBase(input: RequestInfo | URL): RequestInfo | URL {
 // 登録後、 customFetch は呼び出し側が明示的にヘッダを付けない限り
 // 自動的に `Authorization: Bearer <token>` を付与する。
 // 未登録または取得不能なら何もしない (401 はサーバ側で正しく返る)。
+//
+// 加えて、 401 を受けた際に呼び出すリフレッシュコールバックも登録できる。
+// これにより iOS Capacitor の WKWebView 等で supabase-js の自動 refresh が
+// バックグラウンド中に止まり、 復帰時に古い access_token を送って 401 → 全 API 失敗
+// となるケースを救済する (refresh 成功時に 1 回だけ retry)。
 type TokenProvider = () => Promise<string | null> | string | null;
+type TokenRefresher = () => Promise<string | null> | string | null;
 let tokenProvider: TokenProvider | null = null;
+let tokenRefresher: TokenRefresher | null = null;
 
 export function setAuthTokenProvider(fn: TokenProvider | null): void {
   tokenProvider = fn;
+}
+
+export function setAuthTokenRefresher(fn: TokenRefresher | null): void {
+  tokenRefresher = fn;
 }
 
 async function resolveAuthToken(): Promise<string | null> {
   if (!tokenProvider) return null;
   try {
     const result = tokenProvider();
+    return result instanceof Promise ? await result : result;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAuthToken(): Promise<string | null> {
+  if (!tokenRefresher) return null;
+  try {
+    const result = tokenRefresher();
     return result instanceof Promise ? await result : result;
   } catch {
     return null;
@@ -335,16 +356,30 @@ export async function customFetch<T = unknown>(
 
   // 呼び出し側が明示的に Authorization ヘッダを付けていなければ
   // 登録済み TokenProvider から自動取得して付与する。
-  if (!headers.has("authorization")) {
-    const token = await resolveAuthToken();
-    if (token) {
-      headers.set("authorization", `Bearer ${token}`);
+  const callerSetAuth = headers.has("authorization");
+  let autoToken: string | null = null;
+  if (!callerSetAuth) {
+    autoToken = await resolveAuthToken();
+    if (autoToken) {
+      headers.set("authorization", `Bearer ${autoToken}`);
     }
   }
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  let response = await fetch(input, { ...init, method, headers });
+
+  // ★ 401 を受けたとき、 「我々 (TokenProvider) が付与したトークン」が原因なら refresh して 1 回だけ retry。
+  //   caller が独自 Authorization を設定していた場合 (callerSetAuth) は一切触らない。
+  //   → iOS Capacitor の WKWebView スリープ復帰時の stale access_token 救済。
+  if (response.status === 401 && !callerSetAuth && autoToken) {
+    const refreshed = await refreshAuthToken();
+    if (refreshed && refreshed !== autoToken) {
+      const retryHeaders = new Headers(headers);
+      retryHeaders.set("authorization", `Bearer ${refreshed}`);
+      response = await fetch(input, { ...init, method, headers: retryHeaders });
+    }
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
