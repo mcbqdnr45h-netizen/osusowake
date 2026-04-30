@@ -86,6 +86,19 @@ function nowHHMM(): string {
   return `${hh}:${mm}`;
 }
 
+// ─── 出品時の受取終了デフォルト: 現在時刻 + 2時間、 分は次の「時」に切り上げ ──
+//   例: 09:50 → 12:00  (09:50 + 2h = 11:50 → 切り上げ 12:00)
+//       16:20 → 19:00  (16:20 + 2h = 18:20 → 切り上げ 19:00)
+//       09:00 → 11:00  (分が 00 ちょうどなら切り上げ不要)
+//   24時を超えた場合は mod 24 で翌日扱い (既存の日付またぎロジックが処理)。
+function defaultPickupEndHHMM(): string {
+  const d = new Date();
+  let h = d.getHours() + 2;
+  if (d.getMinutes() > 0) h += 1; // 分が 1 以上なら次の時に切り上げ
+  h = h % 24;
+  return `${String(h).padStart(2, '0')}:00`;
+}
+
 // ─── 出品モーダル ────────────────────────────────────────────────────────
 function PostBagModal({
   storeId,
@@ -108,10 +121,10 @@ function PostBagModal({
   const [aiSuggested, setAiSuggested] = useState<string | null>(null);
   const [classifying, setClassifying] = useState(false);
   const [qty, setQty] = useState(3);
-  // 出品時のデフォルト受取時間: 開始=現在時刻 (HH:MM)、 終了=23:59 (当日終わり際)
+  // 出品時のデフォルト受取時間: 開始=現在時刻 (HH:MM)、 終了=現在時刻+2h を時単位で切り上げ。
   // useState の lazy initializer で「マウント時の現在時刻」を一度だけ評価する。
   const [quickPickupStart, setQuickPickupStart] = useState(() => nowHHMM());
-  const [quickPickupEnd, setQuickPickupEnd] = useState('23:59');
+  const [quickPickupEnd, setQuickPickupEnd] = useState(() => defaultPickupEndHHMM());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [itemType, setItemType] = useState<'bag' | 'item'>('bag');
@@ -121,7 +134,7 @@ function PostBagModal({
   const [quickPickupNote, setQuickPickupNote] = useState('');
 
   // 手動フォーム
-  // pickupStart はマウント時の現在時刻、 pickupEnd は深夜0時 (翌日扱い) をデフォルトに
+  // pickupStart はマウント時の現在時刻、 pickupEnd は現在時刻+2h を時単位で切り上げ
   const [form, setForm] = useState(() => ({
     title: '',
     description: '',
@@ -131,7 +144,7 @@ function PostBagModal({
     discountedPrice: 0,
     stockCount: 3,
     pickupStart: nowHHMM(),
-    pickupEnd: '23:59',
+    pickupEnd: defaultPickupEndHHMM(),
   }));
   const [editingStock, setEditingStock] = useState(false);
   const stockInputRef = useRef<HTMLInputElement>(null);
