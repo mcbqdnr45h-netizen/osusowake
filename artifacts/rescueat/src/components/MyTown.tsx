@@ -6,6 +6,8 @@ import { getTownStage, TOWN_STAGES, MAX_STAGE } from '@/lib/town-stage';
 interface MyTownProps {
   purchaseCount: number;
   fullPage?: boolean;
+  /** カードモードでも親の高さに合わせて縦に伸ばす (MyPage デッドスペース解消用) */
+  stretch?: boolean;
 }
 
 const LS_KEY = 'rescueat_mytownStage';
@@ -415,6 +417,9 @@ const TownScene = memo(function TownScene({
       viewBox={`0 0 360 ${viewH}`}
       width="100%"
       height={svgH}
+      // ★ fillHeight 時は xMidYMax slice で「地面+木+建物を必ず下端に固定し、
+      //   余った縦方向は空を上に拡張」して見せる。 引き伸ばし禁止 (slice は等比拡縮)。
+      preserveAspectRatio={fillHeight ? 'xMidYMax slice' : 'xMidYMid meet'}
       style={fillHeight ? { display: 'block', height: '100%' } : { display: 'block' }}
       xmlns="http://www.w3.org/2000/svg"
     >
@@ -1017,7 +1022,7 @@ const TownScene = memo(function TownScene({
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
-export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
+export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, stretch = false }: MyTownProps) {
   const stage     = getTownStage(purchaseCount);
   const stageInfo = TOWN_STAGES[stage];
   const nextStage = stage < TOWN_STAGES.length - 1 ? TOWN_STAGES[stage + 1] : null;
@@ -1214,13 +1219,27 @@ export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false }: 
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3"
+        // ★ stretch=true のとき: 親 (flex col) いっぱいに縦に伸ばす。 イラスト部 flex-1 / 情報パネル shrink-0
+        className={
+          stretch
+            ? 'bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3 h-full flex flex-col'
+            : 'bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3'
+        }
       >
-        <div className="relative overflow-hidden" style={{ height: 180 }}>
+        <div
+          className={
+            stretch
+              ? 'relative overflow-hidden flex-1 min-h-[180px]'
+              : 'relative overflow-hidden'
+          }
+          style={stretch ? undefined : { height: 180 }}
+        >
           <TownScene stage={stage} purchaseCount={purchaseCount} showLevelUp={showParticles} fillHeight />
           <LevelUpParticles active={showParticles} />
         </div>
-        {infoPanel}
+        <div className={stretch ? 'shrink-0' : undefined}>
+          {infoPanel}
+        </div>
       </motion.div>
     </>
   );

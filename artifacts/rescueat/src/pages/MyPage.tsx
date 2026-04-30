@@ -206,7 +206,9 @@ export default function MyPage() {
 
   const pageContent = (
     <div
-      className="w-full px-4"
+      // ★ デッドスペース解消: 親 (Layout の main = flex-1 min-h-0 flex-col) いっぱいに広げ、
+      //   内部の MyTown カードを flex-1 で下端まで伸ばすために flex-col + flex-1 + min-h-0 を付与。
+      className="w-full px-4 flex flex-col flex-1 min-h-0"
       style={{ paddingTop: '1.5rem' }}
     >
         <div className="flex items-center justify-between mb-2">
@@ -488,9 +490,10 @@ export default function MyPage() {
         </div>}
 
         {/* ── マイタウン（カスタマーのみ・インライン表示）── */}
+        {/* ★ flex-1 で下端まで縦に伸ばし、 メニュー移動後のデッドスペースを完全に埋める */}
         {!isStoreOwner && (
-          <div className="-mx-4 mb-2">
-            <MyTown purchaseCount={pickedUpCount} />
+          <div className="-mx-4 mb-2 flex-1 min-h-0 flex flex-col">
+            <MyTown purchaseCount={pickedUpCount} stretch />
           </div>
         )}
 
