@@ -142,6 +142,33 @@ queryClient.prefetchQuery({
   staleTime: 1000 * 60 * 2,
 });
 
+// ── 起動時チャンクプリフェッチ：bottom-nav タブとよく使うページの lazy chunk を
+//   アプリ起動の瞬間からバックグラウンドダウンロード。 ログインを待たない。
+//   こうすると、 ユーザがタブをタップした時には チャンクがすでにキャッシュ済 →
+//   Suspense フォールバック (PageSkeleton) がほぼ出なくなる。
+//   requestIdleCallback で「初回描画を妨げない優先度」 で並列ダウンロード。
+const __idle = (cb: () => void) => {
+  const w = window as unknown as { requestIdleCallback?: (cb: () => void) => void };
+  if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(cb);
+  else setTimeout(cb, 200);
+};
+__idle(() => {
+  // bottom-nav タブ系 (高優先)
+  importMyPage().catch(() => {});
+  importFavoritesPage().catch(() => {});
+  importMyReservations().catch(() => {});
+  // よく使うサブページ
+  importBagDetail().catch(() => {});
+  importOrders().catch(() => {});
+  // 店舗オーナー系 (低優先 — さらに遅延)
+  setTimeout(() => {
+    importStoreDashboard().catch(() => {});
+    importStoreOwnerDashboard().catch(() => {});
+    importStoreBagsPage().catch(() => {});
+    importStoreSalesPage().catch(() => {});
+  }, 1500);
+});
+
 // ── ページ遷移ローディングオーバーレイ ──────────────────────────────────────
 function PageTransitionOverlay() {
   const [location] = useLocation();
@@ -438,29 +465,18 @@ function App() {
 //   こうしておくと「マイバッグ / 購入履歴 / マイページ統計」 など、
 //   どの画面に遷移してもキャッシュ済みで「ローディング無し」 で即表示される。
 //   失敗しても無視 (ベストエフォート)。
+//   ★ チャンクの prefetch は モジュール初期化時 (上の __idle) で既に発火済 →
+//     ここではユーザ固有 API データのみ。
 function PrefetchOnAuth() {
   const { user } = useAuth();
   useEffect(() => {
     if (!user?.id) return;
     const params = { userId: user.id };
-    // データの prefetch (queryClient キャッシュへ)
     queryClient.prefetchQuery({
       queryKey: getListReservationsQueryKey(params),
       queryFn: ({ signal }) => listReservations(params, { signal }),
       staleTime: 1000 * 60 * 2,
     }).catch(() => {});
-    // ★ 高頻度ページの lazy chunk をバックグラウンドで取得。
-    //   こうしておくと初遷移時に Suspense フォールバックがほぼ出ない。
-    //   並列で複数チャンクをダウンロード。
-    importMyReservations().catch(() => {});
-    importMyPage().catch(() => {});
-    importOrders().catch(() => {});
-    importBagDetail().catch(() => {});
-    importFavoritesPage().catch(() => {});
-    importStoreDashboard().catch(() => {});
-    importStoreOwnerDashboard().catch(() => {});
-    importStoreBagsPage().catch(() => {});
-    importStoreSalesPage().catch(() => {});
   }, [user?.id]);
   return null;
 }
