@@ -568,13 +568,26 @@ export default function MyPage() {
         )}
 
         {/* ── 店舗オーナー：承認済み・Stripe連携完了（緑バッジ — ライブAPI判定） ── */}
-        {/* ★ レイアウトシフト防止: 承認済みオーナーには min-h を確保しておき、
-              stripeStatus 取得中もバナー領域が必ず最終バリアント (amber/red) と
-              同じ高さを確保する。緑コンパクトバナー → 多段amber/red への昇格時に
-              下のコンテンツが押し下げられる「ガクッと動く」現象を防ぐ。
-              amber/red は本文 + ボタン込みで最大 ~140px。 */}
-        {profile?.role === 'store_owner' && !loadingStore && isApprovedOwner && (
-          <div className="mb-3 min-h-[140px]">{(() => {
+        {/* ★ レイアウトシフト対策:
+              - 承認済みオーナー (大半のユーザ) は緑バナーが最終形 = 36px。
+              - loadingStore (=useMyStore 解決前) は role だけで判定して同じ
+                36px の緑「確認中…」プレースホルダを先出ししておく。
+                こうすれば 「ヘッダ → 何もない → 突然バナー出現」 の段差が消える。
+              - min-h は 36px のみ。ここを大きくすると下に空白ができて見栄えが悪い (旧版バグ)。
+              - amber/red の昇格時はコンテンツ自体が増えるため、 そのケースだけは
+                許容の押下げが起きる。 大半のユーザには無関係。 */}
+        {profile?.role === 'store_owner' && (loadingStore || isApprovedOwner) && (
+          <div className="mb-3 min-h-[36px]">{(() => {
+          if (loadingStore) {
+            // ストア情報取得中もバナーの場所を確保。承認状態が分かるまで「確認中」を表示。
+            return (
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
+                <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
+                <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">確認中…</span>
+              </div>
+            );
+          }
           const payoutsOk  = stripeStatus?.payoutsEnabled;
           const chargesOk  = stripeStatus?.chargesEnabled;
           // ★ stripeStatus が null/undefined（取得失敗 or fetch 未完了）は「確認中」扱い。
