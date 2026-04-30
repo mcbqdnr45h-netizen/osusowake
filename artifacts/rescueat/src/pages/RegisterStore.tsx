@@ -234,7 +234,7 @@ export default function RegisterStore() {
                   </div>
                 )}
               </div>
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} className="hidden" />
             </div>
 
             {/* Store name */}

@@ -47,7 +47,25 @@ const upload = multer({
   },
 });
 
-router.post("/upload/bag-image", requireAuth, upload.single("image"), async (req, res) => {
+// multer のエラー (fileFilter 拒否、サイズ超過 等) を JSON 4xx で返すラッパ。
+// 標準では multer エラーは next(err) に流れて Express デフォルト HTML ハンドラに到達するため、
+// クライアントで `res.json()` がパース失敗 → 「不明なエラー」となり原因特定不能になる問題を防ぐ。
+const uploadSingleImage: import("express").RequestHandler = (req, res, next) => {
+  upload.single("image")(req, res, (err) => {
+    if (!err) return next();
+    const isMulterErr = err instanceof multer.MulterError;
+    const status = isMulterErr && err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    const message = isMulterErr
+      ? (err.code === "LIMIT_FILE_SIZE"
+          ? "ファイルサイズが上限 (10MB) を超えています"
+          : `アップロード失敗: ${err.message}`)
+      : (err instanceof Error ? err.message : "ファイル形式が不正です");
+    console.warn("[upload] multer rejected:", { code: isMulterErr ? err.code : null, message });
+    res.status(status).json({ error: "upload_rejected", message });
+  });
+};
+
+router.post("/upload/bag-image", requireAuth, uploadSingleImage, async (req, res) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: "bad_request", message: "画像ファイルが必要です" });

@@ -94,12 +94,19 @@ export default function StoreProfileEdit() {
       const fd = new FormData();
       fd.append('image', file);
       const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('アップロード失敗');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { message?: string }));
+        throw new Error(data.message || `送信失敗 (HTTP ${res.status})`);
+      }
       const { url } = await res.json();
       setPreviewUrl(url);
       setForm(f => ({ ...f, imageUrl: url }));
-    } catch {
-      toast({ title: 'アップロードエラー', description: '画像の送信に失敗しました', variant: 'destructive' });
+    } catch (err) {
+      toast({
+        title: 'アップロードエラー',
+        description: err instanceof Error ? err.message : '画像の送信に失敗しました',
+        variant: 'destructive',
+      });
     } finally {
       setUploading(false);
     }
@@ -119,12 +126,19 @@ export default function StoreProfileEdit() {
       const fd = new FormData();
       fd.append('image', file);
       const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('アップロード失敗');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { message?: string }));
+        throw new Error(data.message || `送信失敗 (HTTP ${res.status})`);
+      }
       const { url } = await res.json();
       setIconPreviewUrl(url);
       setForm(f => ({ ...f, iconUrl: url }));
-    } catch {
-      toast({ title: 'アップロードエラー', description: 'アイコンの送信に失敗しました', variant: 'destructive' });
+    } catch (err) {
+      toast({
+        title: 'アップロードエラー',
+        description: err instanceof Error ? err.message : 'アイコンの送信に失敗しました',
+        variant: 'destructive',
+      });
     } finally {
       setIconUploading(false);
     }
@@ -280,7 +294,7 @@ export default function StoreProfileEdit() {
           </button>
         </div>
 
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageChange} />
 
         {/* ── 地図ピン用アイコン (任意) ───────────────────────────────────── */}
         <div className="px-4 pt-5">
@@ -352,7 +366,7 @@ export default function StoreProfileEdit() {
               </div>
             </div>
           </motion.div>
-          <input ref={iconFileRef} type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
+          <input ref={iconFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleIconChange} />
         </div>
 
         {/* ── フォームカード群 ── */}

@@ -186,7 +186,7 @@ export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={handleChange}
       />

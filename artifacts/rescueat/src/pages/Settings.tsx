@@ -552,7 +552,7 @@ export default function Settings() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={handleAvatarFileChange}
                 aria-hidden="true"

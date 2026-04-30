@@ -419,7 +419,7 @@ export default function StoreOnboarding() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="sr-only"
                 onChange={e => {
                   const file = e.target.files?.[0];
