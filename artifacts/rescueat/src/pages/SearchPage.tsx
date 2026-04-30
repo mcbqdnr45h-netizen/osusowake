@@ -662,8 +662,13 @@ export default function SearchPage() {
       if (seenLoc.has(locKey)) return false;
       seenLoc.add(locKey);
       return true;
-    }).filter(s => (!liveQuery && !inStockOnly) || filteredStoreIds.has(s.id));
-  }, [stores, liveQuery, filteredStoreIds]);
+    }).filter(s => {
+      // ★ カテゴリ・検索ワード・在庫・エリア のいずれかで絞り込み中はマップマーカーも連動
+      //   sort は表示順だけなので除外 (sort 変えただけで店舗が消えたら困る)
+      const hasMarkerFilter = !!liveQuery || !!category || inStockOnly || areaSearchActive;
+      return !hasMarkerFilter || filteredStoreIds.has(s.id);
+    });
+  }, [stores, liveQuery, category, inStockOnly, areaSearchActive, filteredStoreIds]);
 
   const isFiltering       = !!liveQuery || category !== '' || inStockOnly || sort !== 'default' || areaSearchActive;
   const activeFilterCount = [category !== '', inStockOnly, sort !== 'default'].filter(Boolean).length;
