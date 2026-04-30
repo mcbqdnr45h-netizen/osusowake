@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Clock, Gift, Heart, Navigation, ChefHat, Sparkles, Star } from 'lucide-react';
 import { Link } from 'wouter';
-import { SurpriseBagWithStore } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  SurpriseBagWithStore,
+  getBag,
+  getGetBagQueryKey,
+} from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
@@ -328,6 +333,25 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
   const avgRating = (bag.store as any).avgRating as number | null | undefined;
   const reviewCount = (bag.store as any).reviewCount as number | undefined;
 
+  // ── タップ即時プリフェッチ ─────────────────────────────────────────────
+  // 商品詳細ページが「たまに遅い」原因対策:
+  //   1. BagDetail の JS チャンク (React.lazy) を先読みでダウンロード
+  //   2. /bags/:id の API レスポンスも React Query にプリフェッチ投入
+  // pointerdown は click より約 50〜200ms 早く発火するので、 指を離す頃には
+  // チャンクとデータの両方が揃ってる → ページ遷移が体感ほぼ即時になる。
+  const queryClient = useQueryClient();
+  const handlePrefetch = useCallback(() => {
+    if (isSoldOut) return;
+    // チャンク先読み (ブラウザが同一 import を重複排除)
+    import('@/pages/BagDetail').catch(() => { /* 失敗は無視 */ });
+    // API レスポンス先読み
+    queryClient.prefetchQuery({
+      queryKey: getGetBagQueryKey(bag.id),
+      queryFn: () => getBag(bag.id),
+      staleTime: 30_000,
+    }).catch(() => { /* 失敗は無視 */ });
+  }, [bag.id, isSoldOut, queryClient]);
+
   return (<>
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
@@ -342,6 +366,8 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
         boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)',
       }}
       onClick={(e) => isSoldOut && e.preventDefault()}
+      onPointerDown={handlePrefetch}
+      onMouseEnter={handlePrefetch}
     >
       {/* ── 画像エリア ── */}
       <div className={`relative w-full overflow-hidden bg-muted ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
