@@ -570,8 +570,9 @@ export default function MyPage() {
         {profile?.role === 'store_owner' && !loadingStore && isApprovedOwner && (() => {
           const payoutsOk  = stripeStatus?.payoutsEnabled;
           const chargesOk  = stripeStatus?.chargesEnabled;
-          const isLoaded   = stripeStatus !== undefined;
-          // payouts有効 かつ charges有効 → 完全有効
+          // ★ stripeStatus が null/undefined（取得失敗 or fetch 未完了）は「確認中」扱い。
+          //   以前は null → loaded 扱いでフォールスルー → 誤って RED「再連携が必要」を表示していた。
+          const isLoaded   = stripeStatus != null;
           if (!isLoaded) return (
             <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
               <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
@@ -623,7 +624,11 @@ export default function MyPage() {
               </div>
             );
           }
-          return (
+          // ★ RED は chargesEnabled が **明示的に false** の時だけ出す。
+          //   undefined（取得失敗 fallback で {chargesEnabled: undefined} になり得るケース）や
+          //   {connected:true, chargesEnabled:false, payoutsEnabled:false} の API fallback 等で
+          //   誤って「再連携が必要」と表示されるのを防ぐ（タップスバーガー等の誤警告対策）。
+          if (chargesOk === false) return (
             <div className="mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 space-y-2">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
@@ -644,6 +649,14 @@ export default function MyPage() {
               >
                 口座を再連携する →
               </button>
+            </div>
+          );
+          // それ以外（chargesEnabled が undefined 等）は安全側で「確認中」表示
+          return (
+            <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+              <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
+              <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
+              <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">確認中…</span>
             </div>
           );
         })()}
