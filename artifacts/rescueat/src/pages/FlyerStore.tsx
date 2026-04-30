@@ -1,8 +1,9 @@
 import React from 'react';
 
 export default function FlyerStore() {
+  const isPrint = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('print');
   return (
-    <div className="flyer-root">
+    <div className="flyer-root" data-print={isPrint ? '1' : undefined}>
       <style>{`
         @page { size: A4 portrait; margin: 0; }
         html, body, #root { background: #f3f4f6 !important; }
@@ -16,6 +17,8 @@ export default function FlyerStore() {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
+        .flyer-root[data-print="1"] { padding: 0; min-height: 0; background: transparent; }
+        .flyer-root[data-print="1"] .a4 { box-shadow: none; }
         .a4 {
           width: 210mm;
           height: 297mm;

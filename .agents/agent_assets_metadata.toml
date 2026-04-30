@@ -215,3 +215,15 @@ id = "pfSU52NGm4fDsmSMPQ49A"
 uri = "file://attached_assets/flyers/osusowake_flyer_store_A4.jpg"
 type = "image"
 title = "おすそわけ 店舗向けチラシ A4 縦 (営業ツール)"
+
+[[outputs]]
+id = "KPPdO797N9XhG5O0pODjz"
+uri = "file://attached_assets/flyers/osusowake_flyer_user_A4.pdf"
+type = "pdf"
+title = "おすそわけ ユーザ向けチラシ (A4 縦 PDF)"
+
+[[outputs]]
+id = "iQM56b7kAzaUlm333O24t"
+uri = "file://attached_assets/flyers/osusowake_flyer_store_A4.pdf"
+type = "pdf"
+title = "おすそわけ 店舗向けチラシ (A4 縦 PDF)"
