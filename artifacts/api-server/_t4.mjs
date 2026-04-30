@@ -1,0 +1,16 @@
+import { createClient } from "@supabase/supabase-js";
+const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const sbA = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const { data: s } = await sb.auth.signInWithPassword({email:"review-user@osusowakejapan.org",password:"gi*Tp6C8Xga#PLWn2sjL"});
+const tk=s.session.access_token, uid=s.user.id;
+const {data:b1}=await sbA.from("surprise_bags").select("stock_count").eq("id",88);
+const r1=await fetch("http://localhost:8080/api/reservations",{method:"POST",headers:{Authorization:`Bearer ${tk}`,"Content-Type":"application/json"},body:JSON.stringify({bagId:88,quantity:1,userId:uid})});
+const rv=await r1.json();
+const r2=await fetch("http://localhost:8080/api/payment/create-intent",{method:"POST",headers:{Authorization:`Bearer ${tk}`,"Content-Type":"application/json"},body:JSON.stringify({reservationId:rv.id,userId:uid})});
+const pi=await r2.json();
+const r3=await fetch("http://localhost:8080/api/payment/confirm",{method:"POST",headers:{Authorization:`Bearer ${tk}`,"Content-Type":"application/json"},body:JSON.stringify({reservationId:rv.id,paymentIntentId:pi.paymentIntentId,status:"confirmed"})});
+const cf=await r3.json();
+const {data:b2}=await sbA.from("surprise_bags").select("stock_count").eq("id",88);
+console.log(`reservation=${rv.id} bypass=${pi.reviewBypass} confirm=${r3.status} paid=${cf.paymentStatus} pickup=${cf.pickupCode} stockBefore=${b1[0].stock_count} stockAfter=${b2[0].stock_count}`);
+await sbA.from("reservations").update({status:"cancelled",payment_status:"refunded"}).eq("id",rv.id);
+console.log(rv.id && pi.reviewBypass && r3.status===200 && cf.paymentStatus==="paid" && cf.pickupCode && b1[0].stock_count===b2[0].stock_count ? "✅ ALL OK" : "❌ FAIL");

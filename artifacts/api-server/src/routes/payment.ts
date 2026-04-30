@@ -12,6 +12,30 @@ import {
 
 const router: IRouter = Router();
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// App Store 審査用 決済バイパス
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Apple 審査員はテストカード (4242…) を使うが、当アプリは Stripe LIVE モードで
+// 稼働しているためテストカードが拒否される。Apple App Review Guideline 2.3.10
+// 「テスト用アカウントには完全な動作確認手段を提供せよ」に従い、登録された審査用
+// メールアドレスでログインしているユーザーに限り、Stripe call をスキップして
+// 予約を直接 confirm する。本番ユーザーには一切影響しない。
+//
+// セキュリティ:
+//   - 完全一致のメールアドレスチェックのみで分岐（部分一致禁止）
+//   - 該当ユーザーのパスワードは 20 文字ランダム生成済
+//   - bypass 利用時は payment_intent_id に "pi_review_bypass_" プレフィックス
+//     を付与し、Stripe Dashboard / 集計クエリから容易に除外可能
+//   - 在庫減算もスキップするため審査用デモ店舗の在庫が枯渇しない
+const REVIEW_BYPASS_DEFAULT = "review-user@osusowakejapan.org";
+const REVIEW_BYPASS_PI_PREFIX = "pi_review_bypass_";
+function isAppReviewBypassEmail(email: string | undefined | null): boolean {
+  if (!email) return false;
+  const raw = process.env.APP_REVIEW_BYPASS_EMAILS?.trim() || REVIEW_BYPASS_DEFAULT;
+  const list = raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return list.includes(email.trim().toLowerCase());
+}
+
 // ─── 手数料定数 ─────────────────────────────────────────────────────────────
 // プラットフォーム手数料率（店舗側）: 25%（固定）。商品代金 (merchandise) に対して課金。
 const PLATFORM_FEE_RATE = 0.25;
@@ -182,6 +206,31 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
     if (reservation.userId !== req.authUser!.id) {
       console.warn(`[SECURITY] /payment/create-intent: reservation ${reservation.id} owner=${reservation.userId} requester=${req.authUser!.id}`);
       res.status(403).json({ error: "forbidden", message: "この予約を操作する権限がありません" });
+      return;
+    }
+
+    // ━━ App Store 審査用 決済バイパス ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 認可済みユーザーが審査用メールアドレスの場合、Stripe call を完全にスキップして
+    // sentinel な paymentIntentId を返す。フロントは clientSecret === "REVIEW_BYPASS"
+    // または reviewBypass === true を見て決済 UI を飛ばし、直接 /payment/confirm を呼ぶ。
+    const reqUserEmail = req.authUser?.email;
+    if (isAppReviewBypassEmail(reqUserEmail)) {
+      const sentinelPiId = `${REVIEW_BYPASS_PI_PREFIX}${reservation.id}_${Date.now()}`;
+      await db
+        .update(reservationsTable)
+        .set({ paymentIntentId: sentinelPiId })
+        .where(eq(reservationsTable.id, reservation.id));
+      console.warn(
+        `🎯 [APP_REVIEW_BYPASS] /payment/create-intent SKIPPED Stripe — ` +
+        `email=${reqUserEmail} reservation=${reservation.id} sentinelPI=${sentinelPiId}`,
+      );
+      res.json({
+        clientSecret: "REVIEW_BYPASS",
+        paymentIntentId: sentinelPiId,
+        amount: Math.round(reservation.totalPrice),
+        currency: "jpy",
+        reviewBypass: true,
+      });
       return;
     }
 
@@ -431,7 +480,22 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
     //   テスト用 mock (`pi_mock_`) は STRIPE_SECRET_KEY 未設定時のみ許可する。
     const stripeKeyForVerify = process.env["STRIPE_SECRET_KEY"];
     const isMock = body.paymentIntentId.startsWith("pi_mock_");
-    if (!isMock) {
+    // ━━ App Store 審査用 決済バイパス ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // sentinel な PI ("pi_review_bypass_") かつログイン中のユーザーが審査用メール
+    // アドレスの場合のみ Stripe verify をスキップする。両方の条件が満たされない限り
+    // 通常の verify を行うため、攻撃者がメールアドレスを偽装したり sentinel PI を
+    // 偶然送りつけても突破できない。
+    const confirmUserEmail = req.authUser?.email;
+    const isReviewBypass =
+      body.paymentIntentId.startsWith(REVIEW_BYPASS_PI_PREFIX) &&
+      isAppReviewBypassEmail(confirmUserEmail);
+    if (isReviewBypass) {
+      console.warn(
+        `🎯 [APP_REVIEW_BYPASS] /payment/confirm SKIPPED Stripe verify — ` +
+        `email=${confirmUserEmail} reservation=${body.reservationId} sentinelPI=${body.paymentIntentId}`,
+      );
+    }
+    if (!isMock && !isReviewBypass) {
       if (!stripeKeyForVerify) {
         res.status(503).json({ error: "stripe_not_configured", message: "Stripe が設定されていません" });
         return;
@@ -460,8 +524,12 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
         res.status(402).json({ error: "stripe_verify_failed", message: "決済情報の検証に失敗しました" });
         return;
       }
-    } else if (stripeKeyForVerify) {
-      // 本番モードで mock を弾く
+    } else if (isMock && stripeKeyForVerify) {
+      // 本番モード（STRIPE_SECRET_KEY 設定済）で pi_mock_ を弾く。
+      // ※ pi_review_bypass_ はメールアドレス allowlist 経由でのみ通すので
+      //   ここの分岐には入らない（isReviewBypass=true → 第一の if が false にならない）。
+      // ※ ローカル dev (stripeKeyForVerify=undefined) で pi_mock_ を許可するのは
+      //   テスト用の意図的な fallback。本番では STRIPE_SECRET_KEY が必ず存在する前提。
       console.warn(`[SECURITY] /payment/confirm: pi_mock_ rejected because Stripe is configured (reservation=${body.reservationId})`);
       res.status(403).json({ error: "mock_not_allowed", message: "テスト用の決済IDは本番で使用できません" });
       return;
@@ -506,7 +574,35 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
         .where(eq(surpriseBagsTable.id, reservation.bagId))
         .for("update");
 
-      if (!bag || bag.stockCount < reservation.quantity) {
+      if (!bag) {
+        // bag 自体が消えている → 在庫切れ扱い
+        await tx
+          .update(reservationsTable)
+          .set({
+            paymentStatus: "refunded",
+            status: "cancelled",
+            paymentIntentId: body.paymentIntentId,
+          })
+          .where(eq(reservationsTable.id, reservation.id));
+        return { kind: "out_of_stock", reservation };
+      }
+
+      // ━━ App Review Bypass: 在庫減算をスキップして審査用デモバッグの在庫を維持 ━━
+      // bypass フラグは関数引数として渡せないため、closure 経由で参照する。
+      if (isReviewBypass) {
+        const [updated] = await tx
+          .update(reservationsTable)
+          .set({
+            paymentStatus: "paid",
+            status: "confirmed",
+            paymentIntentId: body.paymentIntentId,
+          })
+          .where(eq(reservationsTable.id, reservation.id))
+          .returning();
+        return { kind: "paid", reservation: updated, pickupCode: updated.pickupCode };
+      }
+
+      if (bag.stockCount < reservation.quantity) {
         // 在庫切れ → 自動返金フラグを立てるため予約を refunded/cancelled に
         await tx
           .update(reservationsTable)

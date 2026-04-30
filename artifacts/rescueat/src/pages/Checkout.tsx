@@ -237,6 +237,152 @@ function PaymentForm({
   );
 }
 
+/* ── App Store 審査用 決済バイパスフォーム ───────────────────────
+   サーバーが reviewBypass=true を返した場合のみ表示される。Stripe Elements を
+   一切使わず、ボタン押下で直接 /payment/confirm を呼んで予約を確定する。
+   本番ユーザーには絶対に表示されない（サーバー側のメールアドレス判定で分岐）。
+*/
+interface ReviewBypassFormProps {
+  reservationId: number;
+  amount: number;
+  paymentIntentId: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+  showCancelConfirm: boolean;
+  setShowCancelConfirm: (v: boolean) => void;
+  cancelPending: boolean;
+}
+
+function ReviewBypassPaymentForm({
+  reservationId, amount, paymentIntentId,
+  onSuccess, onCancel,
+  showCancelConfirm, setShowCancelConfirm, cancelPending,
+}: ReviewBypassFormProps) {
+  const { toast } = useToast();
+  const [isPaying, setIsPaying] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsPaying(true);
+    try {
+      const confirmRes = await authedFetch(`${API_BASE}/api/payment/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reservationId,
+          paymentIntentId,
+          status: 'confirmed',
+        }),
+      });
+      if (!confirmRes.ok) {
+        const detail = await confirmRes.json().catch(() => ({}));
+        throw new Error(detail?.message || `確定に失敗しました (${confirmRes.status})`);
+      }
+      onSuccess();
+    } catch (err: any) {
+      toast({
+        title: '決済に失敗しました',
+        description: err?.message || 'もう一度お試しください。',
+        variant: 'destructive',
+      });
+      setIsPaying(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+        className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm"
+      >
+        <div className="flex items-start gap-2.5 mb-3">
+          <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <h2 className="text-base font-black text-amber-900">App Review テストモード</h2>
+            <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
+              審査用アカウントでログイン中です。実際のカード決済はスキップされ、
+              下のボタンで予約を確定できます（在庫は減少しません）。
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <button
+          type="submit"
+          disabled={isPaying}
+          className="w-full h-14 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2.5 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-primary hover:bg-primary/90 active:scale-[0.98]"
+        >
+          {isPaying ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              確定中...
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-5 h-5" />
+              ¥{amount.toLocaleString()}を支払う（テスト）
+            </>
+          )}
+        </button>
+      </motion.div>
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }} className="pb-6">
+        <AnimatePresence mode="wait">
+          {!showCancelConfirm ? (
+            <motion.button
+              key="cancel-btn" type="button"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowCancelConfirm(true)}
+              disabled={isPaying || cancelPending}
+              className="w-full h-11 rounded-2xl font-medium text-sm text-muted-foreground border border-border bg-secondary/50 hover:bg-secondary hover:text-foreground transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <X className="w-4 h-4" />
+              注文をキャンセルする
+            </motion.button>
+          ) : (
+            <motion.div
+              key="cancel-confirm"
+              initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
+              className="rounded-2xl border border-red-200 bg-red-50 p-4 space-y-3"
+            >
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-red-700">キャンセルしますか？</p>
+                  <p className="text-xs text-red-600/80 mt-0.5">この予約を取り消してホームに戻ります。</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCancelConfirm(false)}
+                  disabled={cancelPending}
+                  className="flex-1 h-10 rounded-xl text-sm font-medium border border-border bg-white text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+                >
+                  戻る
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  disabled={cancelPending}
+                  className="flex-1 h-10 rounded-xl text-sm font-bold bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {cancelPending ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <><X className="w-4 h-4" />キャンセルする</>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </form>
+  );
+}
+
 /* ── メインページ ────────────────────────────────────────────── */
 export default function Checkout() {
   const [, params] = useRoute('/checkout/:id');
@@ -251,6 +397,11 @@ export default function Checkout() {
   const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
   const [intentError, setIntentError] = useState<string | null>(null);
   const creatingIntent = useRef(false);
+  // ━━ App Store 審査用 決済バイパスモード ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // サーバー側で審査用メールアドレスを判定すると、reviewBypass=true と sentinel な
+  // paymentIntentId が返ってくる。その場合は Stripe Elements を出さず、専用の
+  // 「テスト決済」ボタンから直接 /payment/confirm を呼んで成功画面へ遷移する。
+  const [reviewBypass, setReviewBypass] = useState<{ paymentIntentId: string } | null>(null);
 
   // ── Stripe 公開鍵を実行時にサーバーから取得（iOSビルドで埋め込まれていなくても動くようにするため）──
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
@@ -290,6 +441,13 @@ export default function Checkout() {
         return r.json();
       })
       .then((d) => {
+        // ━━ App Store 審査用 決済バイパス ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 審査用ユーザーの場合、サーバーは Stripe をスキップして reviewBypass=true
+        // と sentinel な paymentIntentId を返す。Stripe Elements を出さず専用 UI へ。
+        if (d.reviewBypass === true && typeof d.paymentIntentId === 'string') {
+          setReviewBypass({ paymentIntentId: d.paymentIntentId });
+          return;
+        }
         if (!d.clientSecret) throw new Error('決済情報が取得できませんでした');
         setClientSecret(d.clientSecret);
         if (d.customerSessionClientSecret) setCustomerSessionClientSecret(d.customerSessionClientSecret);
@@ -406,6 +564,17 @@ export default function Checkout() {
               <p className="font-bold">決済の準備に失敗しました</p>
               <p className="text-xs mt-1">{intentError}</p>
             </div>
+          ) : reviewBypass ? (
+            <ReviewBypassPaymentForm
+              reservationId={reservationId}
+              amount={total}
+              paymentIntentId={reviewBypass.paymentIntentId}
+              onSuccess={handleSuccess}
+              onCancel={handleCancel}
+              showCancelConfirm={showCancelConfirm}
+              setShowCancelConfirm={setShowCancelConfirm}
+              cancelPending={cancelMutation.isPending}
+            />
           ) : !clientSecret || !stripePromise ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
