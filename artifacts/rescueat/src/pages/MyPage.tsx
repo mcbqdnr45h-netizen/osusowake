@@ -423,46 +423,109 @@ export default function MyPage() {
           </div>
         </motion.div>
 
-        {/* ── おすそわけスコア（カスタマーのみ） ── */}
-        {!isStoreOwner && <div className="mb-2 -mx-4">
-
-          {/* ヒーローカード：スコア全体 */}
+        {/* ── おすそわけスコア + 月間ランキング（カスタマーのみ・横並び 50/50）── */}
+        {/* ★ A案 v3: スコア (左) と ランキング (右) を半分ずつのカード 2 枚に並べる。
+              ・ 「食品ロス削減量」 と「今月の月間順位」 は性格が近いため隣接配置。
+              ・ 各カードはほぼ同じ高さ (~118px) でビジュアル統一。 */}
+        {!isStoreOwner && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="relative overflow-hidden mb-0"
-            style={{ background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)' }}
+            className="mb-3 grid grid-cols-2 gap-2.5"
           >
-            {/* 背景装飾 */}
-            <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
-
-            {/* ★ A案 v2: 1 行コンパクト表示 (高さ約 56px)。
-                  ・ 大きな「0.5 kg」 と右側の「kg」 統計が重複していたため統合。
-                  ・ 「食品ロス削減量」 タイトル / 換算注釈 / 励ましメッセージは
-                    冗長だったので削除し、 数値 3 つ + アイコンのみに集約。 */}
-            <div className="relative px-4 py-3 flex items-center justify-around gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <ShoppingBag className="w-4 h-4 text-white/80 shrink-0" />
-                <span className="text-white font-black text-lg leading-none">{pickedUpCount}</span>
-                <span className="text-white/70 text-[10px] font-bold">回</span>
+            {/* ── 左: スコアカード ── */}
+            <div
+              className="relative overflow-hidden rounded-2xl px-3 py-3 flex flex-col justify-between"
+              style={{
+                background: 'linear-gradient(135deg, #FF8C00 0%, #FF6B00 60%, #E55A00 100%)',
+                minHeight: '118px',
+              }}
+            >
+              <div className="absolute -top-3 -right-3 w-14 h-14 bg-white/10 rounded-full" />
+              <div className="relative">
+                <p className="text-white/75 text-[10px] font-bold leading-none mb-1.5">
+                  食品ロス削減量
+                </p>
+                <div className="flex items-end gap-1">
+                  <span className="text-2xl font-black text-white leading-none">{foodSavedKg}</span>
+                  <span className="text-white/90 text-xs font-bold mb-0.5">kg</span>
+                </div>
               </div>
-              <div className="w-px h-6 bg-white/25" />
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Scale className="w-4 h-4 text-white/80 shrink-0" />
-                <span className="text-white font-black text-lg leading-none">{foodSavedKg}</span>
-                <span className="text-white/70 text-[10px] font-bold">kg</span>
+              <div className="relative flex items-center gap-2 text-white/85 text-[10px] font-bold mt-1.5">
+                <span className="flex items-center gap-0.5">
+                  <ShoppingBag className="w-2.5 h-2.5" />
+                  {pickedUpCount}回
+                </span>
+                <span className="opacity-60">・</span>
+                <span className="flex items-center gap-0.5">
+                  <Leaf className="w-2.5 h-2.5" />
+                  CO₂ {co2Saved}kg
+                </span>
               </div>
-              <div className="w-px h-6 bg-white/25" />
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Leaf className="w-4 h-4 text-white/80 shrink-0" />
-                <span className="text-white font-black text-lg leading-none">{co2Saved}</span>
-                <span className="text-white/70 text-[10px] font-bold">kg CO₂</span>
-              </div>
+              <p className="relative text-white/90 text-[11px] font-bold mt-1 truncate">
+                {pickedUpCount === 0
+                  ? '🌟 最初の一歩から'
+                  : pickedUpCount < 5
+                  ? '🌾 素敵なスタート！'
+                  : pickedUpCount < 15
+                  ? '🌿 街が育っています'
+                  : '🏆 街の守護者'}
+              </p>
             </div>
-          </motion.div>
 
-        </div>}
+            {/* ── 右: 月間ランキング 連動カード ──
+                ★ rank=-1 は opt-out (Settings で非表示中) を意味する。 */}
+            <button
+              type="button"
+              onClick={() => navigate('/ranking')}
+              className="group bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 border border-amber-200/70 rounded-2xl px-3 py-3 flex flex-col justify-between text-left active:scale-[0.98] transition-transform shadow-sm"
+              style={{ minHeight: '118px' }}
+              aria-label="今月のおすそわけランキングを見る"
+            >
+              <div className="flex items-center gap-1.5">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 text-white flex items-center justify-center shrink-0 shadow">
+                  <Trophy className="w-3.5 h-3.5" strokeWidth={2.4} />
+                </div>
+                <p className="text-[10px] font-bold text-amber-700 leading-tight flex-1 min-w-0">
+                  今月のランキング
+                </p>
+                <ChevronRight className="w-4 h-4 text-amber-600 shrink-0 group-active:translate-x-0.5 transition-transform" />
+              </div>
+              <div className="mt-1">
+                {monthlyRanking ? (
+                  monthlyRanking.optedOut ? (
+                    <div className="text-base font-black text-foreground leading-tight">
+                      非表示中
+                    </div>
+                  ) : monthlyRanking.myRank && monthlyRanking.myRank.rank > 0 ? (
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black text-foreground leading-none">
+                        {monthlyRanking.myRank.rank}
+                      </span>
+                      <span className="text-xs font-bold text-muted-foreground">位</span>
+                    </div>
+                  ) : (
+                    <div className="text-base font-black text-foreground leading-tight">
+                      圏外
+                    </div>
+                  )
+                ) : (
+                  <div className="h-5 w-16 bg-amber-200/40 rounded animate-pulse" />
+                )}
+              </div>
+              {monthlyRanking && (
+                <p className="text-[10px] text-muted-foreground font-bold leading-tight mt-1 truncate">
+                  {monthlyRanking.optedOut
+                    ? '設定から参加できます'
+                    : monthlyRanking.nextRankDelta === 0
+                      ? '🏆 頂点キープ中！'
+                      : `あと${monthlyRanking.nextRankDelta}回でランクアップ`}
+                </p>
+              )}
+            </button>
+          </motion.div>
+        )}
 
         {/* ── マイタウン（カスタマーのみ・インライン表示）── */}
         {/* ★ デッドスペース完全消去:
