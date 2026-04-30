@@ -67,8 +67,17 @@ function clearOnboardingDraft() {
 export default function StoreOnboarding() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { user, profile, setOptimisticRole, refreshProfile } = useAuth();
+  const { user, profile, isLoading: authLoading, setOptimisticRole, refreshProfile } = useAuth();
   const { currentStore: existingStore, loading: storeLoading, hasExistingStripeAccount, refetch: refetchStores } = useMyStores();
+
+  // ★ 退会直後・セッション失効時など user が null になった場合は
+  //    onboarding 画面に居座らせず Welcome に戻す（「ログインが必要です」エラーで詰まるのを防ぐ）
+  useEffect(() => {
+    if (!authLoading && !user) {
+      try { localStorage.removeItem(ONBOARDING_DRAFT_KEY); } catch (_) {}
+      navigate('/welcome');
+    }
+  }, [authLoading, user, navigate]);
 
   // ★ StoreOnboarding 開始時に楽観的にロールを store_owner にする
   // → 戻るボタンで MyPage に行っても「お客様」表示にならず、店舗ナビが出る

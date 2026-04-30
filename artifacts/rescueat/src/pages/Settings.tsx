@@ -559,6 +559,13 @@ export default function Settings() {
       console.warn('[Settings] signOut after delete threw (expected):', signOutErr);
     }
 
+    // ── ④ 端末ローカルに残っていた下書き等を掃除（次に同じ端末で別ユーザが
+    //       オンボーディングを始めたときにゴーストデータが残らないように） ──
+    try {
+      localStorage.removeItem('store-onboarding-draft-v2');
+      localStorage.removeItem('store-onboarding-draft-v1');
+    } catch (_) {}
+
     setDeletingAccount(false);
     setShowDeleteAccount(false);
     toast({
