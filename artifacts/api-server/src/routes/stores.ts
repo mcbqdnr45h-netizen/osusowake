@@ -15,6 +15,7 @@ import {
 } from "@workspace/api-zod";
 import { Resend } from "resend";
 import { sendStoreApprovalEmail } from "../utils/emails";
+import { normalizeForCompare, storeIdentityKey } from "../lib/normalize-store.js";
 
 const REPORT_TYPES = ["closed", "temp_closed", "wrong_hours", "wrong_info", "inappropriate_review", "other"] as const;
 type ReportType = typeof REPORT_TYPES[number];
@@ -164,6 +165,44 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
 
     // 既存店舗のStripeアカウントIDを流用（最初にStripeが設定されている店舗を使用）
     const existingStripeAccountId = existingStores.find(s => s.stripeAccountId)?.stripeAccountId ?? null;
+
+    // ── 偽造店舗の事前ブロック ─────────────────────────────────────────────
+    // 「他人 (別オーナ) が同じ店名・同じ住所で既に登録している」 場合は申請を拒否する。
+    // 表記ゆれ (全角/半角・空白・記号) を吸収するため正規化キーで比較する。
+    // ※ 同オーナの 2店舗目以降は対象外 (上で除外)。 また rejected/suspended の店舗は無視。
+    const incomingKey = storeIdentityKey(body.name, body.address, body.city);
+    if (incomingKey) {
+      const sameNameCandidates = await db
+        .select({
+          id: storesTable.id,
+          name: storesTable.name,
+          address: storesTable.address,
+          city: storesTable.city,
+          ownerId: storesTable.ownerId,
+          status: storesTable.status,
+        })
+        .from(storesTable)
+        .where(
+          and(
+            ne(storesTable.ownerId, ownerId),
+            sql`${storesTable.status} IN ('pending', 'approved')`,
+          ),
+        );
+
+      const collision = sameNameCandidates.find(
+        (s) => storeIdentityKey(s.name, s.address, s.city ?? "") === incomingKey,
+      );
+      if (collision) {
+        console.warn(
+          `[/stores/apply] 🚫 重複店舗申請ブロック: 申請ownerId=${ownerId} name="${body.name}" addr="${body.address}" → 既存storeId=${collision.id} ownerId=${collision.ownerId}`,
+        );
+        return res.status(409).json({
+          error: "store_duplicate",
+          message:
+            "同じ店舗名・住所のお店が既に登録されています。 ご自身のお店であるにも関わらずこの表示が出る場合は、 hello@osusowakejapan.org までお問い合わせください。",
+        });
+      }
+    }
 
     // 営業許可証写真を Supabase Storage にアップロード（base64 が届いた場合）
     let licenseImageUrl: string | null = null;

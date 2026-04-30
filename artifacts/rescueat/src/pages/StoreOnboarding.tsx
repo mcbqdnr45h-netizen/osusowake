@@ -254,6 +254,18 @@ export default function StoreOnboarding() {
         if (res.status === 404 || res.status === 503 || res.status === 502) {
           throw new Error('サーバーに接続できませんでした。少し時間をおいて再度お試しください。');
         }
+        // ★ 409 = 同名・同住所の店舗が他オーナで既に登録済み (偽造防止ガード)
+        if (res.status === 409 && body?.error === 'store_duplicate') {
+          toast({
+            title: 'この店舗は既に登録されています',
+            description:
+              body?.message ||
+              '同じ店舗名・住所のお店が既に登録されています。 ご自身のお店であるにも関わらずこの表示が出る場合は hello@osusowakejapan.org までご連絡ください。',
+            variant: 'destructive',
+          });
+          // toast を出して通常の throw 経路はスキップ（重複表示を避ける）
+          return;
+        }
         const msg = body?.message || body?.error || `登録に失敗しました（HTTP ${res.status}）`;
         throw new Error(msg);
       }

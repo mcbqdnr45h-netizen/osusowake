@@ -128,6 +128,21 @@ interface SalesLead {
   createdAt: string;
 }
 
+/** 正規化: 全角→半角・小文字化・記号空白除去 (重複店舗検出用) */
+function normalizeStoreText(s: string | null | undefined): string {
+  if (!s) return '';
+  let t = s.normalize('NFKC');
+  t = t.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+  t = t.replace(/\u3000/g, ' ').toLowerCase();
+  t = t.replace(/[\s\-‐－―ー.,、。・/\\()（）「」『』【】\[\]{}<>＜＞:;:;'"`~!?！？*&%＄$#＃@＠+＋=＝]/g, '');
+  return t.trim();
+}
+/** 電話番号の正規化 (数字のみ抽出) */
+function normalizePhone(p: string | null | undefined): string {
+  if (!p) return '';
+  return p.replace(/\D/g, '');
+}
+
 function fmt(n: number) {
   return new Intl.NumberFormat('ja-JP').format(n);
 }
@@ -902,6 +917,49 @@ export default function AdminDashboard() {
                             {(() => {
                               const d = storeDetails[store.id];
                               if (!d) return null;
+
+                              // ── 偽造店舗検出 (本物の店舗を勝手に登録するなりすまし対策) ──
+                              const myAddrKey = normalizeStoreText(d.address) + normalizeStoreText(d.city);
+                              const myNameKey = normalizeStoreText(d.name);
+                              const myPhoneKey = normalizePhone(d.phone);
+                              const myStripe = d.stripe_account_id;
+
+                              const sameAddressOthers = stores.filter(s =>
+                                s.id !== d.id &&
+                                s.owner_id !== d.owner_id &&
+                                normalizeStoreText(s.address) + normalizeStoreText(s.city) === myAddrKey &&
+                                myAddrKey.length > 0
+                              );
+                              const sameNameOthers = stores.filter(s =>
+                                s.id !== d.id &&
+                                s.owner_id !== d.owner_id &&
+                                normalizeStoreText(s.name) === myNameKey &&
+                                myNameKey.length > 0
+                              );
+                              const sameStripeOthers = stores.filter(s =>
+                                s.id !== d.id &&
+                                s.owner_id !== d.owner_id &&
+                                myStripe && s.stripe_account_id === myStripe
+                              );
+                              // 同電話番号は storeDetails (詳細を開いた店舗のみ) から検索
+                              const samePhoneOthers = myPhoneKey
+                                ? Object.values(storeDetails).filter(other =>
+                                    other.id !== d.id &&
+                                    other.owner_id !== d.owner_id &&
+                                    normalizePhone(other.phone) === myPhoneKey
+                                  )
+                                : [];
+
+                              const hasFraudWarning =
+                                sameAddressOthers.length > 0 ||
+                                sameNameOthers.length > 0 ||
+                                sameStripeOthers.length > 0 ||
+                                samePhoneOthers.length > 0;
+
+                              // Google 検索リンク (実在性確認用)
+                              const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(`${d.name} ${d.city ?? ''} ${d.address}`)}`;
+                              const googleMapsSearchUrl = `https://www.google.com/maps/search/${encodeURIComponent(`${d.name} ${d.city ?? ''} ${d.address}`)}`;
+
                               return (
                                 <div className="space-y-3">
 
@@ -912,6 +970,61 @@ export default function AdminDashboard() {
                                       <p className="text-xs text-red-700 leading-relaxed">{store.rejection_reason}</p>
                                     </div>
                                   )}
+
+                                  {/* 🚨 偽造店舗の疑いバナー (別オーナで同名/同住所/同電話/同Stripe) */}
+                                  {hasFraudWarning && (
+                                    <div className="bg-red-50 border-2 border-red-400 rounded-xl p-3 space-y-2">
+                                      <p className="text-[11px] font-black text-red-700 flex items-center gap-1.5">
+                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                        🚨 重複の疑い — 偽造店舗かも
+                                      </p>
+                                      <div className="space-y-1 text-[11px] text-red-700">
+                                        {sameAddressOthers.length > 0 && (
+                                          <p>・別オーナで <b>同じ住所</b> の店舗が {sameAddressOthers.length} 件: {sameAddressOthers.map(s => `#${s.id} ${s.name}`).join(' / ')}</p>
+                                        )}
+                                        {sameNameOthers.length > 0 && (
+                                          <p>・別オーナで <b>同じ店名</b> の店舗が {sameNameOthers.length} 件: {sameNameOthers.map(s => `#${s.id} ${s.name}`).join(' / ')}</p>
+                                        )}
+                                        {samePhoneOthers.length > 0 && (
+                                          <p>・別オーナで <b>同じ電話番号</b> の店舗が {samePhoneOthers.length} 件: {samePhoneOthers.map(s => `#${s.id} ${s.name}`).join(' / ')}</p>
+                                        )}
+                                        {sameStripeOthers.length > 0 && (
+                                          <p>・別オーナで <b>同じ Stripe アカウント</b> の店舗が {sameStripeOthers.length} 件: {sameStripeOthers.map(s => `#${s.id} ${s.name}`).join(' / ')}</p>
+                                        )}
+                                      </div>
+                                      <p className="text-[10px] text-red-600 leading-relaxed">
+                                        承認前に必ず本人確認 (本人確認書類・営業許可証の店名一致・電話で店舗確認) をしてください。
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* 🔍 実在性確認 — Google で店舗を検索 (営業実態の有無を確認) */}
+                                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+                                    <p className="text-[10px] font-black text-blue-700 uppercase tracking-wide">🔍 実在性確認 — Google検索</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <a
+                                        href={googleSearchUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-1.5 bg-white hover:bg-blue-100 border border-blue-300 text-blue-700 font-bold text-[11px] py-2 rounded-lg transition-colors"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                        Google で検索
+                                      </a>
+                                      <a
+                                        href={googleMapsSearchUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-1.5 bg-white hover:bg-blue-100 border border-blue-300 text-blue-700 font-bold text-[11px] py-2 rounded-lg transition-colors"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                        Maps で検索
+                                      </a>
+                                    </div>
+                                    <p className="text-[10px] text-blue-600 leading-relaxed">
+                                      検索結果に同名店舗の写真・口コミがあるかで実在性を確認できます。
+                                    </p>
+                                  </div>
 
                                   {/* オーナー情報 */}
                                   <DetailSection title="👤 オーナー情報">
