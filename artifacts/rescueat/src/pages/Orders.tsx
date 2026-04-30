@@ -4,7 +4,7 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserId } from '@/hooks/use-user';
-import { useListReservations } from '@workspace/api-client-react';
+import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Receipt, ShoppingBag, CheckCircle2, XCircle,
@@ -418,6 +418,7 @@ export default function Orders() {
     { userId },
     {
       query: {
+        queryKey: getListReservationsQueryKey({ userId }),
         enabled: !!userId,
         // 購入履歴は受取直後にも必ず最新を反映するため、マウント時に常に再取得する
         refetchOnMount: 'always',

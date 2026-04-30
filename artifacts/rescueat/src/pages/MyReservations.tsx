@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useAuth } from '@/contexts/AuthContext';
-import { useListReservations, useCancelReservation } from '@workspace/api-client-react';
+import { useListReservations, useCancelReservation, getListReservationsQueryKey } from '@workspace/api-client-react';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { formatPickupTime } from '@/lib/utils';
 import { ja } from 'date-fns/locale';
@@ -49,7 +49,10 @@ export default function MyReservations() {
   const { toast } = useToast();
   const { data: reservations, isLoading } = useListReservations(
     { userId: userId || '' },
-    { query: { enabled: !!userId, refetchOnMount: 'always', staleTime: 0 } },
+    { query: {
+      queryKey: getListReservationsQueryKey({ userId: userId || '' }),
+      enabled: !!userId, refetchOnMount: 'always', staleTime: 0,
+    } },
   );
 
   const cancelMutation = useCancelReservation();

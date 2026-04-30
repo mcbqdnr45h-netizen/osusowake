@@ -16,6 +16,14 @@ export interface SurpriseBag {
   stockCount: number;
   pickupStart?: string;
   pickupEnd?: string;
+  /** バッグ画像 URL（任意） */
+  imageUrl?: string | null;
+  /** カテゴリ（任意） */
+  category?: string | null;
+  /** アレルギー情報（任意） */
+  allergyInfo?: string | null;
+  /** 受取時の備考（任意） */
+  pickupNote?: string | null;
   isActive: boolean;
   createdAt: Date;
 }

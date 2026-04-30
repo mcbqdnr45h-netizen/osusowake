@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
-import { useListAllBags, useListReservations, SurpriseBagWithStore } from '@workspace/api-client-react';
+import {
+  useListAllBags,
+  useListReservations,
+  getListAllBagsQueryKey,
+  getListReservationsQueryKey,
+  SurpriseBagWithStore,
+} from '@workspace/api-client-react';
 import {
   Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
@@ -284,7 +290,7 @@ export default function Home() {
   const { isApprovedOwner } = useMyStore();
   const userId = useUserId();
   const { data: bags, isLoading: isLoadingBags } = useListAllBags({
-    query: { refetchInterval: 60_000, staleTime: 30_000 },
+    query: { queryKey: getListAllBagsQueryKey(), refetchInterval: 60_000, staleTime: 30_000 },
   });
 
   // 未決済の予約を取得（仮押さえ廃止後は期限なし — 未払いのまま残る）
@@ -292,7 +298,10 @@ export default function Home() {
   // Supabase ログイン済み (user 取得済み) のときだけ fire させる。
   const { data: reservations } = useListReservations(
     { userId: user?.id || '' },
-    { query: { enabled: !!user?.id, refetchInterval: 30_000, staleTime: 0 } },
+    { query: {
+      queryKey: getListReservationsQueryKey({ userId: user?.id || '' }),
+      enabled: !!user?.id, refetchInterval: 30_000, staleTime: 0,
+    } },
   );
   const activeReservation = useMemo(() => {
     if (!reservations) return null;

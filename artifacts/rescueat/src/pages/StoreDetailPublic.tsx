@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useLocation, Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '@/components/Layout';
-import { useGetStore, useListAllBags } from '@workspace/api-client-react';
+import { useGetStore, useListAllBags, getGetStoreQueryKey, getListAllBagsQueryKey } from '@workspace/api-client-react';
 import { ArrowLeft, MapPin, Clock, Star, Navigation, ChevronRight, ExternalLink, Package } from 'lucide-react';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
@@ -40,11 +40,17 @@ export default function StoreDetailPublic() {
   const [imgError, setImgError] = useState(false);
 
   const { data: store, isLoading: storeLoading } = useGetStore(storeId, {
-    query: { enabled: !isNaN(storeId) },
+    query: {
+      queryKey: getGetStoreQueryKey(storeId),
+      enabled: !isNaN(storeId),
+    },
   });
 
   const { data: allBags } = useListAllBags(
-    { query: { enabled: !isNaN(storeId) } }
+    { query: {
+      queryKey: getListAllBagsQueryKey(),
+      enabled: !isNaN(storeId),
+    } }
   );
 
   const bags = (allBags ?? []).filter((b: any) => b.storeId === storeId && b.stock > 0);

@@ -8,6 +8,8 @@ import {
   useListStoreBags,
   useCreateBag,
   useUpdateReservationStatus,
+  getListReservationsQueryKey,
+  getListStoreBagsQueryKey,
 } from '@workspace/api-client-react';
 import {
   Plus, Minus, Clock, CheckCircle2, Package2, X, ChevronUp, ChevronDown,
@@ -1297,11 +1299,15 @@ export default function StoreDashboard() {
                (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
 
   const { data: reservations = [], isLoading: resLoading, refetch } =
-    useListReservations({ storeId: storeId ?? 0 }, { query: { enabled: !!storeId } });
+    useListReservations({ storeId: storeId ?? 0 }, { query: {
+      queryKey: getListReservationsQueryKey({ storeId: storeId ?? 0 }),
+      enabled: !!storeId,
+    } });
 
   const { data: bags = [], refetch: refetchBags } =
     useListStoreBags(storeId ?? 0, {
       query: {
+        queryKey: getListStoreBagsQueryKey(storeId ?? 0),
         enabled: !!storeId,
         staleTime: 0,             // 常に古いと見なし必ず再取得チェック
         refetchOnMount: 'always', // 画面に戻るたびサーバーから最新取得

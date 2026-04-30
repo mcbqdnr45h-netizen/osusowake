@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStores } from '@/hooks/use-my-stores';
 import { StoreSelector } from '@/components/StoreSelector';
-import { useListStoreBags, useCreateBag } from '@workspace/api-client-react';
+import { useListStoreBags, useCreateBag, getListStoreBagsQueryKey } from '@workspace/api-client-react';
 import {
   Plus, Minus, Package2, AlertCircle, Loader2,
   ChevronUp, ChevronDown, Zap, Lock, Clock,
@@ -27,6 +27,7 @@ export default function StoreBagsPage() {
 
   const { data: bags = [], isLoading } = useListStoreBags(storeId ?? 0, {
     query: {
+      queryKey: getListStoreBagsQueryKey(storeId ?? 0),
       enabled: !!storeId,
       staleTime: 0,             // 常に古いと見なし必ず再取得チェック
       refetchOnMount: 'always', // 画面に戻るたびサーバーから最新取得

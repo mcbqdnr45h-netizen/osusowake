@@ -2,7 +2,7 @@ import React from 'react';
 import { Layout } from '@/components/Layout';
 import { MyTown } from '@/components/MyTown';
 import { useAuth } from '@/contexts/AuthContext';
-import { useListReservations } from '@workspace/api-client-react';
+import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
 
 export default function MyTownPage() {
   // ゲスト UUID では予約は存在しない & サーバ側 requireAuth で 401 になるため
@@ -10,7 +10,10 @@ export default function MyTownPage() {
   const { user } = useAuth();
 
   const { data: reservations } = useListReservations({ userId: user?.id || '' }, {
-    query: { enabled: !!user?.id }
+    query: {
+      queryKey: getListReservationsQueryKey({ userId: user?.id || '' }),
+      enabled: !!user?.id,
+    },
   });
 
   const pickedUpCount = reservations?.filter(r => r.status === 'picked_up').length ?? 0;

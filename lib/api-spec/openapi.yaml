@@ -574,6 +574,22 @@ components:
           type: string
         pickupEnd:
           type: string
+        imageUrl:
+          type: string
+          nullable: true
+          description: バッグ画像 URL（任意）
+        category:
+          type: string
+          nullable: true
+          description: カテゴリ（任意）
+        allergyInfo:
+          type: string
+          nullable: true
+          description: アレルギー情報（任意）
+        pickupNote:
+          type: string
+          nullable: true
+          description: 受取時の備考（任意）
         isActive:
           type: boolean
         createdAt:

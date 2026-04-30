@@ -2,7 +2,11 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Layout } from '@/components/Layout';
 import { MapView, MapBounds, MapViewHandle } from '@/components/Map';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
-import { useListAllBags, useListStores, Store, SurpriseBagWithStore } from '@workspace/api-client-react';
+import {
+  useListAllBags, useListStores,
+  getListAllBagsQueryKey, getListStoresQueryKey,
+  Store, SurpriseBagWithStore,
+} from '@workspace/api-client-react';
 import {
   Search, X, ChevronDown,
   ArrowUpDown, MapPin, Clock, Package, ChevronRight, ShoppingBag, Navigation2,
@@ -543,11 +547,11 @@ export default function SearchPage() {
   }
 
   const { data: bags, isLoading: bagsLoading } = useListAllBags(
-    { query: { staleTime: 60_000 } }
+    { query: { queryKey: getListAllBagsQueryKey(), staleTime: 60_000 } }
   );
   const { data: stores } = useListStores(
     undefined,
-    { query: { staleTime: 60_000 } }
+    { query: { queryKey: getListStoresQueryKey(), staleTime: 60_000 } }
   );
 
   // 検索実行（キーボードを閉じる + ローダー演出）

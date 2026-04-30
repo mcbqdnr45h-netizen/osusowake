@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
-import { useListReservations } from '@workspace/api-client-react';
+import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
 import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft, AlertTriangle, Trash2 } from 'lucide-react';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
@@ -30,7 +30,10 @@ export default function MyPage() {
   // ── ロール修正は App.tsx の RoleReconciler が全ページで自動実行するため不要 ──
 
   const { data: reservations } = useListReservations({ userId: userId || '' }, {
-    query: { enabled: !!userId }
+    query: {
+      queryKey: getListReservationsQueryKey({ userId: userId || '' }),
+      enabled: !!userId,
+    },
   });
 
   const pickedUpReservations = reservations?.filter(r => r.status === 'picked_up') || [];

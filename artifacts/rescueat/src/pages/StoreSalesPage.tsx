@@ -1,7 +1,7 @@
 import React from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
-import { useListReservations } from '@workspace/api-client-react';
+import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
 import { BarChart2, TrendingUp, Package2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { isToday, parseISO, format, startOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -47,7 +47,10 @@ export default function StoreSalesPage() {
 
   const { data: reservations = [], isLoading } = useListReservations(
     { storeId: storeId ?? 0 },
-    { query: { enabled: !!storeId } }
+    { query: {
+      queryKey: getListReservationsQueryKey({ storeId: storeId ?? 0 }),
+      enabled: !!storeId,
+    } }
   );
 
   if (storeLoading || isLoading) {

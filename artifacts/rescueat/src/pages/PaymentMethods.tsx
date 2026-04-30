@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface SavedCard {
   id: string;
@@ -107,29 +108,36 @@ export default function PaymentMethods() {
   const { session } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [cards, setCards] = useState<SavedCard[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const token = session?.access_token;
 
-  const fetchCards = useCallback(async () => {
-    if (!session?.access_token) { setLoading(false); return; }
-    try {
-      setLoading(true);
+  // ── React Query でキャッシュ first 表示。 2 回目以降は即時 ──
+  const cardsQuery = useQuery<SavedCard[]>({
+    queryKey: ['payment-methods', token ? 'authed' : 'guest'],
+    queryFn: async () => {
+      if (!token) return [];
       const res = await fetch(`${BASE}/api/payment/methods`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCards(data.methods ?? []);
-      }
-    } catch {
-      // ネットワークエラー時は空のまま
-    } finally {
-      setLoading(false);
-    }
-  }, [session?.access_token]);
-
-  useEffect(() => { fetchCards(); }, [fetchCards]);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.methods ?? [];
+    },
+    enabled: !!token,
+    staleTime: 60_000,
+  });
+  const cards = cardsQuery.data ?? [];
+  const loading = cardsQuery.isLoading;
+  const fetchCards = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['payment-methods'] });
+  }, [queryClient]);
+  const setCards = useCallback((updater: (prev: SavedCard[]) => SavedCard[]) => {
+    queryClient.setQueryData<SavedCard[]>(
+      ['payment-methods', token ? 'authed' : 'guest'],
+      (prev) => updater(prev ?? []),
+    );
+  }, [queryClient, token]);
 
   async function handleDelete(methodId: string) {
     if (!session?.access_token) return;

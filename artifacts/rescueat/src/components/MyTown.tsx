@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { getTownStage, TOWN_STAGES, MAX_STAGE } from '@/lib/town-stage';
@@ -98,7 +98,7 @@ const STARS: [number, number, number][] = [
 ];
 
 // ── Background town silhouettes ─────────────────────────────────────────────
-function TownBuildings({ stage, color }: { stage: number; color: string }) {
+const TownBuildings = memo(function TownBuildings({ stage, color }: { stage: number; color: string }) {
   const ge = (n: number) => stage >= n;
   const house = (x: number, y: number, w: number, h: number, rH: number) =>
     `M${x},${y} L${x},${y-h} L${x+w/2},${y-h-rH} L${x+w},${y-h} L${x+w},${y} Z`;
@@ -151,10 +151,10 @@ function TownBuildings({ stage, color }: { stage: number; color: string }) {
       </>}
     </g>
   );
-}
+});
 
 // ── Level-up particle burst (pure CSS) ──────────────────────────────────────
-function LevelUpParticles({ active }: { active: boolean }) {
+const LevelUpParticles = memo(function LevelUpParticles({ active }: { active: boolean }) {
   if (!active) return null;
   const PARTICLES = [
     { angle: 0,   color: '#FF8C00', delay: 0 },
@@ -215,10 +215,10 @@ function LevelUpParticles({ active }: { active: boolean }) {
       ))}
     </div>
   );
-}
+});
 
 // ── Evolution Popup ─────────────────────────────────────────────────────────
-function EvolutionPopup({ stage, onClose }: { stage: number; onClose: () => void }) {
+const EvolutionPopup = memo(function EvolutionPopup({ stage, onClose }: { stage: number; onClose: () => void }) {
   const info  = TOWN_STAGES[stage];
   const title = getTitle(stage);
 
@@ -304,12 +304,12 @@ function EvolutionPopup({ stage, onClose }: { stage: number; onClose: () => void
       </motion.div>
     </motion.div>
   );
-}
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  TOWN SCENE  — animated SVG
 // ══════════════════════════════════════════════════════════════════════════════
-function TownScene({
+const TownScene = memo(function TownScene({
   stage,
   purchaseCount,
   tall = false,
@@ -1012,12 +1012,12 @@ function TownScene({
       </g>
     </svg>
   );
-}
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
-export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
+export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
   const stage     = getTownStage(purchaseCount);
   const stageInfo = TOWN_STAGES[stage];
   const nextStage = stage < TOWN_STAGES.length - 1 ? TOWN_STAGES[stage + 1] : null;
@@ -1224,4 +1224,4 @@ export function MyTown({ purchaseCount, fullPage = false }: MyTownProps) {
       </motion.div>
     </>
   );
-}
+});
