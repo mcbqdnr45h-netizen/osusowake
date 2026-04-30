@@ -547,13 +547,13 @@ export default function MyPage() {
             </button>
 
             {/* ── マイタウン 縮小カード (タップで詳細ページへ) ─────────────
-                ★ A案: 以前は flex-1 で画面いっぱいに表示していたが、 設定リストを
-                  本ページに同居させるため固定高 (220px) のショーケースに圧縮。 */}
+                ★ A案: 設定リストを本ページに同居させるため、 マイタウンは 140px の
+                  サムネ風カードに圧縮。 大きく見たいときは /my-town へ。 */}
             <button
               type="button"
-              onClick={() => navigate('/town')}
+              onClick={() => navigate('/my-town')}
               className="mx-4 group block w-[calc(100%-2rem)] rounded-2xl overflow-hidden border border-border bg-card relative active:scale-[0.99] transition-transform"
-              style={{ height: '220px', boxShadow: '0 2px 12px -2px rgba(10,8,6,0.10)' }}
+              style={{ height: '140px', boxShadow: '0 2px 12px -2px rgba(10,8,6,0.10)' }}
               aria-label="マイタウンを大きく見る"
             >
               <div className="absolute inset-0">
@@ -561,8 +561,8 @@ export default function MyPage() {
               </div>
               {/* 下部グラデーション + ラベル (タップ可能アフォーダンス) */}
               <div
-                className="absolute inset-x-0 bottom-0 px-3 py-2 flex items-center gap-2 text-white"
-                style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.0) 100%)' }}
+                className="absolute inset-x-0 bottom-0 px-3 py-1.5 flex items-center gap-2 text-white"
+                style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.0) 100%)' }}
               >
                 <span className="text-[11px] font-black flex-1">マイタウンをもっと見る</span>
                 <ChevronRight className="w-4 h-4 group-active:translate-x-0.5 transition-transform" />
