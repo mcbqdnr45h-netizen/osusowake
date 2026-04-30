@@ -14,7 +14,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import { useAppSettings } from "@/hooks/use-app-settings";
 import MaintenancePage from "./pages/MaintenancePage";
-import { listStores, getListStoresQueryKey, listAllBags, getListAllBagsQueryKey } from "@workspace/api-client-react";
+import { listStores, getListStoresQueryKey, listAllBags, getListAllBagsQueryKey, listReservations, getListReservationsQueryKey } from "@workspace/api-client-react";
 
 // ── クリティカルパス：初回表示に必要なページは eager import ──
 import Home from "./pages/Home";
@@ -25,14 +25,16 @@ import NotFound from "./pages/not-found";
 // ── 残りのページはすべて lazy import（コード分割でバンドルを小型化）──
 const BagDetail          = React.lazy(() => import("./pages/BagDetail"));
 const Checkout           = React.lazy(() => import("./pages/Checkout"));
-const MyReservations     = React.lazy(() => import("./pages/MyReservations"));
+const importMyReservations = () => import("./pages/MyReservations");
+const MyReservations     = React.lazy(importMyReservations);
 const StoreDashboard     = React.lazy(() => import("./pages/StoreDashboard"));
 const StoreOwnerDashboard= React.lazy(() => import("./pages/StoreOwnerDashboard"));
 const StoreReapply       = React.lazy(() => import("./pages/StoreReapply"));
 const StoreBagsPage      = React.lazy(() => import("./pages/StoreBagsPage"));
 const StoreSalesPage     = React.lazy(() => import("./pages/StoreSalesPage"));
 const FavoritesPage      = React.lazy(() => import("./pages/FavoritesPage"));
-const MyPage             = React.lazy(() => import("./pages/MyPage"));
+const importMyPage = () => import("./pages/MyPage");
+const MyPage             = React.lazy(importMyPage);
 // RegisterStore は廃止 — /register-store は /store-onboarding へリダイレクト
 function RegisterStoreRedirect() {
   const [, navigate] = useLocation();
@@ -49,7 +51,8 @@ const StoreSignUp        = React.lazy(() => import("./pages/StoreSignUp"));
 const VerifyEmail        = React.lazy(() => import("./pages/VerifyEmail"));
 const Settings           = React.lazy(() => import("./pages/Settings"));
 const PaymentMethods     = React.lazy(() => import("./pages/PaymentMethods"));
-const Orders             = React.lazy(() => import("./pages/Orders"));
+const importOrders = () => import("./pages/Orders");
+const Orders             = React.lazy(importOrders);
 const StoreOnboarding    = React.lazy(() => import("./pages/StoreOnboarding"));
 const StripeBankSetup    = React.lazy(() => import("./pages/StripeBankSetup"));
 const AdminDashboard     = React.lazy(() => import("./pages/AdminDashboard"));
@@ -401,6 +404,7 @@ function App() {
         <MyStoresProvider>
           <FavoritesProvider>
             <TooltipProvider>
+              <PrefetchOnAuth />
               <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
                 <RoleReconciler />
                 <MaintenanceGate>
@@ -415,6 +419,30 @@ function App() {
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+// ★ ログイン直後にユーザ固有データをバックグラウンド prefetch。
+//   こうしておくと「マイバッグ / 購入履歴 / マイページ統計」 など、
+//   どの画面に遷移してもキャッシュ済みで「ローディング無し」 で即表示される。
+//   失敗しても無視 (ベストエフォート)。
+function PrefetchOnAuth() {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user?.id) return;
+    const params = { userId: user.id };
+    // データの prefetch (queryClient キャッシュへ)
+    queryClient.prefetchQuery({
+      queryKey: getListReservationsQueryKey(params),
+      queryFn: ({ signal }) => listReservations(params, { signal }),
+      staleTime: 1000 * 60 * 2,
+    }).catch(() => {});
+    // ★ 高頻度ページ (マイバッグ / マイページ / 購入履歴) の lazy chunk もバックグラウンドで取得。
+    //   こうしておくと初遷移時に Suspense フォールバックがほぼ出ない。
+    importMyReservations().catch(() => {});
+    importMyPage().catch(() => {});
+    importOrders().catch(() => {});
+  }, [user?.id]);
+  return null;
 }
 
 export default App;

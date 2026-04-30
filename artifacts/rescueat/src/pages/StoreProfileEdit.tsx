@@ -62,13 +62,49 @@ export default function StoreProfileEdit() {
   const [iconPreviewUrl, setIconPreviewUrl] = useState('');
   const fileRef     = useRef<HTMLInputElement>(null);
   const iconFileRef = useRef<HTMLInputElement>(null);
+  // ★ ユーザが編集を始めたら、バックグラウンド再取得結果で上書きしないためのフラグ
+  const dirtyRef = useRef(false);
 
+  // ★ Stale-While-Revalidate パターン:
+  //   1) useMyStore で既に持ってる店舗データで「即座に」 form を埋める (1〜2秒のラグを解消)
+  //   2) その上でバックグラウンドで /api/stores/${id} を叩いて最新値で上書き
+  //      ただし: store 切替/アンマウント時は AbortController で打ち切り、
+  //      既に編集中 (dirty) なら入力を尊重してフォームには適用しない (画像 preview のみ更新)。
   useEffect(() => {
     if (!store) return;
-    authedFetch(`${BASE}/api/stores/${store.id}`)
+    // store が変わったら dirty を一旦リセット (新しい店舗の編集開始)
+    dirtyRef.current = false;
+
+    // 1) 即時に既存データで埋める
+    setForm(f => ({
+      ...f,
+      name:         store.name         ?? '',
+      description:  store.description  ?? '',
+      imageUrl:     store.imageUrl     ?? '',
+      iconUrl:      store.iconUrl      ?? '',
+      phone:        store.phone        ?? '',
+      address:      store.address      ?? '',
+      city:         store.city         ?? '',
+      openTime:     store.openTime     ?? '',
+      closeTime:    store.closeTime    ?? '',
+      holiday:      store.holiday      ?? '',
+      pickupHours:  store.pickupHours  ?? '',
+      category:     store.category     ?? 'meals',
+    }));
+    setPreviewUrl(store.imageUrl ?? '');
+    setIconPreviewUrl(store.iconUrl ?? '');
+
+    // 2) バックグラウンドで最新値を取得して上書き (AbortController で安全に打ち切り)
+    const ac = new AbortController();
+    const targetStoreId = store.id;
+    authedFetch(`${BASE}/api/stores/${store.id}`, { signal: ac.signal })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return;
+        // 別店舗に切り替わった後の遅延レスポンスは無視
+        if (targetStoreId !== store.id) return;
+        // ユーザが既に編集を始めてる場合はフォームを上書きしない
+        if (dirtyRef.current) return;
         setForm({
           name:         data.name         ?? '',
           description:  data.description  ?? '',
@@ -85,8 +121,20 @@ export default function StoreProfileEdit() {
         });
         setPreviewUrl(data.imageUrl ?? '');
         setIconPreviewUrl(data.iconUrl ?? '');
+      })
+      .catch(err => {
+        // AbortError は意図的な打ち切りなので無視
+        if ((err as any)?.name !== 'AbortError') {
+          // 通信エラーは黙殺 (即時表示で既に form は埋まってる)
+        }
       });
+    return () => ac.abort();
   }, [store]);
+
+  // ★ form が変わった時点で dirty マーク (バックグラウンド再取得から保護)
+  //    setForm がコンテキスト同期由来か手動編集由来かを完璧に区別するのは難しいので、
+  //    入力ハンドラ側で dirty を立てる方針にする (各 onChange 経路で dirtyRef.current = true)。
+  function markDirty() { dirtyRef.current = true; }
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -331,7 +379,9 @@ export default function StoreProfileEdit() {
     }
   };
 
-  if (loading) {
+  // ★ store がキャッシュ/コンテキストから既に取れてる場合はスピナーを出さない (体感即表示)。
+  //    本当に空の初回ロード (loading && !store) のみフルスピナー表示。
+  if (loading && !store) {
     return (
       <StoreLayout showHeader={false}>
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -548,7 +598,7 @@ export default function StoreProfileEdit() {
                 <input
                   type="text"
                   value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  onChange={e => { markDirty(); setForm(f => ({ ...f, name: e.target.value })); }}
                   placeholder="例：おすそわけ食堂 渋谷店"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
@@ -560,7 +610,7 @@ export default function StoreProfileEdit() {
                 <input
                   type="tel"
                   value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  onChange={e => { markDirty(); setForm(f => ({ ...f, phone: e.target.value })); }}
                   placeholder="例：090-0000-0000"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
@@ -572,7 +622,7 @@ export default function StoreProfileEdit() {
                 <input
                   type="text"
                   value={form.address}
-                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  onChange={e => { markDirty(); setForm(f => ({ ...f, address: e.target.value })); }}
                   placeholder="例：東京都渋谷区神南1-2-3"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
@@ -583,7 +633,7 @@ export default function StoreProfileEdit() {
                   {CATEGORY_OPTIONS.map(opt => (
                     <button
                       key={opt.value} type="button"
-                      onClick={() => setForm(f => ({ ...f, category: opt.value }))}
+                      onClick={() => { markDirty(); setForm(f => ({ ...f, category: opt.value })); }}
                       className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-bold text-xs transition-all active:scale-95 ${
                         form.category === opt.value
                           ? 'border-primary bg-primary/10 text-primary'
@@ -614,7 +664,7 @@ export default function StoreProfileEdit() {
             <div className="p-5">
               <textarea
                 value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                onChange={e => { markDirty(); setForm(f => ({ ...f, description: e.target.value })); }}
                 rows={4}
                 placeholder="お店の魅力、こだわり、おすそわけバッグの特徴などをPRしましょう！"
                 className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
@@ -641,7 +691,7 @@ export default function StoreProfileEdit() {
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">営業開始</label>
                   <TimePicker
                     value={form.openTime}
-                    onChange={v => setForm(f => ({ ...f, openTime: v }))}
+                    onChange={v => { markDirty(); setForm(f => ({ ...f, openTime: v })); }}
                     label="営業開始時間"
                   />
                 </div>
@@ -649,7 +699,7 @@ export default function StoreProfileEdit() {
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">営業終了</label>
                   <TimePicker
                     value={form.closeTime}
-                    onChange={v => setForm(f => ({ ...f, closeTime: v }))}
+                    onChange={v => { markDirty(); setForm(f => ({ ...f, closeTime: v })); }}
                     label="営業終了時間"
                   />
                 </div>
@@ -659,7 +709,7 @@ export default function StoreProfileEdit() {
                 <input
                   type="text"
                   value={form.pickupHours}
-                  onChange={e => setForm(f => ({ ...f, pickupHours: e.target.value }))}
+                  onChange={e => { markDirty(); setForm(f => ({ ...f, pickupHours: e.target.value })); }}
                   placeholder="例：18:00〜21:00（平日）、17:00〜20:00（土日）"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
@@ -671,7 +721,7 @@ export default function StoreProfileEdit() {
                 <input
                   type="text"
                   value={form.holiday}
-                  onChange={e => setForm(f => ({ ...f, holiday: e.target.value }))}
+                  onChange={e => { markDirty(); setForm(f => ({ ...f, holiday: e.target.value })); }}
                   placeholder="例：毎週水曜日・年末年始"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />

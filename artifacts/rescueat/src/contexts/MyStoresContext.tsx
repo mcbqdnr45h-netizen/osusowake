@@ -20,6 +20,7 @@ export type MyStore = {
   stripePayoutsEnabled: boolean | null;
   stripeNeedsBankReregister: boolean | null;
   imageUrl: string | null;
+  iconUrl: string | null;
   description: string | null;
   openTime: string | null;
   closeTime: string | null;
