@@ -416,6 +416,10 @@ export default function BagDetail() {
       }
     }, {
       onSuccess: (data) => {
+        // 予約成功 → 在庫が減ったので bag/listAllBags キャッシュを invalidate。
+        // (initialData 戦略により再訪時に古い在庫が見える可能性を排除)
+        queryClient.invalidateQueries({ queryKey: getGetBagQueryKey(bag.id) });
+        queryClient.invalidateQueries({ queryKey: getListAllBagsQueryKey() });
         navigate(`/checkout/${data.id}`);
       },
       onError: (err) => {
