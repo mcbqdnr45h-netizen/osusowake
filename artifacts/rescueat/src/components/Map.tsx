@@ -442,6 +442,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         };
         if (mapId) {
           mapOptions.mapId = mapId;
+          // ★ Vector レンダリングを明示要求 (Map ID が VECTOR 設定済みのとき有効)
+          //   iPhone (DPR=3) で raster @2x タイルを拡大表示してぼやける問題への根本対策。
+          //   Vector は WebGL 描画なのでどの DPR でも常にシャープ。
+          //   Cloud Console の Map ID が RASTER だと無視されるが、害は無い。
+          try {
+            const RT = (gMaps as any).RenderingType;
+            if (RT?.VECTOR) (mapOptions as any).renderingType = RT.VECTOR;
+          } catch { /* 古いバージョンには無いので無視 */ }
         } else {
           mapOptions.styles = MAP_STYLES;
         }
