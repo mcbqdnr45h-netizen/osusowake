@@ -208,7 +208,8 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
         const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
         // Stripe Customer 取得/作成（保存カードの自動表示のため）
-        const userId = body.userId;
+        // 認可: クライアントから渡された userId は信頼せず、必ず認証済みユーザの ID を使う
+        const userId = req.authUser!.id;
         const customerId = userId ? await getOrCreateStripeCustomer(stripe, userId) : null;
 
         // ── 既存 PI の再利用チェック（Stripe ダッシュボード「未完了」増殖防止）─────
@@ -842,6 +843,23 @@ router.get("/checkout/verify", async (req, res) => {
     if (stripeKey) {
       const stripe = await import("stripe").then((m) => new m.default(stripeKey));
       const session = await stripe.checkout.sessions.retrieve(session_id);
+
+      // ★ 認可: session.metadata.reservationId と URL クエリの reservation_id が一致することを必ず検証する。
+      //   この検証なしだと、攻撃者が他人の session_id を手に入れて自分の reservation_id を付け回し、
+      //   他人の決済成功イベントで自分の予約を paid に偽装できてしまう。
+      const sessionReservationId = session.metadata?.reservationId;
+      if (!sessionReservationId || sessionReservationId !== String(reservation_id)) {
+        console.warn(
+          `[SECURITY] /checkout/verify reservation_mismatch: session=${session_id} ` +
+          `metadata.reservationId=${sessionReservationId ?? "(missing)"} query.reservation_id=${reservation_id}`
+        );
+        res.status(403).json({
+          error: "reservation_mismatch",
+          message: "予約IDと決済セッションが一致しません",
+        });
+        return;
+      }
+
       paymentStatus = session.payment_status;
       stripePaymentId = (session.payment_intent as string) || session.id;
       supabaseUserId = session.metadata?.userId || "";

@@ -14,5 +14,11 @@ export interface UpdateBagRequest {
   stockCount?: number;
   pickupStart?: string;
   pickupEnd?: string;
+  imageUrl?: string;
+  category?: string;
+  /** アレルギー情報（任意） */
+  allergyInfo?: string;
+  /** 受取時の備考（任意） */
+  pickupNote?: string;
   isActive?: boolean;
 }

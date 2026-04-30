@@ -129,6 +129,14 @@
 - `STRIPE_SECRET_KEY` - Stripeシークレットキー（任意・未設定でモック）
 - `VITE_STRIPE_PUBLIC_KEY` - Stripeパブリックキー（任意）
 
+## Recent Updates (2026-04-30)
+
+### 残課題4件の修正完了（収益モデル統一の延長）
+1. **bags.ts allergyInfo/pickupNote TS error**: `lib/api-spec/openapi.yaml` の `CreateBagRequest`/`UpdateBagRequest` に `allergyInfo` / `pickupNote` を追加（`UpdateBagRequest` には不足していた `imageUrl`/`category` も追加）。`pnpm --filter @workspace/api-spec run codegen` で zod / orval / d.ts 再生成。
+2. **payment.ts L211 body.userId**: `/payment/create-intent` で client-supplied `body.userId` を使っていたため TS error + セキュリティリスク → `req.authUser!.id` に統一（`/checkout/session` と同パターン）。
+3. **/checkout/verify セキュリティ強化**: `session.metadata.reservationId !== String(reservation_id)` の場合は `403 reservation_mismatch` を返す。これがないと攻撃者が他人の `session_id` と自分の `reservation_id` を組み合わせて偽の paid 状態を作れた。`session.metadata.reservationId` は checkout-session 作成時に `String(reservation.id)` で保存しているため、URL クエリと文字列比較で一致確認。
+4. **Webhook Separate C&T transfer**: 旧実装は `/checkout/verify` でしか手動 Transfer を実行していなかったため、ユーザがチェックアウト完了後にブラウザを閉じると店舗送金が走らなかった。`stripe-webhook.ts` の `payment_intent.succeeded` ハンドラに共通ヘルパー `executeShopTransferIfNeeded` を追加し、`paid` (初回) と `already_paid` (verify が先に paid 化したが Transfer 失敗していたケースのリカバリ) の両方で実行。/checkout/verify と完全に同一のパラメータ + 同じ `idempotencyKey: transfer:reservation:${id}` を使うため、Stripe 側で 1 回だけ Transfer が作成される（二重送金なし、prior response replay 安全）。
+
 ## Recent Updates (2026-04-29)
 
 ### 売上¥0バグ + 店舗カスタムアイコン機能

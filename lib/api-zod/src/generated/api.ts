@@ -204,6 +204,8 @@ export const CreateBagBody = zod.object({
   pickupEnd: zod.string().optional(),
   imageUrl: zod.string().optional(),
   category: zod.string().optional(),
+  allergyInfo: zod.string().optional().describe("アレルギー情報（任意）"),
+  pickupNote: zod.string().optional().describe("受取時の備考（任意）"),
 });
 
 /**
@@ -322,6 +324,10 @@ export const UpdateBagBody = zod.object({
   stockCount: zod.number().optional(),
   pickupStart: zod.string().optional(),
   pickupEnd: zod.string().optional(),
+  imageUrl: zod.string().optional(),
+  category: zod.string().optional(),
+  allergyInfo: zod.string().optional().describe("アレルギー情報（任意）"),
+  pickupNote: zod.string().optional().describe("受取時の備考（任意）"),
   isActive: zod.boolean().optional(),
 });
 

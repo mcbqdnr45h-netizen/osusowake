@@ -18,6 +18,81 @@ async function getStripe() {
   return new Stripe(stripeKey, { apiVersion: "2024-11-20.acacia" as any });
 }
 
+// ── Separate Charges & Transfers の店舗送金ヘルパー ────────────────────────────
+// /checkout/verify と完全に同一のパラメータ・idempotencyKey で Transfer を作成する。
+// → 両経路から呼ばれても Stripe 側で 1 回だけ作成され（二重送金なし）、
+//   かつパラメータ完全一致のため idempotency error にならず prior response が再生される。
+//
+// 呼び出しコンテキスト:
+//   - "paid":          このイベントで初めて paid 遷移した（通常パス）
+//   - "already_paid":  別経路（/checkout/verify 等）が先に paid にしたが、
+//                      その経路で Transfer が失敗していた可能性に備えてリトライ
+async function executeShopTransferIfNeeded(params: {
+  intent: { id: string; metadata?: Record<string, string>; latest_charge?: string | null };
+  reservationId: number;
+  context: "paid" | "already_paid";
+}): Promise<void> {
+  const { intent, reservationId, context } = params;
+  try {
+    const piMetadata = (intent.metadata ?? {}) as Record<string, string>;
+    const isSeparateCT = piMetadata["chargeMode"] === "separate_charges_and_transfers";
+    const transferAmount = parseInt(piMetadata["shopTransferAmount"] ?? "0", 10);
+    const storeAccountId = piMetadata["storeStripeAccountId"];
+    const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : null;
+
+    if (!isSeparateCT) {
+      console.log(`[stripe-webhook] ℹ️ Transfer スキップ: chargeMode=${piMetadata["chargeMode"] ?? "不明"} (reservation=${reservationId}, ctx=${context})`);
+      return;
+    }
+    if (!(transferAmount > 0)) {
+      console.log(`[stripe-webhook] ℹ️ Transfer スキップ: 送金額=${transferAmount} (reservation=${reservationId}, ctx=${context})`);
+      return;
+    }
+    if (!storeAccountId) {
+      console.log(`[stripe-webhook] ℹ️ Transfer スキップ: 送金先アカウント未設定 (reservation=${reservationId}, ctx=${context})`);
+      return;
+    }
+    if (!chargeId) {
+      console.warn(`[stripe-webhook] ⚠️ Transfer スキップ: latest_charge 未取得 (reservation=${reservationId}, ctx=${context})`);
+      return;
+    }
+
+    const stripe = await getStripe();
+    if (!stripe) return;
+
+    // ★ /checkout/verify の Transfer 呼び出しと metadata を完全一致させること。
+    //   Stripe の冪等キーは「同一キー＋同一パラメータ」の場合のみ prior response を返す。
+    //   差分があると idempotency error。
+    const transfer = await stripe.transfers.create({
+      amount:             transferAmount,
+      currency:           "jpy",
+      destination:        storeAccountId,
+      source_transaction: chargeId,
+      metadata: {
+        reservationId:   String(reservationId),
+        chargeMode:      "separate_charges_and_transfers",
+        platformRevenue: piMetadata["platformRevenue"] ?? "",
+        stripeFeeEst:    piMetadata["stripeFeeEstimate"] ?? "",
+        shopTransfer:    String(transferAmount),
+      },
+    }, {
+      // /checkout/verify と共通キー → 二重実行防止 + 同一パラメータで replay 安全
+      idempotencyKey: `transfer:reservation:${reservationId}`,
+    });
+    console.log(
+      `[stripe-webhook] ✅ Transfer (${context}): ${transferAmount}JPY → ${storeAccountId} ` +
+      `(transfer_id=${transfer.id}, charge=${chargeId}, reservation=${reservationId})`
+    );
+  } catch (transferErr: any) {
+    // Transfer失敗は非致命的 — paid 遷移は既に完了済み。Stripe の payment_intent.succeeded
+    // 再送（最大3日）でこのハンドラが再実行されれば already_paid 経路から再試行される。
+    console.error(
+      `[stripe-webhook] ⚠️ Transfer error (non-fatal, reservation=${reservationId}, ctx=${context}):`,
+      transferErr?.message ?? transferErr
+    );
+  }
+}
+
 // ── app_settings から値を取得するヘルパー ─────────────────────────────────────
 async function getSetting(key: string, defaultValue: string = 'false'): Promise<string> {
   try {
@@ -324,6 +399,7 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         id: string;
         amount: number;
         metadata?: Record<string, string>;
+        latest_charge?: string | null;
       };
       const reservationIdStr = intent.metadata?.reservationId;
       const reservationId = reservationIdStr ? parseInt(reservationIdStr, 10) : NaN;
@@ -412,6 +488,11 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
       }
       if (result.kind === "already_paid") {
         console.log(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} は既に paid（冪等スキップ）`);
+        // ★ Transfer リカバリー: 別経路（/checkout/verify）が paid にした後で
+        //   Transfer を失敗していた可能性があるため、ここでも再試行する。
+        //   /checkout/verify と同じ idempotencyKey を使うので、既に成功している場合は
+        //   Stripe が prior response を返して二重送金にならない。
+        await executeShopTransferIfNeeded({ intent, reservationId, context: "already_paid" });
         res.json({ received: true, type: event.type, handled: true, idempotent: true });
         return;
       }
@@ -448,6 +529,10 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         .catch(() => {});
 
       console.log(`[stripe-webhook] ✅ 安全網発動: reservation ${reservationId} を paid/confirmed に更新（intent=${intent.id}）`);
+
+      // 🚚 Separate Charges & Transfers — 店舗送金（共通ヘルパー経由）
+      // ユーザが /checkout/verify を踏まずにブラウザを閉じた場合の救済。
+      await executeShopTransferIfNeeded({ intent, reservationId, context: "paid" });
 
       // 店舗オーナーへの購入通知 — 実際に遷移したこのパスからのみ送信
       try {

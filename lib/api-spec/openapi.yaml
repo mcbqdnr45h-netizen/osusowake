@@ -613,6 +613,12 @@ components:
           type: string
         category:
           type: string
+        allergyInfo:
+          type: string
+          description: アレルギー情報（任意）
+        pickupNote:
+          type: string
+          description: 受取時の備考（任意）
       required:
         - title
         - originalPrice
@@ -636,6 +642,16 @@ components:
           type: string
         pickupEnd:
           type: string
+        imageUrl:
+          type: string
+        category:
+          type: string
+        allergyInfo:
+          type: string
+          description: アレルギー情報（任意）
+        pickupNote:
+          type: string
+          description: 受取時の備考（任意）
         isActive:
           type: boolean
 
