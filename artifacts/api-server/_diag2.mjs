@@ -1,0 +1,17 @@
+import Stripe from "stripe";
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const acct = "acct_1TRmFRKHXb0Qnk85";
+const a = await stripe.accounts.retrieve(acct);
+console.log("=== Stripe Account", acct, "===");
+console.log("charges_enabled:", a.charges_enabled);
+console.log("payouts_enabled:", a.payouts_enabled);
+console.log("details_submitted:", a.details_submitted);
+console.log("requirements.disabled_reason:", a.requirements?.disabled_reason);
+console.log("requirements.currently_due:", a.requirements?.currently_due);
+console.log("requirements.past_due:", a.requirements?.past_due);
+console.log("requirements.eventually_due:", a.requirements?.eventually_due);
+console.log("requirements.pending_verification:", a.requirements?.pending_verification);
+console.log("future_requirements.currently_due:", a.future_requirements?.currently_due);
+console.log("capabilities:", JSON.stringify(a.capabilities));
+console.log("external_accounts.total_count:", a.external_accounts?.total_count);
+console.log("business_profile.url:", a.business_profile?.url);
