@@ -151,16 +151,25 @@ export default function MyReservations() {
         )}
       </AnimatePresence>
 
-      {/* 確認ダイアログ (履歴削除 / 予約キャンセル 共通) */}
+      {/* 確認ダイアログ (履歴削除 / 予約キャンセル 共通)
+          ★ 重要: BottomNav が z-50 で fixed 配置されているため、 モーダルも z-50 だと
+              DOM 順で後勝ちで BottomNav に下部ボタンが隠される。 z-[100] に引き上げて
+              確実に最前面 (BottomNav の上) に重ねる。 */}
       <AnimatePresence>
         {confirmAction !== null && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => !cancelling && setConfirmAction(null)}
+            style={{
+              // iPhone ホームインジケータ + BottomNav 高さぶんの逃がし。
+              // sm 以上は items-center で中央寄せなので無害。
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 88px)',
+              paddingTop: 'env(safe-area-inset-top)',
+            }}
           >
             <motion.div
-              className="bg-card rounded-3xl shadow-2xl w-full max-w-sm p-6 pb-8"
+              className="bg-card rounded-3xl shadow-2xl w-full max-w-sm p-6 pb-8 max-h-[80vh] overflow-y-auto"
               initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               onClick={e => e.stopPropagation()}
