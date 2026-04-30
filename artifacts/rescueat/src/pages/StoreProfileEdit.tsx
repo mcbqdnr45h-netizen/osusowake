@@ -115,7 +115,34 @@ export default function StoreProfileEdit() {
     }
   };
 
+  // ★ アイコン値を DB に即保存するユーティリティ。
+  //   保存ボタン押し忘れ問題と、フォーム他項目との競合を回避するため
+  //   「iconUrl だけ」の最小 PATCH を別投げする (allowed list で iconUrl のみ更新される)。
+  const persistIconUrl = async (newIconUrl: string): Promise<boolean> => {
+    if (!store) return false;
+    const url = `${BASE}/api/stores/${store.id}/profile`;
+    const body = JSON.stringify({ iconUrl: newIconUrl });
+    let res = await authedFetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body });
+    if (res.status === 401) {
+      try {
+        const { data: { session } } = await supabase.auth.refreshSession();
+        if (session?.access_token) {
+          res = await authedFetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body });
+        }
+      } catch (e) {
+        console.warn('[StoreProfileEdit] icon refreshSession failed:', e);
+      }
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({} as { message?: string }));
+      throw new Error(data.message || `保存失敗 (HTTP ${res.status})`);
+    }
+    return true;
+  };
+
   // ★ 地図ピン用アイコンの選択 (正方形推奨・自動で角丸表示)
+  //   アップロード成功直後に DB へ即保存し、保存ボタン押し忘れによる「設定したのに反映されない」
+  //   問題を完全に防ぐ。
   const handleIconChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -134,8 +161,20 @@ export default function StoreProfileEdit() {
         throw new Error(data.message || `送信失敗 (HTTP ${res.status})`);
       }
       const { url } = await res.json();
+      // フォーム & プレビュー更新
       setIconPreviewUrl(url);
       setForm(f => ({ ...f, iconUrl: url }));
+      // DB に即保存 (失敗時はトーストでロールバック表示)
+      try {
+        await persistIconUrl(url);
+        toast({ title: 'アイコンを保存しました', description: '地図のピンに反映されます' });
+      } catch (saveErr) {
+        toast({
+          title: 'アイコンの保存に失敗しました',
+          description: saveErr instanceof Error ? saveErr.message : '通信を確認して再度お試しください',
+          variant: 'destructive',
+        });
+      }
     } catch (err) {
       toast({
         title: 'アップロードエラー',
@@ -147,9 +186,19 @@ export default function StoreProfileEdit() {
     }
   };
 
-  const handleIconRemove = () => {
+  const handleIconRemove = async () => {
     setIconPreviewUrl('');
     setForm(f => ({ ...f, iconUrl: '' }));
+    try {
+      await persistIconUrl('');
+      toast({ title: 'アイコンを削除しました' });
+    } catch (err) {
+      toast({
+        title: 'アイコンの削除に失敗しました',
+        description: err instanceof Error ? err.message : '通信を確認して再度お試しください',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -265,7 +314,7 @@ export default function StoreProfileEdit() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || uploading}
+            disabled={saving || uploading || iconUploading}
             className="flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-60 hover:bg-primary/90 active:scale-95 transition-all shadow-md shadow-primary/20 shrink-0"
           >
             {saving
@@ -574,7 +623,7 @@ export default function StoreProfileEdit() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || uploading}
+            disabled={saving || uploading || iconUploading}
             className="w-full h-14 bg-primary text-white rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/25 disabled:opacity-60"
           >
             {saving

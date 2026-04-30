@@ -106,7 +106,7 @@ router.get("/stores", async (req, res) => {
       .select(storeSelectFields)
       .from(storesTable)
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
-      .where(sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true`)
+      .where(sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true AND ${storesTable.stripeChargesEnabled} = true`)
       .groupBy(storesTable.id);
 
     res.json(stores);

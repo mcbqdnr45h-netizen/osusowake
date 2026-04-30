@@ -66,8 +66,11 @@ const MAP_STYLES: google.maps.MapTypeStyle[] = [
 //   防御的に XML 属性用エスケープ + http(s) スキーム以外を拒否する。
 function safeIconHref(rawUrl: string): string | null {
   if (!rawUrl) return null;
-  // http(s) スキーム以外 (javascript:, data:, file: 等) を一律拒否
-  if (!/^https?:\/\//i.test(rawUrl)) return null;
+  // http(s) と data:image/* のみ許可 (javascript:, file: 等は一律拒否)
+  // ★ data: 許可は iOS Safari 対策: SVG マーカー (data:image/svg+xml) の中で
+  //    外部 https 画像を <image href> 参照すると iOS WebView では描画されない既知の制限があるため、
+  //    一度 fetch して base64 化したものを埋め込めるよう data:image/* も通す。
+  if (!/^(https?:\/\/|data:image\/)/i.test(rawUrl)) return null;
   // XML 属性として安全になるようエスケープ
   return rawUrl
     .replace(/&/g, '&amp;')
@@ -75,6 +78,48 @@ function safeIconHref(rawUrl: string): string | null {
     .replace(/'/g, '&apos;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+// ── iconUrl → base64 data URL キャッシュ (モジュールスコープで共有) ─────
+//   iOS Safari/Capacitor の data:image/svg+xml の中で外部 image href が描画されない
+//   問題への対策。同じ URL は1回だけ fetch する。
+//   ★ メモリ肥大化防止のため LRU 風に最大 200 件で頭から evict する。
+const __ICON_CACHE_MAX = 200;
+const __iconBase64Cache = new Map<string, Promise<string | null>>();
+function fetchIconAsDataUrl(rawUrl: string): Promise<string | null> {
+  if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) return Promise.resolve(null);
+  const cached = __iconBase64Cache.get(rawUrl);
+  if (cached) {
+    // LRU: 既存エントリを末尾に移動 (Map の挿入順保持を活用)
+    __iconBase64Cache.delete(rawUrl);
+    __iconBase64Cache.set(rawUrl, cached);
+    return cached;
+  }
+  const p = (async () => {
+    try {
+      const res = await fetch(rawUrl, { mode: 'cors', cache: 'force-cache' });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      // 大きすぎる画像はスキップ (data: URL 内 svg のサイズ抑制 / マーカー過多時の OOM 回避)
+      if (blob.size > 512 * 1024) return null;
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  })();
+  __iconBase64Cache.set(rawUrl, p);
+  // 容量超過分を先頭 (最古) から evict
+  while (__iconBase64Cache.size > __ICON_CACHE_MAX) {
+    const oldestKey = __iconBase64Cache.keys().next().value;
+    if (oldestKey === undefined) break;
+    __iconBase64Cache.delete(oldestKey);
+  }
+  return p;
 }
 
 function makeIconPinUrl(iconUrl: string, isActive: boolean): string | null {
@@ -481,28 +526,40 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       );
 
       // ★ 店舗が独自アイコン (iconUrl) を設定している場合はそれを優先表示。
-      //   未設定 / 不正URLならカテゴリ絵文字ピンへフォールバック。
-      const customPinUrl = store.iconUrl ? makeIconPinUrl(store.iconUrl, isActive) : null;
-      const useCustom    = customPinUrl !== null;
-      const pinUrl       = useCustom
-        ? customPinUrl
-        : (isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category));
-      const [w, h, ax, ay] = useCustom
-        ? (isActive ? [56, 70, 28, 63] : [48, 60, 24, 54])
-        : (isActive ? [52, 66, 26, 59] : [44, 56, 22, 50]);
+      //   ただし iOS Safari は data:image/svg+xml の中で外部 https 画像を描画できないため、
+      //   初期表示はカテゴリ絵文字ピンで描画 → fetchIconAsDataUrl で base64 化が完了次第
+      //   marker.setIcon でカスタムピンへ差し替える (中身が真っ白問題への根本対策)。
+      const hasCustomIcon = !!store.iconUrl;
+      const fallbackUrl   = isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category);
+      const [fw, fh, fax, fay] = isActive ? [52, 66, 26, 59] : [44, 56, 22, 50];
 
       const marker = new gMaps.Marker({
         position: { lat: store.lat, lng: store.lng },
         icon: {
-          url:        pinUrl,
-          scaledSize: new gMaps.Size(w, h),
-          anchor:     new gMaps.Point(ax, ay),
+          url:        fallbackUrl,
+          scaledSize: new gMaps.Size(fw, fh),
+          anchor:     new gMaps.Point(fax, fay),
         },
         title:  store.name,
         zIndex: isActive ? 10 : 5,
         // グレーピンはクラスタに入れないためmapを直接設定
         map: isActive ? undefined : map,
       });
+
+      // 非同期で iconUrl を data URL 化してから差し替え (失敗時は絵文字ピンのまま)
+      if (hasCustomIcon && store.iconUrl) {
+        fetchIconAsDataUrl(store.iconUrl).then(dataUrl => {
+          if (!dataUrl) return;
+          const customPinUrl = makeIconPinUrl(dataUrl, isActive);
+          if (!customPinUrl) return;
+          const [cw, ch, cax, cay] = isActive ? [56, 70, 28, 63] : [48, 60, 24, 54];
+          marker.setIcon({
+            url:        customPinUrl,
+            scaledSize: new gMaps.Size(cw, ch),
+            anchor:     new gMaps.Point(cax, cay),
+          });
+        });
+      }
 
       marker.addListener('click', () => {
         const pos = marker.getPosition();
