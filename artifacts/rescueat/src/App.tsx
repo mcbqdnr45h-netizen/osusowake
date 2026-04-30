@@ -75,6 +75,8 @@ const TokushoPage        = React.lazy(() => import("./pages/TokushoPage"));
 const MyTownPage         = React.lazy(() => import("./pages/MyTownPage"));
 const SalesLeadForm      = React.lazy(() => import("./pages/SalesLeadForm"));
 const ResetPassword      = React.lazy(() => import("./pages/ResetPassword"));
+const FlyerUser          = React.lazy(() => import("./pages/FlyerUser"));
+const FlyerStore         = React.lazy(() => import("./pages/FlyerStore"));
 
 // ── ルートガードファクトリ ─────────────────────────────────────────────────────
 const Protected = (C: React.ComponentType, role?: 'customer' | 'store_owner') =>
@@ -248,6 +250,8 @@ function AnimatedRoutes() {
               <Route path="/privacy" component={Privacy} />
               <Route path="/legal" component={TokushoPage} />
               <Route path="/help" component={HelpPage} />
+              <Route path="/flyer/user" component={FlyerUser} />
+              <Route path="/flyer/store" component={FlyerStore} />
               <Route path="/report-store" component={SalesLeadForm} />
               <Route path="/tokusho" component={TokushoPage} />
               <Route path="/verify-email" component={VerifyEmail} />
