@@ -7,6 +7,8 @@ import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, M
 import { TimePicker } from '@/components/TimePicker';
 import { motion } from 'framer-motion';
 import { authedFetch } from '@/lib/authed-fetch';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
 const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
@@ -36,6 +38,7 @@ type StoreProfile = {
 export default function StoreProfileEdit() {
   const [, navigate] = useLocation();
   const { store, loading } = useMyStore();
+  const { signOut } = useAuth();
   const { toast } = useToast();
 
   const [form, setForm] = useState<StoreProfile>({
@@ -150,22 +153,69 @@ export default function StoreProfileEdit() {
   };
 
   const handleSave = async () => {
-    if (!store) return;
+    // ★ store がまだロードされていない時にサイレント無反応にしない（旧版ではユーザーが
+    //    「ボタンを押しても何も起こらない」と感じる致命的 UX バグの原因だった）
+    if (!store) {
+      toast({
+        title: '店舗情報の読み込み中です',
+        description: '少し待ってから再度お試しください。改善しない場合は再ログインしてください。',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSaving(true);
+    const url = `${BASE}/api/stores/${store.id}/profile`;
     try {
-      const res = await authedFetch(`${BASE}/api/stores/${store.id}/profile`, {
+      // ── 1st attempt ──
+      let res = await authedFetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
+
+      // ── 401 fallback: Supabase access_token が期限切れ等の場合、refreshSession して 1 回だけ retry ──
+      // (iOS Capacitor で稀に auto-refresh が間に合わずに 401 が返るケースの救済)
+      if (res.status === 401) {
+        try {
+          const { data: { session } } = await supabase.auth.refreshSession();
+          if (session?.access_token) {
+            res = await authedFetch(url, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(form),
+            });
+          }
+        } catch (refreshErr) {
+          console.warn('[StoreProfileEdit] refreshSession failed:', refreshErr);
+        }
+      }
+
       if (!res.ok) {
         const body = await res.json().catch(() => ({} as any));
+        if (res.status === 401) {
+          // ★ retry 後も 401 ならセッション完全失効。AuthContext 上で user が残ったまま
+          //    /login に navigate しても GuestRoute 側が user 有り判定で即 redirect 先 (/store/profile-edit)
+          //    に戻されて無限ループになる。signOut で AuthContext を完全クリアしてから navigate する。
+          toast({
+            title: 'ログインの有効期限が切れました',
+            description: '再ログインしてからもう一度お試しください。',
+            variant: 'destructive',
+          });
+          try {
+            await signOut();
+          } catch (signOutErr) {
+            console.warn('[StoreProfileEdit] signOut after 401 failed:', signOutErr);
+          }
+          navigate('/login?tab=store&redirect=' + encodeURIComponent('/store/profile-edit'));
+          return;
+        }
         const msg = body?.message || body?.error || `HTTP ${res.status}`;
         throw new Error(String(msg));
       }
       toast({ title: '保存しました', description: '店舗プロフィールを更新しました' });
       navigate('/mypage');
     } catch (err: any) {
+      console.error('[StoreProfileEdit] save error:', err);
       toast({ title: '保存に失敗しました', description: String(err?.message ?? err), variant: 'destructive' });
     } finally {
       setSaving(false);

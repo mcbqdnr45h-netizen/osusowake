@@ -72,12 +72,16 @@ export default function Login() {
       const redirect = params.get('redirect');
       if (redirect) {
         const decoded = decodeURIComponent(redirect);
-        if (decoded.startsWith('/store/') || decoded.startsWith('/register-store') || decoded.startsWith('/store-onboarding')) {
+        if (decoded.startsWith('/store/') || decoded.startsWith('/register-store') || decoded.startsWith('/store-onboarding') || decoded === '/mypage') {
           navigate(decoded);
           return;
         }
       }
-      navigate('/store/dashboard');
+      // 店舗オーナーのログイン後はマイページへ。
+      // (StoreLayout のボトムナビから「出品管理 / 売上確認 / マイページ」を行き来できるが、
+      //  プロフィール編集 / 銀行登録 / 特商法 等の「アカウント系操作」は /mypage 起点なので、
+      //  /mypage を着地点にした方がオンボーディング/再設定動線が圧倒的に短い)
+      navigate('/mypage');
     } else {
       const { error: err, role, isAdmin: adminFlag, requiresMfa } = await signIn(email, password);
       setIsLoading(false);
