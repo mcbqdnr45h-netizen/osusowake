@@ -116,7 +116,7 @@ export default function StoreSalesPage() {
             { label: '本日の売上 (商品代金)',    value: `¥${todayRevenue.toLocaleString()}`,        icon: TrendingUp,  color: 'text-primary',    bg: 'bg-orange-50',  border: 'border-orange-100' },
             { label: '今月の売上 (商品代金)',    value: `¥${monthRevenue.toLocaleString()}`,         icon: BarChart2,   color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-100'   },
             { label: '累計売上 (商品代金)',      value: `¥${totalRevenue.toLocaleString()}`,         icon: TrendingUp,  color: 'text-purple-600', bg: 'bg-purple-50',  border: 'border-purple-100' },
-            { label: '累計入金額 (手数料控除後)', value: `¥${totalNetTransfer.toLocaleString()}`,    icon: TrendingUp,  color: 'text-emerald-600',bg: 'bg-emerald-50', border: 'border-emerald-100'},
+            { label: '累計入金額 (理論値・参考)', value: `¥${totalNetTransfer.toLocaleString()}`,    icon: TrendingUp,  color: 'text-emerald-600',bg: 'bg-emerald-50', border: 'border-emerald-100'},
             { label: '累計おすそわけ',           value: `${totalBags}個`,                            icon: Package2,    color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-100'  },
           ].map(item => {
             const Icon = item.icon;
@@ -130,6 +130,14 @@ export default function StoreSalesPage() {
               </div>
             );
           })}
+        </div>
+
+        {/* ── 入金額に関する注記 ── */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
+          <p className="text-[11px] text-amber-900 leading-relaxed">
+            <span className="font-bold">※「累計入金額」は理論値です。</span>
+            実際の振込予定額は <span className="font-bold">出品管理 → 売上残高</span> の「保留中／振込可能」をご確認ください。料金体系の改定をまたぐ取引は数円〜数十円ずれる場合があります。
+          </p>
         </div>
 
         {/* ── 直近7日間の売上グラフ ── */}
