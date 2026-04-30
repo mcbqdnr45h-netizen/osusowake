@@ -7,6 +7,9 @@ import {
 import { motion } from 'framer-motion';
 import { formatPickupTime } from '@/lib/utils';
 import confetti from 'canvas-confetti';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUserId } from '@/hooks/use-user';
+import { listReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
 
 
 interface OrderReceipt {
@@ -34,6 +37,8 @@ function fireConfetti() {
 
 export default function CheckoutSuccess() {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const userId = useUserId();
   const [receipt, setReceipt] = useState<OrderReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -43,13 +48,66 @@ export default function CheckoutSuccess() {
   const sessionId    = params.get('session_id');
   const reservationId = params.get('reservation_id');
 
+  // ★ 決済成功直後に予約一覧 (マイバッグ / 購入履歴 / マイページ統計) のキャッシュを無効化 + 事前取得。
+  //   - invalidateQueries(refetchType:'all'): inactive な query も即 stale + 次回マウントで即 refetch。
+  //   - prefetchQuery: マイバッグ / 購入履歴 で実際に使う queryKey を事前に取得しておくことで、
+  //     ユーザがボトムナビで遷移した瞬間に「ローディング無し」で最新データが表示される。
+  function refreshReservationCaches() {
+    try {
+      // 1) 既存キャッシュを全部 stale に + active なら即 refetch
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const k = q.queryKey?.[0];
+          return typeof k === 'string' && k.startsWith('/api/reservations');
+        },
+        refetchType: 'all',
+      });
+      // 在庫数 (買った直後の残数表示) も最新化
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const k = q.queryKey?.[0];
+          return typeof k === 'string' && (
+            k.startsWith('/api/stores') || k.startsWith('/api/bags')
+          );
+        },
+        refetchType: 'all',
+      });
+
+      // 2) マイバッグ / 購入履歴 / マイページ統計 で使う queryKey を実際に prefetch。
+      //    こうしないと「未訪問の画面」へ初回遷移時はキャッシュ空でローディングが出てしまう。
+      if (userId) {
+        const params = { userId };
+        queryClient.prefetchQuery({
+          queryKey: getListReservationsQueryKey(params),
+          queryFn: ({ signal }) => listReservations(params, { signal }),
+        });
+      }
+    } catch { /* noop */ }
+  }
+
   useEffect(() => {
     if (!sessionId || !reservationId) { setLoading(false); return; }
+    // ★ verify 結果を待たずに即座にキャッシュ更新を発火 (Stripe verify 往復の 1〜2 秒を待たない)。
+    refreshReservationCaches();
+
     fetch(`/api/checkout/verify?session_id=${sessionId}&reservation_id=${reservationId}`)
       .then(r => r.json())
-      .then((data) => { setReceipt(data); setLoading(false); })
+      .then((data) => {
+        setReceipt(data);
+        setLoading(false);
+        // verify 完了後にもう一度 (webhook で confirmed/paid 確定済みのデータで上書き)
+        refreshReservationCaches();
+      })
       .catch(() => setLoading(false));
+    // userId は遅延ロードされる事があるため依存に含めると二重発火リスクあり → 意図的に空配列
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // userId が後から確定したら、その時点で prefetch を一度走らせて即表示を保証
+  useEffect(() => {
+    if (userId) refreshReservationCaches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   useEffect(() => {
     if (!loading && !confettiFired) { setConfettiFired(true); fireConfetti(); }
