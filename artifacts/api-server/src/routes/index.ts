@@ -9,6 +9,7 @@ import uploadRouter from "./upload";
 import notificationsRouter from "./notifications";
 import classifyRouter from "./classify";
 import favoritesRouter from "./favorites";
+import rankingRouter from "./ranking";
 import adminRouter from "./admin";
 import authRouter from "./auth";
 import stripeWebhookRouter from "./stripe-webhook";
@@ -30,6 +31,7 @@ router.use(uploadRouter);
 router.use(notificationsRouter);
 router.use(classifyRouter);
 router.use(favoritesRouter);
+router.use(rankingRouter);
 
 // ── POST /auth/forgot-password ── ブランドメール送信（Resend 経由）──────────
 router.post("/auth/forgot-password", async (req, res) => {

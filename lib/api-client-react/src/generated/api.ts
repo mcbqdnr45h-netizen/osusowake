@@ -23,9 +23,11 @@ import type {
   CreateReservationRequest,
   CreateStoreRequest,
   ErrorResponse,
+  GetMonthlyRankingParams,
   HealthStatus,
   ListReservationsParams,
   ListStoresParams,
+  MonthlyRanking,
   PaymentIntentResponse,
   Reservation,
   Store,
@@ -1558,6 +1560,103 @@ export function useGetMe<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get current month "Osusowake" ranking (JST)
+ */
+export const getGetMonthlyRankingUrl = (params?: GetMonthlyRankingParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/ranking/monthly?${stringifiedParams}`
+    : `/api/ranking/monthly`;
+};
+
+export const getMonthlyRanking = async (
+  params?: GetMonthlyRankingParams,
+  options?: RequestInit,
+): Promise<MonthlyRanking> => {
+  return customFetch<MonthlyRanking>(getGetMonthlyRankingUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMonthlyRankingQueryKey = (
+  params?: GetMonthlyRankingParams,
+) => {
+  return [`/api/ranking/monthly`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetMonthlyRankingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMonthlyRanking>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetMonthlyRankingParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMonthlyRanking>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMonthlyRankingQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMonthlyRanking>>
+  > = ({ signal }) => getMonthlyRanking(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMonthlyRanking>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMonthlyRankingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMonthlyRanking>>
+>;
+export type GetMonthlyRankingQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get current month "Osusowake" ranking (JST)
+ */
+
+export function useGetMonthlyRanking<
+  TData = Awaited<ReturnType<typeof getMonthlyRanking>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetMonthlyRankingParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMonthlyRanking>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMonthlyRankingQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

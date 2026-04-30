@@ -298,6 +298,26 @@ export interface ConfirmPaymentRequest {
   paymentIntentId: string;
 }
 
+export interface MonthlyRankingEntry {
+  userId: string;
+  displayName: string;
+  /** Number of picked_up reservations this month */
+  count: number;
+  /** 1-indexed rank; 0 means out of ranking (no activity) */
+  rank: number;
+}
+
+export interface MonthlyRanking {
+  /** ISO timestamp of JST month start (UTC instant) */
+  monthStartIso: string;
+  topUsers: MonthlyRankingEntry[];
+  myRank: MonthlyRankingEntry | null;
+  /** Total users with at least one picked_up this month */
+  totalParticipants: number;
+  /** Additional picked_up count needed to climb one rank (0 if already 1st) */
+  nextRankDelta: number;
+}
+
 export type ListStoresParams = {
   lat?: number;
   lng?: number;
@@ -322,3 +342,10 @@ export const ListReservationsStatus = {
   picked_up: "picked_up",
   cancelled: "cancelled",
 } as const;
+
+export type GetMonthlyRankingParams = {
+  /**
+   * Number of top users to return (1-50, default 10)
+   */
+  limit?: number;
+};

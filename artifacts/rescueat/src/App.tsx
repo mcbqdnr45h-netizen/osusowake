@@ -73,6 +73,7 @@ const StoreDetailPublic  = React.lazy(() => import("./pages/StoreDetailPublic"))
 const HelpPage           = React.lazy(() => import("./pages/HelpPage"));
 const TokushoPage        = React.lazy(() => import("./pages/TokushoPage"));
 const MyTownPage         = React.lazy(() => import("./pages/MyTownPage"));
+const RankingPage        = React.lazy(() => import("./pages/RankingPage"));
 const SalesLeadForm      = React.lazy(() => import("./pages/SalesLeadForm"));
 const ResetPassword      = React.lazy(() => import("./pages/ResetPassword"));
 const FlyerUser          = React.lazy(() => import("./pages/FlyerUser"));
@@ -271,6 +272,7 @@ function AnimatedRoutes() {
               <Route path="/mypage" component={GuardedMyPage} />
               <Route path="/my-reservations" component={GuardedMyReservations} />
               <Route path="/my-town" component={MyTownPage} />
+              <Route path="/ranking" component={RankingPage} />
               <Route path="/checkout/:id" component={GuardedCheckout} />
               <Route path="/orders/:id" component={GuardedOrderTicket} />
               <Route path="/orders" component={GuardedOrders} />

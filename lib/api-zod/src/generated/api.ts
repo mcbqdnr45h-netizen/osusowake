@@ -903,3 +903,53 @@ export const GetMeResponse = zod.object({
   role: zod.enum(["user", "store_owner", "admin"]),
   createdAt: zod.date().optional(),
 });
+
+/**
+ * @summary Get current month "Osusowake" ranking (JST)
+ */
+export const getMonthlyRankingQueryLimitDefault = 10;
+
+export const GetMonthlyRankingQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .default(getMonthlyRankingQueryLimitDefault)
+    .describe("Number of top users to return (1-50, default 10)"),
+});
+
+export const GetMonthlyRankingResponse = zod.object({
+  monthStartIso: zod
+    .string()
+    .describe("ISO timestamp of JST month start (UTC instant)"),
+  topUsers: zod.array(
+    zod.object({
+      userId: zod.string(),
+      displayName: zod.string(),
+      count: zod
+        .number()
+        .describe("Number of picked_up reservations this month"),
+      rank: zod
+        .number()
+        .describe("1-indexed rank; 0 means out of ranking (no activity)"),
+    }),
+  ),
+  myRank: zod
+    .object({
+      userId: zod.string(),
+      displayName: zod.string(),
+      count: zod
+        .number()
+        .describe("Number of picked_up reservations this month"),
+      rank: zod
+        .number()
+        .describe("1-indexed rank; 0 means out of ranking (no activity)"),
+    })
+    .nullable(),
+  totalParticipants: zod
+    .number()
+    .describe("Total users with at least one picked_up this month"),
+  nextRankDelta: zod
+    .number()
+    .describe(
+      "Additional picked_up count needed to climb one rank (0 if already 1st)",
+    ),
+});

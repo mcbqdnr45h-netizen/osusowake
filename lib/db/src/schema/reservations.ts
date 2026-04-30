@@ -31,6 +31,9 @@ export const reservationsTable = pgTable("reservations", {
   paymentIntentId: text("payment_intent_id"),
   paymentStatus: paymentStatusEnum("payment_status").notNull().default("unpaid"),
   pickupCode: text("pickup_code"),
+  // ★ status が picked_up に遷移した時刻 (月次ランキング集計用)。
+  //   レガシー行は NULL — 集計側で createdAt にフォールバックする。
+  pickedUpAt: timestamp("picked_up_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

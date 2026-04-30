@@ -486,7 +486,8 @@ router.post("/reservations/:reservationId/pickup", requireAuth, async (req, res)
 
     await db
       .update(reservationsTable)
-      .set({ status: "picked_up" })
+      // ★ pickedUpAt をサーバ時刻で記録 (月次ランキング集計の正確性担保)
+      .set({ status: "picked_up", pickedUpAt: new Date() })
       .where(eq(reservationsTable.id, id));
 
     const updated = await getReservationWithDetails(id);

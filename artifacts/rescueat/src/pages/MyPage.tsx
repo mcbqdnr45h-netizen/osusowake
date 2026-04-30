@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
-import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft, AlertTriangle, Trash2 } from 'lucide-react';
+import { useListReservations, getListReservationsQueryKey, useGetMonthlyRanking, getGetMonthlyRankingQueryKey } from '@workspace/api-client-react';
+import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft, AlertTriangle, Trash2, Trophy } from 'lucide-react';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
@@ -37,10 +37,27 @@ export default function MyPage() {
     },
   });
 
+  // ★ 累計値 (foodSavedKg / co2Saved / MyTown level の元になる pickedUpCount) は
+  //    全予約 (月次フィルタ無し) ベースで算出。 ランキングは月次でリセットされても
+  //    この累計値とマイタウンのレベルは絶対にリセットしない仕様。
   const pickedUpReservations = reservations?.filter(r => r.status === 'picked_up') || [];
   const pickedUpCount  = pickedUpReservations.length;
   const foodSavedKg    = +(pickedUpCount * 0.5).toFixed(1);
   const co2Saved       = +(pickedUpCount * 2.5).toFixed(1);
+
+  // ★ 月次ランキング情報 (MyTown セクションの「現在の月間順位」表示用)
+  //    refetchInterval で 60秒毎に自動更新、 staleTime で重複フェッチ抑制。
+  const { data: monthlyRanking } = useGetMonthlyRanking(
+    { limit: 1 },
+    {
+      query: {
+        queryKey: getGetMonthlyRankingQueryKey({ limit: 1 }),
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+        enabled: !!userId,
+      },
+    },
+  );
 
   // ── Stripe ライブステータス（payouts_enabled を DB 固定値ではなく API から取得）──
   // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
@@ -500,6 +517,48 @@ export default function MyPage() {
             className="-mx-4 mb-2 flex-1 min-h-0 flex flex-col"
             style={{ minHeight: 'calc(100dvh - 460px)' }}
           >
+            {/* ── 月間ランキング 連動カード (タップで /ranking へ) ─────────────
+                ★ 仕様: 「現在の月間順位：○位 / あと○回でランクアップ！」
+                ★ 累計リセットなし、 ランキングは毎月 1 日 0:00(JST) リセット
+                ★ MyTown SVG の上 (= イラスト下のセクション) に常時表示 */}
+            <button
+              type="button"
+              onClick={() => navigate('/ranking')}
+              className="mx-4 mb-3 group bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border border-amber-200/70 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-transform shadow-sm"
+              aria-label="今月のおすそわけランキングを見る"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 text-white flex items-center justify-center shrink-0 shadow">
+                <Trophy className="w-5 h-5" strokeWidth={2.4} />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <div className="text-[10px] font-bold text-amber-700 leading-none mb-1">
+                  今月のおすそわけランキング
+                </div>
+                {monthlyRanking ? (
+                  monthlyRanking.myRank && monthlyRanking.myRank.rank > 0 ? (
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-base font-black text-foreground leading-none">
+                        現在の月間順位：{monthlyRanking.myRank.rank}位
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-sm font-bold text-foreground leading-tight">
+                      現在の月間順位：圏外
+                    </div>
+                  )
+                ) : (
+                  <div className="h-3.5 w-32 bg-amber-200/40 rounded animate-pulse" />
+                )}
+                {monthlyRanking && (
+                  <div className="text-[11px] text-muted-foreground font-bold mt-0.5">
+                    {monthlyRanking.nextRankDelta === 0
+                      ? '🏆 頂点キープ中！'
+                      : `あと${monthlyRanking.nextRankDelta}回でランクアップ！`}
+                  </div>
+                )}
+              </div>
+              <ChevronRight className="w-5 h-5 text-amber-600 shrink-0 group-active:translate-x-0.5 transition-transform" />
+            </button>
             <MyTown purchaseCount={pickedUpCount} stretch />
           </div>
         )}
