@@ -10,10 +10,8 @@
   },
   "private": true,
   "devDependencies": {
+    "pdf-lib": "^1.17.1",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2"
-  },
-  "dependencies": {
-    "pdf-lib": "^1.17.1"
   }
 }

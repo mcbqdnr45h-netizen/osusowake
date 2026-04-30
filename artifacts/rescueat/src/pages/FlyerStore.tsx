@@ -6,7 +6,6 @@ export default function FlyerStore() {
     <div className="flyer-root" data-print={isPrint ? '1' : undefined}>
       <style>{`
         @page { size: A4 portrait; margin: 0; }
-        html, body, #root { background: #f3f4f6 !important; }
         .flyer-root {
           min-height: 100vh;
           display: flex;

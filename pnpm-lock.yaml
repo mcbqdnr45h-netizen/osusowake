@@ -156,11 +156,10 @@ overrides:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       pdf-lib:
         specifier: ^1.17.1
         version: 1.17.1
-    devDependencies:
       prettier:
         specifier: ^3.8.1
         version: 3.8.1
