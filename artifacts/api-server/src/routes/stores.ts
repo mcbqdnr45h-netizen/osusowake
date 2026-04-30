@@ -55,6 +55,7 @@ const storeSelectFields = {
   lat: storesTable.lat,
   lng: storesTable.lng,
   imageUrl: storesTable.imageUrl,
+  iconUrl: storesTable.iconUrl,
   phone: storesTable.phone,
   openTime: storesTable.openTime,
   closeTime: storesTable.closeTime,
