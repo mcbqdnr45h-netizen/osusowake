@@ -490,9 +490,16 @@ export default function MyPage() {
         </div>}
 
         {/* ── マイタウン（カスタマーのみ・インライン表示）── */}
-        {/* ★ flex-1 で下端まで縦に伸ばし、 メニュー移動後のデッドスペースを完全に埋める */}
+        {/* ★ デッドスペース完全消去:
+              ① flex-1 で親(MyPage コンテナ)の残スペースを全部吸収
+              ② min-h の絶対安全網 — calc(100dvh - ヘッダ/プロフィール/スコア/ボトムナビ ≒ 460px)
+                 で、 flex 計算が iOS Safari/PWA で空転しても確実に縦に伸びる。 dvh は
+                 アドレスバー表示状態に追従するモバイル単位。 */}
         {!isStoreOwner && (
-          <div className="-mx-4 mb-2 flex-1 min-h-0 flex flex-col">
+          <div
+            className="-mx-4 mb-2 flex-1 min-h-0 flex flex-col"
+            style={{ minHeight: 'calc(100dvh - 460px)' }}
+          >
             <MyTown purchaseCount={pickedUpCount} stretch />
           </div>
         )}

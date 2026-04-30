@@ -420,7 +420,13 @@ const TownScene = memo(function TownScene({
       // ★ fillHeight 時は xMidYMax slice で「地面+木+建物を必ず下端に固定し、
       //   余った縦方向は空を上に拡張」して見せる。 引き伸ばし禁止 (slice は等比拡縮)。
       preserveAspectRatio={fillHeight ? 'xMidYMax slice' : 'xMidYMid meet'}
-      style={fillHeight ? { display: 'block', height: '100%' } : { display: 'block' }}
+      // ★ fillHeight 時は親に absolute inset-0 で完全に敷き詰める (iOS Safari の
+      //   `h-full` フレックス継承不具合対策)。 親が relative なら確実に追従。
+      style={
+        fillHeight
+          ? { display: 'block', position: 'absolute', inset: 0, width: '100%', height: '100%' }
+          : { display: 'block' }
+      }
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -1219,14 +1225,16 @@ export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, st
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        // ★ stretch=true のとき: 親 (flex col) いっぱいに縦に伸ばす。 イラスト部 flex-1 / 情報パネル shrink-0
+        // ★ stretch=true: 親 (flex col + flex-1) を完全消費して縦に伸びる。
+        //   `h-full` は iOS Safari の flex 継承で空転する事があるので flex-1 を採用。
         className={
           stretch
-            ? 'bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3 h-full flex flex-col'
+            ? 'bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3 flex-1 min-h-0 flex flex-col'
             : 'bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-3'
         }
       >
         <div
+          // ★ stretch 時: イラスト枠を flex-1 で残スペース全消費 + relative で SVG 絶対配置の基点に
           className={
             stretch
               ? 'relative overflow-hidden flex-1 min-h-[180px]'
@@ -1237,6 +1245,7 @@ export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, st
           <TownScene stage={stage} purchaseCount={purchaseCount} showLevelUp={showParticles} fillHeight />
           <LevelUpParticles active={showParticles} />
         </div>
+        {/* 情報パネルは内容ぴったり (shrink-0) で、 縦伸びはイラストが全部吸収する */}
         <div className={stretch ? 'shrink-0' : undefined}>
           {infoPanel}
         </div>
