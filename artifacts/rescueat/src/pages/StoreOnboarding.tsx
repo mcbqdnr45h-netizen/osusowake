@@ -229,7 +229,9 @@ export default function StoreOnboarding() {
     const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const res = await fetch(`${BASE}/api/stores/apply`, {
+      // ★ authedFetch を使用 — Bearer トークン (Supabase session) を自動付与
+      //    素の fetch だと requireAuth が 401「ログインが必要です」 を返してしまう
+      const res = await authedFetch(`${BASE}/api/stores/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
