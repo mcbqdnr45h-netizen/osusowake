@@ -51,7 +51,6 @@ export interface Store {
   lat: number;
   lng: number;
   imageUrl?: string;
-  iconUrl?: string;
   phone?: string;
   openTime?: string;
   closeTime?: string;
@@ -118,15 +117,11 @@ export interface SurpriseBag {
   storeId: number;
   title: string;
   description?: string;
-  allergyInfo?: string | null;
-  pickupNote?: string | null;
   originalPrice: number;
   discountedPrice: number;
   stockCount: number;
   pickupStart?: string;
   pickupEnd?: string;
-  imageUrl?: string | null;
-  category?: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -138,8 +133,6 @@ export type SurpriseBagWithStore = SurpriseBag & {
 export interface CreateBagRequest {
   title: string;
   description?: string;
-  allergyInfo?: string;
-  pickupNote?: string;
   originalPrice: number;
   discountedPrice: number;
   stockCount: number;
@@ -158,7 +151,6 @@ export interface UpdateBagRequest {
   pickupStart?: string;
   pickupEnd?: string;
   isActive?: boolean;
-  category?: string;
 }
 
 export type ReservationStatus =
@@ -186,7 +178,10 @@ export interface Reservation {
   bagId: number;
   storeId: number;
   quantity: number;
+  /** ユーザー支払合計（商品代金 + 5%システム利用料、10円単位四捨五入） */
   totalPrice: number;
+  /** 商品代金（25%プラットフォーム手数料の課金ベース）。旧データではNULL。 */
+  merchandiseAmount?: number | null;
   status: ReservationStatus;
   paymentIntentId?: string;
   paymentStatus: ReservationPaymentStatus;

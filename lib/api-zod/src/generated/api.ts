@@ -36,9 +36,6 @@ export const ListStoresResponseItem = zod.object({
     "supermarket",
     "convenience",
     "other",
-    "meals",
-    "bakery_sweets",
-    "ingredients",
   ]),
   lat: zod.number(),
   lng: zod.number(),
@@ -69,9 +66,6 @@ export const CreateStoreBody = zod.object({
     "supermarket",
     "convenience",
     "other",
-    "meals",
-    "bakery_sweets",
-    "ingredients",
   ]),
   lat: zod.number(),
   lng: zod.number(),
@@ -101,9 +95,6 @@ export const GetStoreResponse = zod.object({
     "supermarket",
     "convenience",
     "other",
-    "meals",
-    "bakery_sweets",
-    "ingredients",
   ]),
   lat: zod.number(),
   lng: zod.number(),
@@ -138,9 +129,6 @@ export const UpdateStoreBody = zod.object({
       "supermarket",
       "convenience",
       "other",
-      "meals",
-      "bakery_sweets",
-      "ingredients",
     ])
     .optional(),
   imageUrl: zod.string().optional(),
@@ -163,9 +151,6 @@ export const UpdateStoreResponse = zod.object({
     "supermarket",
     "convenience",
     "other",
-    "meals",
-    "bakery_sweets",
-    "ingredients",
   ]),
   lat: zod.number(),
   lng: zod.number(),
@@ -219,9 +204,6 @@ export const CreateBagBody = zod.object({
   pickupEnd: zod.string().optional(),
   imageUrl: zod.string().optional(),
   category: zod.string().optional(),
-  allergyInfo: zod.string().optional(),
-  pickupNote: zod.string().optional(),
-  itemType: zod.enum(['bag', 'item']).optional(),
 });
 
 /**
@@ -256,9 +238,6 @@ export const ListAllBagsResponseItem = zod
           "supermarket",
           "convenience",
           "other",
-          "meals",
-          "bakery_sweets",
-          "ingredients",
         ]),
         lat: zod.number(),
         lng: zod.number(),
@@ -312,9 +291,6 @@ export const GetBagResponse = zod
           "supermarket",
           "convenience",
           "other",
-          "meals",
-          "bakery_sweets",
-          "ingredients",
         ]),
         lat: zod.number(),
         lng: zod.number(),
@@ -347,8 +323,6 @@ export const UpdateBagBody = zod.object({
   pickupStart: zod.string().optional(),
   pickupEnd: zod.string().optional(),
   isActive: zod.boolean().optional(),
-  category: zod.string().optional(),
-  itemType: zod.enum(['bag', 'item']).optional(),
 });
 
 export const UpdateBagResponse = zod.object({
@@ -382,7 +356,17 @@ export const ListReservationsResponseItem = zod.object({
   bagId: zod.number(),
   storeId: zod.number(),
   quantity: zod.number(),
-  totalPrice: zod.number(),
+  totalPrice: zod
+    .number()
+    .describe(
+      "ユーザー支払合計（商品代金 + 5%システム利用料、10円単位四捨五入）",
+    ),
+  merchandiseAmount: zod
+    .number()
+    .nullish()
+    .describe(
+      "商品代金（25%プラットフォーム手数料の課金ベース）。旧データではNULL。",
+    ),
   status: zod.enum(["pending", "confirmed", "picked_up", "cancelled"]),
   paymentIntentId: zod.string().optional(),
   paymentStatus: zod.enum(["unpaid", "paid", "refunded"]),
@@ -416,9 +400,6 @@ export const ListReservationsResponseItem = zod.object({
         "supermarket",
         "convenience",
         "other",
-        "meals",
-        "bakery_sweets",
-        "ingredients",
       ]),
       lat: zod.number(),
       lng: zod.number(),
@@ -459,7 +440,17 @@ export const GetReservationResponse = zod.object({
   bagId: zod.number(),
   storeId: zod.number(),
   quantity: zod.number(),
-  totalPrice: zod.number(),
+  totalPrice: zod
+    .number()
+    .describe(
+      "ユーザー支払合計（商品代金 + 5%システム利用料、10円単位四捨五入）",
+    ),
+  merchandiseAmount: zod
+    .number()
+    .nullish()
+    .describe(
+      "商品代金（25%プラットフォーム手数料の課金ベース）。旧データではNULL。",
+    ),
   status: zod.enum(["pending", "confirmed", "picked_up", "cancelled"]),
   paymentIntentId: zod.string().optional(),
   paymentStatus: zod.enum(["unpaid", "paid", "refunded"]),
@@ -493,9 +484,6 @@ export const GetReservationResponse = zod.object({
         "supermarket",
         "convenience",
         "other",
-        "meals",
-        "bakery_sweets",
-        "ingredients",
       ]),
       lat: zod.number(),
       lng: zod.number(),
@@ -530,7 +518,17 @@ export const UpdateReservationStatusResponse = zod.object({
   bagId: zod.number(),
   storeId: zod.number(),
   quantity: zod.number(),
-  totalPrice: zod.number(),
+  totalPrice: zod
+    .number()
+    .describe(
+      "ユーザー支払合計（商品代金 + 5%システム利用料、10円単位四捨五入）",
+    ),
+  merchandiseAmount: zod
+    .number()
+    .nullish()
+    .describe(
+      "商品代金（25%プラットフォーム手数料の課金ベース）。旧データではNULL。",
+    ),
   status: zod.enum(["pending", "confirmed", "picked_up", "cancelled"]),
   paymentIntentId: zod.string().optional(),
   paymentStatus: zod.enum(["unpaid", "paid", "refunded"]),
@@ -564,9 +562,6 @@ export const UpdateReservationStatusResponse = zod.object({
         "supermarket",
         "convenience",
         "other",
-        "meals",
-        "bakery_sweets",
-        "ingredients",
       ]),
       lat: zod.number(),
       lng: zod.number(),
@@ -597,7 +592,17 @@ export const CancelReservationResponse = zod.object({
   bagId: zod.number(),
   storeId: zod.number(),
   quantity: zod.number(),
-  totalPrice: zod.number(),
+  totalPrice: zod
+    .number()
+    .describe(
+      "ユーザー支払合計（商品代金 + 5%システム利用料、10円単位四捨五入）",
+    ),
+  merchandiseAmount: zod
+    .number()
+    .nullish()
+    .describe(
+      "商品代金（25%プラットフォーム手数料の課金ベース）。旧データではNULL。",
+    ),
   status: zod.enum(["pending", "confirmed", "picked_up", "cancelled"]),
   paymentIntentId: zod.string().optional(),
   paymentStatus: zod.enum(["unpaid", "paid", "refunded"]),
@@ -631,9 +636,6 @@ export const CancelReservationResponse = zod.object({
         "supermarket",
         "convenience",
         "other",
-        "meals",
-        "bakery_sweets",
-        "ingredients",
       ]),
       lat: zod.number(),
       lng: zod.number(),
@@ -658,7 +660,6 @@ export const CreatePaymentIntentBody = zod.object({
   reservationId: zod.number(),
   bagId: zod.number().optional(),
   quantity: zod.number().optional(),
-  userId: zod.string().optional(),
 });
 
 export const CreatePaymentIntentResponse = zod.object({
@@ -682,7 +683,17 @@ export const ConfirmPaymentResponse = zod.object({
   bagId: zod.number(),
   storeId: zod.number(),
   quantity: zod.number(),
-  totalPrice: zod.number(),
+  totalPrice: zod
+    .number()
+    .describe(
+      "ユーザー支払合計（商品代金 + 5%システム利用料、10円単位四捨五入）",
+    ),
+  merchandiseAmount: zod
+    .number()
+    .nullish()
+    .describe(
+      "商品代金（25%プラットフォーム手数料の課金ベース）。旧データではNULL。",
+    ),
   status: zod.enum(["pending", "confirmed", "picked_up", "cancelled"]),
   paymentIntentId: zod.string().optional(),
   paymentStatus: zod.enum(["unpaid", "paid", "refunded"]),
@@ -716,9 +727,6 @@ export const ConfirmPaymentResponse = zod.object({
         "supermarket",
         "convenience",
         "other",
-        "meals",
-        "bakery_sweets",
-        "ingredients",
       ]),
       lat: zod.number(),
       lng: zod.number(),

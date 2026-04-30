@@ -16,7 +16,10 @@ export interface Reservation {
   bagId: number;
   storeId: number;
   quantity: number;
+  /** ユーザー支払合計（商品代金 + 5%システム利用料、10円単位四捨五入） */
   totalPrice: number;
+  /** 商品代金（25%プラットフォーム手数料の課金ベース）。旧データではNULL。 */
+  merchandiseAmount?: number | null;
   status: ReservationStatus;
   paymentIntentId?: string;
   paymentStatus: ReservationPaymentStatus;

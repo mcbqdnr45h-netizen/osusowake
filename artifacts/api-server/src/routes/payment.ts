@@ -13,48 +13,67 @@ import {
 const router: IRouter = Router();
 
 // ─── 手数料定数 ─────────────────────────────────────────────────────────────
-// プラットフォーム手数料率: 25%（固定）
+// プラットフォーム手数料率（店舗側）: 25%（固定）。商品代金 (merchandise) に対して課金。
 const PLATFORM_FEE_RATE = 0.25;
-// Stripe 決済手数料率（JPY カード平均 3.6%）
-// ※ この率を使って「店舗への送金額」を事前計算し transfer_data.amount に直接指定する
+// Stripe 決済手数料率（JPY カード平均 3.6%）。実際にStripeから引かれるのは
+// 顧客支払合計 (totalAmountJpy = ユーザー支払額) に対する 3.6%。
 const STRIPE_FEE_RATE = 0.036;
+// ユーザー側「システム利用料」: 5%（参考値、計算には使わない）
+const USER_SERVICE_FEE_RATE = 0.05;
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 送金額の明示的計算ロジック（プログラム直接制御）
+ * 送金額の明示的計算ロジック（新収益モデル）
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  *
- * Step 1. PlatformRevenue（プラットフォーム純利益・固定）
- *         = Math.floor(TotalAmount × 0.25)
+ *  入力:
+ *    totalAmountJpy  = ユーザー支払合計 (= round10(merchandise * 1.05))
+ *    merchandiseJpy  = 商品代金 (= bag.discountedPrice * quantity)
  *
- * Step 2. StripeFee（Stripe決済手数料の事前計算）
- *         = Math.round(TotalAmount × 0.036)  ← JPYカード平均 3.6%
+ *  Step 1. ShopGross（店舗売上 = 25%控除後の店舗取り分・Stripe手数料前）
+ *          = Math.floor(merchandiseJpy × 0.75)
  *
- * Step 3. ShopTransferAmount（店舗への実送金額）
- *         = (TotalAmount - PlatformRevenue) - StripeFee
+ *  Step 2. StripeFee（Stripe決済手数料）
+ *          = Math.round(totalAmountJpy × 0.036)
  *
- *  例（TotalAmount = 350円）:
- *   PlatformRevenue    = floor(350 × 0.25)        =  87円  ← Netとして受け取る金額
- *   StripeFee          = round(350 × 0.036)        =  13円
- *   ShopTransferAmount = (350 - 87) - 13           = 250円  ← transfer_data.amount に直接指定
+ *  Step 3. ShopTransferAmount（店舗への実送金額）
+ *          = ShopGross - StripeFee
  *
- *  Stripe上の資金移動:
- *   顧客支払い         350円
- *   Stripe手数料       − 13円（プラットフォームアカウントから徴収）
- *   店舗送金           − 250円（transfer_data.amount で明示指定）
- *   ─────────────────────────
- *   プラットフォームNet  87円（= PlatformRevenue、1円の減額なし）
+ *  Step 4. PlatformRevenue（プラットフォーム純利益）
+ *          = totalAmountJpy - ShopGross
+ *          (内訳: 25% 店舗手数料 + 5% ユーザー利用料 + 端数調整)
+ *
+ *  例（merchandise = 350円, total = round10(350 × 1.05) = 370円）:
+ *    ShopGross          = floor(350 × 0.75)          = 262円
+ *    StripeFee          = round(370 × 0.036)         =  13円
+ *    ShopTransferAmount = 262 - 13                    = 249円  ← 店舗実入金
+ *    PlatformRevenue    = 370 - 262                   = 108円  ← プラットフォームNet（Stripe手数料前）
+ *
+ *    検算: 顧客 370 = 店舗 249 + Stripe 13 + プラットフォーム 108 ✓
+ *    プラットフォーム純利益(Stripe手数料控除後): 108 - 13 = 95円
+ *    内訳目安: 店舗手数料(350×25%≒87) + ユーザー手数料(350×5%≒17) - Stripe手数料(13) ≒ 91円
  */
-function calcFees(totalAmountJpy: number): {
-  platformRevenue: number;     // プラットフォーム純利益（25%固定）
+function calcFees(totalAmountJpy: number, merchandiseJpy: number): {
+  platformRevenue: number;     // プラットフォーム取り分（Stripe手数料控除前）
   stripeFee: number;           // Stripe手数料（事前計算）
-  shopTransferAmount: number;  // 店舗への実送金額（transfer_data.amount に指定する値）
+  shopTransferAmount: number;  // 店舗への実送金額
+  shopGross: number;           // 店舗売上（25%控除後・Stripe手数料前）
 } {
-  const platformRevenue    = Math.floor(totalAmountJpy * PLATFORM_FEE_RATE);          // Step 1
-  const stripeFee          = Math.round(totalAmountJpy * STRIPE_FEE_RATE);            // Step 2
-  const shopTransferAmount = (totalAmountJpy - platformRevenue) - stripeFee;          // Step 3
-  return { platformRevenue, stripeFee, shopTransferAmount };
+  const shopGross          = Math.floor(merchandiseJpy * (1 - PLATFORM_FEE_RATE)); // Step 1
+  const stripeFee          = Math.round(totalAmountJpy * STRIPE_FEE_RATE);          // Step 2
+  const shopTransferAmount = shopGross - stripeFee;                                 // Step 3
+  const platformRevenue    = totalAmountJpy - shopGross;                            // Step 4
+  return { platformRevenue, stripeFee, shopTransferAmount, shopGross };
 }
+
+/**
+ * 旧データ互換: merchandiseAmount が NULL の予約 (新カラム追加前のデータ) は、
+ * totalPrice が商品代金そのものとして扱われる旧仕様の値が入っている。
+ */
+function resolveMerchandise(reservation: { totalPrice: number; merchandiseAmount: number | null }): number {
+  return reservation.merchandiseAmount ?? reservation.totalPrice;
+}
+void USER_SERVICE_FEE_RATE; // 参照警告抑制（将来の拡張用に保持）
 
 /**
  * StripeのCustomerを取得または新規作成し、IDをSupabaseユーザーメタデータに保存する
@@ -141,14 +160,15 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
 
     const [reservation] = await db
       .select({
-        id:              reservationsTable.id,
-        userId:          reservationsTable.userId,
-        totalPrice:      reservationsTable.totalPrice,
-        paymentStatus:   reservationsTable.paymentStatus,
-        bagId:           reservationsTable.bagId,
-        storeId:         reservationsTable.storeId,
-        paymentIntentId: reservationsTable.paymentIntentId,
-        status:          reservationsTable.status,
+        id:                reservationsTable.id,
+        userId:            reservationsTable.userId,
+        totalPrice:        reservationsTable.totalPrice,
+        merchandiseAmount: reservationsTable.merchandiseAmount,
+        paymentStatus:     reservationsTable.paymentStatus,
+        bagId:             reservationsTable.bagId,
+        storeId:           reservationsTable.storeId,
+        paymentIntentId:   reservationsTable.paymentIntentId,
+        status:            reservationsTable.status,
       })
       .from(reservationsTable)
       .where(eq(reservationsTable.id, body.reservationId));
@@ -165,12 +185,14 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
       return;
     }
 
-    const total = Math.round(reservation.totalPrice);
-    // ── 送金額の明示的計算 ─────────────────────────────────────
-    // Step 1: PlatformRevenue = floor(total × 25%)
-    // Step 2: StripeFee       = round(total × 3.6%)
-    // Step 3: ShopTransfer    = (total - PlatformRevenue) - StripeFee
-    const { platformRevenue, stripeFee, shopTransferAmount } = calcFees(total);
+    const total       = Math.round(reservation.totalPrice);
+    const merchandise = Math.round(resolveMerchandise(reservation));
+    // ── 送金額の明示的計算（新収益モデル）──────────────────────
+    // ShopGross   = floor(merchandise × 75%)
+    // StripeFee   = round(total × 3.6%)
+    // ShopTransfer= ShopGross - StripeFee
+    // PlatformRev = total - ShopGross
+    const { platformRevenue, stripeFee, shopTransferAmount } = calcFees(total, merchandise);
 
     const stripeKey = process.env["STRIPE_SECRET_KEY"];
 
@@ -263,9 +285,11 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
           store_id:           String(store?.id ?? reservation.storeId),
           store_name:         store?.name ?? "不明な店舗",
           platformFeeRate:    "25%",
-          platformRevenue:    String(platformRevenue),     // = floor(total × 0.25)
+          userServiceFeeRate: "5%",
+          merchandiseAmount:  String(merchandise),         // 商品代金（25%課金ベース）
+          platformRevenue:    String(platformRevenue),     // = total - floor(merch × 0.75)
           stripeFee:          String(stripeFee),           // = round(total × 0.036)
-          shopTransferAmount: String(shopTransferAmount),  // = (total - platformRevenue) - stripeFee
+          shopTransferAmount: String(shopTransferAmount),  // = floor(merch × 0.75) - stripeFee
         };
 
         const baseParams: Parameters<typeof stripe.paymentIntents.create>[0] = {
@@ -561,17 +585,18 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
     // 既に paid / 今回 paid に遷移 — どちらも updated を返す
     const updated = result.reservation;
     res.json({
-      id:              updated.id,
-      userId:          updated.userId,
-      bagId:           updated.bagId,
-      storeId:         updated.storeId,
-      quantity:        updated.quantity,
-      totalPrice:      updated.totalPrice,
-      status:          updated.status,
-      paymentIntentId: updated.paymentIntentId,
-      paymentStatus:   updated.paymentStatus,
-      pickupCode:      updated.pickupCode,
-      createdAt:       updated.createdAt,
+      id:                updated.id,
+      userId:            updated.userId,
+      bagId:             updated.bagId,
+      storeId:           updated.storeId,
+      quantity:          updated.quantity,
+      totalPrice:        updated.totalPrice,
+      merchandiseAmount: updated.merchandiseAmount,
+      status:            updated.status,
+      paymentIntentId:   updated.paymentIntentId,
+      paymentStatus:     updated.paymentStatus,
+      pickupCode:        updated.pickupCode,
+      createdAt:         updated.createdAt,
       bag: null,
       store: null,
     });
@@ -625,6 +650,7 @@ router.post("/checkout/session", requireAuth, async (req, res) => {
         id: reservationsTable.id,
         userId: reservationsTable.userId,
         totalPrice: reservationsTable.totalPrice,
+        merchandiseAmount: reservationsTable.merchandiseAmount,
         paymentStatus: reservationsTable.paymentStatus,
         bagId: reservationsTable.bagId,
         storeId: reservationsTable.storeId,
@@ -663,22 +689,23 @@ router.post("/checkout/session", requireAuth, async (req, res) => {
 
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-    const total = Math.round(reservation.totalPrice);
+    const total       = Math.round(reservation.totalPrice);
+    const merchandise = Math.round(resolveMerchandise(reservation));
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Separate Charges and Transfers（分離チャージ&送金方式）
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Step 1. チャージ全額をプラットフォームアカウントで受け取る（transfer_data なし）
     // Step 2. Stripe手数料がプラットフォームから引かれる: total - stripeFee = 残高
     // Step 3. 残高から shopTransferAmount を店舗に手動Transfer（/checkout/verify で実行）
-    // Step 4. プラットフォームNet = total - stripeFee - shopTransferAmount = platformRevenue
+    // Step 4. プラットフォームNet = total - stripeFee - shopTransferAmount = platformRevenue - stripeFee
     //
-    // 例（350円）:
-    //   チャージ        350円 → プラットフォームへ着金
+    // 例（merch=350円, total=370円）:
+    //   チャージ        370円 → プラットフォームへ着金
     //   Stripe手数料  -  13円
-    //   店舗Transfer  - 250円（/checkout/verify で stripe.transfers.create()）
+    //   店舗Transfer  - 249円（/checkout/verify で stripe.transfers.create() ＝ floor(350×0.75)-13）
     //   ─────────────────────────
-    //   プラットフォームNet  87円 ✓（= 25%、自動計算なし）
-    const { platformRevenue, stripeFee, shopTransferAmount } = calcFees(total);
+    //   プラットフォームNet 108円（= total - shopGross）− Stripe手数料 13円 = 95円
+    const { platformRevenue, stripeFee, shopTransferAmount } = calcFees(total, merchandise);
 
     const destinationAccountId = store?.stripeAccountId ?? null;
 
@@ -698,6 +725,9 @@ router.post("/checkout/session", requireAuth, async (req, res) => {
       store_id:             String(store?.id ?? reservation.storeId),
       store_name:           store?.name ?? "不明な店舗",
       chargeMode:           "separate_charges_and_transfers",
+      platformFeeRate:      "25%",
+      userServiceFeeRate:   "5%",
+      merchandiseAmount:    String(merchandise),
       platformRevenue:      String(platformRevenue),
       stripeFeeEstimate:    String(stripeFee),
       shopTransferAmount:   String(shopTransferAmount),
@@ -844,6 +874,7 @@ router.get("/checkout/verify", async (req, res) => {
         bagId: reservationsTable.bagId,
         storeId: reservationsTable.storeId,
         totalPrice: reservationsTable.totalPrice,
+        merchandiseAmount: reservationsTable.merchandiseAmount,
         paymentStatus: reservationsTable.paymentStatus,
         pickupCode: reservationsTable.pickupCode,
         bagTitle:     surpriseBagsTable.title,
@@ -1084,6 +1115,7 @@ router.get("/checkout/verify", async (req, res) => {
       bagTitle: reservationFull.bagTitle,
       storeName: reservationFull.storeName,
       totalPrice: reservationFull.totalPrice,
+      merchandiseAmount: reservationFull.merchandiseAmount,
       pickupStart: reservationFull.pickupStart,
       pickupEnd: reservationFull.pickupEnd,
     });

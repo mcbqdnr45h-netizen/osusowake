@@ -654,6 +654,11 @@ components:
           type: integer
         totalPrice:
           type: number
+          description: ユーザー支払合計（商品代金 + 5%システム利用料、10円単位四捨五入）
+        merchandiseAmount:
+          type: number
+          nullable: true
+          description: 商品代金（25%プラットフォーム手数料の課金ベース）。旧データではNULL。
         status:
           type: string
           enum: [pending, confirmed, picked_up, cancelled]

@@ -547,6 +547,11 @@ export default function BagDetail() {
                 </div>
               )}
 
+              {/* システム利用料 5% 注記（決済時に加算される旨を明示）*/}
+              <p className="mt-2 text-[11px] text-muted-foreground/80 leading-relaxed">
+                ※ 決済時に <span className="font-bold text-foreground">システム利用料 5%</span> が加算されます（10円単位で四捨五入）
+              </p>
+
               {/* ステータスバー (洗練されたピル) */}
               <div className="flex items-center gap-2 mt-4 flex-wrap">
                 {isSoldOut ? (

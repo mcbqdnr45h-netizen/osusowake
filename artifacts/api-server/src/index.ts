@@ -497,6 +497,16 @@ async function runMigrations() {
     `);
     console.log('[migration] stripe_webhook_events table ✅');
 
+    // ── reservations.merchandise_amount: 商品代金（5%システム利用料を加算する前の金額）
+    //    新収益モデル (ユーザー側 5% システム利用料 + 店舗側 25% プラットフォーム手数料) で
+    //    必要となる、totalPrice (ユーザー支払合計) とは別に保持する商品代金カラム。
+    //    旧データは NULL のままで、コードは totalPrice をフォールバックとして扱う。
+    await client.query(`
+      ALTER TABLE reservations
+      ADD COLUMN IF NOT EXISTS merchandise_amount REAL;
+    `);
+    console.log('[migration] reservations.merchandise_amount ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

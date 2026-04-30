@@ -13,6 +13,18 @@ import { requireAuth } from "../middlewares/auth.js";
 
 const HOLD_MINUTES = 5;
 
+// ─── 収益モデル: ユーザー側 5%「システム利用料」を加算し、合計を10円単位四捨五入 ─────
+// 例: merchandise=350円 → userTotal = round10(350 * 1.05) = round10(367.5) = 370円
+//     merchandise=480円 → userTotal = round10(480 * 1.05) = round10(504)   = 500円
+//     merchandise=120円 → userTotal = round10(120 * 1.05) = round10(126)   = 130円
+const USER_SERVICE_FEE_RATE = 0.05;
+function roundTo10(n: number): number {
+  return Math.round(n / 10) * 10;
+}
+function computeUserTotal(merchandiseJpy: number): number {
+  return roundTo10(merchandiseJpy * (1 + USER_SERVICE_FEE_RATE));
+}
+
 /** 再利用可能ステータス＝まだ未完了の PI。これらだけが Stripe で cancel 可能 */
 const CANCELLABLE_PI_STATUSES = new Set([
   "requires_payment_method",
@@ -201,6 +213,7 @@ async function getReservationWithDetails(id: number) {
       storeId: reservationsTable.storeId,
       quantity: reservationsTable.quantity,
       totalPrice: reservationsTable.totalPrice,
+      merchandiseAmount: reservationsTable.merchandiseAmount,
       status: reservationsTable.status,
       paymentIntentId: reservationsTable.paymentIntentId,
       paymentStatus: reservationsTable.paymentStatus,
@@ -264,6 +277,7 @@ router.get("/reservations", requireAuth, async (req, res) => {
         storeId: reservationsTable.storeId,
         quantity: reservationsTable.quantity,
         totalPrice: reservationsTable.totalPrice,
+        merchandiseAmount: reservationsTable.merchandiseAmount,
         status: reservationsTable.status,
         paymentIntentId: reservationsTable.paymentIntentId,
         paymentStatus: reservationsTable.paymentStatus,
@@ -318,7 +332,12 @@ router.post("/reservations", requireAuth, async (req, res) => {
         throw Object.assign(new Error("out_of_stock"), { code: "out_of_stock" });
       }
 
-      const totalPrice = bag.discountedPrice * body.quantity;
+      // ── 収益モデル ─────────────────────────────────────────────────
+      // merchandiseAmount = 商品代金 (店舗 25% 手数料の課金ベース)
+      // totalPrice        = ユーザー支払合計 = round10(merch * 1.05)
+      //                     (5% システム利用料を加算し、10円単位で四捨五入)
+      const merchandiseAmount = bag.discountedPrice * body.quantity;
+      const totalPrice = computeUserTotal(merchandiseAmount);
       const parsed = insertReservationSchema.parse({
         // 認可: body.userId は信用しない。常に認証ユーザの ID で予約を作る。
         userId: req.authUser!.id,
@@ -326,6 +345,7 @@ router.post("/reservations", requireAuth, async (req, res) => {
         storeId: bag.storeId,
         quantity: body.quantity,
         totalPrice,
+        merchandiseAmount,
         status: "pending",
         paymentStatus: "unpaid",
       });

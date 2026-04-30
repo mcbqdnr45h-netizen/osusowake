@@ -16,8 +16,6 @@ import type {
   UseQueryResult,
 } from "@tanstack/react-query";
 
-type QueryOpts<T, E, D> = Omit<UseQueryOptions<T, E, D>, 'queryKey'> & { queryKey?: QueryKey };
-
 import type {
   ConfirmPaymentRequest,
   CreateBagRequest,
@@ -72,7 +70,7 @@ export const getHealthCheckQueryOptions = <
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOpts<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -107,7 +105,7 @@ export function useHealthCheck<
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOpts<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -162,7 +160,7 @@ export const getListStoresQueryOptions = <
 >(
   params?: ListStoresParams,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof listStores>>,
       TError,
       TData
@@ -200,7 +198,7 @@ export function useListStores<
 >(
   params?: ListStoresParams,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof listStores>>,
       TError,
       TData
@@ -330,7 +328,7 @@ export const getGetStoreQueryOptions = <
 >(
   storeId: number,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getStore>>,
       TError,
       TData
@@ -371,7 +369,7 @@ export function useGetStore<
 >(
   storeId: number,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getStore>>,
       TError,
       TData
@@ -502,7 +500,7 @@ export const getListStoreBagsQueryOptions = <
 >(
   storeId: number,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof listStoreBags>>,
       TError,
       TData
@@ -545,7 +543,7 @@ export function useListStoreBags<
 >(
   storeId: number,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof listStoreBags>>,
       TError,
       TData
@@ -673,7 +671,7 @@ export const getListAllBagsQueryOptions = <
   TData = Awaited<ReturnType<typeof listAllBags>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOpts<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof listAllBags>>,
     TError,
     TData
@@ -708,7 +706,7 @@ export function useListAllBags<
   TData = Awaited<ReturnType<typeof listAllBags>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: QueryOpts<
+  query?: UseQueryOptions<
     Awaited<ReturnType<typeof listAllBags>>,
     TError,
     TData
@@ -751,7 +749,7 @@ export const getGetBagQueryOptions = <
 >(
   bagId: number,
   options?: {
-    query?: QueryOpts<Awaited<ReturnType<typeof getBag>>, TError, TData>;
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getBag>>, TError, TData>;
     request?: SecondParameter<typeof customFetch>;
   },
 ) => {
@@ -786,7 +784,7 @@ export function useGetBag<
 >(
   bagId: number,
   options?: {
-    query?: QueryOpts<Awaited<ReturnType<typeof getBag>>, TError, TData>;
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getBag>>, TError, TData>;
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -927,7 +925,7 @@ export const getListReservationsQueryOptions = <
 >(
   params?: ListReservationsParams,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof listReservations>>,
       TError,
       TData
@@ -966,7 +964,7 @@ export function useListReservations<
 >(
   params?: ListReservationsParams,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof listReservations>>,
       TError,
       TData
@@ -1096,7 +1094,7 @@ export const getGetReservationQueryOptions = <
 >(
   reservationId: number,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getReservation>>,
       TError,
       TData
@@ -1140,7 +1138,7 @@ export function useGetReservation<
 >(
   reservationId: number,
   options?: {
-    query?: QueryOpts<
+    query?: UseQueryOptions<
       Awaited<ReturnType<typeof getReservation>>,
       TError,
       TData
@@ -1527,7 +1525,7 @@ export const getGetMeQueryOptions = <
   TData = Awaited<ReturnType<typeof getMe>>,
   TError = ErrorType<ErrorResponse>,
 >(options?: {
-  query?: QueryOpts<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
@@ -1556,7 +1554,7 @@ export function useGetMe<
   TData = Awaited<ReturnType<typeof getMe>>,
   TError = ErrorType<ErrorResponse>,
 >(options?: {
-  query?: QueryOpts<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMeQueryOptions(options);

@@ -24,6 +24,9 @@ export const reservationsTable = pgTable("reservations", {
   storeId: integer("store_id").notNull().references(() => storesTable.id),
   quantity: integer("quantity").notNull().default(1),
   totalPrice: real("total_price").notNull(),
+  // 商品代金 (= bag.discountedPrice * quantity, 5%システム利用料込みの totalPrice とは別管理)。
+  // 旧データでは NULL の可能性があり、その場合は totalPrice を商品代金と見なすフォールバックを用いる。
+  merchandiseAmount: real("merchandise_amount"),
   status: reservationStatusEnum("status").notNull().default("pending"),
   paymentIntentId: text("payment_intent_id"),
   paymentStatus: paymentStatusEnum("payment_status").notNull().default("unpaid"),

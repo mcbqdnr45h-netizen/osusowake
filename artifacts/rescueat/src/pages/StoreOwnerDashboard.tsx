@@ -695,7 +695,7 @@ export default function StoreOwnerDashboard() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-primary-foreground/80" />
-              <span className="text-sm font-bold text-primary-foreground/80">今日の売上（手数料控除後）</span>
+              <span className="text-sm font-bold text-primary-foreground/80">今日の入金予定額（手数料控除後）</span>
             </div>
             {loadingSales && <Loader2 className="w-4 h-4 animate-spin text-primary-foreground/60" />}
           </div>
@@ -716,10 +716,13 @@ export default function StoreOwnerDashboard() {
             <>
               <p className="text-4xl font-black tracking-tight mb-1">¥{todaySales.net.toLocaleString()}</p>
               <div className="flex items-center gap-4 text-xs text-primary-foreground/70 font-medium">
-                <span>総売上 ¥{todaySales.gross.toLocaleString()}</span>
+                <span>商品代金合計 ¥{todaySales.gross.toLocaleString()}</span>
                 <span>手数料 ¥{todaySales.platformFee.toLocaleString()}</span>
                 <span>{todaySales.count}件</span>
               </div>
+              <p className="mt-2 text-[10px] text-primary-foreground/60 leading-relaxed">
+                ※ 商品代金合計から プラットフォーム手数料 25% と Stripe決済手数料を控除した金額が、お客様への入金予定額です
+              </p>
               {!todaySales.connected && (
                 <div className="mt-3 bg-white/10 rounded-xl px-3 py-2 text-xs font-bold">
                   Stripe未連携のため売上データが表示できません

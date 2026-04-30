@@ -323,6 +323,16 @@ export default function Checkout() {
   }
 
   const total = Math.round(reservation.totalPrice);
+  // 商品代金: API が新カラムを返す場合はそれを使用、旧データは bag×quantity を fallback、
+  // それも無ければ total を表示（5%手数料は0表示・後方互換）。
+  // ※ `?? 0 ?? total` は 0 で確定してしまうため、明示的に `||` で 0/falsy を弾いて total に落とす。
+  const merchandiseRaw =
+    reservation.merchandiseAmount ??
+    (reservation.bag?.discountedPrice
+      ? reservation.bag.discountedPrice * reservation.quantity
+      : undefined);
+  const merchandise = Math.round(merchandiseRaw && merchandiseRaw > 0 ? merchandiseRaw : total);
+  const userServiceFee = Math.max(0, total - merchandise);
 
   return (
     <Layout showBottomNav={false}>
@@ -358,10 +368,7 @@ export default function Checkout() {
               <div className="flex-1">
                 <div className="text-sm text-muted-foreground">{reservation.store?.name}</div>
                 <div className="font-bold text-foreground line-clamp-2">{reservation.bag?.title}</div>
-                <div className="mt-1 flex justify-between items-center">
-                  <div className="text-sm text-muted-foreground">数量: {reservation.quantity}</div>
-                  <div className="font-black text-lg text-primary">¥{total.toLocaleString()}</div>
-                </div>
+                <div className="mt-1 text-sm text-muted-foreground">数量: {reservation.quantity}</div>
               </div>
             </div>
             <div className="bg-secondary/50 rounded-xl p-3.5 flex items-center justify-between text-sm">
@@ -370,14 +377,27 @@ export default function Checkout() {
             </div>
           </motion.div>
 
-          {/* Total */}
+          {/* Total — 商品代金 + システム利用料(5%) = お支払い合計 */}
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="bg-card border border-border rounded-2xl p-5 shadow-sm"
           >
-            <div className="flex items-center justify-between">
-              <span className="font-black text-foreground">お支払い合計</span>
-              <span className="font-black text-xl text-primary">¥{total.toLocaleString()}</span>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex items-center justify-between text-foreground">
+                <span>商品代金</span>
+                <span className="font-bold tabular-nums">¥{merchandise.toLocaleString()}</span>
+              </div>
+              <div className="flex items-start justify-between text-muted-foreground">
+                <div className="flex flex-col">
+                  <span>システム利用料 <span className="text-xs">(5%)</span></span>
+                  <span className="text-[11px] text-muted-foreground/70 mt-0.5">合計を10円単位に四捨五入してお預かりします</span>
+                </div>
+                <span className="font-bold tabular-nums">¥{userServiceFee.toLocaleString()}</span>
+              </div>
+              <div className="border-t border-border pt-2.5 flex items-center justify-between">
+                <span className="font-black text-foreground">お支払い合計</span>
+                <span className="font-black text-xl text-primary tabular-nums">¥{total.toLocaleString()}</span>
+              </div>
             </div>
           </motion.div>
 

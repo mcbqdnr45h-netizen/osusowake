@@ -1164,11 +1164,14 @@ router.get("/stores/:storeId/today-sales", requireAuth, requireStoreOwner, async
 
     // JPY: amountは円単位
     const net = transfers.data.reduce((sum, t) => sum + t.amount, 0);
-    // 正確な逆算:
-    //   店舗受取 = 総売上 × (1 - 0.25 - 0.036) = 総売上 × 0.714
-    //   → 総売上 = 店舗受取 / 0.714
-    // ※ 旧実装の / 0.75 は誤り（Stripe手数料3.6%を考慮していなかった）
-    const STORE_RATE = 1 - 0.25 - 0.036; // = 0.714
+    // 正確な逆算（新収益モデル）:
+    //   店舗受取 = floor(merch × 0.75) - round(userTotal × 0.036)
+    //   userTotal ≈ merch × 1.05 のため
+    //   店舗受取 ≈ merch × 0.75 - merch × 1.05 × 0.036 = merch × 0.7122
+    //   → 商品代金 (merch) ≈ 店舗受取 / 0.7122
+    // ※ ここで返す `gross` は「商品代金合計」（25% 課金ベース）の概算値。
+    //   ユーザー支払合計は別 (商品代金 + 5%システム利用料) なので店舗には開示しない。
+    const STORE_RATE = 1 - 0.25 - 1.05 * 0.036; // ≒ 0.7122
     const gross       = net > 0 ? Math.round(net / STORE_RATE) : 0;
     const platformFee = gross - net; // = プラットフォーム手数料(25%) + Stripe手数料(3.6%)
 

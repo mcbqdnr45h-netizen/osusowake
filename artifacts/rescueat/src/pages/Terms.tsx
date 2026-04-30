@@ -17,7 +17,7 @@ export default function Terms() {
 
         <article>
           <h1 className="text-2xl font-black text-foreground mb-1">利用規約</h1>
-          <p className="text-xs text-muted-foreground mb-8">最終更新日：2026年3月26日</p>
+          <p className="text-xs text-muted-foreground mb-8">最終更新日：2026年4月29日</p>
 
           <p className="text-sm text-muted-foreground leading-relaxed mb-8">
             おすそわけ（以下「本サービス」）をご利用いただくにあたり、以下の利用規約（以下「本規約」）をよくお読みください。本サービスを利用することで、本規約に同意したものとみなします。
@@ -77,6 +77,16 @@ export default function Terms() {
 
           <Section title="第5条（購入・キャンセル）">
             <p>おすそわけバッグの購入確定後のキャンセル・返品は原則としてお受けできません。ただし、出品者の都合により商品提供が不可能となった場合は、全額返金いたします。商品の内容はお楽しみとなるため、内容に関するクレームはお受けできません。</p>
+          </Section>
+
+          <Section title="第5条の2（料金・手数料）">
+            <p>本サービスにおける料金体系は以下のとおりです。</p>
+            <ul>
+              <li><strong>商品代金</strong>：各出品者が設定する販売価格（税込）です。各商品ページおよび購入確認画面に表示されます。</li>
+              <li><strong>システム利用料（購入者負担）</strong>：本サービスの安定運営および食品ロス削減事業の維持のため、商品代金に対して <strong>5%（消費税込）</strong> をシステム利用料として加算してお預かりします。最終的なお支払い合計は <strong>10円単位で四捨五入</strong> し、購入確認画面で明示します。</li>
+              <li><strong>プラットフォーム手数料（出品者負担）</strong>：出品者は商品代金（販売額）の <strong>25%</strong> を当プラットフォーム手数料として運営者に支払うものとします。これとは別に、決済代行事業者所定の決済手数料が出品者の入金額から控除されます。</li>
+              <li>上記料金体系は、運営者の判断により変更されることがあります。変更時は本規約の改定または本サービス上での通知をもって効力を生じるものとします。</li>
+            </ul>
           </Section>
 
           <Section title="第6条（ノーショーに関する取扱い）">
