@@ -78,6 +78,14 @@ interface PastBag {
 }
 
 
+// ─── 現在時刻 (HH:MM) を返す。 出品時の受取開始デフォルト用 ──────────────
+function nowHHMM(): string {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 // ─── 出品モーダル ────────────────────────────────────────────────────────
 function PostBagModal({
   storeId,
@@ -100,8 +108,12 @@ function PostBagModal({
   const [aiSuggested, setAiSuggested] = useState<string | null>(null);
   const [classifying, setClassifying] = useState(false);
   const [qty, setQty] = useState(3);
-  const [quickPickupStart, setQuickPickupStart] = useState('18:00');
-  const [quickPickupEnd, setQuickPickupEnd] = useState('20:00');
+  // 出品時のデフォルト受取時間: 開始=現在時刻 (HH:MM)、 終了=00:00 (深夜0時=翌日扱い)
+  // useState の lazy initializer で「マウント時の現在時刻」を一度だけ評価する。
+  // 終了 '00:00' は isPickupEndPassed() 内で「start >= end → 翌日跨ぎ」として正しく
+  // 過去判定されないので validation も問題なし。
+  const [quickPickupStart, setQuickPickupStart] = useState(() => nowHHMM());
+  const [quickPickupEnd, setQuickPickupEnd] = useState('00:00');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [itemType, setItemType] = useState<'bag' | 'item'>('bag');
@@ -111,7 +123,8 @@ function PostBagModal({
   const [quickPickupNote, setQuickPickupNote] = useState('');
 
   // 手動フォーム
-  const [form, setForm] = useState({
+  // pickupStart はマウント時の現在時刻、 pickupEnd は深夜0時 (翌日扱い) をデフォルトに
+  const [form, setForm] = useState(() => ({
     title: '',
     description: '',
     allergyInfo: '',
@@ -119,9 +132,9 @@ function PostBagModal({
     originalPrice: 0,
     discountedPrice: 0,
     stockCount: 3,
-    pickupStart: '18:00',
-    pickupEnd: '20:00',
-  });
+    pickupStart: nowHHMM(),
+    pickupEnd: '00:00',
+  }));
   const [editingStock, setEditingStock] = useState(false);
   const stockInputRef = useRef<HTMLInputElement>(null);
 
