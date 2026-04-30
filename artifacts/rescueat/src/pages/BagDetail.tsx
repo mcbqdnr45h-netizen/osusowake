@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
-import { useGetBag, useCreateReservation } from '@workspace/api-client-react';
+import { useGetBag, useCreateReservation, getListAllBagsQueryKey, getGetBagQueryKey } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
 import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store } from 'lucide-react';
@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authed-fetch';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { WalkTime } from '@/components/WalkTime';
 import { useUserLocation, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
@@ -216,7 +216,32 @@ export default function BagDetail() {
   const { toast } = useToast();
   const { isFavorite, toggle } = useFavorites();
 
-  const { data: bag, isLoading, error } = useGetBag(bagId);
+  // ★★★ 「商品カードをタップしてもたまにロード画面が出る」根本対策 ★★★
+  //   原因: pointerdown プリフェッチは ~50-200ms しか前倒し出来ず、
+  //         ネット往復 (200-400ms) より遅い iOS / 弱回線では isLoading=true
+  //         → スケルトン表示 → ようやく描画 という体感ラグが残る。
+  //   対策: バッグ一覧 (listAllBags) は Home / Search で常時キャッシュされており、
+  //         /bags/:id と完全に同じ SurpriseBagWithStore スキーマを返す。
+  //         この一覧キャッシュから該当 ID を抜き出して useGetBag の initialData
+  //         に与えれば、 isLoading は最初から false 確定 → スケルトン無しで
+  //         即座に詳細ページが描画される。 裏で fresh fetch が走り、 差分が
+  //         あれば数十 ms 後に静かに上書きされるだけ (UX 影響無し)。
+  const queryClient = useQueryClient();
+  const initialBag = React.useMemo(() => {
+    if (!bagId) return undefined;
+    const cachedList = queryClient.getQueryData<any[]>(getListAllBagsQueryKey());
+    return cachedList?.find(b => b.id === bagId);
+  }, [bagId, queryClient]);
+
+  const { data: bag, isLoading, error } = useGetBag(bagId, {
+    query: {
+      queryKey: getGetBagQueryKey(bagId),
+      // initialData があると React Query は即座に data として採用し isLoading=false 確定。
+      // staleTime と組み合わせて「キャッシュ即時表示 → 30秒以内なら裏フェッチもスキップ」。
+      initialData: initialBag,
+      staleTime: 30_000,
+    },
+  });
   const createReservation = useCreateReservation();
 
   const [, navigate] = useLocation();
