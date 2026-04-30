@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
 import { useListReservations, getListReservationsQueryKey, useGetMonthlyRanking, getGetMonthlyRankingQueryKey } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft, AlertTriangle, Trash2, Trophy } from 'lucide-react';
+import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, AlertTriangle, Trash2, Trophy } from 'lucide-react';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
@@ -94,19 +94,9 @@ export default function MyPage() {
   const [notifications, setNotifications] = useState<{ id: number; title: string; body: string; type: string; read: boolean; createdAt: string }[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
-
-  // スクロールロック
-  useEffect(() => {
-    if (showSettings) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [showSettings]);
+  // ★ A案: 設定モーダル削除済 → 設定リストは MyPage 本体にインライン表示。 showSettings/scroll-lock は不要。
 
   useEffect(() => {
     if (!userId || !session?.access_token) return;
@@ -223,9 +213,8 @@ export default function MyPage() {
 
   const pageContent = (
     <div
-      // ★ デッドスペース解消: 親 (Layout の main = flex-1 min-h-0 flex-col) いっぱいに広げ、
-      //   内部の MyTown カードを flex-1 で下端まで伸ばすために flex-col + flex-1 + min-h-0 を付与。
-      className="w-full px-4 flex flex-col flex-1 min-h-0"
+      // ★ A案: MyTown を縮小カード化したため flex-1 はもう不要。 通常の縦スクロールページに戻す。
+      className="w-full px-4"
       style={{ paddingTop: '1.5rem' }}
     >
         <div className="flex items-center justify-between mb-2">
@@ -243,13 +232,7 @@ export default function MyPage() {
                 )}
               </button>
             )}
-            {!isStoreOwner && (
-              <button
-                onClick={() => setShowSettings(true)}
-                className="p-2 rounded-xl bg-secondary/60 hover:bg-secondary transition-colors">
-                <Settings className="w-5 h-5 text-foreground" />
-              </button>
-            )}
+            {/* ★ A案: 歯車アイコンは廃止。 設定リストは MyPage 本体にインライン表示。 */}
           </div>
         </div>
 
@@ -513,18 +496,15 @@ export default function MyPage() {
                  で、 flex 計算が iOS Safari/PWA で空転しても確実に縦に伸びる。 dvh は
                  アドレスバー表示状態に追従するモバイル単位。 */}
         {!isStoreOwner && (
-          <div
-            className="-mx-4 mb-2 flex-1 min-h-0 flex flex-col"
-            style={{ minHeight: 'calc(100dvh - 460px)' }}
-          >
+          <div className="-mx-4 mb-3">
             {/* ── 月間ランキング 連動カード (タップで /ranking へ) ─────────────
                 ★ 仕様: 「現在の月間順位：○位 / あと○回でランクアップ！」
                 ★ 累計リセットなし、 ランキングは毎月 1 日 0:00(JST) リセット
-                ★ MyTown SVG の上 (= イラスト下のセクション) に常時表示 */}
+                ★ rank=-1 は opt-out (Settings で非表示中) を意味する。 */}
             <button
               type="button"
               onClick={() => navigate('/ranking')}
-              className="mx-4 mb-3 group bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border border-amber-200/70 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-transform shadow-sm"
+              className="mx-4 mb-3 group bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border border-amber-200/70 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-transform shadow-sm w-[calc(100%-2rem)]"
               aria-label="今月のおすそわけランキングを見る"
             >
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 text-white flex items-center justify-center shrink-0 shadow">
@@ -535,7 +515,11 @@ export default function MyPage() {
                   今月のおすそわけランキング
                 </div>
                 {monthlyRanking ? (
-                  monthlyRanking.myRank && monthlyRanking.myRank.rank > 0 ? (
+                  monthlyRanking.optedOut ? (
+                    <div className="text-sm font-bold text-foreground leading-tight">
+                      ランキング非表示中
+                    </div>
+                  ) : monthlyRanking.myRank && monthlyRanking.myRank.rank > 0 ? (
                     <div className="flex items-baseline gap-1">
                       <span className="text-base font-black text-foreground leading-none">
                         現在の月間順位：{monthlyRanking.myRank.rank}位
@@ -551,15 +535,138 @@ export default function MyPage() {
                 )}
                 {monthlyRanking && (
                   <div className="text-[11px] text-muted-foreground font-bold mt-0.5">
-                    {monthlyRanking.nextRankDelta === 0
-                      ? '🏆 頂点キープ中！'
-                      : `あと${monthlyRanking.nextRankDelta}回でランクアップ！`}
+                    {monthlyRanking.optedOut
+                      ? '設定からいつでも参加できます'
+                      : monthlyRanking.nextRankDelta === 0
+                        ? '🏆 頂点キープ中！'
+                        : `あと${monthlyRanking.nextRankDelta}回でランクアップ！`}
                   </div>
                 )}
               </div>
               <ChevronRight className="w-5 h-5 text-amber-600 shrink-0 group-active:translate-x-0.5 transition-transform" />
             </button>
-            <MyTown purchaseCount={pickedUpCount} stretch />
+
+            {/* ── マイタウン 縮小カード (タップで詳細ページへ) ─────────────
+                ★ A案: 以前は flex-1 で画面いっぱいに表示していたが、 設定リストを
+                  本ページに同居させるため固定高 (220px) のショーケースに圧縮。 */}
+            <button
+              type="button"
+              onClick={() => navigate('/town')}
+              className="mx-4 group block w-[calc(100%-2rem)] rounded-2xl overflow-hidden border border-border bg-card relative active:scale-[0.99] transition-transform"
+              style={{ height: '220px', boxShadow: '0 2px 12px -2px rgba(10,8,6,0.10)' }}
+              aria-label="マイタウンを大きく見る"
+            >
+              <div className="absolute inset-0">
+                <MyTown purchaseCount={pickedUpCount} stretch />
+              </div>
+              {/* 下部グラデーション + ラベル (タップ可能アフォーダンス) */}
+              <div
+                className="absolute inset-x-0 bottom-0 px-3 py-2 flex items-center gap-2 text-white"
+                style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.0) 100%)' }}
+              >
+                <span className="text-[11px] font-black flex-1">マイタウンをもっと見る</span>
+                <ChevronRight className="w-4 h-4 group-active:translate-x-0.5 transition-transform" />
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* ── カスタマー: 設定リスト (旧モーダルをインライン化) ─────────────
+            ★ A案: 歯車タップ → モーダル の動線を撤廃し、 MyTown の下に常時表示。 */}
+        {!isStoreOwner && (
+          <div className="space-y-3 mb-4">
+            {/* 購入履歴 */}
+            <div className="bg-card rounded-2xl overflow-hidden"
+              style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+              <Link
+                href="/orders"
+                className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors"
+              >
+                <div className="w-9 h-9 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+                  <Receipt className="w-4 h-4" />
+                </div>
+                <div className="flex-1 font-bold text-foreground text-sm">購入履歴・領収書</div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </Link>
+            </div>
+
+            {/* アカウント・サポート */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アカウント・サポート</p>
+              <div className="bg-card rounded-2xl overflow-hidden"
+                style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
+                <Link
+                  href="/settings"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
+                    <Settings className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 font-bold text-foreground text-sm">アカウント設定</div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <Link
+                  href="/report-store"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shrink-0">
+                    <Flag className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-foreground text-sm">食品ロスのお店を教えて</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">おすそわけスタッフが直接お伺いします</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <Link
+                  href="/help"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-secondary text-foreground rounded-full flex items-center justify-center shrink-0">
+                    <HelpCircle className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 font-bold text-foreground text-sm">ヘルプ・お問い合わせ</div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 py-3 px-4 hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-left text-destructive border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-destructive/10 text-destructive rounded-full flex items-center justify-center shrink-0">
+                    <LogOut className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 font-bold text-sm">ログアウト</div>
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full flex items-center gap-3 py-3 px-4 hover:bg-rose-50 active:bg-rose-100 transition-colors text-left"
+                >
+                  <div className="w-9 h-9 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-sm text-rose-600">アカウントを削除する</div>
+                    <div className="text-[10px] text-rose-400 mt-0.5">退会・全データを削除します</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 法的情報リンク */}
+            <div className="pt-2 pb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+              <Link href="/tokusho" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                特定商取引法に基づく表記
+              </Link>
+              <span className="text-muted-foreground/30 text-xs">|</span>
+              <Link href="/terms" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                利用規約
+              </Link>
+              <span className="text-muted-foreground/30 text-xs">|</span>
+              <Link href="/privacy" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                プライバシーポリシー
+              </Link>
+              <p className="w-full text-center text-[10px] text-muted-foreground/40 mt-1">© 2025 おすそわけ All rights reserved.</p>
+            </div>
           </div>
         )}
 
@@ -1041,261 +1148,8 @@ export default function MyPage() {
       </div>
   );
 
-  // ── 設定パネル（フルスクリーンモーダル） ──
-  const settingsSheet = (
-    <AnimatePresence>
-      {showSettings && (
-        <>
-          {/* 背景オーバーレイ */}
-          <motion.div
-            key="settings-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
-            onClick={() => setShowSettings(false)}
-          />
-
-          {/* スライドアップパネル */}
-          <motion.div
-            key="settings-panel"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-            className="fixed left-3 right-3 bottom-3 z-50 bg-background rounded-3xl overflow-hidden flex flex-col"
-            style={{
-              maxHeight: '88dvh',
-              paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)',
-              boxShadow: '0 -4px 40px rgba(0,0,0,0.18)',
-            }}
-          >
-            {/* ハンドルバー */}
-            <div className="flex justify-center pt-3 pb-1 shrink-0">
-              <div className="w-10 h-1 bg-border rounded-full" />
-            </div>
-
-            {/* ヘッダー */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60 shrink-0">
-              <button
-                onClick={() => setShowSettings(false)}
-                className="p-2 -ml-2 rounded-xl hover:bg-secondary transition-colors text-foreground"
-                aria-label="閉じる"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <h2 className="text-base font-black text-foreground flex-1">設定</h2>
-              <Settings className="w-4 h-4 text-muted-foreground" />
-            </div>
-
-            {/* スクロール可能なコンテンツ */}
-            <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 py-4 space-y-3">
-
-              {/* ── 購入履歴 ── */}
-              <div className="bg-card rounded-2xl overflow-hidden"
-                style={{ boxShadow: '0 2px 12px -2px rgba(10,8,6,0.09)' }}>
-                <Link
-                  href="/orders"
-                  onClick={() => setShowSettings(false)}
-                  className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors"
-                >
-                  <div className="w-9 h-9 bg-primary/10 text-primary rounded-xl flex items-center justify-center shrink-0">
-                    <Receipt className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 font-bold text-foreground text-sm">購入履歴・領収書</div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
-                </Link>
-              </div>
-
-              {/* ── 店舗管理（店舗オーナーのみ） ── */}
-              {isStoreOwner && (
-                <div>
-                  <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">店舗管理</p>
-                  <div className="bg-card rounded-2xl overflow-hidden"
-                    style={{ boxShadow: '0 2px 12px -2px rgba(10,8,6,0.09)' }}>
-                    {store?.status === 'pending' && (
-                      <Link
-                        href="/store/bank-setup"
-                        onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border last:border-0"
-                      >
-                        <div className="w-9 h-9 bg-orange-100 text-orange-500 rounded-xl flex items-center justify-center shrink-0">
-                          <CreditCard className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-foreground text-sm">
-                            {store?.stripeAccountId ? '本人確認書類の提出が必要です' : '口座・本人確認の登録が必要です'}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {store?.stripeAccountId ? '口座は登録済みです。本人確認書類をご提出ください' : '振込先口座と本人確認の登録が必要です'}
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">未完了</span>
-                      </Link>
-                    )}
-                    {(store?.status === 'pending_review' || store?.status === 'applied') && (
-                      <Link
-                        href="/store-dashboard"
-                        onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border last:border-0"
-                      >
-                        <div className="w-9 h-9 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-                          <Clock className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-foreground text-sm">
-                            {store?.status === 'applied' ? '決済の本人確認 — 審査中' : '確認中'}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {store?.status === 'applied'
-                              ? '早ければ数時間で完了します'
-                              : '運営スタッフが確認中です'}
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">審査中</span>
-                      </Link>
-                    )}
-                    {store?.status === 'rejected' && (
-                      <Link
-                        href="/store/bank-setup"
-                        onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border last:border-0"
-                      >
-                        <div className="w-9 h-9 bg-red-100 text-red-500 rounded-xl flex items-center justify-center shrink-0">
-                          <XCircle className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-foreground text-sm">店舗申請が却下されました</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">決済口座を再設定して再申請する</div>
-                        </div>
-                        <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">再申請</span>
-                      </Link>
-                    )}
-                    {isApprovedOwner && (
-                      <Link
-                        href="/store/profile-edit"
-                        onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
-                      >
-                        <div className="w-9 h-9 bg-orange-100 text-orange-500 rounded-xl flex items-center justify-center shrink-0">
-                          <Camera className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-foreground text-sm">店舗プロフィール編集</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">カバー写真・紹介文・営業時間など</div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
-                      </Link>
-                    )}
-                    {isApprovedOwner && (
-                      <Link
-                        href="/store/reviews"
-                        onClick={() => setShowSettings(false)}
-                        className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors"
-                      >
-                        <div className="w-9 h-9 bg-amber-100 text-amber-500 rounded-xl flex items-center justify-center shrink-0">
-                          <MessageSquare className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-bold text-foreground text-sm">お客様からのレビュー</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">レビュー確認・返信管理</div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ── アカウント・サポート ── */}
-              <div>
-                <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アカウント・サポート</p>
-                <div className="bg-card rounded-2xl overflow-hidden"
-                  style={{ boxShadow: '0 2px 12px -2px rgba(10,8,6,0.09)' }}>
-                  {!isStoreOwner && (
-                    <Link
-                      href="/settings"
-                      onClick={() => setShowSettings(false)}
-                      className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
-                    >
-                      <div className="w-9 h-9 bg-secondary text-foreground rounded-xl flex items-center justify-center shrink-0">
-                        <Settings className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 font-bold text-foreground text-sm">アカウント設定</div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
-                    </Link>
-                  )}
-                  <Link
-                    href="/report-store"
-                    onClick={() => setShowSettings(false)}
-                    className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
-                  >
-                    <div className="w-9 h-9 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center shrink-0">
-                      <Flag className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-bold text-foreground text-sm">食品ロスのお店を教えて</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">おすそわけスタッフが直接お伺いします</div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
-                  </Link>
-                  <Link
-                    href="/help"
-                    onClick={() => setShowSettings(false)}
-                    className="flex items-center gap-3.5 py-3.5 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
-                  >
-                    <div className="w-9 h-9 bg-secondary text-foreground rounded-xl flex items-center justify-center shrink-0">
-                      <HelpCircle className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 font-bold text-foreground text-sm">ヘルプ・お問い合わせ</div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3.5 py-3.5 px-4 hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-left text-destructive border-b border-border"
-                  >
-                    <div className="w-9 h-9 bg-destructive/10 text-destructive rounded-xl flex items-center justify-center shrink-0">
-                      <LogOut className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 font-bold text-sm">ログアウト</div>
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="w-full flex items-center gap-3.5 py-3.5 px-4 hover:bg-rose-50 active:bg-rose-100 transition-colors text-left"
-                  >
-                    <div className="w-9 h-9 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-bold text-sm text-rose-600">アカウントを削除する</div>
-                      <div className="text-[10px] text-rose-400 mt-0.5">退会・すべてのデータが削除されます</div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* 法的情報リンク */}
-              <div className="pt-2 pb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-                <Link href="/tokusho" onClick={() => setShowSettings(false)} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
-                  特定商取引法に基づく表記
-                </Link>
-                <span className="text-muted-foreground/30 text-xs">|</span>
-                <Link href="/terms" onClick={() => setShowSettings(false)} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
-                  利用規約
-                </Link>
-                <span className="text-muted-foreground/30 text-xs">|</span>
-                <Link href="/privacy" onClick={() => setShowSettings(false)} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
-                  プライバシーポリシー
-                </Link>
-                <p className="w-full text-center text-[10px] text-muted-foreground/40 mt-1">© 2025 おすそわけ All rights reserved.</p>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
+  // ★ A案: 旧 settingsSheet (フルスクリーンモーダル) は廃止。
+  //   設定リストは MyPage 本体に直接インライン表示する (上部の `!isStoreOwner` ブロック内)。
 
   // 退会(アカウント削除) は共通モーダル DeleteAccountModal を使用。
   // - 一般ユーザ: 「退会する」 入力 + 削除ボタン
@@ -1316,7 +1170,6 @@ export default function MyPage() {
   return (
     <>
       <Layout>{pageContent}</Layout>
-      {settingsSheet}
       {deleteConfirmModal}
     </>
   );

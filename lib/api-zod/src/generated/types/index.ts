@@ -22,6 +22,7 @@ export * from "./listStoresParams";
 export * from "./monthlyRanking";
 export * from "./monthlyRankingEntry";
 export * from "./paymentIntentResponse";
+export * from "./rankingPreference";
 export * from "./reservation";
 export * from "./reservationPaymentStatus";
 export * from "./reservationStatus";

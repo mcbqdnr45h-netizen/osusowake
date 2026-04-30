@@ -11,6 +11,6 @@ export interface MonthlyRankingEntry {
   displayName: string;
   /** Number of picked_up reservations this month */
   count: number;
-  /** 1-indexed rank; 0 means out of ranking (no activity) */
+  /** 1-indexed rank; 0 means out of ranking (no activity); -1 means opted out (hidden) */
   rank: number;
 }

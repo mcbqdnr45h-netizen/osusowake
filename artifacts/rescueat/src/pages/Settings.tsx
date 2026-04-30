@@ -12,6 +12,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar, saveAvatar } from '@/hooks/use-avatar';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
+import {
+  useGetRankingPreference,
+  useUpdateRankingPreference,
+  getGetRankingPreferenceQueryKey,
+  getGetMonthlyRankingQueryKey,
+} from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Trophy } from 'lucide-react';
 
 /** 画像ファイルを max W/H にリサイズして JPEG DataURL を返す */
 function resizeImageToDataUrl(file: File, maxW: number, maxH: number, quality = 0.85): Promise<string> {
@@ -218,6 +226,41 @@ export default function Settings() {
   const [notifNewOrder, setNotifNewOrder] = useState(saved.notifNewOrder);
   const [notifPickup, setNotifPickup] = useState(saved.notifPickup);
   const [notifAdmin, setNotifAdmin] = useState(saved.notifAdmin);
+
+  // ── ランキング非表示 (opt-out) は API 永続化 ────────────────────
+  const queryClient = useQueryClient();
+  const { data: rankingPref } = useGetRankingPreference({
+    query: {
+      queryKey: getGetRankingPreferenceQueryKey(),
+      enabled: !!user && !isStoreOwner,
+      staleTime: 60_000,
+    },
+  });
+  const updateRankingPref = useUpdateRankingPreference({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetRankingPreferenceQueryKey() });
+        // ★ MyPage は limit:1、 RankingPage は limit:10 で同じ API を使うため、
+        //   全バリエーションを一括 invalidate するためにベースパスのみで prefix-match させる。
+        queryClient.invalidateQueries({ queryKey: ['/api/ranking/monthly'] });
+      },
+      onError: (err: any) => {
+        toast({
+          title: '設定の保存に失敗しました',
+          description: String(err?.message ?? err),
+          variant: 'destructive',
+        });
+      },
+    },
+  });
+  // 楽観的に値を表示するため、 mutation 中の variables を優先
+  const rankingOptOut = updateRankingPref.isPending
+    ? !!updateRankingPref.variables?.data?.rankingOptOut
+    : !!rankingPref?.rankingOptOut;
+  function handleToggleRankingOptOut(val: boolean) {
+    updateRankingPref.mutate({ data: { rankingOptOut: val } });
+  }
+
   const [editingProfile, setEditingProfile] = useState(false);
   const [saved_, setSaved_] = useState(false);
   const [savingName, setSavingName] = useState(false);
@@ -643,6 +686,30 @@ export default function Settings() {
               </>
             )}
           </div>
+
+          {/* ── ランキング (一般ユーザのみ) ── */}
+          {!isStoreOwner && (
+            <>
+              <SectionLabel>ランキング</SectionLabel>
+              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-1">
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px]">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                    <Trophy className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">ランキングに参加する</p>
+                    <p className="text-xs text-muted-foreground">
+                      オフにすると、 月間ランキングに表示名が出えへんようになります
+                    </p>
+                  </div>
+                  <Toggle
+                    value={!rankingOptOut}
+                    onChange={v => handleToggleRankingOptOut(!v)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* ── LOGOUT / DELETE ── */}
           <SectionLabel>アカウント</SectionLabel>

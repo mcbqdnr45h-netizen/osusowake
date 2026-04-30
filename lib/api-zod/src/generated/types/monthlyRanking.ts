@@ -12,8 +12,10 @@ export interface MonthlyRanking {
   monthStartIso: string;
   topUsers: MonthlyRankingEntry[];
   myRank: MonthlyRankingEntry | null;
-  /** Total users with at least one picked_up this month */
+  /** Total users with at least one picked_up this month (excludes opted-out) */
   totalParticipants: number;
-  /** Additional picked_up count needed to climb one rank (0 if already 1st) */
+  /** Additional picked_up count needed to climb one rank (0 if already 1st or opted out) */
   nextRankDelta: number;
+  /** Whether the current user has opted out of the public ranking */
+  optedOut: boolean;
 }

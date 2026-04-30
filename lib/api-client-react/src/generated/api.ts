@@ -29,6 +29,7 @@ import type {
   ListStoresParams,
   MonthlyRanking,
   PaymentIntentResponse,
+  RankingPreference,
   Reservation,
   Store,
   SurpriseBag,
@@ -1664,3 +1665,164 @@ export function useGetMonthlyRanking<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get current user's ranking opt-out preference
+ */
+export const getGetRankingPreferenceUrl = () => {
+  return `/api/user/ranking-preference`;
+};
+
+export const getRankingPreference = async (
+  options?: RequestInit,
+): Promise<RankingPreference> => {
+  return customFetch<RankingPreference>(getGetRankingPreferenceUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRankingPreferenceQueryKey = () => {
+  return [`/api/user/ranking-preference`] as const;
+};
+
+export const getGetRankingPreferenceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRankingPreference>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRankingPreference>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRankingPreferenceQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRankingPreference>>
+  > = ({ signal }) => getRankingPreference({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRankingPreference>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRankingPreferenceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRankingPreference>>
+>;
+export type GetRankingPreferenceQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get current user's ranking opt-out preference
+ */
+
+export function useGetRankingPreference<
+  TData = Awaited<ReturnType<typeof getRankingPreference>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRankingPreference>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRankingPreferenceQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Toggle ranking opt-out (true = hide from public ranking)
+ */
+export const getUpdateRankingPreferenceUrl = () => {
+  return `/api/user/ranking-preference`;
+};
+
+export const updateRankingPreference = async (
+  rankingPreference: RankingPreference,
+  options?: RequestInit,
+): Promise<RankingPreference> => {
+  return customFetch<RankingPreference>(getUpdateRankingPreferenceUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(rankingPreference),
+  });
+};
+
+export const getUpdateRankingPreferenceMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRankingPreference>>,
+    TError,
+    { data: BodyType<RankingPreference> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRankingPreference>>,
+  TError,
+  { data: BodyType<RankingPreference> },
+  TContext
+> => {
+  const mutationKey = ["updateRankingPreference"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRankingPreference>>,
+    { data: BodyType<RankingPreference> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateRankingPreference(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRankingPreferenceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRankingPreference>>
+>;
+export type UpdateRankingPreferenceMutationBody = BodyType<RankingPreference>;
+export type UpdateRankingPreferenceMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Toggle ranking opt-out (true = hide from public ranking)
+ */
+export const useUpdateRankingPreference = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRankingPreference>>,
+    TError,
+    { data: BodyType<RankingPreference> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateRankingPreference>>,
+  TError,
+  { data: BodyType<RankingPreference> },
+  TContext
+> => {
+  return useMutation(getUpdateRankingPreferenceMutationOptions(options));
+};

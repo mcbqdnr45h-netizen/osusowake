@@ -238,7 +238,35 @@ export default function RankingPage() {
         </div>
 
         {/* ── 自分の順位 (sticky bottom) ── */}
-        {data && (
+        {data && data.optedOut ? (
+          <div
+            className="fixed left-0 right-0 z-40 bg-amber-50/95 backdrop-blur-md border-t border-amber-200 px-4 py-3"
+            style={{
+              bottom: 'calc(72px + env(safe-area-inset-bottom))',
+              paddingBottom: '0.75rem',
+            }}
+          >
+            <div className="flex items-center gap-3 max-w-2xl mx-auto">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <Trophy className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-foreground leading-tight">
+                  ランキング非表示中
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                  Settings の「ランキングに参加する」 をオンにすると表示されます
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/settings')}
+                className="text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 px-3 py-2 rounded-xl shrink-0 transition-colors"
+              >
+                設定へ
+              </button>
+            </div>
+          </div>
+        ) : data && (
           <div
             className="fixed left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-border/60 px-4 pt-3"
             style={{
