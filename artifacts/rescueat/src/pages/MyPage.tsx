@@ -437,52 +437,27 @@ export default function MyPage() {
             {/* 背景装飾 */}
             <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
 
-            <div className="relative px-4 py-3 flex items-center gap-4">
-              {/* 左：メイン数値 */}
-              <div className="flex-1 min-w-0">
-                <p className="text-white/70 text-[10px] font-medium">食品ロス削減量（推計）</p>
-                <div className="flex items-end gap-1 mt-0.5">
-                  <span className="text-2xl font-black text-white leading-none">{foodSavedKg}</span>
-                  <span className="text-white/90 text-xs font-bold mb-0.5">kg</span>
-                </div>
-                <p className="text-white/60 text-[9px] font-medium mt-0.5">
-                  ※ おすそわけバッグ1個 ≒ 約500g 換算
-                </p>
-                <p className="text-white/80 text-[10px] font-medium mt-1">
-                  {pickedUpCount === 0
-                    ? '🌟 最初のおすそわけで街が変わる'
-                    : pickedUpCount < 5
-                    ? '🌾 素敵なスタート！続けよう'
-                    : pickedUpCount < 15
-                    ? '🌿 街が育っています'
-                    : '🏆 あなたは街の守護者です'
-                  }
-                </p>
+            {/* ★ A案 v2: 1 行コンパクト表示 (高さ約 56px)。
+                  ・ 大きな「0.5 kg」 と右側の「kg」 統計が重複していたため統合。
+                  ・ 「食品ロス削減量」 タイトル / 換算注釈 / 励ましメッセージは
+                    冗長だったので削除し、 数値 3 つ + アイコンのみに集約。 */}
+            <div className="relative px-4 py-3 flex items-center justify-around gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <ShoppingBag className="w-4 h-4 text-white/80 shrink-0" />
+                <span className="text-white font-black text-lg leading-none">{pickedUpCount}</span>
+                <span className="text-white/70 text-[10px] font-bold">回</span>
               </div>
-
-              {/* 右：3統計縦並び */}
-              <div className="flex gap-3 shrink-0">
-                <div className="text-center">
-                  <div className="text-white font-black text-sm leading-none">{pickedUpCount}</div>
-                  <div className="text-white/60 text-[9px] mt-0.5 flex flex-col items-center gap-0.5">
-                    <ShoppingBag className="w-2.5 h-2.5" />
-                    <span>回数</span>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-white font-black text-sm leading-none">{foodSavedKg}</div>
-                  <div className="text-white/60 text-[9px] mt-0.5 flex flex-col items-center gap-0.5">
-                    <Scale className="w-2.5 h-2.5" />
-                    <span>kg</span>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-white font-black text-sm leading-none">{co2Saved}</div>
-                  <div className="text-white/60 text-[9px] mt-0.5 flex flex-col items-center gap-0.5">
-                    <Leaf className="w-2.5 h-2.5" />
-                    <span>CO₂</span>
-                  </div>
-                </div>
+              <div className="w-px h-6 bg-white/25" />
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Scale className="w-4 h-4 text-white/80 shrink-0" />
+                <span className="text-white font-black text-lg leading-none">{foodSavedKg}</span>
+                <span className="text-white/70 text-[10px] font-bold">kg</span>
+              </div>
+              <div className="w-px h-6 bg-white/25" />
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Leaf className="w-4 h-4 text-white/80 shrink-0" />
+                <span className="text-white font-black text-lg leading-none">{co2Saved}</span>
+                <span className="text-white/70 text-[10px] font-bold">kg CO₂</span>
               </div>
             </div>
           </motion.div>
