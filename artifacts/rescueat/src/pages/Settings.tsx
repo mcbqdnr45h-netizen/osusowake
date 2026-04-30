@@ -85,7 +85,7 @@ function TokushoModal({ onClose }: { onClose: () => void }) {
         <div className="overflow-y-auto overflow-x-hidden px-6 py-5 space-y-5">
           {[
             { label: '販売業者', value: 'おすそわけ 事務局' },
-            { label: '運営責任者', value: 'Yuhi' },
+            { label: '運営責任者', value: '佐藤勇飛' },
             { label: 'お問い合わせ', value: (
               <a href="https://forms.gle/uhMoXjjF9YzkR52a6" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
                 Googleフォームよりお問い合わせください
