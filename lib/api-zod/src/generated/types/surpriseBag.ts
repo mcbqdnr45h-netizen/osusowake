@@ -5,6 +5,7 @@
  * RescuEat API - Food rescue platform
  * OpenAPI spec version: 0.1.0
  */
+import type { SurpriseBagItemType } from "./surpriseBagItemType";
 
 export interface SurpriseBag {
   id: number;
@@ -24,6 +25,10 @@ export interface SurpriseBag {
   allergyInfo?: string | null;
   /** 受取時の備考（任意） */
   pickupNote?: string | null;
+  /** 商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。
+既存データ・未指定時は 'bag' 扱い。
+ */
+  itemType?: SurpriseBagItemType;
   isActive: boolean;
   createdAt: Date;
 }

@@ -4,6 +4,7 @@ import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
 import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
 import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, ArrowLeft, AlertTriangle, Trash2 } from 'lucide-react';
+import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -567,21 +568,27 @@ export default function MyPage() {
         )}
 
         {/* ── 店舗オーナー：承認済み・Stripe連携完了（緑バッジ — ライブAPI判定） ── */}
-        {profile?.role === 'store_owner' && !loadingStore && isApprovedOwner && (() => {
+        {/* ★ レイアウトシフト防止: 承認済みオーナーには min-h を確保しておき、
+              stripeStatus 取得中もバナー領域が必ず最終バリアント (amber/red) と
+              同じ高さを確保する。緑コンパクトバナー → 多段amber/red への昇格時に
+              下のコンテンツが押し下げられる「ガクッと動く」現象を防ぐ。
+              amber/red は本文 + ボタン込みで最大 ~140px。 */}
+        {profile?.role === 'store_owner' && !loadingStore && isApprovedOwner && (
+          <div className="mb-3 min-h-[140px]">{(() => {
           const payoutsOk  = stripeStatus?.payoutsEnabled;
           const chargesOk  = stripeStatus?.chargesEnabled;
           // ★ stripeStatus が null/undefined（取得失敗 or fetch 未完了）は「確認中」扱い。
           //   以前は null → loaded 扱いでフォールスルー → 誤って RED「再連携が必要」を表示していた。
           const isLoaded   = stripeStatus != null;
           if (!isLoaded) return (
-            <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
               <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
               <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
               <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">確認中…</span>
             </div>
           );
           if (payoutsOk && chargesOk) return (
-            <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
               <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
               <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
               <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">有効</span>
@@ -594,7 +601,7 @@ export default function MyPage() {
               k.includes('verification') || k.includes('document') || k.includes('individual')
             );
             return (
-              <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-2">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                   <p className="text-xs font-black text-amber-800 flex-1">⚠️ 決済受付中・入金一時停止</p>
@@ -629,7 +636,7 @@ export default function MyPage() {
           //   {connected:true, chargesEnabled:false, payoutsEnabled:false} の API fallback 等で
           //   誤って「再連携が必要」と表示されるのを防ぐ（タップスバーガー等の誤警告対策）。
           if (chargesOk === false) return (
-            <div className="mb-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 space-y-2">
+            <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 space-y-2">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                 <p className="text-xs font-black text-red-800 flex-1">❌ 決済口座の再連携が必要です</p>
@@ -641,8 +648,10 @@ export default function MyPage() {
               <button
                 onClick={async () => {
                   if (!storeId) return;
-                  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
-                  await authedFetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, { method: 'POST' });
+                  // ★ Capacitor (iOS) では VITE_API_BASE が必須。 同ページ上部の BASE_URL 定義
+                  //   と同じパターンに揃える ( import.meta.env.BASE_URL だけだと iOS で空になり
+                  //   /api/... が WebView 自身に向かい 404)。
+                  await authedFetch(`${BASE_URL}/api/stores/${storeId}/stripe-disconnect`, { method: 'POST' });
                   navigate('/store/bank-setup');
                 }}
                 className="w-full py-1.5 text-[11px] font-black bg-red-600 text-white rounded-lg"
@@ -653,13 +662,14 @@ export default function MyPage() {
           );
           // それ以外（chargesEnabled が undefined 等）は安全側で「確認中」表示
           return (
-            <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
               <FileCheck className="w-4 h-4 text-green-600 shrink-0" />
               <p className="text-xs font-black text-green-800 flex-1">✅ 公式アカウント認証済み・出品可能</p>
               <span className="text-[9px] font-black bg-green-200 text-green-800 px-2 py-0.5 rounded-full shrink-0">確認中…</span>
             </div>
           );
-        })()}
+        })()}</div>
+        )}
 
         {/* ── 神モード（管理者専用） ── */}
         {isAdmin && (
@@ -1205,74 +1215,18 @@ export default function MyPage() {
     </AnimatePresence>
   );
 
+  // 退会(アカウント削除) は共通モーダル DeleteAccountModal を使用。
+  // - 一般ユーザ: 「退会する」 入力 + 削除ボタン
+  // - 店舗オーナー: 「退会する」 入力 + 「最終確認」 フェーズ (誤操作防止)
   const deleteConfirmModal = (
     <AnimatePresence>
       {showDeleteConfirm && (
-        <>
-          <motion.div
-            key="delete-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px]"
-            onClick={() => !deletingAccount && setShowDeleteConfirm(false)}
-          />
-          <motion.div
-            key="delete-dialog"
-            initial={{ opacity: 0, scale: 0.92, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 16 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-            className="fixed left-4 right-4 z-[61] bg-background rounded-3xl overflow-hidden"
-            style={{
-              top: '50%',
-              transform: 'translateY(-50%)',
-              boxShadow: '0 8px 48px rgba(0,0,0,0.22)',
-            }}
-          >
-            <div className="p-6 flex flex-col items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center">
-                <AlertTriangle className="w-7 h-7 text-rose-600" />
-              </div>
-              <div className="text-center">
-                <h3 className="font-bold text-foreground text-lg leading-tight">アカウントを削除しますか？</h3>
-                <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                  この操作は取り消せません。<br />
-                  {isStoreOwner ? (
-                    <>店舗・出品中バッグ・Stripe連携・<br />予約・購入履歴など</>
-                  ) : (
-                    <>予約・お気に入り・購入履歴など</>
-                  )}<br />
-                  すべてのデータが完全に削除されます。
-                </p>
-              </div>
-            </div>
-            <div className="border-t border-border">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={deletingAccount}
-                className="w-full py-4 text-sm font-bold text-foreground border-b border-border hover:bg-secondary/50 transition-colors disabled:opacity-50"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deletingAccount}
-                className="w-full py-4 text-sm font-bold text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {deletingAccount ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
-                    削除中...
-                  </>
-                ) : (
-                  '削除する'
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </>
+        <DeleteAccountModal
+          onClose={() => !deletingAccount && setShowDeleteConfirm(false)}
+          onConfirm={handleDeleteAccount}
+          deleting={deletingAccount}
+          isStoreOwner={isStoreOwner}
+        />
       )}
     </AnimatePresence>
   );

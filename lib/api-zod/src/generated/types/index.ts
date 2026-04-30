@@ -8,6 +8,7 @@
 
 export * from "./confirmPaymentRequest";
 export * from "./createBagRequest";
+export * from "./createBagRequestItemType";
 export * from "./createPaymentIntentRequest";
 export * from "./createReservationRequest";
 export * from "./createStoreRequest";
@@ -24,8 +25,10 @@ export * from "./reservationStatus";
 export * from "./store";
 export * from "./storeCategory";
 export * from "./surpriseBag";
+export * from "./surpriseBagItemType";
 export * from "./surpriseBagWithStore";
 export * from "./updateBagRequest";
+export * from "./updateBagRequestItemType";
 export * from "./updateReservationStatusRequest";
 export * from "./updateReservationStatusRequestStatus";
 export * from "./updateStoreRequest";

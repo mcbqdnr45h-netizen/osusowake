@@ -5,6 +5,7 @@
  * RescuEat API - Food rescue platform
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateBagRequestItemType } from "./createBagRequestItemType";
 
 export interface CreateBagRequest {
   title: string;
@@ -20,4 +21,7 @@ export interface CreateBagRequest {
   allergyInfo?: string;
   /** 受取時の備考（任意） */
   pickupNote?: string;
+  /** 商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。 既定値は 'bag'。
+   */
+  itemType?: CreateBagRequestItemType;
 }

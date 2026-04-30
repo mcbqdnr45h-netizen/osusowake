@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { LayoutGrid, BarChart2, UserCircle } from 'lucide-react';
+import { LayoutGrid, BarChart2, UserCircle, ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMyStore } from '@/hooks/use-my-store';
 import { NotificationsBell } from '@/components/NotificationsBell';
@@ -17,8 +17,19 @@ const BASE_NAV_ITEMS = [
 ];
 
 export function StoreLayout({ children, showBottomNav = true, showHeader = true }: StoreLayoutProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { store, loading: storeLoading } = useMyStore();
+
+  // 戻るボタンの動作:
+  //  - history が 1 件以上残っていれば history.back()
+  //  - そうでなければ /mypage（ユーザモード）に戻る
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      window.history.back();
+    } else {
+      setLocation('/mypage');
+    }
+  };
 
   // ナビ表示条件:
   // - pending/pending_review → StoreDashboard が既に <Layout> を返すので StoreLayout には来ない
@@ -37,7 +48,17 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
       {showHeader && (
         <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-orange-100 shadow-[0_1px_8px_rgba(255,140,0,0.07)] shrink-0"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="px-4 h-14 flex items-center gap-3">
+          <div className="px-2 h-14 flex items-center gap-2">
+            {/* 戻るボタン (マイページ等に戻る) */}
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="戻る"
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 hover:bg-orange-50 active:bg-orange-100 active:scale-95 transition-all"
+            >
+              <ChevronLeft className="w-5 h-5 text-foreground" strokeWidth={2.5} />
+            </button>
+
             {/* ブランドマーク */}
             <div className="w-8 h-8 rounded-[10px] bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
               <span className="text-white font-black text-[11px] leading-none tracking-tight">Ow</span>

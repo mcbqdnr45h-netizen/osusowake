@@ -192,6 +192,12 @@ export const ListStoreBagsResponseItem = zod.object({
   category: zod.string().nullish().describe("カテゴリ（任意）"),
   allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
   pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+  itemType: zod
+    .enum(["bag", "item"])
+    .nullish()
+    .describe(
+      "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+    ),
   isActive: zod.boolean(),
   createdAt: zod.date(),
 });
@@ -216,6 +222,12 @@ export const CreateBagBody = zod.object({
   category: zod.string().optional(),
   allergyInfo: zod.string().optional().describe("アレルギー情報（任意）"),
   pickupNote: zod.string().optional().describe("受取時の備考（任意）"),
+  itemType: zod
+    .enum(["bag", "item"])
+    .optional()
+    .describe(
+      "商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。 既定値は 'bag'。\n",
+    ),
 });
 
 /**
@@ -236,6 +248,12 @@ export const ListAllBagsResponseItem = zod
     category: zod.string().nullish().describe("カテゴリ（任意）"),
     allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
     pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+    itemType: zod
+      .enum(["bag", "item"])
+      .nullish()
+      .describe(
+        "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+      ),
     isActive: zod.boolean(),
     createdAt: zod.date(),
   })
@@ -298,6 +316,12 @@ export const GetBagResponse = zod
     category: zod.string().nullish().describe("カテゴリ（任意）"),
     allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
     pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+    itemType: zod
+      .enum(["bag", "item"])
+      .nullish()
+      .describe(
+        "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+      ),
     isActive: zod.boolean(),
     createdAt: zod.date(),
   })
@@ -356,6 +380,12 @@ export const UpdateBagBody = zod.object({
   category: zod.string().optional(),
   allergyInfo: zod.string().optional().describe("アレルギー情報（任意）"),
   pickupNote: zod.string().optional().describe("受取時の備考（任意）"),
+  itemType: zod
+    .enum(["bag", "item"])
+    .optional()
+    .describe(
+      "商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。\n",
+    ),
   isActive: zod.boolean().optional(),
 });
 
@@ -373,6 +403,12 @@ export const UpdateBagResponse = zod.object({
   category: zod.string().nullish().describe("カテゴリ（任意）"),
   allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
   pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+  itemType: zod
+    .enum(["bag", "item"])
+    .nullish()
+    .describe(
+      "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+    ),
   isActive: zod.boolean(),
   createdAt: zod.date(),
 });
@@ -424,6 +460,12 @@ export const ListReservationsResponseItem = zod.object({
       category: zod.string().nullish().describe("カテゴリ（任意）"),
       allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
       pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+      itemType: zod
+        .enum(["bag", "item"])
+        .nullish()
+        .describe(
+          "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+        ),
       isActive: zod.boolean(),
       createdAt: zod.date(),
     })
@@ -517,6 +559,12 @@ export const GetReservationResponse = zod.object({
       category: zod.string().nullish().describe("カテゴリ（任意）"),
       allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
       pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+      itemType: zod
+        .enum(["bag", "item"])
+        .nullish()
+        .describe(
+          "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+        ),
       isActive: zod.boolean(),
       createdAt: zod.date(),
     })
@@ -604,6 +652,12 @@ export const UpdateReservationStatusResponse = zod.object({
       category: zod.string().nullish().describe("カテゴリ（任意）"),
       allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
       pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+      itemType: zod
+        .enum(["bag", "item"])
+        .nullish()
+        .describe(
+          "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+        ),
       isActive: zod.boolean(),
       createdAt: zod.date(),
     })
@@ -687,6 +741,12 @@ export const CancelReservationResponse = zod.object({
       category: zod.string().nullish().describe("カテゴリ（任意）"),
       allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
       pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+      itemType: zod
+        .enum(["bag", "item"])
+        .nullish()
+        .describe(
+          "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+        ),
       isActive: zod.boolean(),
       createdAt: zod.date(),
     })
@@ -787,6 +847,12 @@ export const ConfirmPaymentResponse = zod.object({
       category: zod.string().nullish().describe("カテゴリ（任意）"),
       allergyInfo: zod.string().nullish().describe("アレルギー情報（任意）"),
       pickupNote: zod.string().nullish().describe("受取時の備考（任意）"),
+      itemType: zod
+        .enum(["bag", "item"])
+        .nullish()
+        .describe(
+          "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
+        ),
       isActive: zod.boolean(),
       createdAt: zod.date(),
     })

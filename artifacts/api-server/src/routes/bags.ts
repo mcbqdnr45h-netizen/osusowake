@@ -271,6 +271,10 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
       category: body.category ?? null,
       allergyInfo: body.allergyInfo ?? null,
       pickupNote: body.pickupNote ?? null,
+      // ★ クライアント (StoreDashboard) は 'bag' = サプライズバッグ / 'item' = 単品商品 を送る。
+      //   従来 INSERT で itemType を渡しておらず、 DB default('bag') にフォールバックしていたため、
+      //   店舗側が「単品商品」を選んでも常に「バッグ」 として保存されていた (本番バグ修正)。
+      itemType: body.itemType ?? 'bag',
       isActive: true,
     }).returning();
 

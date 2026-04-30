@@ -348,7 +348,11 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
 
         {!imgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
 
+        {/* ★ key={imgSrc} で URL 変更時に <img> 自体を再マウントさせる。
+              iOS/Safari の <img> 再利用時に古い decode 済みビットマップが残り
+              「複数バッグの写真が同じに見える」 表示バグを防ぐ防御層。 */}
         <img
+          key={imgSrc}
           src={imgSrc}
           alt={bag.store.name}
           loading="lazy"

@@ -1453,14 +1453,29 @@ export default function StoreDashboard() {
   }
 
   // 受取済みにする
+  // ※ PUT /api/reservations/:id は buyer 本人専用 (403)。 店舗オーナーは
+  //    POST /api/reservations/:id/pickup (buyer or 店舗オーナー OK) を使う。
   async function handlePickedUp(id: number) {
     setMarkingId(id);
     try {
-      await updateStatus.mutateAsync({ reservationId: id, data: { status: 'picked_up' } });
+      const res = await authedFetch(`${BASE}/api/reservations/${id}/pickup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 409) {
+          // 既に受取済み → エラーではなく「完了済み」として扱う
+          toast({ title: 'すでに受取済みです' });
+          queryClient.invalidateQueries({ queryKey: [`/api/reservations`] });
+          return;
+        }
+        throw new Error(body.message ?? body.error ?? `更新に失敗しました (HTTP ${res.status})`);
+      }
       queryClient.invalidateQueries({ queryKey: [`/api/reservations`] });
       toast({ title: '受取済みにしました ✓' });
-    } catch {
-      toast({ title: '更新に失敗しました', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: err?.message ?? '更新に失敗しました', variant: 'destructive' });
     } finally {
       setMarkingId(null);
     }

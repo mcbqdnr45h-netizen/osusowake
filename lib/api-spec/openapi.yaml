@@ -590,6 +590,13 @@ components:
           type: string
           nullable: true
           description: 受取時の備考（任意）
+        itemType:
+          type: string
+          enum: [bag, item]
+          nullable: true
+          description: |
+            商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。
+            既存データ・未指定時は 'bag' 扱い。
         isActive:
           type: boolean
         createdAt:
@@ -642,6 +649,11 @@ components:
         pickupNote:
           type: string
           description: 受取時の備考（任意）
+        itemType:
+          type: string
+          enum: [bag, item]
+          description: |
+            商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。 既定値は 'bag'。
       required:
         - title
         - originalPrice
@@ -675,6 +687,11 @@ components:
         pickupNote:
           type: string
           description: 受取時の備考（任意）
+        itemType:
+          type: string
+          enum: [bag, item]
+          description: |
+            商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。
         isActive:
           type: boolean
 

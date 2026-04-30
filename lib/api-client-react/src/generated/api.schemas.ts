@@ -115,6 +115,20 @@ export interface UpdateStoreRequest {
   isActive?: boolean;
 }
 
+/**
+ * 商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。
+既存データ・未指定時は 'bag' 扱い。
+
+ */
+export type SurpriseBagItemType =
+  | (typeof SurpriseBagItemType)[keyof typeof SurpriseBagItemType]
+  | null;
+
+export const SurpriseBagItemType = {
+  bag: "bag",
+  item: "item",
+} as const;
+
 export interface SurpriseBag {
   id: number;
   storeId: number;
@@ -133,6 +147,10 @@ export interface SurpriseBag {
   allergyInfo?: string | null;
   /** 受取時の備考（任意） */
   pickupNote?: string | null;
+  /** 商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。
+既存データ・未指定時は 'bag' 扱い。
+ */
+  itemType?: SurpriseBagItemType;
   isActive: boolean;
   createdAt: string;
 }
@@ -140,6 +158,18 @@ export interface SurpriseBag {
 export type SurpriseBagWithStore = SurpriseBag & {
   store: Store;
 };
+
+/**
+ * 商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。 既定値は 'bag'。
+
+ */
+export type CreateBagRequestItemType =
+  (typeof CreateBagRequestItemType)[keyof typeof CreateBagRequestItemType];
+
+export const CreateBagRequestItemType = {
+  bag: "bag",
+  item: "item",
+} as const;
 
 export interface CreateBagRequest {
   title: string;
@@ -155,7 +185,22 @@ export interface CreateBagRequest {
   allergyInfo?: string;
   /** 受取時の備考（任意） */
   pickupNote?: string;
+  /** 商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。 既定値は 'bag'。
+   */
+  itemType?: CreateBagRequestItemType;
 }
+
+/**
+ * 商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。
+
+ */
+export type UpdateBagRequestItemType =
+  (typeof UpdateBagRequestItemType)[keyof typeof UpdateBagRequestItemType];
+
+export const UpdateBagRequestItemType = {
+  bag: "bag",
+  item: "item",
+} as const;
 
 export interface UpdateBagRequest {
   title?: string;
@@ -171,6 +216,9 @@ export interface UpdateBagRequest {
   allergyInfo?: string;
   /** 受取時の備考（任意） */
   pickupNote?: string;
+  /** 商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。
+   */
+  itemType?: UpdateBagRequestItemType;
   isActive?: boolean;
 }
 
