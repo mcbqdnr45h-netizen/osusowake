@@ -304,7 +304,16 @@ function StoreBottomSheet({
                         className={`flex gap-3 bg-card border rounded-2xl overflow-hidden transition-all
                           ${isSoldOut ? 'opacity-60 border-border' : 'border-primary/20 shadow-sm'}`}>
                         <div className="relative w-24 h-24 shrink-0 bg-muted">
-                          <img src={bag.store.imageUrl || getCategoryImage(bag.store.category)} alt={bag.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                          {/* ★ バッグ自身の画像を最優先。 store.imageUrl にフォールバックすると
+                                同じ店の複数バッグが全部同じ画像で表示されるバグになる (本番ユーザ報告)。 */}
+                          <img
+                            key={bag.imageUrl || bag.store.imageUrl || bag.id}
+                            src={bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category)}
+                            alt={bag.title}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                          />
                           {!isSoldOut && (
                             <span className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 rounded-md">
                               {discountPct}% OFF
