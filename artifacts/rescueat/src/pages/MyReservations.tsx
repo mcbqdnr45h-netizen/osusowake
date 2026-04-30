@@ -4,6 +4,7 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
 import { useAuth } from '@/contexts/AuthContext';
 import { useListReservations, useCancelReservation, getListReservationsQueryKey } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { formatPickupTime } from '@/lib/utils';
 import { ja } from 'date-fns/locale';
@@ -56,12 +57,16 @@ export default function MyReservations() {
   );
 
   const cancelMutation = useCancelReservation();
+  const queryClient    = useQueryClient();
   const [, navigate]   = useLocation();
 
   const [reviewTarget,  setReviewTarget]  = useState<ReviewTarget | null>(null);
   const [reviewedIds,   setReviewedIds]   = useState<Set<number>>(new Set());
   const [dismissedIds,  setDismissedIds]  = useState<Set<number>>(new Set());
-  const [confirmingId,  setConfirmingId]  = useState<number | null>(null);
+  // confirmAction: モーダル用統合 state。
+  //   mode='dismiss' = 期限切れ予約を一覧から消す (履歴削除)
+  //   mode='cancel'  = 未払い予約を本キャンセル (Stripe PI も cancel される)
+  const [confirmAction, setConfirmAction] = useState<{ id: number; mode: 'dismiss' | 'cancel' } | null>(null);
   const [cancelling,    setCancelling]    = useState(false);
 
   const isStoreOwner  = profile?.role === 'store_owner';
@@ -105,15 +110,28 @@ export default function MyReservations() {
     }
   };
 
-  async function handleDismiss(resId: number) {
+  async function handleConfirmAction() {
+    if (!confirmAction) return;
+    const { id, mode } = confirmAction;
     setCancelling(true);
     try {
-      await cancelMutation.mutateAsync({ reservationId: resId });
-      setDismissedIds(prev => new Set([...prev, resId]));
-      setConfirmingId(null);
-      toast({ title: '履歴を削除しました' });
+      await cancelMutation.mutateAsync({ reservationId: id });
+      // dismiss は一覧から消す。 cancel は status='cancelled' に更新されるが、
+      // 一覧の filter で status==='cancelled' は除外しているので結果同じ。
+      setDismissedIds(prev => new Set([...prev, id]));
+      // サーバ側の真の状態と同期させるため一覧キャッシュを無効化 (画面復帰時の再表示防止)
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: getListReservationsQueryKey({ userId }) });
+      }
+      setConfirmAction(null);
+      toast({
+        title: mode === 'cancel' ? '予約をキャンセルしました' : '履歴を削除しました',
+      });
     } catch {
-      toast({ title: '削除に失敗しました', variant: 'destructive' });
+      toast({
+        title: mode === 'cancel' ? 'キャンセルに失敗しました' : '削除に失敗しました',
+        variant: 'destructive',
+      });
     } finally {
       setCancelling(false);
     }
@@ -133,13 +151,13 @@ export default function MyReservations() {
         )}
       </AnimatePresence>
 
-      {/* 削除確認ダイアログ */}
+      {/* 確認ダイアログ (履歴削除 / 予約キャンセル 共通) */}
       <AnimatePresence>
-        {confirmingId !== null && (
+        {confirmAction !== null && (
           <motion.div
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => !cancelling && setConfirmingId(null)}
+            onClick={() => !cancelling && setConfirmAction(null)}
           >
             <motion.div
               className="bg-card rounded-3xl shadow-2xl w-full max-w-sm p-6 pb-8"
@@ -149,29 +167,40 @@ export default function MyReservations() {
             >
               <div className="flex flex-col items-center text-center gap-3 mb-6">
                 <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
-                  <Trash2 className="w-7 h-7 text-red-500" />
+                  {confirmAction.mode === 'cancel'
+                    ? <Ban className="w-7 h-7 text-red-500" />
+                    : <Trash2 className="w-7 h-7 text-red-500" />}
                 </div>
-                <h2 className="text-lg font-black text-foreground">この履歴を削除しますか？</h2>
+                <h2 className="text-lg font-black text-foreground">
+                  {confirmAction.mode === 'cancel'
+                    ? 'この予約をキャンセルしますか？'
+                    : 'この履歴を削除しますか？'}
+                </h2>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  受取期限が切れた予約をリストから削除します。<br />この操作は取り消せません。
+                  {confirmAction.mode === 'cancel'
+                    ? <>未払いの予約をキャンセルします。<br />この操作は取り消せません。</>
+                    : <>受取期限が切れた予約をリストから削除します。<br />この操作は取り消せません。</>}
                 </p>
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setConfirmingId(null)}
+                  onClick={() => setConfirmAction(null)}
                   disabled={cancelling}
                   className="flex-1 py-3 rounded-2xl border border-border font-bold text-sm text-muted-foreground hover:bg-secondary transition-colors disabled:opacity-50"
                 >
-                  キャンセル
+                  戻る
                 </button>
                 <button
-                  onClick={() => handleDismiss(confirmingId)}
+                  onClick={handleConfirmAction}
                   disabled={cancelling}
                   className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {cancelling
-                    ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />削除中…</>
-                    : <><Trash2 className="w-4 h-4" />削除する</>
+                    ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        {confirmAction.mode === 'cancel' ? 'キャンセル中…' : '削除中…'}</>
+                    : confirmAction.mode === 'cancel'
+                      ? <><Ban className="w-4 h-4" />キャンセルする</>
+                      : <><Trash2 className="w-4 h-4" />削除する</>
                   }
                 </button>
               </div>
@@ -340,14 +369,25 @@ export default function MyReservations() {
                                       </button>
                                     )}
                                     {res.status === 'pending' && !expired && (
-                                      <button
-                                        type="button"
-                                        onClick={() => navigate(`/checkout/${res.id}`, { state: { from: '/my-reservations' } })}
-                                        className="inline-flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-amber-300/30 active:scale-95 transition-transform"
-                                      >
-                                        <CreditCard className="w-3 h-3" />
-                                        決済する
-                                      </button>
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => navigate(`/checkout/${res.id}`, { state: { from: '/my-reservations' } })}
+                                          className="inline-flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm shadow-amber-300/30 active:scale-95 transition-transform"
+                                        >
+                                          <CreditCard className="w-3 h-3" />
+                                          決済する
+                                        </button>
+                                        {/* キャンセルボタン: 決済画面で離脱した未払い予約をユーザ自身で取り消せるようにする */}
+                                        <button
+                                          type="button"
+                                          onClick={() => setConfirmAction({ id: res.id, mode: 'cancel' })}
+                                          className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                        >
+                                          <Ban className="w-3 h-3" />
+                                          キャンセル
+                                        </button>
+                                      </>
                                     )}
                                     {res.status === 'picked_up' && (
                                       alreadyReviewed ? (
@@ -380,7 +420,7 @@ export default function MyReservations() {
                                         {/* 削除ボタン */}
                                         <button
                                           type="button"
-                                          onClick={() => setConfirmingId(res.id)}
+                                          onClick={() => setConfirmAction({ id: res.id, mode: 'dismiss' })}
                                           className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
                                         >
                                           <X className="w-3 h-3" />
