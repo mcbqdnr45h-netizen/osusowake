@@ -323,15 +323,14 @@ export default function Checkout() {
   }
 
   const total = Math.round(reservation.totalPrice);
-  // 商品代金: API が新カラムを返す場合はそれを使用、旧データは bag×quantity を fallback、
-  // それも無ければ total を表示（5%手数料は0表示・後方互換）。
-  // ※ `?? 0 ?? total` は 0 で確定してしまうため、明示的に `||` で 0/falsy を弾いて total に落とす。
-  const merchandiseRaw =
-    reservation.merchandiseAmount ??
-    (reservation.bag?.discountedPrice
-      ? reservation.bag.discountedPrice * reservation.quantity
-      : undefined);
-  const merchandise = Math.round(merchandiseRaw && merchandiseRaw > 0 ? merchandiseRaw : total);
+  // 商品代金: サーバーの resolveMerchandise() と同じロジックで決定する。
+  //   - 新データ:  merchandiseAmount があればそれを採用 (5%加算前の本体金額)
+  //   - 旧データ:  merchandiseAmount が NULL/未提供 → totalPrice を商品代金とみなす
+  //                (旧スキーマでは totalPrice にユーザー手数料が含まれていなかった)
+  // → サーバー側の calcFees() / Stripe metadata と完全に整合する。
+  const merchandise = Math.round(
+    reservation.merchandiseAmount != null ? reservation.merchandiseAmount : total
+  );
   const userServiceFee = Math.max(0, total - merchandise);
 
   return (

@@ -54,7 +54,7 @@ export default function TokushoPage() {
         <p className="text-xs text-muted-foreground leading-relaxed mt-6 px-1">
           ※ 各店舗が独自に設定した価格・受取時間・商品内容は、各店舗が責任を持って管理します。プラットフォームとしての当社は、店舗と購入者のマッチングサービスを提供するものです。
         </p>
-        <p className="text-[10px] text-muted-foreground/50 mt-4 text-center">最終更新：2026年3月26日</p>
+        <p className="text-[10px] text-muted-foreground/50 mt-4 text-center">最終更新：2026年4月29日</p>
 
         </div>
       </div>

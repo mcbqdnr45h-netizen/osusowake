@@ -10,10 +10,29 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 interface Reservation {
   id: number;
   status: string;
-  totalPrice: number;
+  totalPrice: number;            // ユーザー支払合計（5%システム利用料込み）
+  merchandiseAmount: number | null; // 商品代金（5%加算前・店舗売上ベース）
   quantity: number;
   createdAt: string;
   bag: { title: string; discountedPrice: number } | null;
+}
+
+// ─── 収益モデル ─────────────────────────────────────────────────
+// 「売上」は商品代金 (merchandise) ベースで集計する。totalPrice はユーザー側
+// の 5% システム利用料を含むため、店舗の取り分には該当しない。
+// 旧データ (merchandise_amount = NULL) はサーバー /payment の resolveMerchandise
+// と同じく totalPrice を商品代金とみなす。
+function getMerchandise(r: Reservation): number {
+  return r.merchandiseAmount != null ? r.merchandiseAmount : r.totalPrice;
+}
+
+// 店舗実入金額 (推定) = 商品代金 × (1 - 0.25) - 顧客支払合計 × 0.036
+// プラットフォーム手数料 25% + Stripe決済手数料 3.6% (顧客支払額に対して) を控除。
+function estimatedShopTransfer(r: Reservation): number {
+  const merch = getMerchandise(r);
+  const shopGross = Math.floor(merch * 0.75);
+  const stripeFee = Math.round(r.totalPrice * 0.036);
+  return Math.max(0, shopGross - stripeFee);
 }
 
 function groupByDay(reservations: Reservation[]) {
@@ -23,7 +42,7 @@ function groupByDay(reservations: Reservation[]) {
     .forEach(r => {
       try {
         const day = format(parseISO(r.createdAt), 'M/d');
-        map[day] = (map[day] ?? 0) + r.totalPrice;
+        map[day] = (map[day] ?? 0) + getMerchandise(r);
       } catch {}
     });
   return Object.entries(map)
@@ -71,10 +90,13 @@ export default function StoreSalesPage() {
     try { return parseISO(r.createdAt) >= monthStart; } catch { return false; }
   });
 
-  const totalRevenue   = pickedUp.reduce((sum, r) => sum + r.totalPrice, 0);
-  const todayRevenue   = todayPickedUp.reduce((sum, r) => sum + r.totalPrice, 0);
-  const monthRevenue   = monthPickedUp.reduce((sum, r) => sum + r.totalPrice, 0);
-  const totalBags      = pickedUp.reduce((sum, r) => sum + r.quantity, 0);
+  // 売上 = 商品代金 (5%システム利用料は店舗の取り分ではないので除外)
+  const totalRevenue   = pickedUp.reduce((sum, r) => sum + getMerchandise(r), 0);
+  const todayRevenue   = todayPickedUp.reduce((sum, r) => sum + getMerchandise(r), 0);
+  const monthRevenue   = monthPickedUp.reduce((sum, r) => sum + getMerchandise(r), 0);
+  // 入金予定額 (推定) = 商品代金×75% − Stripe手数料(顧客支払額×3.6%)
+  const totalNetTransfer = pickedUp.reduce((sum, r) => sum + estimatedShopTransfer(r), 0);
+  const totalBags        = pickedUp.reduce((sum, r) => sum + r.quantity, 0);
 
   const chartData = groupByDay(all);
 
@@ -85,16 +107,17 @@ export default function StoreSalesPage() {
         {/* ── ヘッダー ── */}
         <div>
           <h1 className="text-xl font-black text-foreground">売上確認</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">受取済みの注文のみ集計されます</p>
+          <p className="text-xs text-muted-foreground mt-0.5">受取済みの注文のみ集計されます（金額は商品代金ベース・5%システム利用料は含まれません）</p>
         </div>
 
         {/* ── サマリーカード ── */}
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: '本日の売上',    value: `¥${todayRevenue.toLocaleString()}`,  icon: TrendingUp,  color: 'text-primary',    bg: 'bg-orange-50',  border: 'border-orange-100' },
-            { label: '今月の売上',    value: `¥${monthRevenue.toLocaleString()}`,   icon: BarChart2,   color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-100'   },
-            { label: '累計売上',      value: `¥${totalRevenue.toLocaleString()}`,   icon: TrendingUp,  color: 'text-purple-600', bg: 'bg-purple-50',  border: 'border-purple-100' },
-            { label: '累計おすそわけ', value: `${totalBags}個`,                     icon: Package2,    color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-100'  },
+            { label: '本日の売上 (商品代金)',    value: `¥${todayRevenue.toLocaleString()}`,        icon: TrendingUp,  color: 'text-primary',    bg: 'bg-orange-50',  border: 'border-orange-100' },
+            { label: '今月の売上 (商品代金)',    value: `¥${monthRevenue.toLocaleString()}`,         icon: BarChart2,   color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-100'   },
+            { label: '累計売上 (商品代金)',      value: `¥${totalRevenue.toLocaleString()}`,         icon: TrendingUp,  color: 'text-purple-600', bg: 'bg-purple-50',  border: 'border-purple-100' },
+            { label: '累計入金額 (手数料控除後)', value: `¥${totalNetTransfer.toLocaleString()}`,    icon: TrendingUp,  color: 'text-emerald-600',bg: 'bg-emerald-50', border: 'border-emerald-100'},
+            { label: '累計おすそわけ',           value: `${totalBags}個`,                            icon: Package2,    color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-100'  },
           ].map(item => {
             const Icon = item.icon;
             return (
