@@ -1,6 +1,6 @@
 // ⚠️ デプロイ時にこの数字を必ず上げること（v4 → v5 → v6 ...）
 // バンプしないと iOS / PWA が古いキャッシュを掴み続けます
-const CACHE_NAME = 'osusowake-v18';
+const CACHE_NAME = 'osusowake-v19';
 const BASE = '';
 
 const PRECACHE_URLS = [

@@ -299,6 +299,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const isFirstIdleRef          = useRef(true);
   const hasUserInteractedRef    = useRef(false);
   const resizeObserverRef       = useRef<ResizeObserver | null>(null);
+  const readySafetyTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>('loading');
   const [locating,        setLocating]       = useState(false);
@@ -519,7 +520,32 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           });
         });
 
-        setStatus('ready');
+        // ★★★ 「マップを開くと最初ぼやけて後から綺麗になる」根本対策 ★★★
+        //   原因: `new gMaps.Map()` は即座に return するが、 タイル画像はまだ
+        //   1枚も読み込まれていない。 ここで即 setStatus('ready') すると
+        //   ローディングスピナーが消え、 ユーザーには「placeholder → 低解像度 →
+        //   フル解像度」のタイル段階読み込みが「ぼやけて → 鮮明になる」と見える。
+        //
+        //   解決: 最初の `tilesloaded` イベント (= 表示範囲の全タイルが
+        //   フル解像度で完全に読み込まれた瞬間) を待ってから ready 化。
+        //   さらに直前にもう一度 resize を発火し、 iOS Retina (DPR=3) で
+        //   正しい高解像度タイルを再フェッチさせる (defense-in-depth)。
+        //
+        //   セーフティ: tilesloaded が万一来ない (オフライン等) 時は
+        //   3 秒で強制 ready 化し、 ユーザを永久ローディングに閉じ込めない。
+        let readyFired = false;
+        const fireReady = () => {
+          if (readyFired || cancelled) return;
+          readyFired = true;
+          // タイル再フェッチを促してから ready 化 (1フレ後に状態反映)
+          try { gMaps.event.trigger(map, 'resize'); } catch { /* noop */ }
+          requestAnimationFrame(() => {
+            if (!cancelled) setStatus('ready');
+          });
+        };
+        gMaps.event.addListenerOnce(map, 'tilesloaded', fireReady);
+        // セーフティ: 3 秒経っても tilesloaded が来なければ強制 ready
+        readySafetyTimerRef.current = setTimeout(fireReady, 3000);
       } catch (e) {
         console.error('Google Maps load error:', e);
         if (!cancelled) setStatus('error');
@@ -538,6 +564,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       if (resizeObserverRef.current) {
         try { resizeObserverRef.current.disconnect(); } catch { /* noop */ }
         resizeObserverRef.current = null;
+      }
+      // ★ tilesloaded セーフティタイマも解除 (アンマウント後の setState 警告防止)
+      if (readySafetyTimerRef.current) {
+        clearTimeout(readySafetyTimerRef.current);
+        readySafetyTimerRef.current = null;
       }
     };
   }, []);
