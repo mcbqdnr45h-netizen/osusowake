@@ -18,6 +18,45 @@ import { sendStoreApprovalEmail } from "../utils/emails";
 import { normalizeForCompare, storeIdentityKey } from "../lib/normalize-store.js";
 
 const REPORT_TYPES = ["closed", "temp_closed", "wrong_hours", "wrong_info", "inappropriate_review", "other"] as const;
+
+// ⚠️ Stripe Connect business_profile.url 用の公開ドメイン
+// Replit の dev/preview ドメイン（*.replit.dev / *.replit.app）を Stripe に送信すると、
+// JCB / ダイナース / ディスカバー等のカードブランド審査で「不審な URL」と判定され
+// 当該ブランドのカード支払いが一時停止される事例が確認されている。
+// したがって本番ドメイン（osusowakejapan.org）にハードコードし、
+// 環境変数 OSUSOWAKE_PUBLIC_URL で上書き可能にする。
+const PUBLIC_BUSINESS_URL = process.env.OSUSOWAKE_PUBLIC_URL?.trim() || "https://osusowakejapan.org/";
+
+/**
+ * Stripe business_profile.url 用の URL 正規化。
+ * 以下のいずれかに該当する入力は強制的に本番ドメイン（PUBLIC_BUSINESS_URL）に差し替える:
+ *   - 空 / null / undefined
+ *   - URL として parse 不能
+ *   - http/https 以外のスキーム
+ *   - Replit dev/preview ドメイン（*.replit.dev / *.replit.app）
+ * これによりフロントの再申請ドラフト経由で過去に保存された Replit URL が
+ * Stripe に再送されるのを防ぐ（JCB 等カードブランド審査の停止対策）。
+ */
+function normalizeBusinessUrl(input: string | undefined | null): string {
+  const u = (input ?? "").trim();
+  if (!u) return PUBLIC_BUSINESS_URL;
+  try {
+    const parsed = new URL(u);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return PUBLIC_BUSINESS_URL;
+    const host = parsed.hostname.toLowerCase();
+    if (
+      host === "replit.app" ||
+      host === "replit.dev" ||
+      host.endsWith(".replit.app") ||
+      host.endsWith(".replit.dev")
+    ) {
+      return PUBLIC_BUSINESS_URL;
+    }
+    return u;
+  } catch {
+    return PUBLIC_BUSINESS_URL;
+  }
+}
 type ReportType = typeof REPORT_TYPES[number];
 
 /** 日本の電話番号を Stripe が要求する E.164 形式（+81...）に変換するサーバーサイド安全変換 */
@@ -2297,10 +2336,10 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
     (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
     req.ip ?? "127.0.0.1";
 
-  const replitDomain =
-    (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
-    process.env["REPLIT_DEV_DOMAIN"] || "osusowake.replit.app";
-  const businessUrl = kycData.businessUrl?.trim() || `https://${replitDomain}`;
+  // ⚠️ Stripe business_profile.url は本番ドメインを使う（Replit dev ドメインは
+  //   JCB 等カードブランド審査で「不審な URL」と判定され支払い停止になるため）
+  //   normalizeBusinessUrl() がフロントの再申請ドラフト経由で送られた Replit URL も強制置換する
+  const businessUrl = normalizeBusinessUrl(kycData.businessUrl);
 
   // タイムアウト付き Stripe ヘルパー（外側で定義して BG からも使える）
   function stripeCall<T>(promise: Promise<T>, label: string, ms = 25000): Promise<T> {
@@ -3025,9 +3064,9 @@ router.post("/stores/:storeId/connect/fill-requirements", requireAuth, requireSt
       payload.business_profile = { mcc: "5812", product_description: "食品ロス削減おすそ分けサービス" };
     }
     if (due.some(f => f.includes("business_profile.url"))) {
-      const domain = (process.env["REPLIT_DOMAINS"] ?? "").split(",")[0]?.trim() ||
-                     process.env["REPLIT_DEV_DOMAIN"] || "osusowake.replit.app";
-      payload.business_profile = { ...payload.business_profile, mcc: "5812", url: `https://${domain}` };
+      // ⚠️ Replit dev ドメインを送ると JCB 等カードブランドの審査で「不審な URL」と
+      //   判定され当該ブランドが一時停止されるため、必ず本番ドメインを使う
+      payload.business_profile = { ...payload.business_profile, mcc: "5812", url: PUBLIC_BUSINESS_URL };
     }
     if (due.some(f => f.includes("business_profile.name")) && isCompany) {
       payload.business_profile = { ...payload.business_profile, mcc: "5812", name: store.name ?? "株式会社テスト" };
