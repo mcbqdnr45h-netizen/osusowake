@@ -553,7 +553,7 @@ export default function MyPage() {
               type="button"
               onClick={() => navigate('/my-town')}
               className="mx-4 group block w-[calc(100%-2rem)] rounded-2xl overflow-hidden border border-border bg-card relative active:scale-[0.99] transition-transform"
-              style={{ height: '140px', boxShadow: '0 2px 12px -2px rgba(10,8,6,0.10)' }}
+              style={{ height: '110px', boxShadow: '0 2px 12px -2px rgba(10,8,6,0.10)' }}
               aria-label="マイタウンを大きく見る"
             >
               <div className="absolute inset-0">
@@ -613,8 +613,8 @@ export default function MyPage() {
                     <Flag className="w-4 h-4" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-bold text-foreground text-sm">食品ロスのお店を教えて</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">おすそわけスタッフが直接お伺いします</div>
+                    <div className="font-bold text-foreground text-sm">気になるお店を運営に紹介する</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">まだ「おすそわけ」 を始めていないお店を運営にお知らせいただけます</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </Link>
@@ -1077,8 +1077,8 @@ export default function MyPage() {
                     <Flag className="w-4 h-4" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-bold text-foreground text-sm">食品ロスのお店を教えて</div>
-                    <div className="text-xs text-muted-foreground">おすそわけスタッフが直接お伺いします</div>
+                    <div className="font-bold text-foreground text-sm">気になるお店を運営に紹介する</div>
+                    <div className="text-xs text-muted-foreground">まだ「おすそわけ」 を始めていないお店を運営にお知らせいただけます</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </Link>

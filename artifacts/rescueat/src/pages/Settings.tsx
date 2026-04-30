@@ -699,7 +699,7 @@ export default function Settings() {
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-foreground">ランキングに参加する</p>
                     <p className="text-xs text-muted-foreground">
-                      オフにすると、 月間ランキングに表示名が出えへんようになります
+                      オフにすると、 月間ランキングにあなたの表示名が掲載されなくなります
                     </p>
                   </div>
                   <Toggle
