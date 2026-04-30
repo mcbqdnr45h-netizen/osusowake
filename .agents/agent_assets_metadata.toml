@@ -203,3 +203,15 @@ id = "q4W_b9Fx9hYIKXQ8thprk"
 uri = "file://attached_assets/logo_processed.png"
 type = "image"
 title = "処理済みロゴ（白余白除去・丸角アプリアイコン形状）"
+
+[[outputs]]
+id = "v7gx_PlJAd6s0BFXk0R8D"
+uri = "file://attached_assets/flyers/osusowake_flyer_user_A4.jpg"
+type = "image"
+title = "おすそわけ ユーザ向けチラシ A4 縦 (一般消費者用)"
+
+[[outputs]]
+id = "pfSU52NGm4fDsmSMPQ49A"
+uri = "file://attached_assets/flyers/osusowake_flyer_store_A4.jpg"
+type = "image"
+title = "おすそわけ 店舗向けチラシ A4 縦 (営業ツール)"
