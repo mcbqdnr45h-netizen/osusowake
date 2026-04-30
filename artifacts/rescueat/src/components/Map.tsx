@@ -101,7 +101,9 @@ function fetchIconAsDataUrl(rawUrl: string): Promise<string | null> {
       if (!res.ok) return null;
       const blob = await res.blob();
       // 大きすぎる画像はスキップ (data: URL 内 svg のサイズ抑制 / マーカー過多時の OOM 回避)
-      if (blob.size > 512 * 1024) return null;
+      // ★ 5MB まで許容: 店舗オーナがアップロードしたアイコン (832KB 等) を確実に取り込めるよう緩和。
+      //    マーカーは 1 店舗 1 アイコンのみ (cluster で重複なし) なので OOM リスクは限定的。
+      if (blob.size > 5 * 1024 * 1024) return null;
       return await new Promise<string | null>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);

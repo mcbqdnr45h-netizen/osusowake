@@ -143,18 +143,78 @@ export default function StoreProfileEdit() {
   // ★ 地図ピン用アイコンの選択 (正方形推奨・自動で角丸表示)
   //   アップロード成功直後に DB へ即保存し、保存ボタン押し忘れによる「設定したのに反映されない」
   //   問題を完全に防ぐ。
+  //   ★ 地図側 fetch 制限 (5MB) と転送量を抑えるため、アップロード前に必ず 256x256 にリサイズする。
+  //      これで Supabase ストレージ容量も大幅節約 (1MB 越え → 数十KB)。
+  // canvas → Blob 変換 (iOS Safari 等の toBlob 未対応環境では toDataURL → Blob にフォールバック)
+  const canvasToJpegBlob = async (canvas: HTMLCanvasElement, quality = 0.85): Promise<Blob> => {
+    if (typeof canvas.toBlob === 'function') {
+      const blob = await new Promise<Blob | null>((resolve) => {
+        try {
+          canvas.toBlob(resolve, 'image/jpeg', quality);
+        } catch {
+          resolve(null);
+        }
+      });
+      if (blob) return blob;
+    }
+    // fallback: toDataURL → fetch → blob
+    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+    const r = await fetch(dataUrl);
+    return await r.blob();
+  };
+
+  const resizeIconToSquare = async (file: File, size = 256): Promise<Blob> => {
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(typeof r.result === 'string' ? r.result : '');
+      r.onerror = () => reject(new Error('読み込み失敗'));
+      r.readAsDataURL(file);
+    });
+    const img: HTMLImageElement = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = () => reject(new Error('画像のデコードに失敗しました'));
+      im.src = dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas未対応');
+    // center-crop して正方形にしてから縮小 (アスペクト比維持・歪み防止)
+    const srcSize = Math.min(img.width, img.height);
+    const sx = (img.width - srcSize) / 2;
+    const sy = (img.height - srcSize) / 2;
+    ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
+    return await canvasToJpegBlob(canvas, 0.85);
+  };
+
   const handleIconChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      toast({ title: 'ファイルが大きすぎます', description: '3MB 以下の画像を選択してください', variant: 'destructive' });
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: 'ファイルが大きすぎます', description: '10MB 以下の画像を選択してください', variant: 'destructive' });
       return;
     }
     setIconUploading(true);
     try {
+      // ★ アップロード前に 256x256 JPEG に必ず圧縮する。
+      //    リサイズ失敗時は原画像へフォールバックせず明示エラーで返す
+      //    (大きい原画像が地図側 5MB 制限に引っかかって絵文字に戻る再発を防ぐ)。
+      let uploadBlob: Blob;
+      try {
+        uploadBlob = await resizeIconToSquare(file, 256);
+      } catch (resizeErr) {
+        const msg = resizeErr instanceof Error ? resizeErr.message : '画像処理エラー';
+        throw new Error(`画像のリサイズに失敗しました (${msg})。別の画像でお試しください。`);
+      }
+      // 安全装置: 256x256 JPEG はほぼ確実に 200KB 未満。1MB 超なら不正系として弾く。
+      if (uploadBlob.size > 1024 * 1024) {
+        throw new Error('リサイズ後の画像サイズが想定外に大きいため中止しました。別の画像でお試しください。');
+      }
       const fd = new FormData();
-      fd.append('image', file);
+      fd.append('image', uploadBlob, 'icon.jpg');
       const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
       if (!res.ok) {
         const data = await res.json().catch(() => ({} as { message?: string }));

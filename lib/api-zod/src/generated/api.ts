@@ -40,12 +40,14 @@ export const ListStoresResponseItem = zod.object({
   lat: zod.number(),
   lng: zod.number(),
   imageUrl: zod.string().optional(),
+  iconUrl: zod.string().nullish().describe("地図ピン用アイコン (256x256 推奨)"),
   phone: zod.string().optional(),
   openTime: zod.string().optional(),
   closeTime: zod.string().optional(),
   rating: zod.number().optional(),
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
+  stripeChargesEnabled: zod.boolean().nullish(),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });
@@ -99,12 +101,14 @@ export const GetStoreResponse = zod.object({
   lat: zod.number(),
   lng: zod.number(),
   imageUrl: zod.string().optional(),
+  iconUrl: zod.string().nullish().describe("地図ピン用アイコン (256x256 推奨)"),
   phone: zod.string().optional(),
   openTime: zod.string().optional(),
   closeTime: zod.string().optional(),
   rating: zod.number().optional(),
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
+  stripeChargesEnabled: zod.boolean().nullish(),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });
@@ -155,12 +159,14 @@ export const UpdateStoreResponse = zod.object({
   lat: zod.number(),
   lng: zod.number(),
   imageUrl: zod.string().optional(),
+  iconUrl: zod.string().nullish().describe("地図ピン用アイコン (256x256 推奨)"),
   phone: zod.string().optional(),
   openTime: zod.string().optional(),
   closeTime: zod.string().optional(),
   rating: zod.number().optional(),
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
+  stripeChargesEnabled: zod.boolean().nullish(),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });
@@ -244,12 +250,17 @@ export const ListAllBagsResponseItem = zod
         lat: zod.number(),
         lng: zod.number(),
         imageUrl: zod.string().optional(),
+        iconUrl: zod
+          .string()
+          .nullish()
+          .describe("地図ピン用アイコン (256x256 推奨)"),
         phone: zod.string().optional(),
         openTime: zod.string().optional(),
         closeTime: zod.string().optional(),
         rating: zod.number().optional(),
         isActive: zod.boolean(),
         ownerId: zod.string().optional(),
+        stripeChargesEnabled: zod.boolean().nullish(),
         totalBagsAvailable: zod.number(),
         createdAt: zod.date(),
       }),
@@ -297,12 +308,17 @@ export const GetBagResponse = zod
         lat: zod.number(),
         lng: zod.number(),
         imageUrl: zod.string().optional(),
+        iconUrl: zod
+          .string()
+          .nullish()
+          .describe("地図ピン用アイコン (256x256 推奨)"),
         phone: zod.string().optional(),
         openTime: zod.string().optional(),
         closeTime: zod.string().optional(),
         rating: zod.number().optional(),
         isActive: zod.boolean(),
         ownerId: zod.string().optional(),
+        stripeChargesEnabled: zod.boolean().nullish(),
         totalBagsAvailable: zod.number(),
         createdAt: zod.date(),
       }),
@@ -410,12 +426,17 @@ export const ListReservationsResponseItem = zod.object({
       lat: zod.number(),
       lng: zod.number(),
       imageUrl: zod.string().optional(),
+      iconUrl: zod
+        .string()
+        .nullish()
+        .describe("地図ピン用アイコン (256x256 推奨)"),
       phone: zod.string().optional(),
       openTime: zod.string().optional(),
       closeTime: zod.string().optional(),
       rating: zod.number().optional(),
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
+      stripeChargesEnabled: zod.boolean().nullish(),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })
@@ -494,12 +515,17 @@ export const GetReservationResponse = zod.object({
       lat: zod.number(),
       lng: zod.number(),
       imageUrl: zod.string().optional(),
+      iconUrl: zod
+        .string()
+        .nullish()
+        .describe("地図ピン用アイコン (256x256 推奨)"),
       phone: zod.string().optional(),
       openTime: zod.string().optional(),
       closeTime: zod.string().optional(),
       rating: zod.number().optional(),
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
+      stripeChargesEnabled: zod.boolean().nullish(),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })
@@ -572,12 +598,17 @@ export const UpdateReservationStatusResponse = zod.object({
       lat: zod.number(),
       lng: zod.number(),
       imageUrl: zod.string().optional(),
+      iconUrl: zod
+        .string()
+        .nullish()
+        .describe("地図ピン用アイコン (256x256 推奨)"),
       phone: zod.string().optional(),
       openTime: zod.string().optional(),
       closeTime: zod.string().optional(),
       rating: zod.number().optional(),
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
+      stripeChargesEnabled: zod.boolean().nullish(),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })
@@ -646,12 +677,17 @@ export const CancelReservationResponse = zod.object({
       lat: zod.number(),
       lng: zod.number(),
       imageUrl: zod.string().optional(),
+      iconUrl: zod
+        .string()
+        .nullish()
+        .describe("地図ピン用アイコン (256x256 推奨)"),
       phone: zod.string().optional(),
       openTime: zod.string().optional(),
       closeTime: zod.string().optional(),
       rating: zod.number().optional(),
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
+      stripeChargesEnabled: zod.boolean().nullish(),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })
@@ -737,12 +773,17 @@ export const ConfirmPaymentResponse = zod.object({
       lat: zod.number(),
       lng: zod.number(),
       imageUrl: zod.string().optional(),
+      iconUrl: zod
+        .string()
+        .nullish()
+        .describe("地図ピン用アイコン (256x256 推奨)"),
       phone: zod.string().optional(),
       openTime: zod.string().optional(),
       closeTime: zod.string().optional(),
       rating: zod.number().optional(),
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
+      stripeChargesEnabled: zod.boolean().nullish(),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })

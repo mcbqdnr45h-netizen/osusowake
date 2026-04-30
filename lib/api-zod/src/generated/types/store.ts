@@ -17,12 +17,15 @@ export interface Store {
   lat: number;
   lng: number;
   imageUrl?: string;
+  /** 地図ピン用アイコン (256x256 推奨) */
+  iconUrl?: string | null;
   phone?: string;
   openTime?: string;
   closeTime?: string;
   rating?: number;
   isActive: boolean;
   ownerId?: string;
+  stripeChargesEnabled?: boolean | null;
   totalBagsAvailable: number;
   createdAt: Date;
 }

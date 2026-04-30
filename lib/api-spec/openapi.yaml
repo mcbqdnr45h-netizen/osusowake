@@ -458,6 +458,10 @@ components:
           type: number
         imageUrl:
           type: string
+        iconUrl:
+          type: string
+          nullable: true
+          description: 地図ピン用アイコン (256x256 推奨)
         phone:
           type: string
         openTime:
@@ -470,6 +474,9 @@ components:
           type: boolean
         ownerId:
           type: string
+        stripeChargesEnabled:
+          type: boolean
+          nullable: true
         totalBagsAvailable:
           type: integer
         createdAt:
