@@ -75,6 +75,13 @@ async function writeAuditLog(req: Request, action: string, targetId?: string | n
 }
 
 // ── レートリミッター（管理者 API 全体） ──────────────────────────────────────
+//
+// ⚠️ 重要: path 指定 ('/admin') を必ず付けること！
+// `router.use(adminRateLimiter)` (path 無し) で適用すると、親 router で
+// `router.use(adminRouter)` が path 無しマウントされている関係上、
+// /api/* 全体に admin 用 60req/min の厳しい制限がかかってしまい、
+// 一般ユーザーの API も 429 で遮断される潜在バグになる。
+// path scoped にすることで、適用範囲を /admin/* に厳密に限定する。
 const adminRateLimiter = rateLimit({
   windowMs: 60 * 1000,     // 1 分
   max: 60,                 // 60 req / min
@@ -86,7 +93,7 @@ const adminRateLimiter = rateLimit({
     res.status(429).json({ error: "too_many_requests", message: "リクエストが多すぎます。しばらくお待ちください。" });
   },
 });
-router.use(adminRateLimiter);
+router.use('/admin', adminRateLimiter);
 
 // ── ヘルパー: Supabase token からユーザー情報を取得 ────────────────────────────
 async function getAuthUser(req: Request) {

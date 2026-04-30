@@ -4,6 +4,15 @@ import { supabaseAdmin } from '../lib/supabase';
 const router: IRouter = Router();
 
 // 開発環境専用ガード — 本番では完全に 404 にする (情報漏洩 / テスト書き込み防止)
+//
+// ⚠️ 重要: path 指定 ('/supabase') を必ず付けること！
+// `router.use(devOnly)` (path 無し) で適用すると、この子ルーター全体を
+// 通過する **すべてのリクエスト** にマッチし、親 router で
+// `router.use(supabaseTestRouter)` が path 無しマウントされている関係上、
+// 本ファイルより後にマウントされた他のルーター (upload, notifications, ...) や
+// 直接登録された route (/auth/forgot-password, /me 等) まで丸ごと 404 で
+// 食われてしまう (本番で全 POST が壊れる致命的バグ)。
+// path scoped にすることで、影響範囲を /supabase/* に厳密に限定する。
 function devOnly(_req: Request, res: Response, next: NextFunction) {
   if (process.env.NODE_ENV === 'production') {
     res.status(404).json({ error: 'not_found' });
@@ -12,7 +21,7 @@ function devOnly(_req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-router.use(devOnly);
+router.use('/supabase', devOnly);
 
 router.get('/supabase/health', async (_req, res) => {
   try {
