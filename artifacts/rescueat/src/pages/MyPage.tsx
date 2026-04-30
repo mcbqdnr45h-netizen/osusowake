@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { authedFetch } from '@/lib/authed-fetch';
+import { useAvatar } from '@/hooks/use-avatar';
 
 export default function MyPage() {
   const userId = useUserId();
@@ -18,6 +19,8 @@ export default function MyPage() {
   const [location, navigate] = useLocation();
   const { user, profile, session, isLoading: authLoading, signOut, isAdmin } = useAuth();
   const { toast } = useToast();
+  // Settings で端末ローカル保存されたユーザアイコン (なければ null → デフォルトアイコン)
+  const userAvatarUrl = useAvatar(user?.id);
 
   // MyPageが表示されるたびに最新データを取得（bank-setup完了後の古いキャッシュ表示を防ぐ）
   useEffect(() => {
@@ -331,17 +334,31 @@ export default function MyPage() {
                 }}
               />
               <div
-                className="relative w-12 h-12 rounded-full flex items-center justify-center text-white ring-2 ring-white shadow-md"
-                style={{
-                  background:
-                    profile?.role === 'store_owner'
-                      ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
-                      : 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(12 80% 60%) 100%)',
-                }}
+                className="relative w-12 h-12 rounded-full flex items-center justify-center text-white ring-2 ring-white shadow-md overflow-hidden"
+                style={
+                  // 一般ユーザがアイコン写真を設定している場合は写真背景、それ以外はグラデーション
+                  profile?.role !== 'store_owner' && userAvatarUrl
+                    ? undefined
+                    : {
+                        background:
+                          profile?.role === 'store_owner'
+                            ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
+                            : 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(12 80% 60%) 100%)',
+                      }
+                }
               >
-                {profile?.role === 'store_owner'
-                  ? <StoreIcon className="w-5 h-5" strokeWidth={2.4} />
-                  : <User className="w-5 h-5" strokeWidth={2.4} />}
+                {profile?.role === 'store_owner' ? (
+                  <StoreIcon className="w-5 h-5" strokeWidth={2.4} />
+                ) : userAvatarUrl ? (
+                  <img
+                    src={userAvatarUrl}
+                    alt="アイコン"
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                ) : (
+                  <User className="w-5 h-5" strokeWidth={2.4} />
+                )}
               </div>
               {user && profile?.role === 'store_owner' && isApprovedOwner && (
                 <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 ring-2 ring-white flex items-center justify-center">

@@ -10,8 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-
-const AVATAR_KEY_PREFIX = 'osusowake_avatar_v1_';
+import { useAvatar, saveAvatar } from '@/hooks/use-avatar';
 
 /** 画像ファイルを max W/H にリサイズして JPEG DataURL を返す */
 function resizeImageToDataUrl(file: File, maxW: number, maxH: number, quality = 0.85): Promise<string> {
@@ -402,24 +401,10 @@ export default function Settings() {
   // Avatar initials
   const initials = displayName.trim().slice(0, 2) || 'GU';
 
-  // ── アバター画像（端末ローカル保存）──
+  // ── アバター画像（端末ローカル保存・MyPage 等と共有）──
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
+  const avatarDataUrl = useAvatar(user?.id);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-
-  // ユーザー切替時にローカル保存から復元
-  useEffect(() => {
-    if (!user?.id) {
-      setAvatarDataUrl(null);
-      return;
-    }
-    try {
-      const saved = localStorage.getItem(`${AVATAR_KEY_PREFIX}${user.id}`);
-      setAvatarDataUrl(saved);
-    } catch {
-      setAvatarDataUrl(null);
-    }
-  }, [user?.id]);
 
   async function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -448,9 +433,8 @@ export default function Settings() {
     try {
       const dataUrl = await resizeImageToDataUrl(file, 256, 256, 0.85);
       if (user?.id) {
-        try {
-          localStorage.setItem(`${AVATAR_KEY_PREFIX}${user.id}`, dataUrl);
-        } catch {
+        const ok = saveAvatar(user.id, dataUrl);
+        if (!ok) {
           toast({
             title: '保存できませんでした',
             description: '端末の保存容量が不足しています。',
@@ -459,7 +443,6 @@ export default function Settings() {
           return;
         }
       }
-      setAvatarDataUrl(dataUrl);
       toast({ title: 'アイコンを変更しました ✅' });
     } catch (err) {
       toast({
