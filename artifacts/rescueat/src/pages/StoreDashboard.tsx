@@ -108,12 +108,10 @@ function PostBagModal({
   const [aiSuggested, setAiSuggested] = useState<string | null>(null);
   const [classifying, setClassifying] = useState(false);
   const [qty, setQty] = useState(3);
-  // 出品時のデフォルト受取時間: 開始=現在時刻 (HH:MM)、 終了=00:00 (深夜0時=翌日扱い)
+  // 出品時のデフォルト受取時間: 開始=現在時刻 (HH:MM)、 終了=23:59 (当日終わり際)
   // useState の lazy initializer で「マウント時の現在時刻」を一度だけ評価する。
-  // 終了 '00:00' は isPickupEndPassed() 内で「start >= end → 翌日跨ぎ」として正しく
-  // 過去判定されないので validation も問題なし。
   const [quickPickupStart, setQuickPickupStart] = useState(() => nowHHMM());
-  const [quickPickupEnd, setQuickPickupEnd] = useState('00:00');
+  const [quickPickupEnd, setQuickPickupEnd] = useState('23:59');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [itemType, setItemType] = useState<'bag' | 'item'>('bag');
@@ -133,7 +131,7 @@ function PostBagModal({
     discountedPrice: 0,
     stockCount: 3,
     pickupStart: nowHHMM(),
-    pickupEnd: '00:00',
+    pickupEnd: '23:59',
   }));
   const [editingStock, setEditingStock] = useState(false);
   const stockInputRef = useRef<HTMLInputElement>(null);
