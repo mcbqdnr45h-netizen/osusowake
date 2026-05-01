@@ -70,6 +70,10 @@ export const storesTable = pgTable("stores", {
   stripeLicenseFileId: text("stripe_license_file_id"),
   // Stripe の past_due に external_account が含まれている場合に true → 口座の再登録が必要
   stripeNeedsBankReregister: boolean("stripe_needs_bank_reregister").default(false),
+  // 営業許可証画像アップロード失敗追跡（神モード silent fail 検知用）
+  licenseUploadFailed: boolean("license_upload_failed").default(false),
+  licenseUploadError: text("license_upload_error"),
+  licenseUploadAttemptedAt: timestamp("license_upload_attempted_at", { withTimezone: true }),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });

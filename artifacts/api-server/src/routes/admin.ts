@@ -142,43 +142,303 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 const requireAdminLight = requireAdmin;
 
 // ── GET /admin/metrics ─────────────────────────────────────────────────────────
-// GMV、手数料、アクティブユーザー数、登録店舗数
-router.get("/admin/metrics", requireAdmin, async (_req, res) => {
+// GMV、手数料、アクティブユーザー数、登録店舗数 + 拡張メトリクス
+// query: ?excludeTest=1 で stripe_account_id IS NULL の店舗（テスト店）を集計から除外
+router.get("/admin/metrics", requireAdmin, async (req, res) => {
   try {
-    // 総売上（GMV）= 全完了予約の合計金額
+    const excludeTest = req.query["excludeTest"] === "1" || req.query["excludeTest"] === "true";
+    // 共通フィルタ: テスト店除外の場合は stripe_account_id を持つ店舗のみ
+    const storeFilterSql = excludeTest
+      ? sql`AND s.stripe_account_id IS NOT NULL`
+      : sql``;
+
+    // ── 1. GMV / アクティブユーザー / 詳細ステータス内訳 ──
     const gmvResult = await db.execute(sql`
       SELECT
-        COALESCE(SUM(r.total_price), 0)::numeric AS gmv,
-        COUNT(DISTINCT r.user_id)::int            AS active_users
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS gmv,
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status='confirmed'), 0)::numeric AS gmv_confirmed,
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status='picked_up'), 0)::numeric AS gmv_picked_up,
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status='cancelled'), 0)::numeric AS gmv_cancelled,
+        COUNT(*) FILTER (WHERE r.status='pending')::int    AS count_pending,
+        COUNT(*) FILTER (WHERE r.status='confirmed')::int  AS count_confirmed,
+        COUNT(*) FILTER (WHERE r.status='picked_up')::int  AS count_picked_up,
+        COUNT(*) FILTER (WHERE r.status='cancelled')::int  AS count_cancelled,
+        COUNT(DISTINCT r.user_id) FILTER (WHERE r.status IN ('confirmed','picked_up'))::int AS active_users,
+        COUNT(DISTINCT r.user_id) FILTER (WHERE r.status='picked_up')::int AS pickup_users
       FROM reservations r
-      WHERE r.status IN ('confirmed', 'picked_up')
+      JOIN stores s ON s.id = r.store_id
+      WHERE 1=1 ${storeFilterSql}
     `);
-    const gmv = Number((gmvResult.rows[0] as any)?.gmv ?? 0);
-    const activeUsers = Number((gmvResult.rows[0] as any)?.active_users ?? 0);
+    const m = gmvResult.rows[0] as any;
+    const gmv = Number(m?.gmv ?? 0);
     const platformFee = Math.round(gmv * 0.25);
 
-    // 店舗統計
+    // ── 2. 店舗統計 ──
     const storeStats = await db.execute(sql`
       SELECT
-        COUNT(*)::int                                                     AS total_stores,
+        COUNT(*)::int AS total_stores,
         COUNT(*) FILTER (WHERE status = 'approved' AND is_active = true)::int AS approved_stores,
-        COUNT(*) FILTER (WHERE status IN ('pending_review', 'pending', 'applied'))::int AS pending_stores,
-        COUNT(*) FILTER (WHERE status = 'approved' AND is_active = false)::int AS suspended_stores
+        COUNT(*) FILTER (WHERE status IN ('pending_review','pending','applied'))::int AS pending_stores,
+        COUNT(*) FILTER (WHERE status = 'approved' AND is_active = false)::int AS suspended_stores,
+        COUNT(*) FILTER (WHERE stripe_account_id IS NULL)::int AS test_stores,
+        COUNT(*) FILTER (WHERE stripe_account_id IS NOT NULL)::int AS real_stores
       FROM stores
     `);
-    const storeRow = storeStats.rows[0] as any;
+    const sRow = storeStats.rows[0] as any;
+
+    // ── 3. 直近30日 日別売上推移 ──
+    const dailyResult = await db.execute(sql`
+      SELECT
+        TO_CHAR(d.day, 'YYYY-MM-DD') AS date,
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS gmv,
+        COUNT(r.id) FILTER (WHERE r.status IN ('confirmed','picked_up'))::int AS count
+      FROM generate_series(
+        (CURRENT_DATE - INTERVAL '29 days')::date,
+        CURRENT_DATE::date,
+        '1 day'::interval
+      ) AS d(day)
+      LEFT JOIN reservations r
+        ON r.created_at::date = d.day
+      LEFT JOIN stores s ON s.id = r.store_id
+      WHERE r.id IS NULL OR (1=1 ${storeFilterSql})
+      GROUP BY d.day
+      ORDER BY d.day ASC
+    `);
+    const dailySeries = dailyResult.rows.map((r: any) => ({
+      date: r.date,
+      gmv: Number(r.gmv),
+      count: Number(r.count),
+    }));
+
+    // ── 4. 店舗ランキング TOP 5 (GMV) ──
+    const rankingResult = await db.execute(sql`
+      SELECT
+        s.id, s.name,
+        s.stripe_account_id IS NULL AS is_test,
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS gmv,
+        COUNT(r.id) FILTER (WHERE r.status IN ('confirmed','picked_up'))::int AS reservations,
+        COUNT(r.id) FILTER (WHERE r.status='picked_up')::int AS picked_up_count
+      FROM stores s
+      LEFT JOIN reservations r ON r.store_id = s.id
+      WHERE 1=1 ${storeFilterSql}
+      GROUP BY s.id, s.name, s.stripe_account_id
+      HAVING COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0) > 0
+      ORDER BY gmv DESC
+      LIMIT 5
+    `);
+    const storeRanking = rankingResult.rows.map((r: any) => ({
+      id: Number(r.id),
+      name: r.name,
+      isTest: !!r.is_test,
+      gmv: Number(r.gmv),
+      reservations: Number(r.reservations),
+      pickedUpCount: Number(r.picked_up_count),
+      pickupRate: Number(r.reservations) > 0 ? Number(r.picked_up_count) / Number(r.reservations) : 0,
+    }));
+
+    // ── 5. 時間帯ヒートマップ（24h × 7曜日） ──
+    const heatmapResult = await db.execute(sql`
+      SELECT
+        EXTRACT(DOW FROM r.created_at)::int  AS dow,
+        EXTRACT(HOUR FROM r.created_at)::int AS hour,
+        COUNT(*)::int AS count
+      FROM reservations r
+      JOIN stores s ON s.id = r.store_id
+      WHERE r.status IN ('confirmed','picked_up')
+        AND r.created_at >= CURRENT_DATE - INTERVAL '30 days'
+        ${storeFilterSql}
+      GROUP BY dow, hour
+    `);
+    const hourlyHeatmap: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+    for (const row of heatmapResult.rows) {
+      const r = row as any;
+      hourlyHeatmap[Number(r.dow)][Number(r.hour)] = Number(r.count);
+    }
+
+    // ── 6. 異常検知 ──
+    // (a) pending が 24h 以上滞留
+    const stalePendingResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM reservations r
+      WHERE r.status = 'pending'
+        AND r.created_at < NOW() - INTERVAL '24 hours'
+    `);
+    // (b) cancellation 率が高い店舗（5件以上 & cancel率 30%超）
+    const highCancelResult = await db.execute(sql`
+      SELECT s.id, s.name,
+        COUNT(r.id)::int AS total,
+        COUNT(r.id) FILTER (WHERE r.status='cancelled')::int AS cancelled,
+        (COUNT(r.id) FILTER (WHERE r.status='cancelled')::numeric / NULLIF(COUNT(r.id),0))::float AS rate
+      FROM stores s
+      LEFT JOIN reservations r ON r.store_id = s.id
+      WHERE 1=1 ${storeFilterSql}
+      GROUP BY s.id, s.name
+      HAVING COUNT(r.id) >= 5
+        AND (COUNT(r.id) FILTER (WHERE r.status='cancelled')::numeric / NULLIF(COUNT(r.id),0)) > 0.3
+      ORDER BY rate DESC
+      LIMIT 5
+    `);
+    // (c) 営業許可証 silent fail
+    const licenseIssuesResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS n
+      FROM stores s
+      WHERE s.status = 'approved'
+        AND (s.license_image_url IS NULL OR s.license_upload_failed = true)
+        AND s.stripe_account_id IS NOT NULL
+    `);
+
+    // ── 7. ユーザー基本指標 ──
+    const userBasicsResult = await db.execute(sql`
+      SELECT
+        ROUND(AVG(r.total_price))::int AS avg_price,
+        MAX(r.total_price)::int AS max_price,
+        MIN(r.total_price) FILTER (WHERE r.total_price > 0)::int AS min_price
+      FROM reservations r
+      JOIN stores s ON s.id = r.store_id
+      WHERE r.status IN ('confirmed','picked_up')
+        ${storeFilterSql}
+    `);
+    const u = userBasicsResult.rows[0] as any;
 
     res.json({
+      // 既存フィールド（互換性維持）
       gmv,
       platformFee,
-      activeUsers,
-      totalStores: storeRow.total_stores,
-      approvedStores: storeRow.approved_stores,
-      pendingStores: storeRow.pending_stores,
-      suspendedStores: storeRow.suspended_stores,
+      activeUsers: Number(m?.active_users ?? 0),
+      totalStores: sRow.total_stores,
+      approvedStores: sRow.approved_stores,
+      pendingStores: sRow.pending_stores,
+      suspendedStores: sRow.suspended_stores,
+      // 拡張フィールド
+      excludeTest,
+      breakdown: {
+        gmvConfirmed: Number(m?.gmv_confirmed ?? 0),
+        gmvPickedUp: Number(m?.gmv_picked_up ?? 0),
+        gmvCancelled: Number(m?.gmv_cancelled ?? 0),
+        countPending: Number(m?.count_pending ?? 0),
+        countConfirmed: Number(m?.count_confirmed ?? 0),
+        countPickedUp: Number(m?.count_picked_up ?? 0),
+        countCancelled: Number(m?.count_cancelled ?? 0),
+        pickupUsers: Number(m?.pickup_users ?? 0),
+        avgPrice: Number(u?.avg_price ?? 0),
+        maxPrice: Number(u?.max_price ?? 0),
+        minPrice: Number(u?.min_price ?? 0),
+      },
+      storeBreakdown: {
+        testStores: sRow.test_stores,
+        realStores: sRow.real_stores,
+      },
+      dailySeries,
+      storeRanking,
+      hourlyHeatmap,
+      anomalies: {
+        stalePendingCount: Number((stalePendingResult.rows[0] as any)?.n ?? 0),
+        highCancelStores: highCancelResult.rows.map((r: any) => ({
+          id: Number(r.id), name: r.name, total: Number(r.total),
+          cancelled: Number(r.cancelled), rate: Number(r.rate),
+        })),
+        licenseIssueCount: Number((licenseIssuesResult.rows[0] as any)?.n ?? 0),
+      },
     });
   } catch (err: any) {
     console.error("[admin/metrics]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── GET /admin/license-issues ─────────────────────────────────────────────────
+// 営業許可証 silent fail / 未提出だが approved な店舗の一覧
+router.get("/admin/license-issues", requireAdmin, async (_req, res) => {
+  try {
+    const result = await db.execute(sql`
+      SELECT
+        s.id, s.name, s.status, s.is_active, s.category, s.city,
+        s.image_url, s.created_at, s.owner_id,
+        s.stripe_account_id, s.stripe_charges_enabled,
+        s.license_number,
+        s.license_image_url IS NOT NULL AS has_license_url,
+        s.stripe_license_file_id IS NOT NULL AS has_stripe_file_id,
+        s.license_upload_failed,
+        s.license_upload_error,
+        s.license_upload_attempted_at,
+        CASE
+          WHEN s.license_upload_failed = TRUE THEN 'upload_failed'
+          WHEN s.license_image_url IS NULL AND s.license_number IS NOT NULL THEN 'image_missing_but_number_set'
+          WHEN s.license_image_url IS NULL AND s.license_number IS NULL THEN 'no_license_at_all'
+          ELSE 'unknown'
+        END AS issue_type,
+        CASE
+          WHEN s.license_upload_failed = TRUE THEN 'high'
+          WHEN s.license_image_url IS NULL AND s.stripe_charges_enabled = TRUE THEN 'high'
+          WHEN s.license_image_url IS NULL AND s.status = 'approved' THEN 'medium'
+          ELSE 'low'
+        END AS severity
+      FROM stores s
+      WHERE s.status = 'approved'
+        AND s.stripe_account_id IS NOT NULL
+        AND (
+          s.license_image_url IS NULL
+          OR s.license_upload_failed = TRUE
+        )
+      ORDER BY
+        CASE
+          WHEN s.license_upload_failed = TRUE THEN 0
+          WHEN s.stripe_charges_enabled = TRUE THEN 1
+          ELSE 2
+        END,
+        s.created_at DESC
+    `);
+    res.json({ items: result.rows, count: result.rows.length });
+  } catch (err: any) {
+    console.error("[admin/license-issues]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── POST /admin/stores/:storeId/request-license-reupload ──────────────────────
+// 神モードから店主に営業許可証の再アップロードを要求（フラグ立て + console log）
+router.post("/admin/stores/:storeId/request-license-reupload", requireAdmin, async (req, res) => {
+  const storeId = Number(req.params.storeId);
+  if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  try {
+    const [store] = await db
+      .select({
+        id: storesTable.id,
+        name: storesTable.name,
+        ownerId: storesTable.ownerId,
+      })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+    if (!store) { res.status(404).json({ error: "not_found" }); return; }
+
+    // フラグを再アップロード要求状態に
+    await db.update(storesTable)
+      .set({
+        licenseUploadFailed: true,
+        licenseUploadError: "admin_requested_reupload",
+        licenseUploadAttemptedAt: new Date(),
+      })
+      .where(eq(storesTable.id, storeId));
+
+    // 店主のメールアドレスを取得して将来のメール送信用にログ
+    let ownerEmail: string | null = null;
+    if (store.ownerId) {
+      try {
+        const { data } = await supabaseAdmin.auth.admin.getUserById(store.ownerId);
+        ownerEmail = data?.user?.email ?? null;
+      } catch { /* ignore */ }
+    }
+
+    console.log(`📨 [admin] License reupload requested: storeId=${storeId} name="${store.name}" ownerEmail=${ownerEmail ?? "(none)"}`);
+
+    res.json({
+      ok: true,
+      storeId,
+      ownerEmail,
+      message: "再アップロード要求を記録しました。 店主が次回ログイン時に通知されます。",
+    });
+  } catch (err: any) {
+    console.error("[admin/request-license-reupload]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });

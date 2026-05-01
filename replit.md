@@ -130,6 +130,17 @@
 - `STRIPE_SECRET_KEY` - Stripeシークレットキー（任意・未設定でモック）
 - `VITE_STRIPE_PUBLIC_KEY` - Stripeパブリックキー（任意）
 
+## Recent Updates (2026-05-01)
+
+### 神モード AdminDashboard 全面リニューアル + 営業許可証 silent fail 修正（ASC 提出前）
+1. **DB schema 拡張** (`lib/db/src/schema/stores.ts` + `artifacts/api-server/src/index.ts` 起動時マイグレーション): `stores.license_upload_failed BOOL DEFAULT FALSE` / `license_upload_error TEXT` / `license_upload_attempted_at TIMESTAMPTZ` を追加。
+2. **bank-setup silent fail 修正** (`artifacts/api-server/src/routes/stores.ts` L2748-2805): `/api/stores/bank-setup` の bg upload (Supabase storage への営業許可証画像アップロード) が失敗しても `licenseNumber` だけ DB に保存されて画像欠落のまま public 公開される設計バグ。Supabase upload 結果を `license_upload_failed` / `license_upload_error` / `license_upload_attempted_at` に記録、admin 検出可能化。
+3. **/admin/metrics 大幅拡張** (`artifacts/api-server/src/routes/admin.ts`): `?excludeTest=1` (`stripe_account_id IS NULL` を除外) サポート、`dailySeries` (直近30日)、`storeRanking` (TOP5 GMV/受取率)、`hourlyHeatmap` (7×24 予約作成時刻分布)、`breakdown` (受取済/予約確定/キャンセル/平均単価)、`anomalies` (24h以上 pending、cancellation 率高 (rate は 0..1 ratio で返却)、licenseIssueCount)、`storeBreakdown` (実店舗/テスト店舗) を追加。
+4. **/admin/license-issues** 新設: `license_image_url IS NULL OR license_upload_failed = TRUE` の店舗一覧。`severity` (high/medium/low)、`issue_type` (upload_failed / image_missing_but_number_set / no_license_at_all) 付き。
+5. **/admin/stores/:storeId/request-license-reupload** 新設: 店主への再アップロード要求記録 (フラグ + 監査ログ)。
+6. **AdminDashboard.tsx 全面改修**: 🚨 営業許可証問題バナー (severity 別バッジ・再アップ要求ボタン)、テスト店フィルタトグル (state `excludeTest` を `fetchAll` deps に渡して切替時 re-fetch)、売上ブレイクダウン (4 カード)、recharts LineChart (直近30日 売上推移)、店舗ランキング TOP5 (棒グラフ・受取率カラー警告)、時間帯ヒートマップ (7×24 div グリッド・紫グラデ)、ファネル (作成→確定→受取・キャンセル率)、異常検知カード。recharts ^2.15.2 + 既存 lucide icons + framer-motion で構成。
+7. **SW v26→v27**: `artifacts/rescueat/public/sw.js` キャッシュ更新。
+
 ## Recent Updates (2026-04-30)
 
 ### 残課題4件の修正完了（収益モデル統一の延長）

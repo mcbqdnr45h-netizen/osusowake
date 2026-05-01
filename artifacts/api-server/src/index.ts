@@ -146,7 +146,10 @@ async function runMigrations() {
       ['legal_email',          'TEXT'],
       ['legal_other',          'TEXT'],
       ['rejection_reason',     'TEXT'],
-      ['icon_url',             'TEXT'],
+      ['icon_url',                   'TEXT'],
+      ['license_upload_failed',      'BOOLEAN DEFAULT FALSE'],
+      ['license_upload_error',       'TEXT'],
+      ['license_upload_attempted_at','TIMESTAMPTZ'],
     ];
     for (const [col, type] of storeExtraCols) {
       await client.query(`

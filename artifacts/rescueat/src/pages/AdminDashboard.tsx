@@ -8,7 +8,12 @@ import {
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench, CreditCard,
   LogOut, ExternalLink, Package, Receipt, Flag, MapPin, Trash2, FileWarning, Link2 as LinkIcon,
+  Activity, Award, Calendar, Filter, Flame, TrendingDown, Zap,
 } from 'lucide-react';
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell,
+} from 'recharts';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 import { authedFetch } from '@/lib/authed-fetch';
 
@@ -50,6 +55,62 @@ interface Metrics {
   approvedStores: number;
   pendingStores: number;
   suspendedStores: number;
+  excludeTest?: boolean;
+  breakdown?: {
+    gmvConfirmed: number;
+    gmvPickedUp: number;
+    gmvCancelled: number;
+    countPending: number;
+    countConfirmed: number;
+    countPickedUp: number;
+    countCancelled: number;
+    pickupUsers: number;
+    avgPrice: number;
+    maxPrice: number;
+    minPrice: number;
+  };
+  storeBreakdown?: {
+    testStores: number;
+    realStores: number;
+  };
+  dailySeries?: Array<{ date: string; gmv: number; count: number }>;
+  storeRanking?: Array<{
+    id: number;
+    name: string;
+    isTest: boolean;
+    gmv: number;
+    reservations: number;
+    pickedUpCount: number;
+    pickupRate: number;
+  }>;
+  hourlyHeatmap?: number[][];
+  anomalies?: {
+    stalePendingCount: number;
+    highCancelStores: Array<{ id: number; name: string; total: number; cancelled: number; rate: number }>;
+    licenseIssueCount: number;
+  };
+}
+
+interface LicenseIssue {
+  id: number;
+  name: string;
+  status: string;
+  is_active: boolean;
+  category: string;
+  city: string | null;
+  image_url: string | null;
+  created_at: string;
+  owner_id: string | null;
+  stripe_account_id: string | null;
+  stripe_charges_enabled: boolean | null;
+  license_number: string | null;
+  has_license_url: boolean;
+  has_stripe_file_id: boolean;
+  license_upload_failed: boolean;
+  license_upload_error: string | null;
+  license_upload_attempted_at: string | null;
+  issue_type: 'upload_failed' | 'image_missing_but_number_set' | 'no_license_at_all' | 'unknown';
+  severity: 'high' | 'medium' | 'low';
 }
 
 interface AdminStore {
@@ -230,6 +291,9 @@ export default function AdminDashboard() {
   }, [authLoading, user, navigate]);
 
   const [metrics, setMetrics]             = useState<Metrics | null>(null);
+  const [excludeTest, setExcludeTest]     = useState<boolean>(false);
+  const [licenseIssues, setLicenseIssues] = useState<LicenseIssue[]>([]);
+  const [reuploadLoading, setReuploadLoading] = useState<number | null>(null);
   const [stores, setStores]               = useState<AdminStore[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [salesLeads, setSalesLeads]       = useState<SalesLead[]>([]);
@@ -292,13 +356,18 @@ export default function AdminDashboard() {
     if (!token) return;
     setLoading(true);
     try {
-      const [mRes, sRes, aRes, lRes] = await Promise.all([
-        authedFetch(`${BASE}/api/admin/metrics`,       { headers: {} }),
-        authedFetch(`${BASE}/api/admin/stores`,        { headers: {} }),
-        authedFetch(`${BASE}/api/admin/announcements`, { headers: {} }),
-        authedFetch(`${BASE}/api/admin/sales-leads`,   { headers: {} }),
+      const [mRes, sRes, aRes, lRes, liRes] = await Promise.all([
+        authedFetch(`${BASE}/api/admin/metrics?excludeTest=${excludeTest ? '1' : '0'}`, { headers: {} }),
+        authedFetch(`${BASE}/api/admin/stores`,         { headers: {} }),
+        authedFetch(`${BASE}/api/admin/announcements`,  { headers: {} }),
+        authedFetch(`${BASE}/api/admin/sales-leads`,    { headers: {} }),
+        authedFetch(`${BASE}/api/admin/license-issues`, { headers: {} }),
       ]);
       if (mRes.ok) setMetrics(await mRes.json());
+      if (liRes.ok) {
+        const li = await liRes.json();
+        setLicenseIssues(li?.items ?? []);
+      }
       if (sRes.ok) {
         const storeData: AdminStore[] = await sRes.json();
         setStores(storeData);
@@ -334,7 +403,30 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, excludeTest]);
+
+  // 再アップロード要求 + 営業許可証修復ヘルパー
+  const requestLicenseReupload = useCallback(async (storeId: number) => {
+    if (!confirm('店主に営業許可証の再アップロードを要求しますか？')) return;
+    setReuploadLoading(storeId);
+    try {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/request-license-reupload`, {
+        method: 'POST',
+        headers: {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`✅ 要求を記録しました${data.ownerEmail ? `\n店主: ${data.ownerEmail}` : ''}`);
+        await fetchAll();
+      } else {
+        alert('❌ 要求失敗');
+      }
+    } catch (e: any) {
+      alert(`❌ エラー: ${e?.message ?? e}`);
+    } finally {
+      setReuploadLoading(null);
+    }
+  }, [token, fetchAll]);
 
   async function saveSettings() {
     setSettingsSaving(true);
@@ -748,10 +840,383 @@ export default function AdminDashboard() {
               <span className="text-[11px] text-white/60 font-medium flex items-center gap-1.5">
                 <Store className="w-3 h-3" />登録店舗合計
               </span>
-              <span className="text-sm font-black text-white">{metrics ? `${fmt(metrics.totalStores)}店` : '…'}</span>
+              <span className="text-sm font-black text-white">
+                {metrics ? `${fmt(metrics.totalStores)}店` : '…'}
+                {metrics?.storeBreakdown && (
+                  <span className="text-[10px] text-white/50 ml-2 font-medium">
+                    (実 {metrics.storeBreakdown.realStores} / テスト {metrics.storeBreakdown.testStores})
+                  </span>
+                )}
+              </span>
             </div>
           </div>
         </motion.div>
+
+        {/* ── 🚨 営業許可証 問題バナー ── */}
+        {licenseIssues.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="rounded-2xl border-2 border-red-300 bg-gradient-to-br from-red-50 to-rose-50 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <FileWarning className="w-5 h-5 text-red-600" />
+                <h2 className="text-sm font-black text-red-900">営業許可証 問題あり</h2>
+                <span className="ml-auto text-[10px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full">
+                  {licenseIssues.length}件
+                </span>
+              </div>
+              <p className="text-[11px] text-red-700/80 mb-3 leading-relaxed">
+                これらの店舗は営業許可証画像が欠落しています。ASC 提出前に再アップロードを要求してください。
+              </p>
+              <div className="space-y-2">
+                {licenseIssues.slice(0, 10).map(issue => (
+                  <div key={issue.id} className="bg-white rounded-xl border border-red-200 p-3">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-sm font-black text-gray-900 truncate">{issue.name}</span>
+                          {issue.severity === 'high' && (
+                            <span className="text-[9px] font-black bg-red-600 text-white px-1.5 py-0.5 rounded">緊急</span>
+                          )}
+                          {issue.severity === 'medium' && (
+                            <span className="text-[9px] font-black bg-orange-500 text-white px-1.5 py-0.5 rounded">中</span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-gray-500 flex flex-wrap gap-x-2 gap-y-0.5">
+                          <span>#{issue.id}</span>
+                          <span>{issue.status}</span>
+                          {issue.city && <span>{issue.city}</span>}
+                          {!issue.stripe_account_id && <span className="text-amber-600 font-bold">テスト店</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-red-700 mb-2 bg-red-50 rounded px-2 py-1">
+                      {issue.issue_type === 'upload_failed' && '⚠️ アップロード失敗'}
+                      {issue.issue_type === 'image_missing_but_number_set' && '⚠️ 番号のみ登録（画像欠落）'}
+                      {issue.issue_type === 'no_license_at_all' && '⚠️ 許可証情報なし'}
+                      {issue.license_upload_error && (
+                        <div className="mt-0.5 text-[9px] text-red-600/70 truncate">{issue.license_upload_error}</div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Link href={`/admin/store/${issue.id}`}>
+                        <button className="text-[11px] font-bold text-red-700 hover:text-red-900 px-2 py-1 rounded bg-white border border-red-200">
+                          詳細
+                        </button>
+                      </Link>
+                      <button
+                        onClick={() => requestLicenseReupload(issue.id)}
+                        disabled={reuploadLoading === issue.id}
+                        className="text-[11px] font-bold text-white bg-red-600 hover:bg-red-700 px-2 py-1 rounded disabled:opacity-50"
+                      >
+                        {reuploadLoading === issue.id ? '…' : '再アップ要求'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {licenseIssues.length > 10 && (
+                  <p className="text-[10px] text-red-600/70 text-center pt-1">
+                    他 {licenseIssues.length - 10}件…
+                  </p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── テスト店フィルタ ── */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
+          <div className="rounded-2xl bg-white border border-gray-200 p-3 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <div>
+                <p className="text-xs font-black text-gray-900">テスト店舗を集計から除外</p>
+                <p className="text-[10px] text-gray-500">stripe_account_id IS NULL の店舗を除外します</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setExcludeTest(v => !v)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${excludeTest ? 'bg-purple-600' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${excludeTest ? 'left-5' : 'left-0.5'}`} />
+            </button>
+          </div>
+        </motion.div>
+
+        {/* ── 売上ブレイクダウン ── */}
+        {metrics?.breakdown && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
+            <div className="rounded-2xl bg-white border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <BadgeDollarSign className="w-4 h-4 text-emerald-600" />
+                <h2 className="text-xs font-black uppercase tracking-widest text-gray-700">売上内訳</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                  <p className="text-[10px] text-emerald-700/70 font-bold">受取済み GMV</p>
+                  <p className="text-xl font-black text-emerald-700">¥{fmt(metrics.breakdown.gmvPickedUp)}</p>
+                  <p className="text-[10px] text-emerald-600/70 mt-0.5">{fmt(metrics.breakdown.countPickedUp)}件</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                  <p className="text-[10px] text-blue-700/70 font-bold">予約確定 GMV</p>
+                  <p className="text-xl font-black text-blue-700">¥{fmt(metrics.breakdown.gmvConfirmed)}</p>
+                  <p className="text-[10px] text-blue-600/70 mt-0.5">{fmt(metrics.breakdown.countConfirmed)}件</p>
+                </div>
+                <div className="bg-rose-50 rounded-xl p-3 border border-rose-100">
+                  <p className="text-[10px] text-rose-700/70 font-bold">キャンセル</p>
+                  <p className="text-xl font-black text-rose-700">¥{fmt(metrics.breakdown.gmvCancelled)}</p>
+                  <p className="text-[10px] text-rose-600/70 mt-0.5">{fmt(metrics.breakdown.countCancelled)}件</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
+                  <p className="text-[10px] text-purple-700/70 font-bold">平均購入単価</p>
+                  <p className="text-xl font-black text-purple-700">¥{fmt(metrics.breakdown.avgPrice)}</p>
+                  <p className="text-[10px] text-purple-600/70 mt-0.5">受取ユーザー {metrics.breakdown.pickupUsers}人</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── 直近30日 売上推移 ── */}
+        {metrics?.dailySeries && metrics.dailySeries.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+            <div className="rounded-2xl bg-white border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="w-4 h-4 text-purple-600" />
+                <h2 className="text-xs font-black uppercase tracking-widest text-gray-700">直近30日 売上推移</h2>
+              </div>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={metrics.dailySeries} margin={{ top: 5, right: 8, bottom: 0, left: -8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 9, fill: '#6b7280' }}
+                      tickFormatter={(d: string) => d.slice(5)}
+                    />
+                    <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                      formatter={(v: number) => [`¥${fmt(v)}`, 'GMV']}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="gmv"
+                      stroke="#7c3aed"
+                      strokeWidth={2.5}
+                      dot={{ r: 2, fill: '#7c3aed' }}
+                      activeDot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── 店舗ランキング TOP5 ── */}
+        {metrics?.storeRanking && metrics.storeRanking.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div className="rounded-2xl bg-white border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Award className="w-4 h-4 text-amber-600" />
+                <h2 className="text-xs font-black uppercase tracking-widest text-gray-700">売上ランキング TOP5</h2>
+              </div>
+              <div className="space-y-2">
+                {metrics.storeRanking.map((s, idx) => {
+                  const max = metrics.storeRanking![0].gmv || 1;
+                  const pct = Math.max(2, (s.gmv / max) * 100);
+                  return (
+                    <Link key={s.id} href={`/admin/store/${s.id}`}>
+                      <div className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <span className={`text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center ${
+                              idx === 0 ? 'bg-amber-400 text-white' :
+                              idx === 1 ? 'bg-gray-300 text-gray-700' :
+                              idx === 2 ? 'bg-orange-300 text-white' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>{idx + 1}</span>
+                            <span className="text-xs font-bold text-gray-900 truncate">{s.name}</span>
+                            {s.isTest && (
+                              <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 rounded">テ</span>
+                            )}
+                          </div>
+                          <span className="text-xs font-black text-purple-600 shrink-0">¥{fmt(s.gmv)}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-blue-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-[10px] text-gray-500">
+                          <span>{s.reservations}件 / 受取{s.pickedUpCount}</span>
+                          <span className={s.pickupRate >= 0.7 ? 'text-emerald-600 font-bold' : s.pickupRate < 0.3 ? 'text-red-600 font-bold' : ''}>
+                            受取率 {Math.round(s.pickupRate * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── 時間帯ヒートマップ ── */}
+        {metrics?.hourlyHeatmap && metrics.hourlyHeatmap.length === 7 && (() => {
+          const flat = metrics.hourlyHeatmap.flat();
+          const maxV = Math.max(1, ...flat);
+          const days = ['日', '月', '火', '水', '木', '金', '土'];
+          return (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+              <div className="rounded-2xl bg-white border border-gray-200 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <h2 className="text-xs font-black uppercase tracking-widest text-gray-700">予約時間帯 ヒートマップ</h2>
+                </div>
+                <div className="overflow-x-auto -mx-1 px-1">
+                  <div className="min-w-[480px]">
+                    <div className="flex gap-px mb-1 ml-5">
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <div key={h} className="flex-1 text-[8px] text-gray-400 text-center" style={{ minWidth: 14 }}>
+                          {h % 6 === 0 ? h : ''}
+                        </div>
+                      ))}
+                    </div>
+                    {metrics.hourlyHeatmap.map((row, di) => (
+                      <div key={di} className="flex items-center gap-1 mb-px">
+                        <div className="w-4 text-[9px] font-bold text-gray-500 text-right">{days[di]}</div>
+                        <div className="flex gap-px flex-1">
+                          {row.map((v, hi) => {
+                            const intensity = v / maxV;
+                            const bg = v === 0
+                              ? '#f3f4f6'
+                              : `rgba(124, 58, 237, ${0.2 + intensity * 0.8})`;
+                            return (
+                              <div
+                                key={hi}
+                                title={`${days[di]} ${hi}:00 — ${v}件`}
+                                className="flex-1 h-4 rounded-sm"
+                                style={{ background: bg, minWidth: 14 }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-2 text-center">
+                  予約作成時刻の分布（直近30日）
+                </p>
+              </div>
+            </motion.div>
+          );
+        })()}
+
+        {/* ── ファネル ── */}
+        {metrics?.breakdown && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
+            <div className="rounded-2xl bg-white border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart2 className="w-4 h-4 text-blue-600" />
+                <h2 className="text-xs font-black uppercase tracking-widest text-gray-700">予約ファネル</h2>
+              </div>
+              {(() => {
+                const b = metrics.breakdown!;
+                const total = b.countPending + b.countConfirmed + b.countPickedUp + b.countCancelled;
+                const stages = [
+                  { label: '予約作成', count: total, color: 'bg-gray-500' },
+                  { label: '確定', count: b.countConfirmed + b.countPickedUp, color: 'bg-blue-500' },
+                  { label: '受取完了', count: b.countPickedUp, color: 'bg-emerald-500' },
+                ];
+                const cancelRate = total > 0 ? b.countCancelled / total : 0;
+                return (
+                  <>
+                    <div className="space-y-2">
+                      {stages.map((st, i) => {
+                        const pct = total > 0 ? (st.count / total) * 100 : 0;
+                        return (
+                          <div key={i}>
+                            <div className="flex items-center justify-between text-[11px] mb-0.5">
+                              <span className="font-bold text-gray-700">{st.label}</span>
+                              <span className="font-black text-gray-900">{st.count}件 ({Math.round(pct)}%)</span>
+                            </div>
+                            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className={`h-full ${st.color} rounded-full transition-all`} style={{ width: `${Math.max(2, pct)}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <span className="text-[10px] text-gray-500">キャンセル率</span>
+                      <span className={`text-xs font-black ${cancelRate >= 0.3 ? 'text-red-600' : cancelRate >= 0.15 ? 'text-orange-500' : 'text-emerald-600'}`}>
+                        {Math.round(cancelRate * 100)}% ({b.countCancelled}件)
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── 異常検知 ── */}
+        {metrics?.anomalies && (
+          metrics.anomalies.stalePendingCount > 0 ||
+          metrics.anomalies.highCancelStores.length > 0 ||
+          metrics.anomalies.licenseIssueCount > 0
+        ) && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
+            <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="w-4 h-4 text-amber-600" />
+                <h2 className="text-xs font-black uppercase tracking-widest text-amber-900">異常検知</h2>
+              </div>
+              <div className="space-y-2">
+                {metrics.anomalies.stalePendingCount > 0 && (
+                  <div className="bg-white rounded-lg p-2.5 border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-xs font-bold text-gray-900">24時間以上 pending</span>
+                      </div>
+                      <span className="text-sm font-black text-amber-700">{metrics.anomalies.stalePendingCount}件</span>
+                    </div>
+                  </div>
+                )}
+                {metrics.anomalies.licenseIssueCount > 0 && (
+                  <div className="bg-white rounded-lg p-2.5 border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileWarning className="w-3.5 h-3.5 text-red-600" />
+                        <span className="text-xs font-bold text-gray-900">許可証問題</span>
+                      </div>
+                      <span className="text-sm font-black text-red-700">{metrics.anomalies.licenseIssueCount}件</span>
+                    </div>
+                  </div>
+                )}
+                {metrics.anomalies.highCancelStores.map(s => (
+                  <Link key={s.id} href={`/admin/store/${s.id}`}>
+                    <div className="bg-white rounded-lg p-2.5 border border-amber-200 cursor-pointer hover:bg-amber-50">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <TrendingDown className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                          <span className="text-xs font-bold text-gray-900 truncate">{s.name}</span>
+                        </div>
+                        <span className="text-xs font-black text-red-700 shrink-0">
+                          キャンセル率 {Math.round(s.rate * 100)}% ({s.cancelled}/{s.total})
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* ── 店舗審査パネル ── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>

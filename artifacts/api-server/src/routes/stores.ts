@@ -2746,11 +2746,20 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
       if (backFileId) console.log(`✅ [bank-setup] BG Back doc: ${backFileId}`);
 
       // 営業許可証を Supabase Storage に保存
+      // ── silent fail を必ず DB に記録する（神モード検知用）──
       let licenseImageUrl: string | null = null;
+      let licenseUploadFailed = false;
+      let licenseUploadError: string | null = null;
+      const licenseUploadAttemptedAt = new Date();
+
       if (bizLicenseBase64 && store.ownerId) {
         try {
           const licMatch = bizLicenseBase64.match(/^data:(image\/[\w+]+);base64,(.+)$/s);
-          if (licMatch) {
+          if (!licMatch) {
+            licenseUploadFailed = true;
+            licenseUploadError = "invalid_base64_format";
+            console.error(`❌ [bank-setup] BG License: invalid base64 format (storeId=${storeId})`);
+          } else {
             const licContentType = licMatch[1];
             const licExt = licContentType === "image/png" ? "png" : "jpg";
             const licBuffer = Buffer.from(licMatch[2], "base64");
@@ -2758,19 +2767,38 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
             const { error: licUpErr } = await supabaseAdmin.storage
               .from("store-documents")
               .upload(licPath, licBuffer, { contentType: licContentType, upsert: false });
-            if (!licUpErr) {
-              const { data: licSigned } = await supabaseAdmin.storage
+            if (licUpErr) {
+              licenseUploadFailed = true;
+              licenseUploadError = `storage_upload: ${licUpErr.message}`;
+              console.error(`❌ [bank-setup] BG License doc upload FAILED (storeId=${storeId}): ${licUpErr.message}`);
+            } else {
+              const { data: licSigned, error: licSignErr } = await supabaseAdmin.storage
                 .from("store-documents")
                 .createSignedUrl(licPath, 60 * 60 * 24 * 365 * 10);
-              licenseImageUrl = licSigned?.signedUrl ?? null;
-              console.log(`✅ [bank-setup] BG License doc saved: ${licPath}`);
-            } else {
-              console.warn(`⚠️  [bank-setup] BG License doc upload failed: ${licUpErr.message}`);
+              if (licSignErr || !licSigned?.signedUrl) {
+                licenseUploadFailed = true;
+                licenseUploadError = `signed_url: ${licSignErr?.message ?? "no_url"}`;
+                console.error(`❌ [bank-setup] BG License signed URL FAILED (storeId=${storeId}): ${licSignErr?.message}`);
+              } else {
+                licenseImageUrl = licSigned.signedUrl;
+                console.log(`✅ [bank-setup] BG License doc saved: ${licPath}`);
+              }
             }
           }
         } catch (licEx: any) {
-          console.warn(`⚠️  [bank-setup] BG License doc exception: ${licEx?.message}`);
+          licenseUploadFailed = true;
+          licenseUploadError = `exception: ${licEx?.message ?? String(licEx)}`;
+          console.error(`❌ [bank-setup] BG License doc exception (storeId=${storeId}): ${licEx?.message}`);
         }
+      } else if (!bizLicenseBase64) {
+        // 画像が渡されてないケース → 神モード警告対象
+        licenseUploadFailed = true;
+        licenseUploadError = "no_image_provided";
+        console.warn(`⚠️  [bank-setup] BG License: no image provided (storeId=${storeId})`);
+      } else if (!store.ownerId) {
+        licenseUploadFailed = true;
+        licenseUploadError = "no_owner_id";
+        console.warn(`⚠️  [bank-setup] BG License: store has no ownerId (storeId=${storeId})`);
       }
 
       // ── BG STEP4b-docs: 同期で作成済みの person に本人確認書類を添付 ──
@@ -2842,13 +2870,16 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
       }
 
       const newStatus = autoApproved ? "approved" : "applied";
-      // 現在の store を更新
+      // 現在の store を更新（許可証アップロード追跡フラグ含む）
       await db.update(storesTable).set({
         status: newStatus,
         isActive: autoApproved ? true : undefined,
         ...(licenseImageUrl ? { licenseImageUrl } : {}),
         ...(kycChargesEnabled !== null ? { stripeChargesEnabled: kycChargesEnabled } : {}),
         ...(kycPayoutsEnabled !== null ? { stripePayoutsEnabled: kycPayoutsEnabled } : {}),
+        licenseUploadFailed,
+        licenseUploadError,
+        licenseUploadAttemptedAt,
       }).where(eq(storesTable.id, storeId));
 
       // 同一オーナーの他店舗にも stripe_account_id / charges / payouts を伝播
