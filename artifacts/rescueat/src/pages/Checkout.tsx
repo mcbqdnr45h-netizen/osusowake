@@ -493,7 +493,7 @@ export default function Checkout() {
 
   return (
     <Layout showBottomNav={false}>
-      <div className="max-w-xl mx-auto py-8 px-4">
+      <div className="max-w-xl md:max-w-3xl mx-auto py-8 px-4">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">

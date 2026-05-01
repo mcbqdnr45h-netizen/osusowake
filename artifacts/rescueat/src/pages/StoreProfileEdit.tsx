@@ -404,7 +404,7 @@ export default function StoreProfileEdit() {
         className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-b border-border/50 shadow-sm"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="flex items-center gap-3 px-4 h-14 max-w-xl mx-auto">
+        <div className="flex items-center gap-3 px-4 h-14 max-w-xl md:max-w-3xl mx-auto">
           {/* 戻るボタン */}
           <button
             type="button"
@@ -442,7 +442,7 @@ export default function StoreProfileEdit() {
           - カバー写真をコンテンツの先頭・全幅で表示
       ══════════════════════════════════════════════════ */}
       <div
-        className="max-w-xl mx-auto w-full pb-10"
+        className="max-w-xl md:max-w-3xl mx-auto w-full pb-10"
         style={{ paddingTop: 'calc(56px + env(safe-area-inset-top))' }}
       >
 

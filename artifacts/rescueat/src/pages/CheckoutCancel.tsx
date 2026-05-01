@@ -23,7 +23,7 @@ export default function CheckoutCancel() {
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-        className="flex flex-col items-center w-full max-w-sm"
+        className="flex flex-col items-center w-full max-w-sm md:max-w-2xl"
       >
         <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
           <XCircle className="w-14 h-14 text-muted-foreground" />

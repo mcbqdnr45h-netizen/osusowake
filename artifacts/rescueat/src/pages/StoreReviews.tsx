@@ -232,7 +232,7 @@ export default function StoreReviews() {
               animate={{ y: 0 }}
               exit={{ y: 100 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="w-full bg-background rounded-t-3xl px-6 pt-6 max-w-xl mx-auto"
+              className="w-full bg-background rounded-t-3xl px-6 pt-6 max-w-xl md:max-w-3xl mx-auto"
               // ★ paddingBottom: ホームインジケータ (safe-area) を避けて送信ボタンを出す
               style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}
               onClick={e => e.stopPropagation()}

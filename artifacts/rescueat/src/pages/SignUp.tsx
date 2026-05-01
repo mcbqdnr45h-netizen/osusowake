@@ -84,7 +84,7 @@ export default function SignUp() {
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-          className="flex flex-col items-center text-center max-w-sm"
+          className="flex flex-col items-center text-center max-w-sm md:max-w-2xl"
         >
           <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-5">
             <span className="text-5xl">

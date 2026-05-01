@@ -23,7 +23,7 @@ const ROWS: { label: string; value: React.ReactNode }[] = [
 export default function TokushoPage() {
   return (
     <Layout showBottomNav={false}>
-      <div className="max-w-md mx-auto">
+      <div className="max-w-md md:max-w-2xl mx-auto">
 
         {/* ヘッダー */}
         <div className="sticky z-10 bg-background/90 backdrop-blur-sm border-b border-border/50 px-4 h-14 flex items-center gap-3"

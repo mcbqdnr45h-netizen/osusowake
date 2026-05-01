@@ -329,7 +329,7 @@ export default function AdminStorePage() {
             <motion.div
               initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="w-full max-w-lg bg-background rounded-t-2xl p-6 shadow-2xl"
+              className="w-full max-w-lg md:max-w-3xl bg-background rounded-t-2xl p-6 shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
               <h3 className="font-black text-foreground mb-3">却下理由を入力</h3>
@@ -369,7 +369,7 @@ export default function AdminStorePage() {
             <motion.div
               initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="w-full max-w-lg bg-background rounded-t-2xl p-6 shadow-2xl"
+              className="w-full max-w-lg md:max-w-3xl bg-background rounded-t-2xl p-6 shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
               <h3 className="font-black text-foreground mb-1">Stripe ID を手動リンク</h3>
@@ -415,7 +415,7 @@ export default function AdminStorePage() {
       </div>
 
       {/* コンテンツ */}
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 space-y-4">
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />

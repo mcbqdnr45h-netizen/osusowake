@@ -828,7 +828,7 @@ export default function StripeBankSetup() {
   if (!store) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
+        <div className="text-center max-w-sm md:max-w-2xl">
           <AlertCircle className="w-12 h-12 text-orange-400 mx-auto mb-3" />
           <p className="font-black text-gray-900 mb-1">
             {fetchError ? '読み込みに失敗しました' : '店舗が見つかりません'}
@@ -871,7 +871,7 @@ export default function StripeBankSetup() {
   ) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
+        <div className="text-center max-w-sm md:max-w-2xl">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-10 h-10 text-green-500" />
           </div>
@@ -981,7 +981,7 @@ export default function StripeBankSetup() {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          className="text-center max-w-sm w-full"
+          className="text-center max-w-sm md:max-w-2xl w-full"
         >
           <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <CheckCircle2 className="w-12 h-12 text-green-500" />
@@ -1027,7 +1027,7 @@ export default function StripeBankSetup() {
   // ────────── メインフォーム ──────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-      <div className="max-w-lg mx-auto px-4 pt-safe-or-4 pb-12">
+      <div className="max-w-lg md:max-w-3xl mx-auto px-4 pt-safe-or-4 pb-12">
 
         {/* ヘッダー */}
         <div className="flex items-center gap-3 py-5">

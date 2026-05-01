@@ -317,7 +317,7 @@ export default function BagDetail() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="w-full max-w-sm"
+              className="w-full max-w-sm md:max-w-2xl"
             >
               {/* Icon */}
               <div className="relative w-28 h-28 mx-auto mb-6">

@@ -89,7 +89,7 @@ export default function StoreDetailPublic() {
 
   return (
     <Layout>
-      <div className="max-w-lg mx-auto pb-28">
+      <div className="max-w-lg md:max-w-3xl mx-auto pb-28">
 
         {/* ── ヒーロー写真 + 戻るボタン ── */}
         <div className="relative">

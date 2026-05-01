@@ -443,7 +443,7 @@ export default function StoreOwnerDashboard() {
   if (store === null) {
     return (
       <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 pb-16">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center space-y-5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm md:max-w-2xl text-center space-y-5">
           <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto">
             <Store className="w-10 h-10 text-primary" />
           </div>
@@ -467,7 +467,7 @@ export default function StoreOwnerDashboard() {
   if (store?.status === 'pending' || store?.status === 'pending_review' || store?.status === 'applied') {
     return (
       <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 pb-16">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center space-y-5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm md:max-w-2xl text-center space-y-5">
           <div className="w-20 h-20 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto">
             <Clock className="w-10 h-10 text-amber-500" />
           </div>
@@ -486,7 +486,7 @@ export default function StoreOwnerDashboard() {
   if (store?.status === 'rejected') {
     return (
       <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 pb-16">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm space-y-5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm md:max-w-2xl space-y-5">
           <div className="text-center">
             <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
               <XCircle className="w-10 h-10 text-red-500" />

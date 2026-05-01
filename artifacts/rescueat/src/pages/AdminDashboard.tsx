@@ -2186,7 +2186,7 @@ export default function AdminDashboard() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl"
+              className="w-full max-w-md md:max-w-2xl bg-white rounded-2xl p-6 shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-4">
@@ -2250,7 +2250,7 @@ export default function AdminDashboard() {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 60, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+                className="w-full max-w-md md:max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden"
                 onClick={e => e.stopPropagation()}
               >
                 {/* ヘッダー */}
@@ -2337,7 +2337,7 @@ export default function AdminDashboard() {
           >
             <motion.div
               initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm"
+              className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm md:max-w-2xl"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 mb-4">

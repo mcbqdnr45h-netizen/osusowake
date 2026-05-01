@@ -1614,7 +1614,7 @@ export default function StoreDashboard() {
     return (
       <StoreLayout>
         <div className="flex-1 flex items-center justify-center px-6">
-          <div className="text-center max-w-sm">
+          <div className="text-center max-w-sm md:max-w-2xl">
             <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-orange-400" />
             </div>
@@ -1637,7 +1637,7 @@ export default function StoreDashboard() {
     return (
       <Layout>
         <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
-          <div className="text-center max-w-sm">
+          <div className="text-center max-w-sm md:max-w-2xl">
             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <XCircle className="w-10 h-10 text-red-400" />
             </div>
@@ -1665,7 +1665,7 @@ export default function StoreDashboard() {
     return (
       <Layout>
         <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
-          <div className="text-center max-w-sm">
+          <div className="text-center max-w-sm md:max-w-2xl">
             <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <Clock className="w-10 h-10 text-blue-400" />
             </div>
@@ -1691,7 +1691,7 @@ export default function StoreDashboard() {
     return (
       <Layout>
         <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
-          <div className="text-center max-w-sm">
+          <div className="text-center max-w-sm md:max-w-2xl">
             <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <CreditCard className="w-10 h-10 text-orange-400" />
             </div>
@@ -1735,7 +1735,7 @@ export default function StoreDashboard() {
     return (
       <Layout>
         <div className="flex-1 flex items-center justify-center px-6 min-h-dvh">
-          <div className="text-center max-w-sm">
+          <div className="text-center max-w-sm md:max-w-2xl">
             <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <Eye className="w-10 h-10 text-amber-500" />
             </div>

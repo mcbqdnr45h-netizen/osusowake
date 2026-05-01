@@ -374,7 +374,7 @@ export default function StoreOnboarding() {
 
   return (
     <Layout showBottomNav={false} hideHeader={true}>
-      <div className="max-w-xl mx-auto px-4 py-6">
+      <div className="max-w-xl md:max-w-3xl mx-auto px-4 py-6">
 
         {/* ヘッダー */}
         <div className="flex items-center gap-3 mb-6">

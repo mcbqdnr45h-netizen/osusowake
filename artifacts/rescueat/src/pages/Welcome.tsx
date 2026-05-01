@@ -67,7 +67,7 @@ export default function Welcome() {
         {/* 右上のアンバー光 */}
         <motion.div
           aria-hidden
-          className="absolute top-[-15%] right-[-25%] w-[80vw] h-[80vw] max-w-md max-h-md rounded-full"
+          className="absolute top-[-15%] right-[-25%] w-[80vw] h-[80vw] max-w-md md:max-w-2xl max-h-md rounded-full"
           style={{ background: 'radial-gradient(circle at 50% 50%, rgba(255,210,150,0.42) 0%, rgba(255,210,150,0) 70%)' }}
           animate={{ scale: [1, 1.05, 1], opacity: [0.85, 1, 0.85] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
@@ -75,7 +75,7 @@ export default function Welcome() {
         {/* 左下のディープ光 */}
         <motion.div
           aria-hidden
-          className="absolute bottom-[-20%] left-[-30%] w-[70vw] h-[70vw] max-w-sm max-h-sm rounded-full"
+          className="absolute bottom-[-20%] left-[-30%] w-[70vw] h-[70vw] max-w-sm md:max-w-2xl max-h-sm rounded-full"
           style={{ background: 'radial-gradient(circle at 50% 50%, rgba(80,20,5,0.30) 0%, rgba(80,20,5,0) 70%)' }}
           animate={{ scale: [1, 1.08, 1], opacity: [0.7, 1, 0.7] }}
           transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 2 }}

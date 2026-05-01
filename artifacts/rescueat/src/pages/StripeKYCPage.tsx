@@ -588,7 +588,7 @@ export default function StripeKYCPage() {
   if (!store.stripeAccountId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
+        <div className="text-center max-w-sm md:max-w-2xl">
           <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
           <p className="font-black text-gray-900 mb-2">先に振込先口座を登録してください</p>
           <p className="text-sm text-gray-500 mb-4">KYC情報はStripe連結アカウントが必要です。</p>
@@ -611,7 +611,7 @@ export default function StripeKYCPage() {
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-        <div className="max-w-lg mx-auto px-4 pt-safe-or-4 pb-12">
+        <div className="max-w-lg md:max-w-3xl mx-auto px-4 pt-safe-or-4 pb-12">
           <div className="flex items-center gap-3 py-5">
             <button onClick={() => navigate('/mypage')}
               className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
@@ -763,7 +763,7 @@ export default function StripeKYCPage() {
   // ── メインフォーム ──────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-      <div className="max-w-lg mx-auto px-4 pt-safe-or-4 pb-12">
+      <div className="max-w-lg md:max-w-3xl mx-auto px-4 pt-safe-or-4 pb-12">
 
         {/* ヘッダー */}
         <div className="flex items-center gap-3 py-5">

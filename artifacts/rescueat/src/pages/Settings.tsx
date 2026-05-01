@@ -527,7 +527,7 @@ export default function Settings() {
           />
         )}
       </AnimatePresence>
-      <div className="max-w-md mx-auto pb-16">
+      <div className="max-w-md md:max-w-2xl mx-auto pb-16">
 
         {/* Header */}
         <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"

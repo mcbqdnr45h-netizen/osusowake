@@ -144,7 +144,7 @@ export default function VerifyEmail() {
         </Link>
       </div>
 
-      <div className="flex-1 flex flex-col px-6 pt-2 pb-10 max-w-md mx-auto w-full">
+      <div className="flex-1 flex flex-col px-6 pt-2 pb-10 max-w-md md:max-w-2xl mx-auto w-full">
 
         {/* Icon + Title */}
         <motion.div

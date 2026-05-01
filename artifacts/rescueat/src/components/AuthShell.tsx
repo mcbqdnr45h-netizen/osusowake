@@ -74,7 +74,7 @@ export function AuthShell({
 
       {/* ── メインコンテンツ ── */}
       {/* iPad/Tablet: 横幅をしっかり取りカード化（max-w-lg = 512px、内容に応じてシュリンク） */}
-      <div className="relative z-10 flex-1 flex flex-col px-6 pt-4 pb-12 max-w-md mx-auto w-full md:flex-none md:my-auto md:max-w-lg md:px-10 md:py-12 md:bg-white/75 md:backdrop-blur-xl md:rounded-3xl md:border md:border-border/30 md:shadow-2xl">
+      <div className="relative z-10 flex-1 flex flex-col px-6 pt-4 pb-12 max-w-md mx-auto w-full md:flex-none md:my-auto md:max-w-2xl lg:max-w-3xl md:px-12 md:py-14 md:bg-white/75 md:backdrop-blur-xl md:rounded-3xl md:border md:border-border/30 md:shadow-2xl">
 
         {/* ── ロール切替タブ（アニメーション付きスライドピル） ── */}
         <motion.div

@@ -141,7 +141,7 @@ export default function CheckoutSuccess() {
 
   return (
     <div className="min-h-dvh bg-background px-4 py-8 overflow-hidden">
-      <div className="max-w-md mx-auto">
+      <div className="max-w-md md:max-w-2xl mx-auto">
 
         {/* ── おもてなしヘッダー ── */}
         <motion.div

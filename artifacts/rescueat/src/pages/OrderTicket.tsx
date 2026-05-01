@@ -376,7 +376,7 @@ export default function OrderTicket() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-md mx-auto pb-10 overflow-x-hidden w-full">
+      <div className="max-w-md md:max-w-2xl mx-auto pb-10 overflow-x-hidden w-full">
 
         {/* ヘッダー */}
         <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky top-0 md:top-16 bg-background/90 backdrop-blur-sm z-10 border-b border-border/40">

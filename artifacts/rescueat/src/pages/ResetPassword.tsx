@@ -132,7 +132,7 @@ export default function ResetPassword() {
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-sm"
+        className="w-full max-w-sm md:max-w-2xl"
       >
         {/* ロゴ */}
         <div className="text-center mb-8 flex flex-col items-center gap-2">

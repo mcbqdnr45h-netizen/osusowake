@@ -169,7 +169,7 @@ export default function MyReservations() {
             }}
           >
             <motion.div
-              className="bg-card rounded-3xl shadow-2xl w-full max-w-sm p-6 pb-8 max-h-[80vh] overflow-y-auto"
+              className="bg-card rounded-3xl shadow-2xl w-full max-w-sm md:max-w-2xl p-6 pb-8 max-h-[80vh] overflow-y-auto"
               initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               onClick={e => e.stopPropagation()}

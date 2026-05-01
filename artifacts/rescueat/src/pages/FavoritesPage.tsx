@@ -66,7 +66,7 @@ export default function FavoritesPage() {
             <h2 className="text-xl font-black mb-2 text-foreground">
               まだお気に入り店舗がありません
             </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mb-8">
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-xs md:max-w-xl mb-8">
               お店のカードにある <Heart className="inline w-3.5 h-3.5 text-rose-400" /> をタップして、<br />
               お気に入りの店舗をフォローしましょう！
             </p>

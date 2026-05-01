@@ -171,7 +171,7 @@ export default function StoreReapply() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-5 max-w-sm"
+          className="text-center space-y-5 max-w-sm md:max-w-2xl"
         >
           <div className="w-20 h-20 bg-green-100 rounded-3xl flex items-center justify-center mx-auto">
             <CheckCircle className="w-10 h-10 text-green-600" />

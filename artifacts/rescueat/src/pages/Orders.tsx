@@ -196,7 +196,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl max-h-[95dvh] flex flex-col"
+          className="w-full max-w-lg md:max-w-3xl mx-auto bg-white rounded-t-3xl shadow-2xl max-h-[95dvh] flex flex-col"
           onClick={e => e.stopPropagation()}
         >
           {/* ── ドラッグハンドル + 閉じる（固定ヘッダー）─── */}
@@ -451,7 +451,7 @@ export default function Orders() {
 
   return (
     <PageWrapper {...wrapperProps as any}>
-      <div className="w-full max-w-md mx-auto pb-16 overflow-x-hidden">
+      <div className="w-full max-w-md md:max-w-2xl mx-auto pb-16 overflow-x-hidden">
         {/* Header */}
         <div
           className="flex items-center gap-3 px-4 pb-4 sticky top-0 bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
