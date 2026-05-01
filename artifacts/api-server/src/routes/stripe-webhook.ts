@@ -4,6 +4,7 @@ import { storesTable, notificationsTable, surpriseBagsTable, reservationsTable, 
 import { eq, sql, and, ne } from "drizzle-orm";
 import { Resend } from "resend";
 import { sendStoreApprovalEmail } from "../utils/emails";
+import { sendPushToUser } from "../lib/push.js";
 
 const router = Router();
 
@@ -534,24 +535,43 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
       // ユーザが /checkout/verify を踏まずにブラウザを閉じた場合の救済。
       await executeShopTransferIfNeeded({ intent, reservationId, context: "paid" });
 
-      // 店舗オーナーへの購入通知 — 実際に遷移したこのパスからのみ送信
+      // 購入通知（店舗オーナー + ユーザー）— 安全網発動時のみ送信
       try {
-        const [store] = await db
-          .select({ ownerId: storesTable.ownerId, name: storesTable.name })
-          .from(storesTable)
-          .where(eq(storesTable.id, row.storeId))
-          .limit(1);
+        const [[store], [bag], [reservation]] = await Promise.all([
+          db.select({ ownerId: storesTable.ownerId, name: storesTable.name })
+            .from(storesTable).where(eq(storesTable.id, row.storeId)).limit(1),
+          db.select({ title: surpriseBagsTable.title, pickupStart: surpriseBagsTable.pickupStart, pickupEnd: surpriseBagsTable.pickupEnd })
+            .from(surpriseBagsTable)
+            .leftJoin(reservationsTable, eq(reservationsTable.id, row.id))
+            .where(eq(surpriseBagsTable.id, reservationsTable.bagId)).limit(1),
+          db.select({ userId: reservationsTable.userId })
+            .from(reservationsTable).where(eq(reservationsTable.id, row.id)).limit(1),
+        ]);
+
+        // 店舗オーナー通知
         if (store?.ownerId) {
-          await db.insert(notificationsTable).values({
-            userId: store.ownerId,
-            type: "bag_sold",
-            title: "【重要】おすそわけバッグが購入されました！",
-            body: `受取コード: ${row.pickupCode ?? "---"} ｜ 受取準備をご確認ください`,
-            storeId: row.storeId,
-          });
+          const ownerTitle = "【重要】おすそわけバッグが購入されました！";
+          const ownerBody  = `受取コード: ${row.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
+          await Promise.all([
+            db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: row.storeId }),
+            sendPushToUser(store.ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${row.id}`, url: "/store/orders" }),
+          ]);
+        }
+
+        // ユーザー（購入者）通知
+        if (reservation?.userId) {
+          const pickupHint = bag?.pickupStart && bag?.pickupEnd
+            ? ` 受取時間: ${bag.pickupStart}〜${bag.pickupEnd}`
+            : "";
+          const userTitle = "🛍️ おすそわけのご予約が確定しました！";
+          const userBody  = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${row.pickupCode ?? "---"}${pickupHint}`;
+          await Promise.all([
+            db.insert(notificationsTable).values({ userId: reservation.userId, type: "purchase_confirmed", title: userTitle, body: userBody }),
+            sendPushToUser(reservation.userId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${row.id}`, url: "/my-reservations" }),
+          ]);
         }
       } catch (notifErr) {
-        console.error('[stripe-webhook] 安全網からの店舗通知挿入失敗:', notifErr);
+        console.error('[stripe-webhook] 安全網からの通知挿入失敗:', notifErr);
       }
 
       res.json({ received: true, type: event.type, handled: true, reservationId, action: "marked_paid" });

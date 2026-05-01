@@ -713,21 +713,37 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
     }
     setImmediate(async () => {
       try {
-        const [store] = await db
-          .select({ ownerId: storesTable.ownerId, name: storesTable.name })
-          .from(storesTable)
-          .where(eq(storesTable.id, updated.storeId))
-          .limit(1);
+        const [[store], [bag]] = await Promise.all([
+          db.select({ ownerId: storesTable.ownerId, name: storesTable.name })
+            .from(storesTable).where(eq(storesTable.id, updated.storeId)).limit(1),
+          db.select({ title: surpriseBagsTable.title, pickupStart: surpriseBagsTable.pickupStart, pickupEnd: surpriseBagsTable.pickupEnd })
+            .from(surpriseBagsTable).where(eq(surpriseBagsTable.id, updated.bagId)).limit(1),
+        ]);
+
+        // 店舗オーナー通知
         if (store?.ownerId) {
-          const title = "【重要】おすそわけバッグが購入されました！";
-          const body  = `受取コード: ${updated.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
+          const ownerTitle = "【重要】おすそわけバッグが購入されました！";
+          const ownerBody  = `受取コード: ${updated.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
           await Promise.all([
-            db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title, body, storeId: updated.storeId }),
-            sendPushToUser(store.ownerId, { title, body, tag: `bag-sold-${updated.id}`, url: "/store/orders" }),
+            db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: updated.storeId }),
+            sendPushToUser(store.ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${updated.id}`, url: "/store/orders" }),
+          ]);
+        }
+
+        // ユーザー（購入者）への購入完了通知
+        if (updated.userId) {
+          const pickupHint = bag?.pickupStart && bag?.pickupEnd
+            ? ` 受取時間: ${bag.pickupStart}〜${bag.pickupEnd}`
+            : "";
+          const userTitle = "🛍️ おすそわけのご予約が確定しました！";
+          const userBody  = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${updated.pickupCode ?? "---"}${pickupHint}`;
+          await Promise.all([
+            db.insert(notificationsTable).values({ userId: updated.userId, type: "purchase_confirmed", title: userTitle, body: userBody }),
+            sendPushToUser(updated.userId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${updated.id}`, url: "/my-reservations" }),
           ]);
         }
       } catch (e) {
-        console.error("[payment] confirm-payment store notification error:", e);
+        console.error("[payment] confirm-payment notification error:", e);
       }
     });
   } catch (err) {
@@ -1208,22 +1224,38 @@ router.get("/checkout/verify", async (req, res) => {
         }
       }
 
-      // 店舗オーナーへの購入通知 — 今回の verify 呼び出しが実際に paid 遷移した場合のみ送信。
+      // 購入通知 — 今回の verify 呼び出しが実際に paid 遷移した場合のみ送信。
       // webhook が先に paid 遷移していれば、そちらで既に通知が挿入されているため、ここでは送らない（二重通知防止）。
       if (finalizeResult.kind === "paid") {
         setImmediate(async () => {
           try {
-            const ownerId = reservationFull.storeOwnerId;
+            const ownerId    = reservationFull.storeOwnerId;
+            const buyerUserId = targetUserId || reservationFull.userId;
+
+            // 店舗オーナー通知
             if (ownerId) {
-              const title = "【重要】おすそわけバッグが購入されました！";
-              const body  = `受取コード: ${reservationFull.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
+              const ownerTitle = "【重要】おすそわけバッグが購入されました！";
+              const ownerBody  = `受取コード: ${reservationFull.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
               await Promise.all([
-                db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title, body, storeId: reservationFull.storeId ?? undefined }),
-                sendPushToUser(ownerId, { title, body, tag: `bag-sold-${reservationId}`, url: "/store/orders" }),
+                db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: reservationFull.storeId ?? undefined }),
+                sendPushToUser(ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${reservationId}`, url: "/store/orders" }),
+              ]);
+            }
+
+            // ユーザー（購入者）への購入完了通知
+            if (buyerUserId) {
+              const pickupHint = reservationFull.pickupStart && reservationFull.pickupEnd
+                ? ` 受取時間: ${reservationFull.pickupStart}〜${reservationFull.pickupEnd}`
+                : "";
+              const userTitle = "🛍️ おすそわけのご予約が確定しました！";
+              const userBody  = `「${reservationFull.bagTitle ?? "おすそわけ袋"}」（${reservationFull.storeName ?? "店舗"}）受取コード: ${reservationFull.pickupCode ?? "---"}${pickupHint}`;
+              await Promise.all([
+                db.insert(notificationsTable).values({ userId: buyerUserId, type: "purchase_confirmed", title: userTitle, body: userBody }),
+                sendPushToUser(buyerUserId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${reservationId}`, url: "/my-reservations" }),
               ]);
             }
           } catch (e) {
-            console.error("[payment] verify-session store notification error:", e);
+            console.error("[payment] verify-session notification error:", e);
           }
         });
       }
