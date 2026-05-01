@@ -78,6 +78,15 @@ pnpm run build:cap
 echo "dist-cap contents:"
 ls -lh dist-cap/ | head -20
 
+# ─── アプリアイコン＆スプラッシュ生成 ───────────────────────────────────────
+# resources/icon.png → iOS AppIcon.appiconset の全サイズを生成する
+# ★ cap sync の前に必ず実行すること（生成ファイルが sync で上書きされないよう）
+echo "=== [ci_post_clone] @capacitor/assets generate (アイコン生成) ==="
+pnpm run cap:gen-assets
+
+echo "AppIcon.appiconset contents:"
+ls -lh ios/App/App/Assets.xcassets/AppIcon.appiconset/ 2>/dev/null | head -10 || echo "(not found)"
+
 # ─── Capacitor 同期 (SPM パッケージのリンクを更新) ───────────────────────────
 echo "=== [ci_post_clone] cap sync ios ==="
 npx cap sync ios --no-build
