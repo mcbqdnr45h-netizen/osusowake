@@ -262,28 +262,28 @@ title = "5枚目 QR受取 ｜ QRで、受け取り完了"
 id = "tLM3f04_HO_2LpwNJTfkb"
 uri = "file://attached_assets/appstore_resized/01_home.png"
 type = "image"
-title = "1枚目 ホーム (1284×2778)"
+title = "1枚目 ホーム (RGB 1284×2778)"
 
 [[outputs]]
 id = "rqSBqiA-xzvaLvW4hmQHq"
 uri = "file://attached_assets/appstore_resized/02_map.png"
 type = "image"
-title = "2枚目 マップ (1284×2778)"
+title = "2枚目 マップ (RGB 1284×2778)"
 
 [[outputs]]
 id = "roRlVtcaFZqNSrTgRtGZG"
 uri = "file://attached_assets/appstore_resized/03_detail.png"
 type = "image"
-title = "3枚目 商品詳細 (1284×2778)"
+title = "3枚目 商品詳細 (RGB 1284×2778)"
 
 [[outputs]]
 id = "5RcN7KZBt0szgUqCrDznL"
 uri = "file://attached_assets/appstore_resized/04_mypage.png"
 type = "image"
-title = "4枚目 マイページ (1284×2778)"
+title = "4枚目 マイページ (RGB 1284×2778)"
 
 [[outputs]]
 id = "lW8fsFOu2u5hR6eVlEcbU"
 uri = "file://attached_assets/appstore_resized/05_qr.png"
 type = "image"
-title = "5枚目 受け取り画面｜6桁コードで、受け取り完了 (1284×2778)"
+title = "5枚目 受け取り (RGB 1284×2778)"
