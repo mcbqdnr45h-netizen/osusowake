@@ -632,6 +632,14 @@ export default function AdminStorePage() {
                     <img src={store.license_image_url} alt="営業許可証"
                       className="w-full max-h-40 object-contain rounded-lg border border-border bg-background cursor-zoom-in hover:opacity-90 transition-opacity" />
                   </button>
+                ) : store.stripe_payouts_enabled ? (
+                  <p className="text-[11px] text-emerald-600 font-semibold">
+                    ✅ Stripe で本人確認・許可証ともに承認済み（DB画像は未保管）
+                  </p>
+                ) : store.stripe_license_file_id ? (
+                  <p className="text-[11px] text-blue-600 font-semibold">
+                    ✅ Stripe にアップロード済み（DB画像は未保管）
+                  </p>
                 ) : (
                   <p className="text-[11px] text-destructive font-semibold">❌ 未提出（要確認）</p>
                 )}

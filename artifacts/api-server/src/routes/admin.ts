@@ -563,14 +563,26 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
           (store as any).stripe_license_file_id = resolvedFileId;
 
           // DB に最新値を書き込む（charges/payouts）
-          await db.update(storesTable).set({
+          // payouts_enabled = true なら Stripe KYC 完了とみなし、
+          // 古い license_upload_failed フラグを自動クリアして
+          // 「許可証問題あり」一覧から消えるようにする
+          const dbPatch: any = {
             stripeChargesEnabled: account.charges_enabled,
             stripePayoutsEnabled: account.payouts_enabled,
-          }).where(eq(storesTable.id, storeId));
+          };
+          if (account.payouts_enabled) {
+            dbPatch.licenseUploadFailed = false;
+            dbPatch.licenseUploadError = null;
+          }
+          await db.update(storesTable).set(dbPatch).where(eq(storesTable.id, storeId));
 
           // レスポンスのフィールドも最新値で上書き
           (store as any).stripe_charges_enabled = account.charges_enabled;
           (store as any).stripe_payouts_enabled = account.payouts_enabled;
+          if (account.payouts_enabled) {
+            (store as any).license_upload_failed = false;
+            (store as any).license_upload_error = null;
+          }
 
           console.log(`[admin/stores/detail] Stripe live fetch: storeId=${storeId} acct=${store.stripe_account_id} charges=${account.charges_enabled} payouts=${account.payouts_enabled} due=${stripeRequirements.currently_due.length}`);
         } catch (stripeErr: any) {

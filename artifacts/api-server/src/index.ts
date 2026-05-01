@@ -486,6 +486,26 @@ async function runMigrations() {
     `);
     console.log('[migration] stores.stripe_needs_bank_reregister ✅');
 
+    // ── heal: Stripe payouts 有効な店舗の license_upload_failed を一掃 ────────
+    // payouts_enabled = true は Stripe KYC が完全完了している証拠。
+    // 古い admin_requested_reupload フラグ等が残っていると「許可証問題あり」一覧に
+    // 残り続けるので、整合性を保つために一斉クリアする（idempotent）。
+    {
+      const r = await client.query(`
+        UPDATE stores
+           SET license_upload_failed = false,
+               license_upload_error  = NULL
+         WHERE stripe_payouts_enabled = true
+           AND (license_upload_failed = true OR license_upload_error IS NOT NULL)
+        RETURNING id
+      `);
+      if (r.rowCount && r.rowCount > 0) {
+        console.log(`[migration] heal: cleared stale license_upload_failed for ${r.rowCount} payouts-enabled stores ✅`);
+      } else {
+        console.log('[migration] heal: no stale license_upload_failed flags to clear ✅');
+      }
+    }
+
     // ── Stripe webhook idempotency 用テーブル（重複処理防止）─────────────────
     // 設計: 「先行 claim 型」── 受信時に INSERT を試行（status='processing'）。
     // PK 重複（23505）→ 既存 row が processing/succeeded/failed のいずれかを判定し、
