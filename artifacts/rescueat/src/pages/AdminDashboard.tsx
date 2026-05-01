@@ -538,9 +538,9 @@ export default function AdminDashboard() {
     if (!token) { toast({ title: 'ログインが必要です', variant: 'destructive' }); return; }
     setSyncingStripe(storeId);
     try {
-      const res = await authedFetch(`${BASE}/api/stores/${storeId}/stripe-sync`, {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/stripe-sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {},
       });
       const data = await res.json();
       if (res.ok) {
@@ -587,9 +587,8 @@ export default function AdminDashboard() {
   async function disconnectStripe(storeId: number, storeName: string) {
     if (!confirm(`「${storeName}」のStripe口座連携を解除しますか？\n\n⚠️ 注意：保留中・振込可能の残高がある場合、その金額は旧銀行口座に振り込まれます。旧口座が閉鎖済みの場合は振込失敗のリスクがあります。\n\n残高¥0を確認してから実行することを推奨します。`)) return;
     if (!token) { toast({ title: 'ログインが必要です', variant: 'destructive' }); return; }
-    const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
     try {
-      const res = await authedFetch(`${BASE}/api/stores/${storeId}/stripe-disconnect`, {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/stripe-disconnect`, {
         method: 'POST',
         headers: {},
       });

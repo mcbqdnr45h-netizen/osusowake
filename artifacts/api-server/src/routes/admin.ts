@@ -630,6 +630,113 @@ router.post("/admin/stores/:storeId/refresh-stripe-status", requireAdmin, async 
   }
 });
 
+// ── POST /admin/stores/:storeId/stripe-sync ────────────────────────────────
+// 管理者専用の完全 Stripe 再同期（requireStoreOwner を使わない）
+// DB 更新 + licenseUploadFailed 自動クリア + AdminDashboard 互換レスポンス
+router.post("/admin/stores/:storeId/stripe-sync", requireAdmin, async (req, res) => {
+  const storeId = Number(req.params.storeId);
+  if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  try {
+    const [store] = await db
+      .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+    if (!store) { res.status(404).json({ error: "not_found" }); return; }
+    if (!store.stripeAccountId) {
+      res.status(400).json({ error: "no_stripe_account", message: "Stripeアカウントが未登録です" });
+      return;
+    }
+
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) { res.status(503).json({ error: "stripe_not_configured" }); return; }
+
+    let chargesEnabled = false;
+    let payoutsEnabled = false;
+    let detailsSubmitted = false;
+    let licenseFileId: string | null = null;
+    let stripeError: string | null = null;
+    let requirements: Record<string, any> | null = null;
+
+    try {
+      const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+      const account = await stripe.accounts.retrieve(store.stripeAccountId);
+      chargesEnabled  = account.charges_enabled  ?? false;
+      payoutsEnabled  = account.payouts_enabled   ?? false;
+      detailsSubmitted = account.details_submitted ?? false;
+      requirements = {
+        currently_due:        account.requirements?.currently_due        ?? [],
+        eventually_due:       account.requirements?.eventually_due       ?? [],
+        errors:               account.requirements?.errors               ?? [],
+        disabled_reason:      account.requirements?.disabled_reason      ?? null,
+        pending_verification: account.requirements?.pending_verification ?? [],
+      };
+      // Stripe メタデータから license_file_id を取得
+      const metaFileId = (account.metadata as any)?.license_file_id;
+      if (metaFileId?.startsWith?.("file_")) licenseFileId = metaFileId;
+      console.log(`[admin/stripe-sync] storeId=${storeId} charges=${chargesEnabled} payouts=${payoutsEnabled} licenseFileId=${licenseFileId}`);
+    } catch (stripeErr: any) {
+      stripeError = stripeErr?.code ?? stripeErr?.type ?? "stripe_error";
+      console.warn(`[admin/stripe-sync] Stripe error storeId=${storeId}:`, stripeErr?.message);
+    }
+
+    // DB 更新
+    const dbPatch: Record<string, any> = {
+      stripeChargesEnabled: stripeError ? false : chargesEnabled,
+      stripePayoutsEnabled: stripeError ? false : payoutsEnabled,
+    };
+    if (!stripeError && licenseFileId) dbPatch.stripeLicenseFileId = licenseFileId;
+    // payouts_enabled = true なら KYC 完了済み → 許可証フラグを自動クリア
+    if (!stripeError && payoutsEnabled) {
+      dbPatch.licenseUploadFailed = false;
+      dbPatch.licenseUploadError  = null;
+    }
+    await db.update(storesTable).set(dbPatch as any).where(eq(storesTable.id, storeId));
+
+    res.json({
+      synced: true,
+      stripeAccountId:  store.stripeAccountId,
+      chargesEnabled:   stripeError ? false : chargesEnabled,
+      payoutsEnabled:   stripeError ? false : payoutsEnabled,
+      detailsSubmitted: stripeError ? false : detailsSubmitted,
+      licenseFileId:    stripeError ? null  : licenseFileId,
+      requirements:     stripeError ? null  : requirements,
+      stripeError,
+    });
+  } catch (err: any) {
+    console.error("[admin/stripe-sync]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── POST /admin/stores/:storeId/stripe-disconnect ─────────────────────────────
+// 管理者専用の Stripe 口座リセット（requireStoreOwner を使わない）
+router.post("/admin/stores/:storeId/stripe-disconnect", requireAdmin, async (req, res) => {
+  const storeId = Number(req.params.storeId);
+  if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  try {
+    const [store] = await db
+      .select({ id: storesTable.id, name: storesTable.name })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId));
+    if (!store) { res.status(404).json({ error: "not_found" }); return; }
+
+    await db.update(storesTable)
+      .set({
+        stripeAccountId: null,
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeLicenseFileId: null,
+      } as any)
+      .where(eq(storesTable.id, storeId));
+
+    await writeAuditLog(req, "admin_stripe_disconnect", storeId, { storeName: store.name });
+    res.json({ ok: true, message: "Stripe account disconnected." });
+  } catch (err: any) {
+    console.error("[admin/stripe-disconnect]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 // ── POST /admin/stores/batch-refresh-stripe ───────────────────────────────────
 // stripeAccountId を持つ全店舗の charges_enabled をまとめて更新して返す。
 // 1万店舗規模では同一 stripeAccountId が複数店舗で共有されるため、

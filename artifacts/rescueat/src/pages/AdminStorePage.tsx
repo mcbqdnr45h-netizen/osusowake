@@ -251,11 +251,20 @@ export default function AdminStorePage() {
     if (!store) return;
     setSyncingStripe(true);
     try {
-      const res = await authedFetch(`${BASE}/api/stores/${store.id}/stripe-sync`, {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${store.id}/stripe-sync`, {
         method: 'POST', headers: {},
       });
-      if (res.ok) { toast({ title: '🔄 Stripe 再同期完了' }); fetchDetail(); }
-      else { const d = await res.json(); toast({ title: 'エラー', description: d.error, variant: 'destructive' }); }
+      const data = await res.json();
+      if (res.ok) {
+        const fileTag = data.licenseFileId ? ' / File: ✅ 取得済み' : '';
+        toast({
+          title: '✅ Stripe 再同期完了',
+          description: `決済: ${data.chargesEnabled ? '有効' : '制限中'} / 入金: ${data.payoutsEnabled ? '有効' : '停止中'}${fileTag}`,
+        });
+        fetchDetail();
+      } else {
+        toast({ title: 'エラー', description: data.error ?? data.message, variant: 'destructive' });
+      }
     } finally { setSyncingStripe(false); }
   }
 
