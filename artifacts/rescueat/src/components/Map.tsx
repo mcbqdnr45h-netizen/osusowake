@@ -226,11 +226,17 @@ function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
   return {
     render: (cluster: Cluster, stats: ClusterStats, _map: google.maps.Map) => {
       const count  = cluster.count;
-      const maxVal = stats.clusters.markers.max;
+      void stats; // 比率による拡大は使わず、件数の絶対値でサイズを決定
 
-      // 件数に応じてサイズと色を決定（はっきり見えるように）
-      const ratio = Math.min(count / Math.max(maxVal, 1), 1);
-      const size  = Math.round(46 + ratio * 18);   // 46〜64px（旧 30〜40px）
+      // 件数の絶対値に応じてサイズを段階的に決定
+      // 単店ピン (~40px) と近いサイズに保ち、件数が大きくなる時のみ少し拡大
+      // → 全国ズームアウト時に複数地域のクラスターが並んでも大きさが破綻しない
+      const size  = count < 5   ? 38
+                  : count < 10  ? 42
+                  : count < 25  ? 46
+                  : count < 50  ? 50
+                  : count < 100 ? 54
+                  :               58;
       const half  = size / 2;
       const r     = half - 5;                       // ハロー分のマージン
 
@@ -238,8 +244,8 @@ function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
       const fillColor   = count >= 50 ? '#B83D00'
                         : count >= 10 ? '#D44A00'
                         :               '#F26419';
-      const haloColor   = 'rgba(242,100,25,0.22)';
-      const fontSize    = count >= 1000 ? 14 : count >= 100 ? 16 : count >= 10 ? 18 : 20;
+      const haloColor   = 'rgba(242,100,25,0.20)';
+      const fontSize    = count >= 1000 ? 12 : count >= 100 ? 14 : count >= 10 ? 16 : 17;
       const labelText   = count >= 1000 ? `${Math.floor(count / 1000)}k+` : String(count);
 
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
