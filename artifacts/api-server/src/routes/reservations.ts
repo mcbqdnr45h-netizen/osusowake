@@ -10,6 +10,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, sql, lt, isNotNull, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
+import { isReviewDemoOwner } from "../lib/app-review.js";
 
 const HOLD_MINUTES = 5;
 
@@ -154,12 +155,16 @@ import {
 
 const router: IRouter = Router();
 
-/** 深夜またぎ対応の期限切れ判定 */
+/** 深夜またぎ対応の期限切れ判定（App Store 審査用デモ店舗はバイパス） */
 function isBagExpired(bag: {
   pickupEnd: string | null;
   pickupStart: string | null;
   createdAt: Date;
+  storeOwnerId?: string | null;
 }): boolean {
+  // App Store 審査用デモ店舗のバッグは常に有効
+  if (isReviewDemoOwner(bag.storeOwnerId)) return false;
+
   if (!bag.pickupEnd) return false;
 
   const nowJST       = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -324,7 +329,13 @@ router.post("/reservations", requireAuth, async (req, res) => {
         throw Object.assign(new Error("not_found"), { code: "not_found" });
       }
 
-      if (isBagExpired(bag)) {
+      // 店舗オーナー ID を取得（審査用バイパス判定に使用）
+      const [bagStore] = await tx
+        .select({ ownerId: storesTable.ownerId })
+        .from(storesTable)
+        .where(eq(storesTable.id, bag.storeId));
+
+      if (isBagExpired({ ...bag, storeOwnerId: bagStore?.ownerId ?? null })) {
         throw Object.assign(new Error("expired"), { code: "expired" });
       }
 

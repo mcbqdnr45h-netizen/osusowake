@@ -33,7 +33,8 @@
 8. **徒歩時間表示** - GPSとHaversine計算式でリアルタイム徒歩分数（BagCard・BagDetail両方に表示）
 9. **画像スケルトン** - 全カード画像を4:3固定アスペクト比＋スケルトンローダー（ガタつきなし）
 10. **PWA** - インストール対応（ホーム画面追加）、ブラウザプッシュ通知基盤（sw.js）
-11. **App Store 審査用 決済バイパス** - `APP_REVIEW_BYPASS_EMAILS` (default: `review-user@osusowakejapan.org`) の allowlist にメールが一致するユーザーのみ、 `/api/payment/create-intent` が `clientSecret="REVIEW_BYPASS"` + `reviewBypass:true` を返し、 フロントは Stripe Elements を出さず専用 UI から `/api/payment/confirm` に直接遷移。 confirm は `paymentIntentId.startsWith("pi_review_bypass_")` AND email allowlist の二重チェックで Stripe verify を skip し、 在庫減算もスキップ (デモ店舗 #118 / バッグ #88 の在庫が枯渇しない)。 通常ユーザーには一切影響しない (payment.ts の `isAppReviewBypassEmail()`)。 詳細: `artifacts/rescueat/APP_STORE_SUBMISSION.md` §5
+11. **App Store 審査用 決済バイパス** - `APP_REVIEW_BYPASS_EMAILS` (default: `review-user@osusowakejapan.org`) の allowlist にメールが一致するユーザーのみ、 `/api/payment/create-intent` が `clientSecret="REVIEW_BYPASS"` + `reviewBypass:true` を返し、 フロントは Stripe Elements を出さず専用 UI から `/api/payment/confirm` に直接遷移。 confirm は `paymentIntentId.startsWith("pi_review_bypass_")` AND email allowlist の二重チェックで Stripe verify を skip し、 さらに **対象バッグのストアオーナーが `APP_REVIEW_DEMO_OWNER_IDS` (default: `3f3a4139-207c-45a9-bcdc-5dc79bfe7c3f`) の allowlist に一致する場合のみ** 在庫減算もスキップ (Supabase store #123 / bag #104 の在庫が枯渇しない)。 通常ユーザーや、審査ユーザーが実店舗バッグを買った場合には一切影響しない (payment.ts の `isAppReviewBypassEmail()` ∧ `isReviewDemoOwner()`)。 詳細: `artifacts/rescueat/APP_STORE_SUBMISSION.md` §5
+12. **審査用デモバッグ恒久表示** - `lib/app-review.ts` の `isReviewDemoOwner()` で UUID allowlist 判定。 `bags.ts` の `isBagExpired()` (JS) と `notExpiredCondition` (SQL CASE 0) でデモオーナーのバッグを expiry チェック対象外にし、 `reservations.ts` も同様に bypass。 結果、デモストア (Supabase store #123, owner `3f3a4139-...`) のバッグ #104 (¥1500→¥500, 在庫10, pickup 18:00-20:00) は日付・時刻に関係なく常に一覧表示・予約可能。
 
 ## Pages
 

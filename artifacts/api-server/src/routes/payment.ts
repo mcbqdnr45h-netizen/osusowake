@@ -5,6 +5,7 @@ import { eq, sql, and, ne } from "drizzle-orm";
 import { sendPushToUser } from "../lib/push.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { requireAuth } from "../middlewares/auth.js";
+import { isReviewDemoOwner } from "../lib/app-review.js";
 import {
   CreatePaymentIntentBody,
   ConfirmPaymentBody,
@@ -588,8 +589,15 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
       }
 
       // ━━ App Review Bypass: 在庫減算をスキップして審査用デモバッグの在庫を維持 ━━
-      // bypass フラグは関数引数として渡せないため、closure 経由で参照する。
-      if (isReviewBypass) {
+      // 二重ガード: 審査メール ∧ デモストアオーナー の両方一致のときのみバイパス。
+      // 万一 review-user が実店舗のバッグを購入しても在庫は通常通り減らす。
+      const bagStoreRows = await tx
+        .select({ ownerId: storesTable.ownerId })
+        .from(storesTable)
+        .where(eq(storesTable.id, bag.storeId))
+        .limit(1);
+      const isReviewDemoBag = isReviewDemoOwner(bagStoreRows[0]?.ownerId ?? null);
+      if (isReviewBypass && isReviewDemoBag) {
         const [updated] = await tx
           .update(reservationsTable)
           .set({

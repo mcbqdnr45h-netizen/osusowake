@@ -5,6 +5,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { releaseExpiredCartReservations } from "./reservations";
 import { sendPushToUsers } from "../lib/push.js";
 import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
+import { getReviewDemoOwnerIds, isReviewDemoOwner } from "../lib/app-review.js";
 import {
   ListStoreBagsParams,
   CreateBagParams,
@@ -28,7 +29,13 @@ export function isBagExpired(bag: {
   pickupEnd: string | null;
   pickupStart: string | null;
   createdAt: Date;
+  store?: { ownerId?: string | null } | null;
+  storeOwnerId?: string | null;
 }): boolean {
+  // App Store 審査用デモ店舗のバッグは常に有効（日付・時刻バイパス）
+  const ownerId = bag.storeOwnerId ?? bag.store?.ownerId ?? null;
+  if (isReviewDemoOwner(ownerId)) return false;
+
   if (!bag.pickupEnd) return false;
 
   const nowJST      = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -78,8 +85,18 @@ const TODAY_JST  = sql`DATE(NOW() AT TIME ZONE 'Asia/Tokyo')`;
 const NOW_TIME   = sql`TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')`;
 const CREATED_JST = sql`DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`;
 
+// App Store 審査用デモ店舗オーナーの allowlist（SQL 配列リテラルに変換）
+const REVIEW_OWNER_IDS_SQL = sql.raw(
+  `ARRAY[${getReviewDemoOwnerIds().map((id) => `'${id.replace(/'/g, "''")}'`).join(",") || "NULL"}]::text[]`,
+);
+
 const notExpiredCondition = sql`(
   (
+    -- CASE 0: App Store 審査用デモ店舗 → 常に表示（日付・時刻バイパス）
+    ${storesTable.ownerId} = ANY(${REVIEW_OWNER_IDS_SQL})
+  )
+
+  OR (
     -- CASE 1: 受取時間制限なし → 今日作成 (JST) なら表示
     ${surpriseBagsTable.pickupEnd} IS NULL
     AND ${CREATED_JST} = ${TODAY_JST}
