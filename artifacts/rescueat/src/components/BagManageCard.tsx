@@ -28,27 +28,34 @@ export function getItemTypeLabel(itemType?: string | null): { label: string; emo
 
 export type BagRealStatus = 'active' | 'expired' | 'soldout' | 'inactive';
 
+/** UTC ISO 文字列 → JST "YYYY-MM-DD" 変換（タイムゾーン依存ゼロ） */
+function toJSTDateStrBag(utcIso: string): string {
+  const raw = utcIso.endsWith('Z') || utcIso.includes('+') ? utcIso : utcIso + 'Z';
+  const jstMs = new Date(raw).getTime() + 9 * 60 * 60 * 1000;
+  return new Date(jstMs).toISOString().slice(0, 10);
+}
+
 export function getBagStatus(
   bag: { isActive: boolean; stockCount: number; pickupEnd: string | null; pickupStart?: string | null; createdAt: string },
   now: Date,
 ): BagRealStatus {
   if (!bag.isActive) return 'inactive';
-  if (bag.pickupEnd) {
-    // JST での現在時刻文字列 "HH:MM"
-    const jstNow       = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-    const currentTime  = jstNow.toISOString().slice(11, 16);
-    const todayStr     = jstNow.toISOString().slice(0, 10);
-    const yesterdayStr = new Date(jstNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    const jstCreated = new Date(new Date(bag.createdAt).getTime() + 9 * 60 * 60 * 1000);
-    const createdStr = jstCreated.toISOString().slice(0, 10);
+  // JST 基準の日付文字列
+  const jstNow       = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const todayStr     = jstNow.toISOString().slice(0, 10);
+  const yesterdayStr = new Date(jstNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const createdStr   = toJSTDateStrBag(bag.createdAt);
+
+  if (bag.pickupEnd) {
+    const currentTime = jstNow.toISOString().slice(11, 16);
 
     // 深夜またぎ判定（例: pickupStart="22:00", pickupEnd="01:00"）
     const isOvernight = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
 
     if (isOvernight) {
       if (createdStr === todayStr) {
-        // 今日出品 → 翌日の pickupEnd まで有効（まだ期限切れではない）
+        // 今日出品 → 翌日の pickupEnd まで有効
         return bag.stockCount === 0 ? 'soldout' : 'active';
       } else if (createdStr === yesterdayStr) {
         // 昨日出品 → 翌日（今日）の pickupEnd を過ぎたら期限切れ
@@ -61,7 +68,11 @@ export function getBagStatus(
       if (createdStr !== todayStr) return 'expired';
       if (currentTime > bag.pickupEnd) return 'expired';
     }
+  } else {
+    // pickupEnd 未設定バッグ：出品日（JST）が今日でなければ期限切れとみなす
+    if (createdStr !== todayStr) return 'expired';
   }
+
   if (bag.stockCount === 0) return 'soldout';
   return 'active';
 }

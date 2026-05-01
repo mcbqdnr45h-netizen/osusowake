@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authedFetch } from '@/lib/authed-fetch';
-import { format, isToday, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ImageUpload } from '@/components/ImageUpload';
 import { BagManageCard, getBagStatus, type Bag, type BagRealStatus } from '@/components/BagManageCard';
@@ -49,8 +49,24 @@ interface Reservation {
 }
 
 // ─── ヘルパー ───────────────────────────────────────────────────────────────
+
+/** UTCのISO文字列をJST(+09:00)の YYYY-MM-DD 文字列に変換する */
+function toJSTDateStr(utcIso: string): string {
+  // 末尾に 'Z' がない場合でも UTC として扱う（Drizzle/pg は UTC 値を返す）
+  const raw = utcIso.endsWith('Z') || utcIso.includes('+') ? utcIso : utcIso + 'Z';
+  const utcMs = new Date(raw).getTime();
+  const jstMs = utcMs + 9 * 60 * 60 * 1000;
+  return new Date(jstMs).toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+
+/** 現在のJST日付を "YYYY-MM-DD" で返す */
+function todayJSTStr(): string {
+  return toJSTDateStr(new Date().toISOString());
+}
+
+/** 予約が「今日（JST）」に作成されたかを判定する */
 function isTodaysReservation(r: Reservation) {
-  try { return isToday(parseISO(r.createdAt)); } catch { return false; }
+  try { return toJSTDateStr(r.createdAt) === todayJSTStr(); } catch { return false; }
 }
 
 function formatPurchasedAt(iso: string) {
