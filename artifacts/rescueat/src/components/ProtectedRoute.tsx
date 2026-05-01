@@ -72,10 +72,10 @@ function GuestPlaceholderScreen() {
           initial={{ opacity: 0, y: 8, scale: 0.92 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-          className="relative mb-2 shrink-0"
+          className="relative mb-2 md:mb-6 shrink-0"
         >
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/30 to-orange-300/30 blur-xl" />
-          <div className="relative w-14 h-14 rounded-2xl overflow-hidden ring-1 ring-black/5 shadow-lg shadow-primary/10 bg-white">
+          <div className="relative w-14 h-14 md:w-24 md:h-24 rounded-2xl md:rounded-3xl overflow-hidden ring-1 ring-black/5 shadow-lg shadow-primary/10 bg-white">
             <img src={logoUrl} alt="おすそわけ" className="w-full h-full object-cover" />
           </div>
         </motion.div>
@@ -87,8 +87,8 @@ function GuestPlaceholderScreen() {
           transition={{ delay: 0.06, duration: 0.45 }}
           className="text-center mb-1 shrink-0"
         >
-          <p className="text-[9px] font-black tracking-[0.25em] text-primary/80 mb-1">おすそわけ</p>
-          <h1 className="text-[19px] font-black text-foreground leading-[1.3] tracking-tight">
+          <p className="text-[9px] md:text-[12px] font-black tracking-[0.25em] text-primary/80 mb-1 md:mb-2">おすそわけ</p>
+          <h1 className="text-[19px] md:text-[34px] font-black text-foreground leading-[1.3] tracking-tight">
             ログインして、<br />
             <span className="bg-gradient-to-r from-primary to-orange-500 bg-clip-text text-transparent">
               おいしいおすそわけ
@@ -100,7 +100,7 @@ function GuestPlaceholderScreen() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.18, duration: 0.4 }}
-          className="text-[11px] text-muted-foreground text-center leading-relaxed mt-1.5 mb-2.5 max-w-[280px] shrink-0"
+          className="text-[11px] md:text-[15px] text-muted-foreground text-center leading-relaxed mt-1.5 md:mt-3 mb-2.5 md:mb-5 max-w-[280px] md:max-w-[460px] shrink-0"
         >
           お店の余ったおいしさを、お得に持ち帰り。<br />
           まずは無料アカウントで始めよう。
@@ -125,23 +125,23 @@ function GuestPlaceholderScreen() {
         </motion.div>
 
         {/* ── 機能リスト（プレミアムカード）─── */}
-        <div className="w-full max-w-sm space-y-1.5 mb-3">
+        <div className="w-full max-w-sm md:max-w-2xl space-y-1.5 md:space-y-3 mb-3 md:mb-6">
           {features.map(({ icon: Icon, label, desc, tint, ring, iconBg, iconColor }, i) => (
             <motion.div
               key={label}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 + i * 0.07, type: 'spring', stiffness: 240, damping: 24 }}
-              className={`flex items-center gap-2.5 bg-gradient-to-r ${tint} ring-1 ${ring} rounded-2xl px-3 py-2 shadow-sm`}
+              className={`flex items-center gap-2.5 md:gap-5 bg-gradient-to-r ${tint} ring-1 ${ring} rounded-2xl md:rounded-3xl px-3 py-2 md:px-6 md:py-5 shadow-sm`}
             >
-              <div className={`w-8 h-8 ${iconBg} rounded-xl flex items-center justify-center shrink-0 shadow-inner`}>
-                <Icon className={`w-3.5 h-3.5 ${iconColor}`} strokeWidth={2.4} />
+              <div className={`w-8 h-8 md:w-14 md:h-14 ${iconBg} rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 shadow-inner`}>
+                <Icon className={`w-3.5 h-3.5 md:w-6 md:h-6 ${iconColor}`} strokeWidth={2.4} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-black text-foreground leading-tight">{label}</p>
-                <p className="text-[10px] text-foreground/55 mt-0.5 truncate">{desc}</p>
+                <p className="text-[12px] md:text-[18px] font-black text-foreground leading-tight">{label}</p>
+                <p className="text-[10px] md:text-[14px] text-foreground/55 mt-0.5 md:mt-1 truncate">{desc}</p>
               </div>
-              <ArrowRight className="w-3 h-3 text-foreground/30 shrink-0" />
+              <ArrowRight className="w-3 h-3 md:w-5 md:h-5 text-foreground/30 shrink-0" />
             </motion.div>
           ))}
         </div>
@@ -151,12 +151,12 @@ function GuestPlaceholderScreen() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55, duration: 0.4 }}
-          className="w-full max-w-sm space-y-1.5 shrink-0"
+          className="w-full max-w-sm md:max-w-2xl space-y-1.5 md:space-y-3 shrink-0"
         >
           <button
             type="button"
             onClick={() => navigate('/login')}
-            className="relative w-full overflow-hidden rounded-2xl py-3 font-black text-[14px] text-white shadow-lg shadow-primary/30 active:scale-[0.98] transition-transform"
+            className="relative w-full overflow-hidden rounded-2xl md:rounded-3xl py-3 md:py-5 font-black text-[14px] md:text-[18px] text-white shadow-lg shadow-primary/30 active:scale-[0.98] transition-transform"
             style={{
               background:
                 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(12 80% 60%) 100%)',
@@ -176,7 +176,7 @@ function GuestPlaceholderScreen() {
           <button
             type="button"
             onClick={() => navigate('/signup')}
-            className="w-full bg-white/80 backdrop-blur-sm border border-border text-foreground font-bold py-2.5 rounded-2xl text-[12px] hover:bg-white active:scale-[0.98] transition-all shadow-sm"
+            className="w-full bg-white/80 backdrop-blur-sm border border-border text-foreground font-bold py-2.5 md:py-4 rounded-2xl md:rounded-3xl text-[12px] md:text-[16px] hover:bg-white active:scale-[0.98] transition-all shadow-sm"
           >
             新規登録（無料）
           </button>

@@ -111,8 +111,8 @@ export default function Login() {
     }
   }
 
-  const labelClass = "block text-xs font-black text-foreground/65 uppercase tracking-widest mb-2";
-  const inputClass = "w-full bg-white border border-border/80 rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/45 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all text-[15px]";
+  const labelClass = "block text-xs md:text-sm font-black text-foreground/65 uppercase tracking-widest mb-2";
+  const inputClass = "w-full bg-white border border-border/80 rounded-xl md:rounded-2xl pl-11 md:pl-14 pr-4 py-3.5 md:py-5 text-foreground font-medium placeholder:text-muted-foreground/45 focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all text-[15px] md:text-[17px]";
 
   const isStore = activeTab === 'store';
 
@@ -147,7 +147,7 @@ export default function Login() {
                 }}
               />
               <div
-                className="relative w-16 h-16 rounded-2xl flex items-center justify-center ring-1 ring-black/5 shadow-lg"
+                className="relative w-16 h-16 md:w-24 md:h-24 rounded-2xl md:rounded-3xl flex items-center justify-center ring-1 ring-black/5 shadow-lg"
                 style={{
                   background: isStore
                     ? 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)'
@@ -156,20 +156,20 @@ export default function Login() {
                 }}
               >
                 {isStore
-                  ? <Store className="w-7 h-7 text-primary" strokeWidth={2.4} />
-                  : <img src={logoUrl} alt="おすそわけ" className="w-full h-full rounded-2xl object-cover" />
+                  ? <Store className="w-7 h-7 md:w-12 md:h-12 text-primary" strokeWidth={2.4} />
+                  : <img src={logoUrl} alt="おすそわけ" className="w-full h-full rounded-2xl md:rounded-3xl object-cover" />
                 }
               </div>
             </motion.div>
-            <p className="text-[10px] font-black tracking-[0.25em] text-primary/80 mb-1.5">おすそわけ</p>
-            <h1 className="text-[28px] font-black text-foreground leading-tight" style={{ letterSpacing: '-0.03em' }}>
+            <p className="text-[10px] md:text-[13px] font-black tracking-[0.25em] text-primary/80 mb-1.5">おすそわけ</p>
+            <h1 className="text-[28px] md:text-[40px] font-black text-foreground leading-tight" style={{ letterSpacing: '-0.03em' }}>
               {isStore ? (
                 <>店舗管理画面へ</>
               ) : (
                 <>おかえりなさい<span className="text-primary">。</span></>
               )}
             </h1>
-            <p className="text-[13.5px] text-muted-foreground mt-2 font-medium leading-snug">
+            <p className="text-[13.5px] md:text-[17px] text-muted-foreground mt-2 md:mt-4 font-medium leading-snug">
               {isStore
                 ? '余剰食品をおすそわけして、新しい常連客を増やしましょう'
                 : '全国の美味しいおすそわけを見つけよう'
@@ -184,8 +184,8 @@ export default function Login() {
             <div>
               <label className={labelClass}>メールアドレス</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                  <Mail className="w-4 h-4 text-muted-foreground/60" />
+                <div className="absolute inset-y-0 left-4 md:left-5 flex items-center pointer-events-none">
+                  <Mail className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground/60" />
                 </div>
                 <input
                   type="email"
@@ -203,8 +203,8 @@ export default function Login() {
             <div>
               <label className={labelClass}>パスワード</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                  <Lock className="w-4 h-4 text-muted-foreground/60" />
+                <div className="absolute inset-y-0 left-4 md:left-5 flex items-center pointer-events-none">
+                  <Lock className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground/60" />
                 </div>
                 <input
                   type={showPw ? 'text' : 'password'}

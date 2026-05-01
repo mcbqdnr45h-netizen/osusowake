@@ -73,8 +73,8 @@ export function AuthShell({
       </div>
 
       {/* ── メインコンテンツ ── */}
-      {/* iPad/Tablet: 横幅をしっかり取りカード化（max-w-lg = 512px、内容に応じてシュリンク） */}
-      <div className="relative z-10 flex-1 flex flex-col px-6 pt-4 pb-12 max-w-md mx-auto w-full md:flex-none md:my-auto md:max-w-2xl lg:max-w-3xl md:px-12 md:py-14 md:bg-white/75 md:backdrop-blur-xl md:rounded-3xl md:border md:border-border/30 md:shadow-2xl">
+      {/* iPad/Tablet: しっかり大きいカード化 */}
+      <div className="relative z-10 flex-1 flex flex-col px-6 pt-4 pb-12 max-w-md mx-auto w-full md:flex-none md:my-auto md:max-w-3xl lg:max-w-4xl md:px-16 md:py-20 md:bg-white/75 md:backdrop-blur-xl md:rounded-[2rem] md:border md:border-border/30 md:shadow-2xl">
 
         {/* ── ロール切替タブ（アニメーション付きスライドピル） ── */}
         <motion.div
@@ -160,7 +160,7 @@ export function AuthPrimaryButton({
       onClick={onClick}
       whileHover={!disabled ? { scale: 1.015, boxShadow: '0 8px 28px rgba(242,100,25,0.38)' } : {}}
       whileTap={!disabled ? { scale: 0.97 } : {}}
-      className={`w-full font-black text-[17px] py-4 rounded-2xl min-h-[56px] flex items-center justify-center gap-2 transition-colors duration-150 ${
+      className={`w-full font-black text-[17px] md:text-[20px] py-4 md:py-6 rounded-2xl md:rounded-3xl min-h-[56px] md:min-h-[72px] flex items-center justify-center gap-2 transition-colors duration-150 ${
         disabled
           ? 'bg-muted text-muted-foreground cursor-not-allowed'
           : 'text-white cursor-pointer'
