@@ -291,21 +291,23 @@ export function GuestRoute({
   useEffect(() => {
     if (isLoading || !user) return;
 
+    // redirect クエリがある場合はそこへ
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get('redirect');
     if (redirect) {
-      navigate(decodeURIComponent(redirect), { replace: true });
-      return;
+      const decoded = decodeURIComponent(redirect);
+      if (decoded.startsWith('/') && !decoded.startsWith('//')) {
+        logNav('GuestRoute(redirect param)', decoded);
+        navigate(decoded, { replace: true });
+        return;
+      }
     }
 
+    // profile が確定してからロールで振り分け
     if (profile) {
-      if (profile.role === 'store_owner') {
-        logNav('GuestRoute(logged-in store_owner)', '/mypage');
-        navigate('/mypage', { replace: true });
-      } else {
-        logNav('GuestRoute(logged-in customer)', '/');
-        navigate('/', { replace: true });
-      }
+      // オーナー・一般とも /mypage へ (発見ページに飛ばさない)
+      logNav('GuestRoute(logged-in)', '/mypage', { role: profile.role });
+      navigate('/mypage', { replace: true });
     }
   }, [isLoading, user, profile, navigate]);
 

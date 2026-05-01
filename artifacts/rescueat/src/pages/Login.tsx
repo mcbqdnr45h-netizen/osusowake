@@ -97,8 +97,17 @@ export default function Login() {
       }
       // 管理者: MFA モーダルが出るのでここでは navigate しない
       if (requiresMfa) return;
-      // 一般ユーザーはホームへ
-      navigate('/');
+      // redirect クエリがあればそこへ、なければマイページへ
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect');
+      if (redirect) {
+        const decoded = decodeURIComponent(redirect);
+        if (decoded.startsWith('/') && !decoded.startsWith('//')) {
+          navigate(decoded);
+          return;
+        }
+      }
+      navigate('/mypage');
     }
   }
 
