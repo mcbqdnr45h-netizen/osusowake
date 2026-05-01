@@ -10,6 +10,8 @@
   },
   "private": true,
   "devDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.60.2",
+    "lightningcss-darwin-arm64": "^1.32.0",
     "pdf-lib": "^1.17.1",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2"
