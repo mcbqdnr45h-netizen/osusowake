@@ -228,6 +228,39 @@ export default function Settings() {
   const [notifPickup, setNotifPickup] = useState(saved.notifPickup);
   const [notifAdmin, setNotifAdmin] = useState(saved.notifAdmin);
 
+  // ── デイリー通知 ON/OFF はサーバー永続化 ──────────────────────────
+  const [notifDailyEngagement, setNotifDailyEngagement] = useState(true);
+  useEffect(() => {
+    if (!user || isStoreOwner) return;
+    const base = ((import.meta as any).env?.VITE_API_BASE as string)
+      || ((import.meta.env.BASE_URL as string) || '').replace(/\/$/, '');
+    import('@/lib/authed-fetch').then(({ authedFetch }) =>
+      authedFetch(`${base}/api/user/notification-preference`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d && typeof d.notifDailyEngagement === 'boolean') setNotifDailyEngagement(d.notifDailyEngagement); })
+        .catch(() => {})
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  async function handleNotifDailyEngagementToggle(val: boolean) {
+    setNotifDailyEngagement(val); // 楽観的更新
+    try {
+      const { authedFetch } = await import('@/lib/authed-fetch');
+      const base = ((import.meta as any).env?.VITE_API_BASE as string)
+        || ((import.meta.env.BASE_URL as string) || '').replace(/\/$/, '');
+      const res = await authedFetch(`${base}/api/user/notification-preference`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifDailyEngagement: val }),
+      });
+      if (!res.ok) throw new Error('save_failed');
+    } catch {
+      setNotifDailyEngagement(!val); // ロールバック
+      toast({ title: '設定の保存に失敗しました', variant: 'destructive' });
+    }
+  }
+
   // ── ランキング非表示 (opt-out) は API 永続化 ────────────────────
   const queryClient = useQueryClient();
   const { data: rankingPref } = useGetRankingPreference({
@@ -699,7 +732,7 @@ export default function Settings() {
                   <Toggle value={notifNewListing} onChange={v => handleToggle('notifNewListing', v)} />
                 </div>
 
-                <div className="flex items-center gap-3.5 px-4 min-h-[56px]">
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px] border-b border-border/60">
                   <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
                     <Bell className="w-4 h-4 text-rose-500" />
                   </div>
@@ -708,6 +741,17 @@ export default function Settings() {
                     <p className="text-xs text-muted-foreground">フォロー中の店舗が出品したとき</p>
                   </div>
                   <Toggle value={notifFavoriteUpdate} onChange={v => handleToggle('notifFavoriteUpdate', v)} />
+                </div>
+
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px]">
+                  <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4 text-orange-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">毎日のおすそわけ情報</p>
+                    <p className="text-xs text-muted-foreground">朝9時・夕方5時に出品情報をお届け</p>
+                  </div>
+                  <Toggle value={notifDailyEngagement} onChange={handleNotifDailyEngagementToggle} />
                 </div>
               </>
             )}

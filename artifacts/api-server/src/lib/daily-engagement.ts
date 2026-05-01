@@ -7,6 +7,7 @@ import {
 } from '@workspace/db/schema';
 import { eq, gt, and, sql } from 'drizzle-orm';
 import { sendPushToUsers } from './push.js';
+import { supabaseAdmin } from './supabase.js';
 
 /**
  * 毎日2回（朝9時・夕方17時 JST）全登録ユーザーにエンゲージメント通知を送る。
@@ -61,15 +62,31 @@ async function countActiveBags(): Promise<number> {
   return result[0]?.count ?? 0;
 }
 
-/** プッシュ登録済みの全ユーザーIDを重複なしで返す */
+/** デイリー通知をOPT-INしているユーザーIDセットを返す（デフォルト: 全員 ON）*/
+async function getOptInUserIds(): Promise<Set<string>> {
+  const { data } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .neq('notif_daily_engagement', false); // NULL または true → 通知あり
+  const ids = new Set<string>();
+  for (const row of data ?? []) {
+    if (row.id) ids.add(row.id as string);
+  }
+  return ids;
+}
+
+/** プッシュ登録済み かつ opt-in のユーザーIDを重複なしで返す */
 async function getAllSubscribedUserIds(): Promise<string[]> {
-  const [webRows, apnsRows] = await Promise.all([
-    db.select({ userId: webPushSubscriptionsTable.userId }).from(webPushSubscriptionsTable),
-    db.select({ userId: apnsRegistrationsTable.userId }).from(apnsRegistrationsTable),
+  const [[webRows, apnsRows], optInIds] = await Promise.all([
+    Promise.all([
+      db.select({ userId: webPushSubscriptionsTable.userId }).from(webPushSubscriptionsTable),
+      db.select({ userId: apnsRegistrationsTable.userId }).from(apnsRegistrationsTable),
+    ]),
+    getOptInUserIds(),
   ]);
   const ids = new Set<string>();
   for (const r of [...webRows, ...apnsRows]) {
-    if (r.userId) ids.add(r.userId);
+    if (r.userId && optInIds.has(r.userId)) ids.add(r.userId);
   }
   return [...ids];
 }

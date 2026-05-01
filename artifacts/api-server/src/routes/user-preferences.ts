@@ -3,8 +3,10 @@
  *
  * - PATCH /api/user/ranking-preference
  *     ランキングへの参加 ON/OFF を切り替える。
- *     OFF にすると /ranking/monthly の topUsers リストから除外される。
- *     自分の累計値 (foodSavedKg / co2Saved / MyTown レベル) には影響しない。
+ *
+ * - PATCH /api/user/notification-preference
+ *     デイリーエンゲージメント通知の受信 ON/OFF を切り替える。
+ *     OFF にすると毎日の一斉プッシュ通知がその人だけスキップされる。
  *
  * セキュリティ: requireAuth 必須。
  */
@@ -68,6 +70,56 @@ router.get("/user/ranking-preference", requireAuth, async (req, res) => {
     return res
       .status(500)
       .json({ error: "internal_error", message: "設定の取得に失敗しました" });
+  }
+});
+
+// ── デイリーエンゲージメント通知 ON/OFF ────────────────────────────────────────
+router.patch("/user/notification-preference", requireAuth, async (req, res) => {
+  try {
+    const meId = req.authUser!.id;
+    const body = (req.body ?? {}) as { notifDailyEngagement?: unknown };
+    if (typeof body.notifDailyEngagement !== "boolean") {
+      return res.status(400).json({
+        error: "invalid_body",
+        message: "notifDailyEngagement (boolean) is required",
+      });
+    }
+
+    const { error } = await supabaseAdmin
+      .from("users")
+      .update({ notif_daily_engagement: body.notifDailyEngagement })
+      .eq("id", meId);
+
+    if (error) {
+      console.error("[PATCH /user/notification-preference] supabase error:", error.message);
+      return res.status(500).json({ error: "internal_error", message: "設定の保存に失敗しました" });
+    }
+
+    return res.json({ notifDailyEngagement: body.notifDailyEngagement });
+  } catch (err: any) {
+    console.error("[PATCH /user/notification-preference] error:", err?.message ?? err);
+    return res.status(500).json({ error: "internal_error", message: "設定の保存に失敗しました" });
+  }
+});
+
+router.get("/user/notification-preference", requireAuth, async (req, res) => {
+  try {
+    const meId = req.authUser!.id;
+    const { data, error } = await supabaseAdmin
+      .from("users")
+      .select("notif_daily_engagement")
+      .eq("id", meId)
+      .maybeSingle();
+    if (error) {
+      console.error("[GET /user/notification-preference] supabase error:", error.message);
+      return res.status(500).json({ error: "internal_error", message: "設定の取得に失敗しました" });
+    }
+    // カラムが null (旧ユーザー) の場合は true (通知あり) とみなす
+    const val = (data as { notif_daily_engagement?: boolean | null } | null)?.notif_daily_engagement;
+    return res.json({ notifDailyEngagement: val !== false });
+  } catch (err: any) {
+    console.error("[GET /user/notification-preference] error:", err?.message ?? err);
+    return res.status(500).json({ error: "internal_error", message: "設定の取得に失敗しました" });
   }
 });
 

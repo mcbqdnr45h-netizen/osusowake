@@ -527,6 +527,13 @@ async function runMigrations() {
     `);
     console.log('[migration] reservations.merchandise_amount ✅');
 
+    // ── users.notif_daily_engagement: 毎日エンゲージメント通知 OPT-OUT 用カラム
+    await client.query(`
+      ALTER TABLE public.users
+      ADD COLUMN IF NOT EXISTS notif_daily_engagement BOOLEAN NOT NULL DEFAULT true;
+    `);
+    console.log('[migration] users.notif_daily_engagement ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {
