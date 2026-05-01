@@ -73,7 +73,7 @@ export function AuthShell({
       </div>
 
       {/* ── メインコンテンツ ── */}
-      <div className="relative z-10 flex-1 flex flex-col px-6 pt-4 pb-12 max-w-md mx-auto w-full">
+      <div className="relative z-10 flex-1 flex flex-col px-6 pt-4 pb-12 max-w-md mx-auto w-full md:justify-center md:py-16">
 
         {/* ── ロール切替タブ（アニメーション付きスライドピル） ── */}
         <motion.div

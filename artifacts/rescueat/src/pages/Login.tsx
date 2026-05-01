@@ -117,7 +117,7 @@ export default function Login() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: isStore ? -18 : 18 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col flex-1"
+          className="flex flex-col flex-1 md:flex-none"
         >
           {/* ── ヒーロー（プレミアム） ── */}
           <div className="mb-7">
@@ -169,7 +169,7 @@ export default function Login() {
           </div>
 
           {/* ── フォーム ── */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5 flex-1">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5 flex-1 md:flex-none">
 
             {/* メール */}
             <div>
