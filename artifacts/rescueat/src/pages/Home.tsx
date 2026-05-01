@@ -440,9 +440,22 @@ export default function Home() {
   );
 
   // ── ⑤⑥⑦ カテゴリー別 ──
-  const mealsBags      = useMemo(() => sortedVisibleBags.filter(b => b.category === 'meals').slice(0, 10),        [sortedVisibleBags]);
-  const bakeryBags     = useMemo(() => sortedVisibleBags.filter(b => b.category === 'bakery_sweets').slice(0, 10), [sortedVisibleBags]);
-  const ingredientBags = useMemo(() => sortedVisibleBags.filter(b => b.category === 'ingredients').slice(0, 10),  [sortedVisibleBags]);
+  // sortKey が 'default' (おすすめ順) のときは日次シードでシャッフル、それ以外は applySortKey の順を尊重
+  const mealsBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => b.category === 'meals');
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 1).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
+  const bakeryBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => b.category === 'bakery_sweets');
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 2).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
+  const ingredientBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => b.category === 'ingredients');
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 3).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
 
   const activeFilterCnt = [activeCategory !== 'all', inStockOnly !== true].filter(Boolean).length;
 

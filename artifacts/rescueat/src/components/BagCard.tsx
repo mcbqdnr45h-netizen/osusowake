@@ -10,7 +10,7 @@ import {
 } from '@workspace/api-client-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
+import { getCategoryIcon, getCategoryImage, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
 import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
 import { useToast } from '@/hooks/use-toast';
@@ -325,7 +325,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
     }
   }
 
-  const imgSrc = bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category);
+  const imgSrc = bag.imageUrl || bag.store.imageUrl || getImageFromName(bag.title) || getCategoryImage(bag.store.category);
   const storeComment = (bag as any).description as string | null | undefined;
   const trimmedComment = storeComment
     ? storeComment.length > 36 ? storeComment.slice(0, 35) + '…' : storeComment
