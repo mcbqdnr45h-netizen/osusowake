@@ -64,6 +64,7 @@ const Orders             = React.lazy(importOrders);
 const StoreOnboarding    = React.lazy(() => import("./pages/StoreOnboarding"));
 const StripeBankSetup    = React.lazy(() => import("./pages/StripeBankSetup"));
 const AdminDashboard     = React.lazy(() => import("./pages/AdminDashboard"));
+const AdminStorePage     = React.lazy(() => import("./pages/AdminStorePage"));
 const CheckoutSuccess    = React.lazy(() => import("./pages/CheckoutSuccess"));
 const CheckoutCancel     = React.lazy(() => import("./pages/CheckoutCancel"));
 const OrderTicket        = React.lazy(() => import("./pages/OrderTicket"));
@@ -328,6 +329,7 @@ function AnimatedRoutes() {
 
               {/* ── 管理者 ── */}
               <Route path="/admin" component={AdminDashboard} />
+              <Route path="/admin/store/:id" component={AdminStorePage} />
               <Route path="/admin-verify-shops" component={GuardedAdminVerify} />
 
               <Route component={NotFound} />
