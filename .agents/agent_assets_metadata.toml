@@ -232,28 +232,28 @@ title = "おすそわけ 店舗向けチラシ (A4 縦 PDF)"
 id = "WU8bdrVONfwzFvmCuFl58"
 uri = "file://attached_assets/appstore/01_home.png"
 type = "image"
-title = "1. ホーム画面 - 今夜の夕食、おトクに救おう"
+title = "1枚目 ホーム ｜ 今夜の夕食、おトクに"
 
 [[outputs]]
 id = "ihkmYqcZxUWg0sJ2fiHtB"
 uri = "file://attached_assets/appstore/02_map.png"
 type = "image"
-title = "2. マップ画面 - ご近所のお店をマップで発見"
+title = "2枚目 マップ ｜ お近くのお店を一目で"
 
 [[outputs]]
 id = "kruLeqXp2X6I7xQ7NUJfF"
 uri = "file://attached_assets/appstore/03_detail.png"
 type = "image"
-title = "3. 商品詳細 - 焼きたてベーカリーが ¥380"
+title = "3枚目 商品詳細 ｜ 焼きたてパンが ¥380"
 
 [[outputs]]
 id = "Q7OHrAYHyHY90Ey7u3WNa"
 uri = "file://attached_assets/appstore/04_mypage.png"
 type = "image"
-title = "4. マイページ - あなたの貢献を見える化"
+title = "4枚目 マイページ ｜ あなたの貢献を見える化"
 
 [[outputs]]
 id = "8XpNCWfMnaYaH-1j0YD4K"
 uri = "file://attached_assets/appstore/05_qr.png"
 type = "image"
-title = "5. QR受取 - QRをかざして簡単受取"
+title = "5枚目 QR受取 ｜ QRで、受け取り完了"
