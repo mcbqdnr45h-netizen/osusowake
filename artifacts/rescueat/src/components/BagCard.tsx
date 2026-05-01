@@ -290,6 +290,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
   const favorited = isFavorite(storeId);
   const [burst, setBurst]               = useState(false);
   const [imgLoaded, setImgLoaded]       = useState(false);
+  const [imgError,  setImgError]        = useState(false);
   const [fanBurst, setFanBurst]         = useState(false);
   const [showLoginNudge, setShowLoginNudge] = useState(false);
   const [showReviews, setShowReviews]   = useState(false);
@@ -325,7 +326,10 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
     }
   }
 
-  const imgSrc = bag.imageUrl || bag.store.imageUrl || getImageFromName(bag.title) || getCategoryImage(bag.store.category);
+  const fallbackImg = getImageFromName(bag.title) || getCategoryImage(bag.store.category);
+  const imgSrc = imgError
+    ? fallbackImg
+    : (bag.imageUrl || bag.store.imageUrl || fallbackImg);
   const storeComment = (bag as any).description as string | null | undefined;
   const trimmedComment = storeComment
     ? storeComment.length > 36 ? storeComment.slice(0, 35) + '…' : storeComment
@@ -370,7 +374,15 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
       onMouseEnter={handlePrefetch}
     >
       {/* ── 画像エリア ── */}
-      <div className={`relative w-full overflow-hidden bg-muted ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
+      {/* 暖色グラデ背景: 画像が白/透明/壊れていても寂しくならないように */}
+      <div
+        className={`relative w-full overflow-hidden ${compact ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}
+        style={{
+          background:
+            'radial-gradient(circle at 30% 20%, rgba(255,180,140,0.45) 0%, transparent 55%),' +
+            'linear-gradient(135deg, #fde2c8 0%, #f5b893 100%)',
+        }}
+      >
 
         {!imgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
 
@@ -384,6 +396,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
           loading="lazy"
           decoding="async"
           onLoad={() => setImgLoaded(true)}
+          onError={() => { setImgError(true); setImgLoaded(true); }}
           className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]
             ${imgLoaded ? 'img-fade-in' : 'opacity-0'}`}
         />

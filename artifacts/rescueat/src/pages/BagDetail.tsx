@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation, getListAllBagsQueryKey, getGetBagQueryKey } from '@workspace/api-client-react';
-import { getCategoryImage, getCategoryIcon } from '@/lib/category-utils';
+import { getCategoryImage, getCategoryIcon, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
 import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
@@ -250,6 +250,7 @@ export default function BagDetail() {
   const [quantity, setQuantity] = useState(1);
   const [showReport,    setShowReport]    = useState(false);
   const [heroImgLoaded, setHeroImgLoaded] = useState(false);
+  const [heroImgError,  setHeroImgError]  = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showLoginNudge, setShowLoginNudge] = useState(false);
   const [loginNudgeReason, setLoginNudgeReason] = useState<'favorite' | 'purchase'>('purchase');
@@ -468,17 +469,31 @@ export default function BagDetail() {
           className="bg-card md:rounded-3xl shadow-sm border-x border-b md:border border-border/50 overflow-hidden"
         >
           {/* Hero Image（shimmer + フェードイン + プレミアム仕上げ）*/}
-          <div className="relative h-80 md:h-[28rem] w-full overflow-hidden bg-gradient-to-br from-stone-200 to-stone-300 dark:from-stone-800 dark:to-stone-900">
+          {/* 暖色グラデ背景 + radial アクセント — 画像が白/透明/壊れていても寂しくならないように */}
+          <div
+            className="relative h-80 md:h-[28rem] w-full overflow-hidden"
+            style={{
+              background:
+                'radial-gradient(circle at 30% 20%, rgba(255,180,140,0.55) 0%, transparent 55%),' +
+                'radial-gradient(circle at 75% 80%, rgba(255,140,120,0.45) 0%, transparent 50%),' +
+                'linear-gradient(135deg, #fde2c8 0%, #f9c8a4 50%, #f2a98a 100%)',
+            }}
+          >
             {/* shimmer スケルトン（ロード前） */}
-            {!heroImgLoaded && (
+            {!heroImgLoaded && !heroImgError && (
               <div className="absolute inset-0 skeleton-shimmer" />
             )}
             <img
-              src={bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category)}
+              src={
+                heroImgError
+                  ? (getImageFromName(bag.title) || getCategoryImage(bag.store.category))
+                  : (bag.imageUrl || bag.store.imageUrl || getImageFromName(bag.title) || getCategoryImage(bag.store.category))
+              }
               alt={bag.store.name}
               loading="eager"
               decoding="async"
               onLoad={() => setHeroImgLoaded(true)}
+              onError={() => { setHeroImgError(true); setHeroImgLoaded(true); }}
               className={`w-full h-full object-cover transition-all duration-700 ease-out ${heroImgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
             />
             {/* 階層的グラデ: 上部に薄いダーク (ステータスバー視認性) + 下部に深いダーク (テキスト視認性) */}
