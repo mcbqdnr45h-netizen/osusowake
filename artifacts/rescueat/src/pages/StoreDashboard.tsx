@@ -2408,6 +2408,17 @@ export default function StoreDashboard() {
           </div>
         )}
 
+        {/* ── 過去の出品履歴へのリンク ── */}
+        <div className="px-1 pb-2">
+          <Link
+            href="/store/bags"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted/50 transition-colors"
+          >
+            <History className="w-4 h-4" />
+            過去の出品履歴を見る
+          </Link>
+        </div>
+
         </div>{/* /px-4 space-y-5 */}
       </div>
 
