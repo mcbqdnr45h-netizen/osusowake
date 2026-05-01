@@ -206,6 +206,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         if (cancelled) return;
 
+        // ── 診断ログ: どの auth event がいつ来たか追跡 ──
+        // eslint-disable-next-line no-console
+        console.log(`[auth] event=${event} hasSession=${!!session} hasUser=${!!session?.user} (${new Date().toLocaleTimeString()})`);
+
         // PASSWORD_RECOVERY: パスワードリセット中は管理者フローに入らせない
         // SIGNED_OUT: ログアウト時は何もしない
         if (event === 'PASSWORD_RECOVERY') {

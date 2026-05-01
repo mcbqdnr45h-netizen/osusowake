@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import logoUrl from '@/lib/logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyStoresContext } from '@/contexts/MyStoresContext';
+import { logNav } from '@/lib/nav-debug';
 import {
   Loader2, Ticket, Heart, User, ArrowRight, Shield, Clock, Sparkles,
 } from 'lucide-react';
@@ -235,6 +236,7 @@ export function ProtectedRoute({
 
     if (!user) {
       const redirect = encodeURIComponent(location);
+      logNav('ProtectedRoute(no user)', `/welcome?redirect=${redirect}`, { from: location, requireRole });
       navigate(`/welcome?redirect=${redirect}`, { replace: true });
       return;
     }
@@ -244,8 +246,10 @@ export function ProtectedRoute({
         // store_owner ルートで store を持っているなら整合修正待ち → リダイレクトしない
         if (requireRole === 'store_owner' && hasStores) return;
         if (requireRole === 'store_owner') {
+          logNav('ProtectedRoute(role mismatch, customer on store route)', '/', { from: location, profileRole: profile.role });
           navigate('/', { replace: true });
         } else {
+          logNav('ProtectedRoute(role mismatch, store on customer route)', '/store/dashboard', { from: location, profileRole: profile.role });
           navigate('/store/dashboard', { replace: true });
         }
       }
@@ -296,8 +300,10 @@ export function GuestRoute({
 
     if (profile) {
       if (profile.role === 'store_owner') {
+        logNav('GuestRoute(logged-in store_owner)', '/mypage');
         navigate('/mypage', { replace: true });
       } else {
+        logNav('GuestRoute(logged-in customer)', '/');
         navigate('/', { replace: true });
       }
     }

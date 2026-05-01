@@ -4,6 +4,7 @@ import logoUrl from '@/lib/logo';
 import { motion } from 'framer-motion';
 import { ArrowRight, MapPin, Gift, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { logNav } from '@/lib/nav-debug';
 
 const rise = {
   hidden: { opacity: 0, y: 18 },
@@ -19,7 +20,24 @@ export default function Welcome() {
 
   useEffect(() => {
     if (isLoading || !user) return;
-    navigate('/', { replace: true });
+    // ── auth フラップ等で /welcome?redirect=/mypage に弾かれた直後でも、
+    //    元のページに戻れるよう redirect クエリを優先する。
+    let dest = '/';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect');
+      if (redirect) {
+        const decoded = decodeURIComponent(redirect);
+        // 安全策: アプリ内パスのみ受け入れ、外部URLは拒否
+        if (decoded.startsWith('/') && !decoded.startsWith('//')) {
+          dest = decoded;
+        }
+      }
+    } catch {
+      // パース失敗時は / にフォールバック
+    }
+    logNav('Welcome(logged-in user)', dest);
+    navigate(dest, { replace: true });
   }, [isLoading, user, navigate]);
 
   if (isLoading || user) return null;

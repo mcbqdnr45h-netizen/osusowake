@@ -338,7 +338,12 @@ export default function Home() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (user && profile?.role === 'store_owner') { navigate('/store/dashboard', { replace: true }); return; }
+    if (user && profile?.role === 'store_owner') {
+      // 動的 import で循環依存回避
+      import('@/lib/nav-debug').then(({ logNav }) => logNav('Home(store_owner on /)', '/store/dashboard'));
+      navigate('/store/dashboard', { replace: true });
+      return;
+    }
   }, [authLoading, user, profile, navigate]);
 
   useEffect(() => {

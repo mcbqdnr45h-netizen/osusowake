@@ -418,6 +418,23 @@ function RoleReconciler() {
   return null;
 }
 
+// ── ナビゲーション監視: あらゆる URL 変化を console.log にダンプ ──
+//   wouter の useLocation フック値が変わった瞬間を検出 → そのタイミングで
+//   どこから navigate() が呼ばれたかを「直前の logNav」 と突き合わせて推定。
+//   原因特定後は削除してOK。
+function NavLogger() {
+  const [location] = useLocation();
+  const prev = useRef(location);
+  useEffect(() => {
+    if (prev.current !== location) {
+      // eslint-disable-next-line no-console
+      console.log(`[nav] *** URL changed: ${prev.current} → ${location} *** (${new Date().toLocaleTimeString()})`);
+      prev.current = location;
+    }
+  }, [location]);
+  return null;
+}
+
 function MaintenanceGate({ children }: { children: React.ReactNode }) {
   const { settings, isMaintenanceMode } = useAppSettings();
   const { isAdmin, isLoading: authLoading } = useAuth();
@@ -450,6 +467,7 @@ function App() {
             <TooltipProvider>
               <PrefetchOnAuth />
               <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <NavLogger />
                 <RoleReconciler />
                 <MaintenanceGate>
                   <AnimatedRoutes />
