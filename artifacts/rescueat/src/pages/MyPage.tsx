@@ -3,7 +3,8 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
 import { useListReservations, getListReservationsQueryKey, useGetMonthlyRanking, getGetMonthlyRankingQueryKey } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, AlertTriangle, Trash2, Trophy } from 'lucide-react';
+import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, AlertTriangle, Trash2, Trophy, BookOpen } from 'lucide-react';
+import { ShareAppCard } from '@/components/ShareAppCard';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
@@ -580,6 +581,12 @@ export default function MyPage() {
               </Link>
             </div>
 
+            {/* おすそわけを広める */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">おすそわけを広める</p>
+              <ShareAppCard variant="user" />
+            </div>
+
             {/* アカウント・サポート */}
             <div>
               <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アカウント・サポート</p>
@@ -605,6 +612,19 @@ export default function MyPage() {
                   <div className="flex-1">
                     <div className="font-bold text-foreground text-sm">気になるお店を運営に紹介する</div>
                     <div className="text-xs text-muted-foreground mt-0.5">まだ「おすそわけ」 を始めていないお店を運営にお知らせいただけます</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <Link
+                  href="/usage-guide"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-foreground text-sm">使い方ガイド</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">予約から受取までの流れを6ステップで</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </Link>
@@ -1054,6 +1074,12 @@ export default function MyPage() {
               </div>
             </div>
 
+            {/* おすそわけを広める */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">おすそわけを広める</p>
+              <ShareAppCard variant="store" />
+            </div>
+
             {/* アカウント・サポート */}
             <div>
               <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アカウント・サポート</p>
@@ -1069,6 +1095,19 @@ export default function MyPage() {
                   <div className="flex-1">
                     <div className="font-bold text-foreground text-sm">気になるお店を運営に紹介する</div>
                     <div className="text-xs text-muted-foreground">まだ「おすそわけ」 を始めていないお店を運営にお知らせいただけます</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <Link
+                  href="/usage-guide?mode=store"
+                  className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border"
+                >
+                  <div className="w-9 h-9 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-foreground text-sm">使い方ガイド</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">出品から売上確認までを6ステップで</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </Link>

@@ -35,6 +35,8 @@
 10. **PWA** - インストール対応（ホーム画面追加）、ブラウザプッシュ通知基盤（sw.js）
 11. **App Store 審査用 決済バイパス** - `APP_REVIEW_BYPASS_EMAILS` (default: `review-user@osusowakejapan.org`) の allowlist にメールが一致するユーザーのみ、 `/api/payment/create-intent` が `clientSecret="REVIEW_BYPASS"` + `reviewBypass:true` を返し、 フロントは Stripe Elements を出さず専用 UI から `/api/payment/confirm` に直接遷移。 confirm は `paymentIntentId.startsWith("pi_review_bypass_")` AND email allowlist の二重チェックで Stripe verify を skip し、 さらに **対象バッグのストアオーナーが `APP_REVIEW_DEMO_OWNER_IDS` (default: `3f3a4139-207c-45a9-bcdc-5dc79bfe7c3f`) の allowlist に一致する場合のみ** 在庫減算もスキップ (Supabase store #123 / bag #104 の在庫が枯渇しない)。 通常ユーザーや、審査ユーザーが実店舗バッグを買った場合には一切影響しない (payment.ts の `isAppReviewBypassEmail()` ∧ `isReviewDemoOwner()`)。 詳細: `artifacts/rescueat/APP_STORE_SUBMISSION.md` §5
 12. **審査用デモバッグ恒久表示** - `lib/app-review.ts` の `isReviewDemoOwner()` で UUID allowlist 判定。 `bags.ts` の `isBagExpired()` (JS) と `notExpiredCondition` (SQL CASE 0) でデモオーナーのバッグを expiry チェック対象外にし、 `reservations.ts` も同様に bypass。 結果、デモストア (Supabase store #123, owner `3f3a4139-...`) のバッグ #104 (¥1500→¥500, 在庫10, pickup 18:00-20:00) は日付・時刻に関係なく常に一覧表示・予約可能。
+13. **シェア機能** - `components/ShareAppCard.tsx` で `navigator.share()` (Web Share API / iOS Capacitor 対応) → 失敗時は LINE/X/Facebook/コピーリンクのフォールバック展開。 マイページ (一般ユーザー版・店舗オーナー版) の「アカウント・サポート」直前に「おすそわけを広める」セクションとして配置。 共有 URL は `https://osusowakejapan.org`、文言は variant=user/store で出し分け。
+14. **使い方ガイド** - `pages/UsageGuide.tsx` (`/usage-guide`, `/guide`) FAQ (`/help`) とは別に、 6ステップの図解＋使いこなしのコツ＋シェアカード＋FAQ導線で構成。 `?mode=store` または `profile.role==='store_owner'` で店舗編、それ以外はユーザー編を表示。 マイページの「アカウント・サポート」内ヘルプの上に配置 (BookOpenアイコン)。
 
 ## Pages
 
