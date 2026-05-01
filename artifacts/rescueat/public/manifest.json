@@ -1,6 +1,6 @@
 {
-  "name": "Osusowake - おすそわけアプリ",
-  "short_name": "Osusowake",
+  "name": "おすそわけ - ご近所のお店からおトクにシェア",
+  "short_name": "おすそわけ",
   "description": "お近くのお店からお得なおすそわけバッグをゲットしよう",
   "start_url": "/",
   "scope": "/",
@@ -29,7 +29,7 @@
       "sizes": "1200x630",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "Osusowake ホーム画面"
+      "label": "おすそわけ ホーム画面"
     }
   ],
   "categories": ["food", "shopping", "lifestyle"]
