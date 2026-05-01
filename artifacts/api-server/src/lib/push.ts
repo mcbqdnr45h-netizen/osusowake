@@ -18,16 +18,33 @@ if (vapidPublicKey && vapidPrivateKey) {
 const APNS_BUNDLE_ID = 'com.yuhi.osusowake';
 let apnsProvider: apn.Provider | null = null;
 
+function normalizeApnsKey(raw: string): string {
+  const body = raw
+    .replace(/\\n/g, '\n')
+    .replace(/-----BEGIN[^-]*-----/g, '')
+    .replace(/-----END[^-]*-----/g, '')
+    .replace(/\s+/g, '');
+
+  const chunks = body.match(/.{1,64}/g)?.join('\n') ?? body;
+  return `-----BEGIN PRIVATE KEY-----\n${chunks}\n-----END PRIVATE KEY-----`;
+}
+
 if (process.env.APNS_PRIVATE_KEY && process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID) {
-  apnsProvider = new apn.Provider({
-    token: {
-      key:    process.env.APNS_PRIVATE_KEY,
-      keyId:  process.env.APNS_KEY_ID,
-      teamId: process.env.APNS_TEAM_ID,
-    },
-    production: process.env.NODE_ENV === 'production',
-  });
-  console.log('[push] APNs configured ✅ (production:', process.env.NODE_ENV === 'production', ')');
+  try {
+    const apnsKey = normalizeApnsKey(process.env.APNS_PRIVATE_KEY);
+
+    apnsProvider = new apn.Provider({
+      token: {
+        key:    apnsKey,
+        keyId:  process.env.APNS_KEY_ID,
+        teamId: process.env.APNS_TEAM_ID,
+      },
+      production: process.env.NODE_ENV === 'production',
+    });
+    console.log('[push] APNs configured ✅ (production:', process.env.NODE_ENV === 'production', ')');
+  } catch (err: any) {
+    console.error('[push] APNs Provider 初期化失敗:', err?.message ?? err);
+  }
 } else {
   console.warn('[push] APNS_PRIVATE_KEY / APNS_KEY_ID / APNS_TEAM_ID が未設定 – APNs は無効');
 }
