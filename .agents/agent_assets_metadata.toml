@@ -287,3 +287,21 @@ id = "lW8fsFOu2u5hR6eVlEcbU"
 uri = "file://attached_assets/appstore_resized/05_qr.png"
 type = "image"
 title = "5枚目 受け取り (RGB 1284×2778)"
+
+[[outputs]]
+id = "NIEfRfXVfW9J-fGurVxQp"
+uri = "file://attached_assets/appstore_ipad/01_home.png"
+type = "image"
+title = "01 ホーム画面 (iPad 13\" 2064×2752)"
+
+[[outputs]]
+id = "TsGfoAw5Q8706-YDjyiVw"
+uri = "file://attached_assets/appstore_ipad/02_detail.png"
+type = "image"
+title = "02 バッグ詳細画面 (iPad 13\" 2064×2752)"
+
+[[outputs]]
+id = "sEOECK4oOuCleFpBslXRk"
+uri = "file://attached_assets/appstore_ipad/03_map.png"
+type = "image"
+title = "03 マップ画面 (iPad 13\" 2064×2752)"

@@ -37,7 +37,7 @@ export function AuthShell({
   ];
 
   return (
-    <div className="min-h-dvh flex flex-col relative overflow-hidden bg-background">
+    <div className="min-h-dvh flex flex-col relative overflow-hidden md:overflow-y-auto bg-background">
 
       {/* ── 淡いドットパターン背景 ── */}
       <div
