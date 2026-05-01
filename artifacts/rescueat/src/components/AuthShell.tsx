@@ -73,14 +73,15 @@ export function AuthShell({
       </div>
 
       {/* ── メインコンテンツ ── */}
-      <div className="relative z-10 flex-1 flex flex-col px-6 pt-4 pb-12 max-w-md mx-auto w-full md:justify-center md:py-16">
+      {/* iPad/Tablet: 横幅をしっかり取りカード化（max-w-lg = 512px、内容に応じてシュリンク） */}
+      <div className="relative z-10 flex-1 flex flex-col px-6 pt-4 pb-12 max-w-md mx-auto w-full md:flex-none md:my-auto md:max-w-lg md:px-10 md:py-12 md:bg-white/75 md:backdrop-blur-xl md:rounded-3xl md:border md:border-border/30 md:shadow-2xl">
 
         {/* ── ロール切替タブ（アニメーション付きスライドピル） ── */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="relative flex rounded-2xl p-1.5 mb-8 gap-0"
+          className="relative flex rounded-2xl p-1.5 mb-8 gap-0 md:p-2"
           style={{ background: 'rgba(20,16,10,0.07)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.08)' }}
         >
           {tabs.map((tab) => {
