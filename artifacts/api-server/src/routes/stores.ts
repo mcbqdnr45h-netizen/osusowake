@@ -2405,8 +2405,8 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
               },
               // JP では service_agreement: 'full' が必須
               tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
-              // 送金スケジュール: 毎週月曜日
-              settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
+              // 送金スケジュール: 毎月25日 (Payout Fee 削減のため週次→月次に変更)
+              settings: { payouts: { schedule: { interval: "monthly", monthly_anchor: 25 } } },
               ...(businessType === "company" ? { company: step1CompanyPayload } : {}),
             },
             { idempotencyKey: `store-${storeId}-account-create-${businessType}-${crypto.randomUUID()}` }
@@ -2446,7 +2446,7 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
             : {}),
         },
         tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
-        settings:       { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
+        settings:       { payouts: { schedule: { interval: "monthly", monthly_anchor: 25 } } },
       };
       if (businessType === "company") {
         // ⚠️ JP では company.structure を送ると全値エラーになるため省略
@@ -2527,7 +2527,7 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
       business_type:  businessType,
       business_profile: bizProfile,
       tos_acceptance: { date: Math.floor(tosTimestamp / 1000), ip, service_agreement: "full" },
-      settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
+      settings: { payouts: { schedule: { interval: "monthly", monthly_anchor: 25 } } },
     };
 
     if (businessType === "company") {
@@ -2985,7 +2985,7 @@ router.post("/stores/:storeId/connect/fill-requirements", requireAuth, requireSt
       // ToS（JP では date・ip・service_agreement の3点セット必須）
       tos_acceptance: { date: Math.floor(Date.now() / 1000), ip: fillIp, service_agreement: "full" },
       // 送金スケジュール
-      settings: { payouts: { schedule: { interval: "weekly", weekly_anchor: "monday" } } },
+      settings: { payouts: { schedule: { interval: "monthly", monthly_anchor: 25 } } },
     };
 
     const ownerEmail = store.ownerId
