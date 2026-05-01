@@ -1561,6 +1561,12 @@ router.post("/stores/:storeId/stripe-sync", requireAuth, requireStoreOwner, asyn
     if (!stripeError && licenseFileId) {
       (dbPatch as any).stripeLicenseFileId = licenseFileId;
     }
+    // payouts_enabled = true なら Stripe が KYC 完了済みなので
+    // 許可証アップロード失敗フラグを自動クリアする
+    if (!stripeError && payoutsEnabled) {
+      (dbPatch as any).licenseUploadFailed = false;
+      (dbPatch as any).licenseUploadError = null;
+    }
     await db
       .update(storesTable)
       .set(dbPatch as any)

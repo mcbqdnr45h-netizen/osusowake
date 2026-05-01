@@ -279,12 +279,14 @@ router.get("/admin/metrics", requireAdmin, async (req, res) => {
       LIMIT 5
     `);
     // (c) 営業許可証 silent fail
+    // stripe_payouts_enabled = true の店舗は Stripe KYC 完了済みのため除外
     const licenseIssuesResult = await db.execute(sql`
       SELECT COUNT(*)::int AS n
       FROM stores s
       WHERE s.status = 'approved'
         AND (s.license_image_url IS NULL OR s.license_upload_failed = true)
         AND s.stripe_account_id IS NOT NULL
+        AND s.stripe_payouts_enabled IS NOT TRUE
     `);
 
     // ── 7. ユーザー基本指標 ──
@@ -376,6 +378,7 @@ router.get("/admin/license-issues", requireAdmin, async (_req, res) => {
       FROM stores s
       WHERE s.status = 'approved'
         AND s.stripe_account_id IS NOT NULL
+        AND s.stripe_payouts_enabled IS NOT TRUE
         AND (
           s.license_image_url IS NULL
           OR s.license_upload_failed = TRUE
@@ -406,10 +409,21 @@ router.post("/admin/stores/:storeId/request-license-reupload", requireAdmin, asy
         id: storesTable.id,
         name: storesTable.name,
         ownerId: storesTable.ownerId,
+        stripePayoutsEnabled: storesTable.stripePayoutsEnabled,
       })
       .from(storesTable)
       .where(eq(storesTable.id, storeId));
     if (!store) { res.status(404).json({ error: "not_found" }); return; }
+
+    // stripe_payouts_enabled = true の店舗は Stripe KYC 完了済みなので
+    // 許可証再アップロード要求は無意味（Stripe 側で既に承認済み）
+    if (store.stripePayoutsEnabled === true) {
+      res.status(400).json({
+        error: "already_stripe_verified",
+        message: "この店舗はStripe KYCが完了しており、許可証は既に承認されています。再アップロード要求は不要です。",
+      });
+      return;
+    }
 
     // フラグを再アップロード要求状態に
     await db.update(storesTable)
