@@ -77,12 +77,6 @@ function GuestPlaceholderScreen() {
           <div className="relative w-14 h-14 rounded-2xl overflow-hidden ring-1 ring-black/5 shadow-lg shadow-primary/10 bg-white">
             <img src={logoUrl} alt="おすそわけ" className="w-full h-full object-cover" />
           </div>
-          <motion.div
-            aria-hidden
-            className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary"
-            animate={{ scale: [1, 1.4, 1], opacity: [1, 0.4, 1] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          />
         </motion.div>
 
         {/* ── キャッチコピー ─── */}
