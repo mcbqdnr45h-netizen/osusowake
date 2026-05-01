@@ -33,6 +33,9 @@ const config: CapacitorConfig = {
     App: {
       launchUrl: 'com.yuhi.osusowake://app',
     },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
   },
 
   server: {

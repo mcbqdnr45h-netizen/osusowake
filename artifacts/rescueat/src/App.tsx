@@ -13,6 +13,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import { useAppSettings } from "@/hooks/use-app-settings";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import MaintenancePage from "./pages/MaintenancePage";
 import { listStores, getListStoresQueryKey, listAllBags, getListAllBagsQueryKey, listReservations, getListReservationsQueryKey } from "@workspace/api-client-react";
 
@@ -469,6 +470,7 @@ function App() {
 //     ここではユーザ固有 API データのみ。
 function PrefetchOnAuth() {
   const { user } = useAuth();
+  usePushNotifications();
   useEffect(() => {
     if (!user?.id) return;
     const params = { userId: user.id };

@@ -8,4 +8,5 @@ export * from "./favorites";
 export * from "./cartReservations";
 export * from "./announcements";
 export * from "./webPushSubscriptions";
+export * from "./apnsRegistrations";
 export * from "./salesLeads";
