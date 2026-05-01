@@ -1418,9 +1418,14 @@ export default function StoreDashboard() {
   const filteredOldUnprocessed = oldUnprocessed.filter(matchesSearch);
   const totalSearchHits = filteredTodayPending.length + filteredTodayPickedUp.length + filteredOldUnprocessed.length;
   const now = new Date();
-  const activeBags     = (bags as any[]).filter((b: any) => getBagStatus(b, now) === 'active');
+  const todayStr = todayJSTStr();
+  // ★ JST 「今日」出品分のみを対象にする（昨日以前の取り残しを除外）
+  const todaysBags = (bags as any[]).filter(
+    (b: any) => { try { return toJSTDateStr(b.createdAt) === todayStr; } catch { return false; } }
+  );
+  const activeBags     = todaysBags.filter((b: any) => getBagStatus(b, now) === 'active');
   // 出品中（active・soldout のみ — expired は除外）
-  const nonIdleBags = [...(bags as any[])]
+  const nonIdleBags = [...todaysBags]
     .filter((b: any) => b.isActive && getBagStatus(b, now) !== 'expired')
     .sort((a: any, b: any) => {
       // 公開中(0) → 完売(1)
@@ -1433,8 +1438,9 @@ export default function StoreDashboard() {
       if (sa === 'active') return (a.pickupStart || '').localeCompare(b.pickupStart || '');
       return 0;
     });
-  // 受付終了（isActive=true のまま時間切れ） → 折りたたみ表示
-  const expiredActiveBags = [...(bags as any[])]
+  // 受付終了（本日分・isActive=true のまま時間切れ） → 折りたたみ表示
+  // ★ todaysBags をベースにすることで、昨日以前の取り残しは絶対に混入しない
+  const expiredActiveBags = [...todaysBags]
     .filter((b: any) => b.isActive && getBagStatus(b, now) === 'expired');
 
   // クイック出品用: title で重複排除（最新 id を優先）
