@@ -37,6 +37,7 @@
 12. **審査用デモバッグ恒久表示** - `lib/app-review.ts` の `isReviewDemoOwner()` で UUID allowlist 判定。 `bags.ts` の `isBagExpired()` (JS) と `notExpiredCondition` (SQL CASE 0) でデモオーナーのバッグを expiry チェック対象外にし、 `reservations.ts` も同様に bypass。 結果、デモストア (Supabase store #123, owner `3f3a4139-...`) のバッグ #104 (¥1500→¥500, 在庫10, pickup 18:00-20:00) は日付・時刻に関係なく常に一覧表示・予約可能。
 13. **シェア機能** - `components/ShareAppCard.tsx` で `navigator.share()` (Web Share API / iOS Capacitor 対応) → 失敗時は LINE/X/Facebook/コピーリンクのフォールバック展開。 マイページ (一般ユーザー版・店舗オーナー版) の「アカウント・サポート」直前に「おすそわけを広める」セクションとして配置。 共有 URL は `https://osusowakejapan.org`、文言は variant=user/store で出し分け。
 14. **使い方ガイド** - `pages/UsageGuide.tsx` (`/usage-guide`, `/guide`) FAQ (`/help`) とは別に、 6ステップの図解＋使いこなしのコツ＋シェアカード＋FAQ導線で構成。 `?mode=store` または `profile.role==='store_owner'` で店舗編、それ以外はユーザー編を表示。 マイページの「アカウント・サポート」内ヘルプの上に配置 (BookOpenアイコン)。
+15. **パスワード変更** - `components/ChangePasswordModal.tsx` (現在PW再認証→新PW更新→トースト表示)。 設定 (`Settings.tsx`) のアカウントセクション、ログアウトの上に配置。 メール/パスワードプロバイダのユーザーのみ表示 (`user.identities.provider==='email'` 判定、Google等のソーシャル専用ユーザーには非表示)。 モーダル内に「現在のパスワードを忘れた方はこちら」リンクで `supabase.auth.resetPasswordForEmail` 経由のリセットメール送信もエスケープハッチとして提供。
 
 ## Pages
 

@@ -5,13 +5,14 @@ import { useUserId } from '@/hooks/use-user';
 import { useLocation, Link } from 'wouter';
 import {
   ChevronLeft, User, Camera, Bell, LogOut,
-  ChevronRight, Mail, Pencil, X, Check, Trash2,
+  ChevronRight, Mail, Pencil, X, Check, Trash2, Lock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar, saveAvatar } from '@/hooks/use-avatar';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
+import { ChangePasswordModal } from '@/components/ChangePasswordModal';
 import {
   useGetRankingPreference,
   useUpdateRankingPreference,
@@ -267,6 +268,25 @@ export default function Settings() {
   const [showTokusho, setShowTokusho] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
+  // メール/パスワードでサインアップしたユーザーのみ「パスワード変更」を表示
+  // (Google等のソーシャルログイン専用ユーザーには非表示)
+  // 不明な場合は安全側 (=非表示) に倒す
+  const hasEmailProvider = (() => {
+    const u = user as any;
+    if (!u) return false;
+    const ids = u.identities;
+    if (Array.isArray(ids) && ids.length > 0) {
+      return ids.some((id: any) => id?.provider === 'email');
+    }
+    const providers = u.app_metadata?.providers;
+    if (Array.isArray(providers) && providers.length > 0) {
+      return providers.includes('email');
+    }
+    const provider = u.app_metadata?.provider;
+    return provider === 'email';
+  })();
 
   // profile が読み込まれたら display_name を同期
   useEffect(() => {
@@ -465,6 +485,12 @@ export default function Settings() {
             onConfirm={handleDeleteAccount}
             deleting={deletingAccount}
             isStoreOwner={isStoreOwner}
+          />
+        )}
+        {showChangePassword && user?.email && (
+          <ChangePasswordModal
+            email={user.email}
+            onClose={() => setShowChangePassword(false)}
           />
         )}
       </AnimatePresence>
@@ -714,6 +740,21 @@ export default function Settings() {
           {/* ── LOGOUT / DELETE ── */}
           <SectionLabel>アカウント</SectionLabel>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-8">
+            {hasEmailProvider && (
+              <button
+                onClick={() => setShowChangePassword(true)}
+                className="w-full flex items-center gap-3.5 px-4 min-h-[56px] hover:bg-secondary/50 active:bg-secondary/70 transition-colors border-b border-border/60"
+              >
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Lock className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="block font-bold text-sm text-foreground">パスワードを変更</span>
+                  <span className="block text-xs text-muted-foreground">忘れた場合は再設定メールも送れます</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-3.5 px-4 min-h-[56px] hover:bg-destructive/5 active:bg-destructive/10 transition-colors border-b border-border/60"
