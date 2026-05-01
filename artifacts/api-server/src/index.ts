@@ -2,6 +2,7 @@ import app from "./app";
 import { pool } from "@workspace/db";
 import { releaseExpiredCartReservations } from "./routes/reservations";
 import { sendPickupReminders } from "./lib/pickup-reminder.js";
+import { runDailyEngagementNotifications } from "./lib/daily-engagement.js";
 
 // ── 起動時マイグレーション（冪等・全て Supabase PostgreSQL 対象）──────────────
 async function runMigrations() {
@@ -569,4 +570,9 @@ runMigrations().then(() => {
   setInterval(() => {
     sendPickupReminders().catch(() => {});
   }, 5 * 60_000);
+
+  // 毎日のエンゲージメント通知（朝9時・夕方17時 JST）を1分ごとにチェック
+  setInterval(() => {
+    runDailyEngagementNotifications().catch(() => {});
+  }, 60_000);
 });
