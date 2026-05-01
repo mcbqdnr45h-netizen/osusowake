@@ -228,22 +228,31 @@ function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
       const count  = cluster.count;
       const maxVal = stats.clusters.markers.max;
 
+      // 件数に応じてサイズと色を決定（はっきり見えるように）
       const ratio = Math.min(count / Math.max(maxVal, 1), 1);
-      const size  = Math.round(30 + ratio * 10);
+      const size  = Math.round(46 + ratio * 18);   // 46〜64px（旧 30〜40px）
       const half  = size / 2;
-      const r     = half - 2.5;
+      const r     = half - 5;                       // ハロー分のマージン
 
-      const strokeColor = count >= 10 ? '#D44A00' : '#F26419';
-      const fillAlpha   = count >= 10 ? 0.20 : 0.13;
-      const textColor   = count >= 10 ? '#B83D00' : '#D44A00';
-      const fontSize    = count >= 100 ? 9 : count >= 10 ? 10 : 11;
+      // 件数に応じた濃いオレンジ系（ブランドカラー寄り）
+      const fillColor   = count >= 50 ? '#B83D00'
+                        : count >= 10 ? '#D44A00'
+                        :               '#F26419';
+      const haloColor   = 'rgba(242,100,25,0.22)';
+      const fontSize    = count >= 1000 ? 14 : count >= 100 ? 16 : count >= 10 ? 18 : 20;
+      const labelText   = count >= 1000 ? `${Math.floor(count / 1000)}k+` : String(count);
 
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-        <circle cx="${half}" cy="${half}" r="${r + 3.5}" fill="rgba(242,100,25,0.06)"/>
-        <circle cx="${half}" cy="${half}" r="${r}" fill="rgba(242,100,25,${fillAlpha})" stroke="${strokeColor}" stroke-width="1.5"/>
-        <text x="${half}" y="${half + fontSize * 0.38}"
+        <defs>
+          <filter id="cs" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#000" flood-opacity="0.28"/>
+          </filter>
+        </defs>
+        <circle cx="${half}" cy="${half}" r="${half - 1}" fill="${haloColor}"/>
+        <circle cx="${half}" cy="${half}" r="${r}" fill="${fillColor}" stroke="#FFFFFF" stroke-width="3" filter="url(#cs)"/>
+        <text x="${half}" y="${half + fontSize * 0.36}"
           text-anchor="middle" font-size="${fontSize}" font-family="'Noto Sans JP','Outfit',sans-serif"
-          font-weight="500" fill="${textColor}">${count}</text>
+          font-weight="800" fill="#FFFFFF" letter-spacing="-0.3">${labelText}</text>
       </svg>`;
 
       return new gMaps.Marker({
