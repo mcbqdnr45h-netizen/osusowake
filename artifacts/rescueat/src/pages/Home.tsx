@@ -22,6 +22,7 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters, requestGpsManually } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
 import { useAppSettings } from '@/hooks/use-app-settings';
+import { Capacitor } from '@capacitor/core';
 
 // ─── 日次シードシャッフル ─────────────────────────────────────────────────
 // 毎日異なる順番になるが、同じ日の中はリフレッシュしても同じ順番を維持する
@@ -319,9 +320,16 @@ export default function Home() {
       retryGeo();
     } else {
       // 拒否 or タイムアウト
-      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      // Capacitor ネイティブアプリ (iOS/Android) かをまず判定 (iPadOS は UA で iPad を装わないため必須)
+      const isNative = Capacitor.isNativePlatform();
+      // iOS Safari/PWA 判定 (iPadOS は UA に "Mac" が入りタッチ端末になる為、補助的に touch も見る)
+      const ua = navigator.userAgent;
+      const isIosWeb = /iPad|iPhone|iPod/.test(ua) ||
+                       (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
       alert(
-        isIos
+        isNative
+          ? '位置情報の使用が許可されていません。\n\n「設定」→「Osusowake」→「位置情報」を「このAppの使用中のみ許可」に設定してください。'
+          : isIosWeb
           ? '位置情報の使用が許可されていません。\n\n「設定」→「プライバシーとセキュリティ」→「位置情報サービス」→「Safari」を「このAppの使用中のみ許可」に設定してください。'
           : '位置情報の使用が許可されていません。\nブラウザのアドレスバー左の鍵アイコンから位置情報を許可してください。',
       );
