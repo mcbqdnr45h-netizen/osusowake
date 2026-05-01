@@ -157,19 +157,12 @@ export default function UsageGuide() {
           }`}>
             {isStoreMode ? '🏪 店舗オーナー編' : '👤 ユーザー編'}
           </div>
-          {isStoreMode ? (
+          {isStoreMode && (
             <Link
               href="/usage-guide?mode=user"
               className="text-[11px] font-bold text-muted-foreground hover:text-primary underline underline-offset-2"
             >
               ユーザー編を見る →
-            </Link>
-          ) : (
-            <Link
-              href="/usage-guide?mode=store"
-              className="text-[11px] font-bold text-muted-foreground hover:text-primary underline underline-offset-2"
-            >
-              店舗オーナー編を見る →
             </Link>
           )}
         </div>
