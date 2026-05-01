@@ -581,12 +581,6 @@ export default function MyPage() {
               </Link>
             </div>
 
-            {/* おすそわけを広める */}
-            <div>
-              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">おすそわけを広める</p>
-              <ShareAppCard variant="user" />
-            </div>
-
             {/* アカウント・サポート */}
             <div>
               <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アカウント・サポート</p>
@@ -660,6 +654,12 @@ export default function MyPage() {
                   </div>
                 </button>
               </div>
+            </div>
+
+            {/* おすそわけを広める */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">おすそわけを広める</p>
+              <ShareAppCard variant="user" />
             </div>
 
             {/* 法的情報リンク */}
@@ -1074,12 +1074,6 @@ export default function MyPage() {
               </div>
             </div>
 
-            {/* おすそわけを広める */}
-            <div>
-              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">おすそわけを広める</p>
-              <ShareAppCard variant="store" />
-            </div>
-
             {/* アカウント・サポート */}
             <div>
               <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">アカウント・サポート</p>
@@ -1153,6 +1147,12 @@ export default function MyPage() {
                   </div>
                 </button>
               </div>
+            </div>
+
+            {/* おすそわけを広める */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">おすそわけを広める</p>
+              <ShareAppCard variant="store" />
             </div>
 
             {/* 法的情報リンク */}
