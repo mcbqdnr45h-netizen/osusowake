@@ -232,7 +232,7 @@ title = "おすそわけ 店舗向けチラシ (A4 縦 PDF)"
 id = "WU8bdrVONfwzFvmCuFl58"
 uri = "file://attached_assets/appstore/01_home.png"
 type = "image"
-title = "1枚目 ホーム ｜ 今夜の夕食、おトクに"
+title = "1枚目 ホーム ｜ 今日の夕食、おトクに"
 
 [[outputs]]
 id = "ihkmYqcZxUWg0sJ2fiHtB"
@@ -244,7 +244,7 @@ title = "2枚目 マップ ｜ お近くのお店を一目で"
 id = "kruLeqXp2X6I7xQ7NUJfF"
 uri = "file://attached_assets/appstore/03_detail.png"
 type = "image"
-title = "3枚目 商品詳細 ｜ 焼きたてパンが ¥380"
+title = "3枚目 商品詳細 ｜ 通常 ¥900 → ¥380"
 
 [[outputs]]
 id = "Q7OHrAYHyHY90Ey7u3WNa"
