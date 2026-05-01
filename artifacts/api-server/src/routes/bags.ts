@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { surpriseBagsTable, storesTable, reservationsTable, favoritesTable, notificationsTable, reviewsTable } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { releaseExpiredCartReservations } from "./reservations";
-import { sendWebPushToUsers } from "../lib/push.js";
+import { sendPushToUsers } from "../lib/push.js";
 import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
 import {
   ListStoreBagsParams,
@@ -306,7 +306,7 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
           }))
         );
         // Web Push（アプリ外通知）
-        await sendWebPushToUsers(fanRows.map(f => f.userId), {
+        await sendPushToUsers(fanRows.map(f => f.userId), {
           title: notifTitle,
           body:  notifBody,
           tag:   `new-bag-${storeId}`,

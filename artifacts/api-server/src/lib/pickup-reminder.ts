@@ -1,7 +1,7 @@
 import { db } from '@workspace/db';
 import { reservationsTable, surpriseBagsTable, storesTable, notificationsTable } from '@workspace/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { sendWebPushToUser } from './push.js';
+import { sendPushToUser } from './push.js';
 
 /**
  * 受取時間の1時間前に確定済み予約のユーザーへリマインダーを送る。
@@ -69,7 +69,7 @@ export async function sendPickupReminders(): Promise<void> {
       });
 
       // Web Push
-      await sendWebPushToUser(row.userId, {
+      await sendPushToUser(row.userId, {
         title,
         body,
         tag:  `pickup-reminder-${row.reservationId}`,

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { reservationsTable, surpriseBagsTable, storesTable, cartReservationsTable, notificationsTable } from "@workspace/db/schema";
 import { eq, sql, and, ne } from "drizzle-orm";
-import { sendWebPushToUser } from "../lib/push.js";
+import { sendPushToUser } from "../lib/push.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { requireAuth } from "../middlewares/auth.js";
 import {
@@ -715,7 +715,7 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
           const body  = `受取コード: ${updated.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
           await Promise.all([
             db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title, body, storeId: updated.storeId }),
-            sendWebPushToUser(store.ownerId, { title, body, tag: `bag-sold-${updated.id}`, url: "/store/orders" }),
+            sendPushToUser(store.ownerId, { title, body, tag: `bag-sold-${updated.id}`, url: "/store/orders" }),
           ]);
         }
       } catch (e) {
@@ -1211,7 +1211,7 @@ router.get("/checkout/verify", async (req, res) => {
               const body  = `受取コード: ${reservationFull.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
               await Promise.all([
                 db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title, body, storeId: reservationFull.storeId ?? undefined }),
-                sendWebPushToUser(ownerId, { title, body, tag: `bag-sold-${reservationId}`, url: "/store/orders" }),
+                sendPushToUser(ownerId, { title, body, tag: `bag-sold-${reservationId}`, url: "/store/orders" }),
               ]);
             }
           } catch (e) {

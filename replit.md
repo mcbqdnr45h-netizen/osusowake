@@ -140,6 +140,7 @@
 5. **/admin/stores/:storeId/request-license-reupload** 新設: 店主への再アップロード要求記録 (フラグ + 監査ログ)。
 6. **AdminDashboard.tsx 全面改修**: 🚨 営業許可証問題バナー (severity 別バッジ・再アップ要求ボタン)、テスト店フィルタトグル (state `excludeTest` を `fetchAll` deps に渡して切替時 re-fetch)、売上ブレイクダウン (4 カード)、recharts LineChart (直近30日 売上推移)、店舗ランキング TOP5 (棒グラフ・受取率カラー警告)、時間帯ヒートマップ (7×24 div グリッド・紫グラデ)、ファネル (作成→確定→受取・キャンセル率)、異常検知カード。recharts ^2.15.2 + 既存 lucide icons + framer-motion で構成。
 7. **SW v26→v27**: `artifacts/rescueat/public/sw.js` キャッシュ更新。
+8. **🚨 push 通知 致命的バグ修正**: `pickup-reminder.ts` / `payment.ts` (2箇所) / `bags.ts` の 4トリガーが `sendWebPushToUser` (web 専用) しか呼んでおらず、APNs (iOS native) は初期化済みなのに 0件 invoke という状態。`sendPushToUser` (`Promise.allSettled([web, apns])`) に統一して両方並列送信。APNs production 切替は `process.env.NODE_ENV === 'production'` で自動 (Replit Deploy 後は production endpoint へ)。
 
 ## Recent Updates (2026-04-30)
 
