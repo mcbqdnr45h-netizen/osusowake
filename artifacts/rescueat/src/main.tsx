@@ -45,3 +45,15 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </ErrorBoundary>
 );
+
+// ★ Google Maps スクリプトをアイドル中に先読みしてキャッシュ温存。
+//    地図ページを開いた瞬間に既にダウンロード済み → 体感ロード時間を大幅短縮。
+//    requestIdleCallback が無い環境 (Safari) では setTimeout でフォールバック。
+const __preloadMaps = () => {
+  import('@/lib/maps-loader').then(m => m.loadGoogleMapsScript().catch(() => {})).catch(() => {});
+};
+if ('requestIdleCallback' in window) {
+  (window as any).requestIdleCallback(__preloadMaps, { timeout: 4000 });
+} else {
+  setTimeout(__preloadMaps, 2500);
+}

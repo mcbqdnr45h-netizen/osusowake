@@ -398,29 +398,32 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     });
   }, [stores]);
 
+  // ── アクティブ店舗ID Set (O(店舗数 × バッグ数) を O(店舗数 + バッグ数) に短縮) ──
+  //   bags を1回スキャンして「在庫あり + 受取時間内」の store.id を Set 化。
+  //   以後の判定は Set.has() (O(1)) で済むため、店舗・バッグが多くても CPU を喰わない。
+  const activeStoreIdSet = useMemo(() => {
+    const s = new Set<number | string>();
+    for (const b of bags) {
+      if (b.stockCount > 0 && isInPickupWindow(b.pickupStart, b.pickupEnd)) {
+        s.add(b.store.id);
+      }
+    }
+    return s;
+  }, [bags]);
+
   // ── アクティブ店舗（オレンジピン: 在庫あり + 受取時間内）────────────────────
-  const activeListingStores = useMemo(() => {
-    return listingStores.filter(s =>
-      bags.some(b =>
-        b.store.id === s.id &&
-        b.stockCount > 0 &&
-        isInPickupWindow(b.pickupStart, b.pickupEnd)
-      )
-    );
-  }, [listingStores, bags]);
+  const activeListingStores = useMemo(
+    () => listingStores.filter(s => activeStoreIdSet.has(s.id)),
+    [listingStores, activeStoreIdSet]
+  );
 
   // ── マーカーKey（ID:色 文字列）─────────────────────────────────────────────
   // 店舗リストや在庫・時間が変わったときだけマーカーを再描画
   const markerKey = useMemo(() => {
-    return listingStores.map(s => {
-      const isActive = bags.some(b =>
-        b.store.id === s.id &&
-        b.stockCount > 0 &&
-        isInPickupWindow(b.pickupStart, b.pickupEnd)
-      );
-      return `${s.id}:${isActive ? 'orange' : 'gray'}`;
-    }).join(',');
-  }, [listingStores, bags]);
+    return listingStores
+      .map(s => `${s.id}:${activeStoreIdSet.has(s.id) ? 'orange' : 'gray'}`)
+      .join(',');
+  }, [listingStores, activeStoreIdSet]);
 
   // ── マップ初期化 ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -615,11 +618,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     listingStores.forEach(store => {
       // このstoreが「アクティブ（在庫あり + 受取時間内）」かを判定
-      const isActive = bags.some(b =>
-        b.store.id === store.id &&
-        b.stockCount > 0 &&
-        isInPickupWindow(b.pickupStart, b.pickupEnd)
-      );
+      // ★ activeStoreIdSet (上で bags を 1 回走査して構築) を使い O(1) で判定。
+      //    旧実装の bags.some() は店舗ごとに全 bags を走査していたため
+      //    全体で O(店舗数 × バッグ数) になり、地図表示が重くなる原因だった。
+      const isActive = activeStoreIdSet.has(store.id);
 
       // ★ 店舗が独自アイコン (iconUrl) を設定している場合はそれを優先表示。
       //   ただし iOS Safari は data:image/svg+xml の中で外部 https 画像を描画できないため、
