@@ -736,10 +736,12 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
             ? ` 受取時間: ${bag.pickupStart}〜${bag.pickupEnd}`
             : "";
           const userTitle = "🛍️ おすそわけのご予約が確定しました！";
-          const userBody  = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${updated.pickupCode ?? "---"}${pickupHint}`;
+          // ★ [bag:ID] トークン付与で「詳細を見る」 から bag detail へ直接遷移可能に
+          const bagToken = bag?.id ? ` [bag:${bag.id}]` : "";
+          const userBody  = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${updated.pickupCode ?? "---"}${pickupHint}${bagToken}`;
           await Promise.all([
             db.insert(notificationsTable).values({ userId: updated.userId, type: "purchase_confirmed", title: userTitle, body: userBody }),
-            sendPushToUser(updated.userId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${updated.id}`, url: "/my-reservations" }),
+            sendPushToUser(updated.userId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${updated.id}`, url: bag?.id ? `/bags/${bag.id}` : "/my-reservations" }),
           ]);
         }
       } catch (e) {
@@ -1248,10 +1250,12 @@ router.get("/checkout/verify", async (req, res) => {
                 ? ` 受取時間: ${reservationFull.pickupStart}〜${reservationFull.pickupEnd}`
                 : "";
               const userTitle = "🛍️ おすそわけのご予約が確定しました！";
-              const userBody  = `「${reservationFull.bagTitle ?? "おすそわけ袋"}」（${reservationFull.storeName ?? "店舗"}）受取コード: ${reservationFull.pickupCode ?? "---"}${pickupHint}`;
+              // ★ [bag:ID] トークン付与で「詳細を見る」 から bag detail へ直接遷移可能に
+              const bagToken = reservationFull.bagId ? ` [bag:${reservationFull.bagId}]` : "";
+              const userBody  = `「${reservationFull.bagTitle ?? "おすそわけ袋"}」（${reservationFull.storeName ?? "店舗"}）受取コード: ${reservationFull.pickupCode ?? "---"}${pickupHint}${bagToken}`;
               await Promise.all([
                 db.insert(notificationsTable).values({ userId: buyerUserId, type: "purchase_confirmed", title: userTitle, body: userBody }),
-                sendPushToUser(buyerUserId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${reservationId}`, url: "/my-reservations" }),
+                sendPushToUser(buyerUserId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${reservationId}`, url: reservationFull.bagId ? `/bags/${reservationFull.bagId}` : "/my-reservations" }),
               ]);
             }
           } catch (e) {

@@ -564,10 +564,12 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
             ? ` 受取時間: ${bag.pickupStart}〜${bag.pickupEnd}`
             : "";
           const userTitle = "🛍️ おすそわけのご予約が確定しました！";
-          const userBody  = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${row.pickupCode ?? "---"}${pickupHint}`;
+          // ★ [bag:ID] トークン付与で「詳細を見る」 から bag detail へ直接遷移可能に
+          const bagToken = bag?.id ? ` [bag:${bag.id}]` : "";
+          const userBody  = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${row.pickupCode ?? "---"}${pickupHint}${bagToken}`;
           await Promise.all([
             db.insert(notificationsTable).values({ userId: reservation.userId, type: "purchase_confirmed", title: userTitle, body: userBody }),
-            sendPushToUser(reservation.userId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${row.id}`, url: "/my-reservations" }),
+            sendPushToUser(reservation.userId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${row.id}`, url: bag?.id ? `/bags/${bag.id}` : "/my-reservations" }),
           ]);
         }
       } catch (notifErr) {

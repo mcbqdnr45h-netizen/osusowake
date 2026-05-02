@@ -313,13 +313,16 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
       if (fanRows.length > 0 && store) {
         const priceLabel = `¥${Number(body.discountedPrice).toLocaleString()}`;
         const notifTitle = `🛍️ ${store.name} が新しいおすそわけを出品`;
-        const notifBody  = `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個`;
+        // ★ [bag:ID] トークン付与で「詳細を見る」 から bag detail へ直接遷移可能に
+        const bagToken = bag?.id ? ` [bag:${bag.id}]` : "";
+        const notifBody  = `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個${bagToken}`;
         await db.insert(notificationsTable).values(
           fanRows.map(f => ({
             userId: f.userId,
             type:   "new_bag",
             title:  notifTitle,
             body:   notifBody,
+            storeId,
           }))
         );
         // Web Push（アプリ外通知）
@@ -327,7 +330,7 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
           title: notifTitle,
           body:  notifBody,
           tag:   `new-bag-${storeId}`,
-          url:   `/stores/${storeId}`,
+          url:   bag?.id ? `/bags/${bag.id}` : `/stores/${storeId}`,
         });
         console.log(`[bags] notified ${fanRows.length} favorite users for store ${storeId}`);
       }

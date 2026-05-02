@@ -18,6 +18,7 @@ export async function sendPickupReminders(): Promise<void> {
       .select({
         reservationId: reservationsTable.id,
         userId:        reservationsTable.userId,
+        bagId:         reservationsTable.bagId,
         bagTitle:      surpriseBagsTable.title,
         storeName:     storesTable.name,
         pickupStart:   surpriseBagsTable.pickupStart,
@@ -61,11 +62,14 @@ export async function sendPickupReminders(): Promise<void> {
       const body  = `${row.storeName ?? '店舗'}「${row.bagTitle ?? 'おすそわけ袋'}」の受取まであと1時間です`;
 
       // アプリ内通知（末尾に reservationId を埋め込んで重複チェックに使う）
+      // ★ さらに [bag:ID] トークンを末尾に付与し、 フロントの「詳細を見る」 で
+      //   bag detail に直接遷移できるようにする (NotificationsBell.tsx で抽出/除去)
+      const bagToken = row.bagId ? ` [bag:${row.bagId}]` : '';
       await db.insert(notificationsTable).values({
         userId: row.userId,
         type:   'pickup_reminder',
         title,
-        body:   `${body} #${row.reservationId}`,
+        body:   `${body} #${row.reservationId}${bagToken}`,
       });
 
       // Web Push
@@ -73,8 +77,8 @@ export async function sendPickupReminders(): Promise<void> {
         title,
         body,
         tag:  `pickup-reminder-${row.reservationId}`,
-        url:  '/my-bags',
-        data: { reservationId: row.reservationId },
+        url:  row.bagId ? `/bags/${row.bagId}` : '/my-reservations',
+        data: { reservationId: row.reservationId, bagId: row.bagId ?? null },
       });
 
       console.log(`[pickup-reminder] sent: user=${row.userId} reservation=${row.reservationId}`);

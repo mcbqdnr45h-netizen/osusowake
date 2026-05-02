@@ -14,27 +14,53 @@ function timeAgo(dateStr: string) {
   }
 }
 
+// ★ サーバ側で通知 body 末尾に埋め込まれた `[bag:123]` トークンから bag id を抽出する。
+//   無ければ null。 表示時にはこのトークンを除去して見た目を綺麗にする (stripBagToken)。
+const BAG_TOKEN_RE = /\s*\[bag:(\d+)\]\s*$/;
+function extractBagId(body: string | null): number | null {
+  if (!body) return null;
+  const m = body.match(BAG_TOKEN_RE);
+  return m ? Number(m[1]) : null;
+}
+function stripBagToken(body: string | null): string {
+  if (!body) return '';
+  return body.replace(BAG_TOKEN_RE, '').trim();
+}
+
 function notificationLink(n: AppNotification): string | null {
+  // ★ ユーザー向け通知 (受取リマインダー/予約確定/お気に入り店の新着) は
+  //   body から [bag:ID] を抽出して bag detail に直接飛ばすのを最優先にする。
+  //   これにより「詳細を見る」 を押した時に必ず該当商品の詳細ページが開く。
+  const bagId = extractBagId(n.body);
+  if (bagId && (n.type === 'pickup_reminder' || n.type === 'purchase_confirmed' || n.type === 'new_bag')) {
+    return `/bags/${bagId}`;
+  }
   switch (n.type) {
-    case 'store_approved':   return '/store/bank-setup';   // 承認→口座・本人確認へ
-    case 'store_rejected':   return '/store/reapply';      // 却下→店舗情報の再申請へ
-    case 'bag_sold':         return '/store/sales';        // 店主宛
-    // ★ pickup_reminder はユーザー(購入者)宛のみ送信される (lib/pickup-reminder.ts)。
-    //   /store/dashboard は store_owner 専用 Protected ルートで、一般ユーザーは
-    //   弾かれて navigate しても何も起きないバグになっていた。 → /my-reservations へ。
-    case 'pickup_reminder':  return '/my-reservations';
-    case 'new_bag':          return '/';                   // お気に入り店から新規バッグ→トップへ
-    default:                 return null;
+    case 'store_approved':       return '/store/bank-setup';   // 承認→口座・本人確認へ
+    case 'store_rejected':       return '/store/reapply';      // 却下→店舗情報の再申請へ
+    case 'store_action_required':return '/store/dashboard';    // Stripe 追加対応
+    case 'bag_sold':             return '/store/sales';        // 店主宛
+    // ↓ 旧通知 (bag id トークン無し) のフォールバック
+    case 'pickup_reminder':      return '/my-reservations';    // 受取リマインダー (購入者)
+    case 'purchase_confirmed':   return '/my-reservations';    // 予約確定 (購入者)
+    case 'new_bag':              return n.storeId ? `/stores/${n.storeId}` : '/';
+    case 'announcement':         return '/';
+    case 'broadcast':            return '/';
+    default:                     return null;
   }
 }
 
 function notificationIcon(type: string) {
   const icons: Record<string, string> = {
-    store_approved:  '✅',
-    store_rejected:  '❌',
-    bag_sold:        '💰',
-    pickup_reminder: '⏰',
-    new_bag:         '🛍️',
+    store_approved:       '✅',
+    store_rejected:       '❌',
+    store_action_required:'⚠️',
+    bag_sold:             '💰',
+    pickup_reminder:      '⏰',
+    purchase_confirmed:   '🛍️',
+    new_bag:              '🆕',
+    announcement:         '📢',
+    broadcast:            '📣',
   };
   return icons[type] ?? '📢';
 }
@@ -69,7 +95,7 @@ function NotificationItem({ n, onRead, onClose }: {
             {n.title}
           </p>
           {n.body && (
-            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-3">{n.body}</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-3">{stripBagToken(n.body)}</p>
           )}
           <div className="flex items-center justify-between mt-1">
             <p className="text-[10px] text-gray-400">{timeAgo(n.createdAt)}</p>
