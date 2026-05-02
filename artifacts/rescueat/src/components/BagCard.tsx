@@ -102,54 +102,32 @@ function CompactCardBody({
     ? 'bg-amber-50 text-amber-700 ring-amber-200/70'
     : 'bg-sky-50 text-sky-700 ring-sky-200/70';
 
+  const hasTime = !!(bag.pickupStart || bag.pickupEnd);
+  const hasMetaRow = !isSoldOut && (hasTime || isLowStock || distLabel || gpsLoading);
+
+  /* ─── 新レイアウト方針 (世界品質 v3) ───────────────────────────────────────
+      ユーザ報告: v2 でも店名「タップスバーガーショップ」 が「タップ...」 になっていた
+      原因: ① 行で受取時間を shrink-0 で確保したため、 店名 (flex-1) の使える幅が狭まった
+      v3 では「3行の責務を完全に分離」する:
+        ① 店名 (1 行を独占) ← truncate 不要レベルまで店名にフル幅を与える
+        ② 商品タイトル (flex-1) + 大価格 (右寄せ shrink-0) ← 主役の対比
+        ③ 受取時間 + 残数 + 距離 を chip 群として本文幅いっぱい flex-wrap ← 全 chip フル表示
+      これで「タップスバーガーショップ」 のような長い店名でもフル表示可能。 */
   return (
-    <div className="flex flex-col gap-[5px]">
+    <div className="flex flex-col gap-[4px]">
 
-      {/* ① 店舗名（左）＋ 受取時間（右） — 同一行・絶対に重ならない
-          受取時間はオレンジ tabular-nums chip で「次のアクション」を強調 */}
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <span className="text-[10.5px] text-muted-foreground/95 font-bold truncate leading-none tracking-[-0.01em]">
-          {bag.store.name}
-        </span>
-        {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
-          <div className="flex items-center gap-0.5 text-[10px] text-primary/85 font-black shrink-0 bg-primary/8 px-1.5 py-[3px] rounded-md leading-none">
-            <Clock className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />
-            <span className="whitespace-nowrap tabular-nums">
-              {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* ② 商品タイトル — 視覚的な主役。15px black, タイト tracking */}
-      <p className={`font-black text-[15px] leading-[1.15] line-clamp-1 tracking-[-0.018em]
-        ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}`}>
-        {bag.title}
+      {/* ① 店舗名のみ (1 行独占で最大幅を確保) */}
+      <p className="text-[10.5px] text-muted-foreground/95 font-bold truncate leading-none tracking-[-0.01em]">
+        {bag.store.name}
       </p>
 
-      {/* ③ chip 群（左・1行で並列）＋ 価格（右・大きく） */}
+      {/* ② 商品タイトル ＋ 大価格 (同じ行で対比、 タイトル flex-1 truncate / 価格 shrink-0 右寄せ)
+          価格は「取消線 (上に小さく) ＋ 大価格 (下に大きく)」 を縦並びの右寄せ列で表示 */}
       {!isSoldOut ? (
-        <div className="flex items-end justify-between gap-1.5 mt-[3px]">
-          {/* 左: 残数 chip + 距離 chip を 1 行で（縦積みではなく並列で密度を上げる）
-              ★ flex-nowrap + min-w-0 + overflow-hidden で 2列 grid の狭幅でも改行させず、
-                溢れた場合は最後の chip がはみ出さない (chip 自体に whitespace-nowrap で内部改行も抑止) */}
-          <div className="flex flex-nowrap items-center gap-1 min-w-0 flex-1 pb-[1px] overflow-hidden">
-            {isLowStock && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-600 bg-rose-50
-                px-1.5 py-[3px] rounded-md ring-1 ring-rose-200/70 leading-none whitespace-nowrap">
-                🔥 残り{bag.stockCount}
-              </span>
-            )}
-            {distLabel ? (
-              <span className={`inline-flex items-center gap-0.5 rounded-md font-black text-[10px] px-1.5 py-[3px] leading-none whitespace-nowrap ring-1 ${distChipClass}`}>
-                <Navigation className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />
-                {distLabel}
-              </span>
-            ) : gpsLoading ? (
-              <span className="inline-block w-10 h-[16px] rounded-md bg-muted animate-pulse" />
-            ) : null}
-          </div>
-          {/* 右: 元値（取消線・控えめ）＋ 販売価格（特大・tabular-nums で揃え） */}
+        <div className="flex items-end justify-between gap-2.5 min-w-0">
+          <p className="font-black text-[15px] leading-[1.15] line-clamp-1 tracking-[-0.018em] text-foreground flex-1 min-w-0">
+            {bag.title}
+          </p>
           <div className="flex flex-col items-end shrink-0">
             {bag.originalPrice > bag.discountedPrice && (
               <span className="text-[10px] text-muted-foreground/45 line-through font-semibold leading-none mb-[2px] tabular-nums">
@@ -162,7 +140,43 @@ function CompactCardBody({
           </div>
         </div>
       ) : (
-        /* 完売時 */
+        <p className="font-black text-[15px] leading-[1.15] line-clamp-1 tracking-[-0.018em] text-muted-foreground">
+          {bag.title}
+        </p>
+      )}
+
+      {/* ③ メタ chip 群: 受取時間 + 残数 + 距離 を本文幅いっぱい flex-wrap で表示
+          ★ 受取時間は bg/ring を外した軽量 inline-text スタイルに (~80px → ~55px に圧縮) し、
+            残数・距離 chip と組み合わせても 160px カード幅に 1 行で収まるよう設計。
+          ★ 万一 2 段になっても全情報フル表示を優先 (旧版の truncate よりマシ)。
+          ★ 表示順は「時間 → 残数 → 距離」 が左から、 折返した場合は距離が下段に来る。 */}
+      {hasMetaRow && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-[2px]">
+          {hasTime && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
+              <Clock className="w-2.5 h-2.5 shrink-0 text-primary/70" strokeWidth={2.4} />
+              {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
+            </span>
+          )}
+          {isLowStock && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-600 bg-rose-50
+              px-1.5 py-[3px] rounded-md ring-1 ring-rose-200/70 leading-none whitespace-nowrap">
+              🔥 残り{bag.stockCount}個
+            </span>
+          )}
+          {distLabel ? (
+            <span className={`inline-flex items-center gap-0.5 rounded-md font-black text-[10px] px-1.5 py-[3px] leading-none whitespace-nowrap ring-1 ${distChipClass}`}>
+              <Navigation className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />
+              {distLabel}
+            </span>
+          ) : gpsLoading ? (
+            <span className="inline-block w-12 h-[18px] rounded-md bg-muted animate-pulse" />
+          ) : null}
+        </div>
+      )}
+
+      {/* ④ 完売時: 応援ボタン */}
+      {isSoldOut && (
         <button
           onClick={onSoldOutFan}
           className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-semibold
