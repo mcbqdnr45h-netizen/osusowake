@@ -22,6 +22,22 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "muehlemann.org", "mailtemp.info", "anonmail.top", "spamavert.com", "mt2015.com",
 ]);
 
+// DNS ルックアップにタイムアウトを設定（遅い DNS でサインアップが詰まらないように）
+const DNS_TIMEOUT_MS = 1500;
+function withDnsTimeout<T>(p: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const err: any = new Error("dns_timeout");
+      err.code = "ETIMEOUT";
+      reject(err);
+    }, DNS_TIMEOUT_MS);
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 // メールアドレスの形式とドメインの実在性（MX レコード）を検証
 async function validateEmailExistence(email: string): Promise<{ valid: boolean; reason?: string }> {
   const trimmed = email.trim().toLowerCase();
@@ -40,11 +56,11 @@ async function validateEmailExistence(email: string): Promise<{ valid: boolean; 
   }
   // 3. MX レコードを引いてドメインがメール受信可能か確認（タイポや偽ドメイン排除）
   try {
-    const records = await dnsPromises.resolveMx(domain);
+    const records = await withDnsTimeout(dnsPromises.resolveMx(domain));
     if (!records || records.length === 0) {
       // MX が無い場合 A レコードでもメール配送可能なケースがあるが厳しめに弾く
       try {
-        await dnsPromises.resolve4(domain);
+        await withDnsTimeout(dnsPromises.resolve4(domain));
         // A レコードはあるが MX が無い → 受信できない可能性が高い
         return { valid: false, reason: "no_mx" };
       } catch {

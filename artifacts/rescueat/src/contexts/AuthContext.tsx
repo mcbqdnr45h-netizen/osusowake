@@ -296,14 +296,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signUp(email: string, password: string, name: string, phone: string) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
 
-    // メールアドレスの実在性チェック（存在しないメールでの登録を防止）
-    const emailCheck = await validateEmail(email);
+    // 並列実行: メール実在性チェック + 電話番号重複チェック (独立した2つの API 呼び出し)
+    const [emailCheck, phoneAvailable] = await Promise.all([
+      validateEmail(email),
+      checkPhoneAvailable(normalizedPhone),
+    ]);
     if (!emailCheck.valid) {
       return { error: emailCheck.message ?? 'メールアドレスを確認してください', needsConfirmation: false };
     }
-
-    // サーバーサイドでphone重複チェック（RLSをバイパス）
-    const phoneAvailable = await checkPhoneAvailable(normalizedPhone);
     if (!phoneAvailable) {
       return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
     }
@@ -344,14 +344,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signUpAsStore(email: string, password: string, name: string, phone: string) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
 
-    // メールアドレスの実在性チェック（存在しないメールでの登録を防止）
-    const emailCheck = await validateEmail(email);
+    // 並列実行: メール実在性チェック + 電話番号重複チェック (独立した2つの API 呼び出し)
+    const [emailCheck, phoneAvailable] = await Promise.all([
+      validateEmail(email),
+      checkPhoneAvailable(normalizedPhone),
+    ]);
     if (!emailCheck.valid) {
       return { error: emailCheck.message ?? 'メールアドレスを確認してください', needsConfirmation: false };
     }
-
-    // サーバーサイドでphone重複チェック（RLSをバイパス）
-    const phoneAvailable = await checkPhoneAvailable(normalizedPhone);
     if (!phoneAvailable) {
       return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
     }
