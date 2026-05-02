@@ -154,6 +154,23 @@
 3. **/checkout/verify セキュリティ強化**: `session.metadata.reservationId !== String(reservation_id)` の場合は `403 reservation_mismatch` を返す。これがないと攻撃者が他人の `session_id` と自分の `reservation_id` を組み合わせて偽の paid 状態を作れた。`session.metadata.reservationId` は checkout-session 作成時に `String(reservation.id)` で保存しているため、URL クエリと文字列比較で一致確認。
 4. **Webhook Separate C&T transfer**: 旧実装は `/checkout/verify` でしか手動 Transfer を実行していなかったため、ユーザがチェックアウト完了後にブラウザを閉じると店舗送金が走らなかった。`stripe-webhook.ts` の `payment_intent.succeeded` ハンドラに共通ヘルパー `executeShopTransferIfNeeded` を追加し、`paid` (初回) と `already_paid` (verify が先に paid 化したが Transfer 失敗していたケースのリカバリ) の両方で実行。/checkout/verify と完全に同一のパラメータ + 同じ `idempotencyKey: transfer:reservation:${id}` を使うため、Stripe 側で 1 回だけ Transfer が作成される（二重送金なし、prior response replay 安全）。
 
+## Recent Updates (2026-05-02)
+
+### App Store 申請前 最終QA対応 (優先度高+中)
+- **Info.plist**: `ITSAppUsesNonExemptEncryption=false` 追加 → Apple Export Compliance の毎回ダイアログをスキップ (HTTPS 標準暗号のみで独自暗号未使用のため `false` で正)
+- **pbxproj ビルド番号バンプ**: `CURRENT_PROJECT_VERSION = 1 → 101` (Debug/Release 両方)。`MARKETING_VERSION = 1.0` は据え置き (再提出時の標準運用)
+- **patch 配布**: `.local/app-store-submission/preflight.patch` (SHA256: `65bf49692feb4d6ec3b145f3cad268db8c0803ec2c4cdd62f2a7c8f6e64d820a`) を Mac 側で `git apply` 適用
+- **APP_STORE_SUBMISSION.md 正本化**: 既存 `artifacts/rescueat/APP_STORE_SUBMISSION.md` を申請の唯一の正本に統一。年齢区分を **4+ → 12+ に修正** (UGC 機能あり=`StoreReviewSheet.tsx` の通報・ブロック実装のため、4+ は不可)。pbxproj 衝突予防ルール (Xcode で Signing 変更 / cap:sync 後は必ず `git diff` 確認) も明文化
+- **補助ドキュメント**: `.local/app-store-submission/SUBMISSION_PACKAGE.md` は補足扱いに変更 (Review Notes 詳細版、リジェクト対処早見表)
+- **architect レビュー結果**: コード変更は妥当。提出ドキュメントの一本化と patch ファイルの実配置で指摘事項を解消済み
+
+### 申請パッケージ準備状況
+- ✅ プライバシー (`/privacy`)・利用規約 (`/terms`)・特商法 (`/legal` および `/tokusho`) 完備、HTTPS+HSTS、フッター3箇所にリンク
+- ✅ Stripe = 物理食品店舗受取 (Guideline 3.1.5(a) 該当)、`REVIEW_BYPASS` 実装で 2.3.10 対応
+- ✅ アカウント削除 (`MyPage.tsx` `DeleteAccountModal`)、5.1.1(v) 対応
+- ✅ UGC モデレーション (通報・ブロック・規約)、Guideline 1.2 対応
+- ⚠️ 法人化前のため特商法の住所・電話は「請求があれば開示」維持。申請時 Apple 審査員から要求された場合は Mac 側で `TokushoPage.tsx ROWS` を更新
+
 ## Recent Updates (2026-04-29)
 
 ### 売上¥0バグ + 店舗カスタムアイコン機能

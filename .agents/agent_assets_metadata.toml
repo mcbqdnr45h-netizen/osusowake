@@ -359,3 +359,15 @@ id = "plV9E7oFb4sBwaTOy_D-6"
 uri = "file://.local/patches/signup-speed.tar.gz"
 type = "unspecified"
 title = "signup-speed.tar.gz (代替・展開して使用)"
+
+[[outputs]]
+id = "9PX-1UW08VSSKEjawaw3E"
+uri = "file://.local/app-store-submission/preflight.patch.txt"
+type = "text"
+title = "preflight.patch.txt (Info.plist + pbxproj の Mac 適用用 patch)"
+
+[[outputs]]
+id = "YQHpIPCz8BWBH8Mnoq5eK"
+uri = "file://artifacts/rescueat/APP_STORE_SUBMISSION.md"
+type = "text"
+title = "APP_STORE_SUBMISSION.md (申請ドキュメント正本)"
