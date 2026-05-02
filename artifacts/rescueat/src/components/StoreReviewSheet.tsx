@@ -139,7 +139,7 @@ function ReviewReportModal({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-        className="bg-card w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-card w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -346,7 +346,7 @@ export function StoreReviewSheet({ storeId, storeName, avgRating, reviewCount, o
         </div>
 
         {/* 口コミ一覧 */}
-        <div className="overflow-y-auto overflow-x-hidden" style={{ maxHeight: 'calc(85dvh - 110px)' }}>
+        <div className="overflow-y-auto overflow-x-hidden overscroll-contain" style={{ maxHeight: 'calc(85dvh - 110px)' }}>
           {loading ? (
             <div className="space-y-4 p-5">
               {[1, 2, 3].map(i => (

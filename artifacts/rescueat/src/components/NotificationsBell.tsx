@@ -165,7 +165,7 @@ export function NotificationsBell() {
               </div>
             </div>
 
-            <div className="max-h-72 overflow-y-auto">
+            <div className="max-h-72 overflow-y-auto overscroll-contain">
               {loading ? (
                 <div className="py-8 text-center">
                   <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />

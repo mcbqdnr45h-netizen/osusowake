@@ -101,7 +101,7 @@ export function ReviewModal({ reservation, userId, onClose, onSuccess }: ReviewM
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
         transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-        className="bg-card w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-card w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}
       >

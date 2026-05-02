@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
@@ -62,7 +62,47 @@ export default function MyReservations() {
 
   const [reviewTarget,  setReviewTarget]  = useState<ReviewTarget | null>(null);
   const [reviewedIds,   setReviewedIds]   = useState<Set<number>>(new Set());
-  const [dismissedIds,  setDismissedIds]  = useState<Set<number>>(new Set());
+  // dismiss は「自分の一覧から非表示にしたい」操作。サーバー側の予約状態は変えない
+  // (受取期限切れの paid 予約を cancel API に流すと在庫が誤復元される事故になる)。
+  // localStorage にユーザー単位で永続化し、リロードしても消えない動作を再現する。
+  const dismissedKey = userId ? `osusowake.dismissedReservations.${userId}` : null;
+  const [dismissedIds, setDismissedIds] = useState<Set<number>>(() => {
+    if (typeof window === 'undefined' || !dismissedKey) return new Set();
+    try {
+      const raw = window.localStorage.getItem(dismissedKey);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? new Set(arr.filter((n): n is number => typeof n === 'number')) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  // userId が後から確定 / 切り替わるケースに対応してロードしなおす。
+  // ★ 重要: ユーザーA→Bのログイン切替時に A の dismissedIds が残留しないよう、
+  //   キーが変わったら必ず空に戻す → そのうえで B のキーがあれば上書き読み込み。
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setDismissedIds(new Set());
+      return;
+    }
+    if (!dismissedKey) {
+      setDismissedIds(new Set());
+      return;
+    }
+    let next = new Set<number>();
+    try {
+      const raw = window.localStorage.getItem(dismissedKey);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          next = new Set(arr.filter((n): n is number => typeof n === 'number'));
+        }
+      }
+    } catch {
+      next = new Set();
+    }
+    setDismissedIds(next);
+  }, [dismissedKey]);
   // confirmAction: モーダル用統合 state。
   //   mode='dismiss' = 期限切れ予約を一覧から消す (履歴削除)
   //   mode='cancel'  = 未払い予約を本キャンセル (Stripe PI も cancel される)
@@ -120,14 +160,23 @@ export default function MyReservations() {
     const { id, mode } = confirmAction;
     setCancelling(true);
     try {
-      await cancelMutation.mutateAsync({ reservationId: id });
-      // dismiss は一覧から消す。 cancel は status='cancelled' に更新されるが、
-      // 一覧の filter で status==='cancelled' は除外しているので結果同じ。
-      setDismissedIds(prev => new Set([...prev, id]));
-      // サーバ側の真の状態と同期させるため一覧キャッシュを無効化 (画面復帰時の再表示防止)
-      if (userId) {
-        queryClient.invalidateQueries({ queryKey: getListReservationsQueryKey({ userId }) });
+      if (mode === 'cancel') {
+        // 未払い予約のみ本キャンセル。 サーバー側で status='cancelled' + Stripe PI cancel。
+        // (受取期限切れ paid 予約に対してこれを呼ぶと在庫が誤復元されるため、
+        //  paid 済み予約は dismiss モードでクライアント側非表示のみに限定する。)
+        await cancelMutation.mutateAsync({ reservationId: id });
+        if (userId) {
+          queryClient.invalidateQueries({ queryKey: getListReservationsQueryKey({ userId }) });
+        }
       }
+      // どちらのモードでもクライアント側で非表示にする (dismiss は localStorage に永続化)
+      setDismissedIds(prev => {
+        const next = new Set([...prev, id]);
+        if (typeof window !== 'undefined' && dismissedKey) {
+          try { window.localStorage.setItem(dismissedKey, JSON.stringify([...next])); } catch { /* noop */ }
+        }
+        return next;
+      });
       setConfirmAction(null);
       toast({
         title: mode === 'cancel' ? '予約をキャンセルしました' : '履歴を削除しました',
@@ -174,7 +223,7 @@ export default function MyReservations() {
             }}
           >
             <motion.div
-              className="bg-card rounded-3xl shadow-2xl w-full max-w-sm md:max-w-2xl p-6 pb-8 max-h-[80vh] overflow-y-auto"
+              className="bg-card rounded-3xl shadow-2xl w-full max-w-sm md:max-w-2xl p-6 pb-8 max-h-[80vh] overflow-y-auto overscroll-contain"
               initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               onClick={e => e.stopPropagation()}
