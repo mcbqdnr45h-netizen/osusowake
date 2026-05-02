@@ -114,7 +114,7 @@ export function NicknameRequiredModal() {
 
           <div className="bg-secondary/50 rounded-xl px-3.5 py-2.5 border border-border/40">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              <span className="font-bold text-foreground">注意:</span> 不適切な表現 (下ネタ・差別語・なりすましなど) は使用できません。 規約違反は予告なくアカウント停止になる場合があります。
+              <span className="font-bold text-foreground">注意:</span> 不適切な表現は使用できません。 規約違反は予告なくアカウント停止になる場合があります。
             </p>
           </div>
 

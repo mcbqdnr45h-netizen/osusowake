@@ -88,7 +88,7 @@ function ReviewReportModal({
     { value: 'spam',        label: 'スパム・宣伝' },
     { value: 'harassment',  label: '誹謗中傷・嫌がらせ' },
     { value: 'hate',        label: 'ヘイトスピーチ・差別' },
-    { value: 'sexual',      label: 'わいせつ・不適切な表現' },
+    { value: 'sexual',      label: '不適切な表現' },
     { value: 'false_info',  label: '虚偽の情報' },
     { value: 'other',       label: 'その他' },
   ];
