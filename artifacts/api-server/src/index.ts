@@ -590,6 +590,28 @@ async function runMigrations() {
     `);
     console.log('[migration] users.notif_daily_engagement ✅');
 
+    // ── 管理者 role seed: ハードコードされた ADMIN_EMAIL アカウントの users.role を 'admin' に upsert
+    // 単一 email 集中の運用リスクを段階的に解消するための準備 (フェーズ A)。
+    // 既存 ADMIN_EMAIL 判定は残しつつ、 DB role でも管理者判定できるようにする。
+    // auth.users への直接アクセス権が無い環境では NOTICE のみで no-op (fail-safe)。
+    await client.query(`
+      DO $$
+      DECLARE
+        admin_uid uuid;
+      BEGIN
+        SELECT id INTO admin_uid FROM auth.users WHERE email = 'yuuhi0125416@icloud.com' LIMIT 1;
+        IF admin_uid IS NOT NULL THEN
+          UPDATE public.users
+             SET role = 'admin'
+           WHERE id = admin_uid
+             AND (role IS NULL OR role <> 'admin');
+        END IF;
+      EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE '[migration] admin role seed: cannot access auth.users (skipped)';
+      END $$;
+    `);
+    console.log('[migration] admin role seed ✅');
+
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {
