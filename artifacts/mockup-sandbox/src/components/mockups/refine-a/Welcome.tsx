@@ -20,7 +20,7 @@ export default function Welcome() {
         <div className="relative z-10 px-8 pb-12">
           {/* Logo */}
           <div className="mb-12">
-            <p className="en-title text-[#FBFBFA] opacity-80 mb-2">Osusowake</p>
+            <p className="text-[#FBFBFA]/80 mb-2 font-display text-xl tracking-[0.15em]">おすそわけ</p>
             <h1 className="text-4xl text-[#FBFBFA] leading-tight">
               お店の余った<br />
               おいしさを、<br />
