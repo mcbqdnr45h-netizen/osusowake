@@ -7,6 +7,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Osusowake" />
+
+    <!-- Google Maps 用の事前接続: iOS WebView で地図ページの初回表示を高速化
+         (DNS/TLS ハンドシェイクをアプリ起動直後に先行実施。 fetch は走らない) -->
+    <link rel="preconnect" href="https://maps.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://maps.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://maps.googleapis.com">
+    <link rel="dns-prefetch" href="https://maps.gstatic.com">
+
     <style>
       body { margin: 0; background: #fdf8f3; }
       #root { min-height: 100dvh; }

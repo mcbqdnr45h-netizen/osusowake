@@ -168,6 +168,15 @@
 
 ## Recent Updates (2026-05-02)
 
+### 地図ロード高速化 (iOS WebView 体感速度向上)
+- **`index.cap.html`**: Google Maps 用 `preconnect` + `dns-prefetch` 追加 (`maps.googleapis.com` / `maps.gstatic.com`)。 iOS アプリ起動直後に DNS/TLS ハンドシェイクを先行実施 (`fetch` は走らないため帯域消費なし)
+- **`Home.tsx` FloatingMapButton**: 
+  - マウント時 `requestIdleCallback` (非対応 = `setTimeout(1500)` フォールバック) で `loadGoogleMapsScript()` を idle prefetch
+  - `onPointerEnter` / `onTouchStart` でユーザー意図検知時にも再トリガ (idle が間に合わなかった場合の保険)
+  - cleanup で `cancelIdleCallback` / `clearTimeout` 実装
+- **二重ロード防止**: `maps-loader.ts` の既存 `_promise` 単一再利用により、 多数トリガでも script 注入は 1 回のみ
+- **architect PASS**: 副作用 (位置情報競合・メインスレッド・メモリ・TS strict・hooks 依存配列) すべて問題なし。 Next action 提案: ① 実機で「Home→即 Map」と「数秒待機後 Map」の TTI 比較計測、 ② 低速回線時 `navigator.connection?.saveData` で idle prefetch を条件分岐 (将来検討)
+
 ### 世界品質パス Phase 1+2+3 + Favorites race 完全防御 (9 ラウンド)
 - **Phase 1 — Critical UX**:
   - `not-found.tsx`: 英語の開発者向けメッセージ → 日本語の温かい案内 + ホーム/戻るボタン (暖色グラデ + safe-area + framer-motion)

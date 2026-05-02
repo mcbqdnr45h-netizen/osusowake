@@ -24,6 +24,7 @@ import { useUserId } from '@/hooks/use-user';
 import { useAppSettings } from '@/hooks/use-app-settings';
 import { useToast } from '@/hooks/use-toast';
 import { Capacitor } from '@capacitor/core';
+import { loadGoogleMapsScript } from '@/lib/maps-loader';
 
 // ─── 日次シードシャッフル ─────────────────────────────────────────────────
 // 毎日異なる順番になるが、同じ日の中はリフレッシュしても同じ順番を維持する
@@ -197,13 +198,35 @@ function NationwideBanner({ onAllow }: { onAllow: () => void }) {
 }
 
 // ─── フローティング地図ボタン ─────────────────────────────────────────────
+// Home マウント時に idle で Google Maps script を先読み + FAB ホバー/タッチ時にも
+// 念のため再トリガ。 これにより /map 遷移時にスクリプトが既にキャッシュ済みで
+// 体感ロード時間を大幅短縮 (特に iOS WebView)。
 function FloatingMapButton() {
+  useEffect(() => {
+    let cancelled = false;
+    const trigger = () => { if (!cancelled) loadGoogleMapsScript().catch(() => { /* noop */ }); };
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+    const id: number = ric ? ric(trigger, { timeout: 2500 }) : window.setTimeout(trigger, 1500);
+    return () => {
+      cancelled = true;
+      if (ric && cic) cic(id);
+      else clearTimeout(id);
+    };
+  }, []);
+
+  const prefetch = useCallback(() => {
+    loadGoogleMapsScript().catch(() => { /* noop */ });
+  }, []);
+
   return (
     <Link href="/map">
       <motion.button
         initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.4 }}
         whileTap={{ scale: 0.88 }}
+        onPointerEnter={prefetch}
+        onTouchStart={prefetch}
         className="fixed right-4 z-40 w-14 h-14 bg-primary rounded-2xl shadow-xl shadow-primary/30 flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors"
         style={{ bottom: 'calc(72px + env(safe-area-inset-bottom) + 16px)' }}
         aria-label="地図で探す"
