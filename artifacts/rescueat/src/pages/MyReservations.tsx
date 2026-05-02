@@ -174,7 +174,7 @@ export default function MyReservations() {
             }}
           >
             <motion.div
-              className="bg-card rounded-3xl shadow-2xl w-full max-w-sm p-6 pb-8 max-h-[80vh] overflow-y-auto"
+              className="bg-card rounded-3xl shadow-2xl w-full max-w-sm md:max-w-2xl p-6 pb-8 max-h-[80vh] overflow-y-auto"
               initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
               onClick={e => e.stopPropagation()}
@@ -225,7 +225,7 @@ export default function MyReservations() {
 
       {/* ── ページ本体 ── */}
       <div
-        className="w-full max-w-md mx-auto overflow-x-hidden flex-1 flex flex-col"
+        className="w-full overflow-x-hidden flex-1 flex flex-col"
         style={{ paddingTop: isStoreOwner ? 'calc(env(safe-area-inset-top) + 1.25rem)' : '1.25rem' }}
       >
         <h1 className="text-xl font-display font-bold text-foreground mb-4 px-4">マイバック</h1>
