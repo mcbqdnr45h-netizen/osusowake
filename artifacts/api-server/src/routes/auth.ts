@@ -145,6 +145,21 @@ function isAdminEmail(email: string | undefined | null): boolean {
   return email === Buffer.from(ADMIN_EMAIL_B64, "base64").toString();
 }
 
+// フェーズ A: email OR DB role=admin の OR 判定 (#6 段階移行)
+// 既存 ADMIN_EMAIL 判定を残しつつ、 supabase users.role = 'admin' でも通す。
+async function checkAdmin(user: { id?: string | null; email?: string | null } | null | undefined): Promise<boolean> {
+  if (!user) return false;
+  if (isAdminEmail(user.email)) return true;
+  if (!user.id) return false;
+  try {
+    const { data } = await supabaseAdmin.from("users").select("role").eq("id", user.id).single();
+    return data?.role === "admin";
+  } catch (e) {
+    console.warn("[checkAdmin] users.role lookup failed:", (e as Error).message);
+    return false;
+  }
+}
+
 const router: IRouter = Router();
 
 // ── POST /auth/create-profile ─────────────────────────────────────────────────
@@ -450,17 +465,17 @@ router.get("/auth/is-admin", async (req: Request, res: Response) => {
   if (!token) { res.json({ isAdmin: false }); return; }
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !user) { res.json({ isAdmin: false }); return; }
-  res.json({ isAdmin: isAdminEmail(user.email) });
+  res.json({ isAdmin: await checkAdmin(user) });
 });
 
 // ── POST /auth/admin-otp/send ─────────────────────────────────────────────────
 // 管理者メールに 6桁 OTP を送信する
-router.post("/auth/admin-otp/send", async (req: Request, res: Response) => {
+router.post("/auth/admin-otp/send", async (req: Request, res: Response) => {  // ↓ checkAdmin (#6) を使用
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
 
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user || !isAdminEmail(user.email)) {
+  if (error || !user || !(await checkAdmin(user))) {
     res.status(403).json({ error: "forbidden" }); return;
   }
 
@@ -506,7 +521,7 @@ router.post("/auth/admin-otp/verify", async (req: Request, res: Response) => {
   if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
 
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user || !isAdminEmail(user.email)) {
+  if (error || !user || !(await checkAdmin(user))) {
     res.status(403).json({ error: "forbidden" }); return;
   }
 

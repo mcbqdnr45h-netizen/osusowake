@@ -594,6 +594,31 @@ async function runMigrations() {
     // 単一 email 集中の運用リスクを段階的に解消するための準備 (フェーズ A)。
     // 既存 ADMIN_EMAIL 判定は残しつつ、 DB role でも管理者判定できるようにする。
     // auth.users への直接アクセス権が無い環境では NOTICE のみで no-op (fail-safe)。
+
+    // ★ 前提: users_role_check 制約に 'admin' を追加 (元々 'user'/'store_owner' のみ許可)
+    //   制約名は固定だが、 念のため動的に取得して再作成する (idempotent)。
+    await client.query(`
+      DO $$
+      DECLARE
+        cons_name text;
+      BEGIN
+        SELECT conname INTO cons_name
+          FROM pg_constraint
+         WHERE conrelid = 'public.users'::regclass
+           AND contype  = 'c'
+           AND pg_get_constraintdef(oid) ILIKE '%role%';
+        IF cons_name IS NOT NULL THEN
+          EXECUTE format('ALTER TABLE public.users DROP CONSTRAINT %I', cons_name);
+        END IF;
+        ALTER TABLE public.users
+          ADD CONSTRAINT users_role_check
+          CHECK (role IN ('customer', 'store_owner', 'admin'));
+      EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE '[migration] users_role_check relax: insufficient privilege (skipped)';
+      END $$;
+    `);
+    console.log('[migration] users_role_check (allow admin) ✅');
+
     await client.query(`
       DO $$
       DECLARE

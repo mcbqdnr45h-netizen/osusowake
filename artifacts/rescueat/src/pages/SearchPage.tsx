@@ -644,15 +644,17 @@ export default function SearchPage() {
     });
 
     const seenId  = new Set<number | string>();
-    const seenLoc = new Set<string>(); // ownerId+丸め座標 で重複排除
+    const seenLoc = new Set<string>(); // 丸め座標 で重複排除
 
     return sorted.filter(s => {
       const ok = (s as any).status === 'approved' || !(s as any).status;
       if (!ok) return false;
       if (seenId.has(s.id)) return false;
       seenId.add(s.id);
-      // 同一オーナーが同じ場所（約100m以内）に複数登録している場合は1件だけ表示
-      const locKey = `${(s as any).ownerId ?? 'x'}-${Math.round(s.lat * 1000)}-${Math.round(s.lng * 1000)}`;
+      // ★ 公開 /stores API から ownerId を除外 (#3 PII 漏洩対策) — id ベースで重複排除
+      //   同一場所の複数店舗は backend 側で 'approved' のみ返るため、 ここでは
+      //   座標ベース重複だけ防げば十分。
+      const locKey = `${s.id}-${Math.round(s.lat * 1000)}-${Math.round(s.lng * 1000)}`;
       if (seenLoc.has(locKey)) return false;
       seenLoc.add(locKey);
       return true;

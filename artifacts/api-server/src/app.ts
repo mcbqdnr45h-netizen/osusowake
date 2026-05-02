@@ -22,7 +22,40 @@ app.use(helmet({
     : false,
 }));
 
-app.use(cors());
+// ── CORS allowlist (#2 セキュリティ) ───────────────────────────────────────────
+// 全オリジン許可は CSRF / トークン漏洩リスクが高いため、 本番ドメイン + Capacitor
+// (iOS / Android webview) のみ許可。 開発時は Replit プレビュー / localhost も許可。
+// origin === undefined (curl, mobile native fetch, SSR) は CORS 対象外なので素通し。
+// credentials: false — 現状 JWT は Authorization header で送るため cookie 不要。
+const CORS_ALLOWED_ORIGINS = new Set<string>([
+  "https://osusowakejapan.org",
+  "https://www.osusowakejapan.org",
+  "capacitor://localhost",
+  "http://localhost",
+  "ionic://localhost",
+]);
+const CORS_IS_DEV = process.env.NODE_ENV !== "production";
+app.use(cors((req, cb) => {
+  const origin = req.headers.origin;
+  if (!origin) return cb(null, { origin: true, credentials: false });
+  if (CORS_ALLOWED_ORIGINS.has(origin)) return cb(null, { origin: true, credentials: false });
+  if (CORS_IS_DEV) {
+    try {
+      const u = new URL(origin);
+      const host = u.hostname.toLowerCase();
+      if (
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host.endsWith(".replit.dev") ||
+        host.endsWith(".replit.app")
+      ) {
+        return cb(null, { origin: true, credentials: false });
+      }
+    } catch { /* origin URL parse 失敗 → 拒否 */ }
+  }
+  console.warn(`[CORS] blocked origin: ${origin}`);
+  cb(null, { origin: false });
+}));
 
 // Stripe webhook は署名検証のため raw body が必要 — JSON ミドルウェアより前に登録
 // レート制限の対象外（Stripe からの正規再送をブロックしないため）

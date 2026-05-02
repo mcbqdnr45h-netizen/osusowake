@@ -193,13 +193,61 @@ const storeSelectFields = {
     THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
 
+// 公開 API (認証不要) で返す最小集合 — PII / 内部運用情報を一切含まない (#3)
+// 除外対象: ownerId, licenseNumber, licenseImageUrl, idImageUrl, pledgeSigned,
+//          rejectionReason, stripeAccountId, stripeNeedsBankReregister
+// (これらは admin / 自店舗オーナー専用エンドポイント /stores/by-owner 等で別途返す)
+const publicStoreSelectFields = {
+  id: storesTable.id,
+  name: storesTable.name,
+  description: storesTable.description,
+  address: storesTable.address,
+  city: storesTable.city,
+  category: storesTable.category,
+  lat: storesTable.lat,
+  lng: storesTable.lng,
+  imageUrl: storesTable.imageUrl,
+  iconUrl: storesTable.iconUrl,
+  phone: storesTable.phone,
+  openTime: storesTable.openTime,
+  closeTime: storesTable.closeTime,
+  rating: storesTable.rating,
+  isActive: storesTable.isActive,
+  status: storesTable.status,
+  stripeChargesEnabled: storesTable.stripeChargesEnabled,
+  holiday: storesTable.holiday,
+  pickupHours: storesTable.pickupHours,
+  createdAt: storesTable.createdAt,
+  totalBagsAvailable: sql<number>`COALESCE(SUM(CASE
+    WHEN ${surpriseBagsTable.isActive} = true
+      AND (
+        ${surpriseBagsTable.pickupEnd} IS NULL
+        OR (
+          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
+          AND ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
+          AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
+        )
+        OR (
+          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
+          AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
+        )
+        OR (
+          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day'
+          AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
+          AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
+        )
+      )
+    THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
+};
+
 // Public: list only approved + active stores
 router.get("/stores", async (req, res) => {
   try {
     ListStoresQueryParams.parse(req.query);
 
+    // ★ 公開エンドポイント: PII を含まない publicStoreSelectFields を使用 (#3)
     const stores = await db
-      .select(storeSelectFields)
+      .select(publicStoreSelectFields)
       .from(storesTable)
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
       .where(sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true AND ${storesTable.stripeChargesEnabled} = true`)
@@ -1140,8 +1188,10 @@ router.post("/stores/:storeId/reapply", requireAuth, requireStoreOwner, async (r
 router.get("/stores/:storeId", async (req, res) => {
   try {
     const { storeId } = GetStoreParams.parse(req.params);
+    // ★ 公開エンドポイント: PII を含まない publicStoreSelectFields を使用 (#3)
+    //   オーナー自身がフルデータを取得する場合は /stores/by-owner を使う。
     const [store] = await db
-      .select(storeSelectFields)
+      .select(publicStoreSelectFields)
       .from(storesTable)
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
       .where(eq(storesTable.id, storeId))

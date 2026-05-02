@@ -28,13 +28,42 @@ const router: IRouter = Router();
 //   - bypass 利用時は payment_intent_id に "pi_review_bypass_" プレフィックス
 //     を付与し、Stripe Dashboard / 集計クエリから容易に除外可能
 //   - 在庫減算もスキップするため審査用デモ店舗の在庫が枯渇しない
-const REVIEW_BYPASS_DEFAULT = "review-user@osusowakejapan.org";
 const REVIEW_BYPASS_PI_PREFIX = "pi_review_bypass_";
+// ★ Fail-closed (#5): APP_REVIEW_BYPASS_EMAILS env が空なら bypass を完全停止する。
+//   従来は "review-user@osusowakejapan.org" がデフォルト許可されていたが、
+//   env 未設定 + そのアカウントがハイジャックされた場合に即時悪用可能だった。
+//   Apple 審査時は必ず env を設定することを運用フローに追加すること。
 function isAppReviewBypassEmail(email: string | undefined | null): boolean {
   if (!email) return false;
-  const raw = process.env.APP_REVIEW_BYPASS_EMAILS?.trim() || REVIEW_BYPASS_DEFAULT;
+  const raw = process.env.APP_REVIEW_BYPASS_EMAILS?.trim();
+  if (!raw) return false;
   const list = raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   return list.includes(email.trim().toLowerCase());
+}
+
+// ── App Review Bypass 監査ログ (#5) ─────────────────────────────────────────────
+// bypass 経由のすべての決済を admin_audit_log に記録し、 不正利用を事後追跡可能に。
+async function logBypassAudit(opts: {
+  email: string;
+  reservationId: number;
+  endpoint: string;
+  paymentIntentId?: string;
+  amount?: number;
+}): Promise<void> {
+  try {
+    await supabaseAdmin.from("admin_audit_log").insert({
+      admin_email: opts.email,
+      action: `app_review_bypass:${opts.endpoint}`,
+      target_id: String(opts.reservationId),
+      details: {
+        paymentIntentId: opts.paymentIntentId ?? null,
+        amount: opts.amount ?? null,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (e) {
+    console.warn("[bypass-audit] write failed:", (e as Error).message);
+  }
 }
 
 // ─── 手数料定数 ─────────────────────────────────────────────────────────────
@@ -225,6 +254,14 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
         `🎯 [APP_REVIEW_BYPASS] /payment/create-intent SKIPPED Stripe — ` +
         `email=${reqUserEmail} reservation=${reservation.id} sentinelPI=${sentinelPiId}`,
       );
+      // ★ 監査ログ (#5) — bypass 経由の全アクセスを admin_audit_log に記録
+      await logBypassAudit({
+        email: reqUserEmail!,
+        reservationId: reservation.id,
+        endpoint: "create-intent",
+        paymentIntentId: sentinelPiId,
+        amount: Math.round(reservation.totalPrice),
+      });
       res.json({
         clientSecret: "REVIEW_BYPASS",
         paymentIntentId: sentinelPiId,
@@ -495,6 +532,14 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
         `🎯 [APP_REVIEW_BYPASS] /payment/confirm SKIPPED Stripe verify — ` +
         `email=${confirmUserEmail} reservation=${body.reservationId} sentinelPI=${body.paymentIntentId}`,
       );
+      // ★ 監査ログ (#5)
+      await logBypassAudit({
+        email: confirmUserEmail!,
+        reservationId: body.reservationId,
+        endpoint: "confirm",
+        paymentIntentId: body.paymentIntentId,
+        amount: Math.round(preReservation.totalPrice),
+      });
     }
     if (!isMock && !isReviewBypass) {
       if (!stripeKeyForVerify) {

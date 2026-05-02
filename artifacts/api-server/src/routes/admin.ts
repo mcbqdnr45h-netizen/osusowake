@@ -127,8 +127,19 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  // ③ 管理者メール検証
-  if (user.email !== ADMIN_EMAIL) {
+  // ③ 管理者検証 — フェーズ A: email OR DB role=admin の OR 判定 (#6 段階移行)
+  //   既存 ADMIN_EMAIL 判定は残しつつ、 supabase users.role = 'admin' でも通す。
+  //   将来 (フェーズ B) で hardcoded email を完全削除し DB role 一本化予定。
+  let isAdmin = user.email === ADMIN_EMAIL;
+  if (!isAdmin) {
+    try {
+      const { data } = await supabaseAdmin.from("users").select("role").eq("id", user.id).single();
+      if (data?.role === "admin") isAdmin = true;
+    } catch (e) {
+      console.warn("[requireAdmin] users.role lookup failed:", (e as Error).message);
+    }
+  }
+  if (!isAdmin) {
     recordFailedAttempt(ip);
     console.warn(`[SECURITY] ⚠️ Unauthorized admin access attempt: ${user.email} from ${ip}`);
     res.status(403).json({ error: "forbidden", message: "管理者権限が必要です" });

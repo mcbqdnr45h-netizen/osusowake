@@ -6,11 +6,13 @@ import {
   storesTable,
   cartReservationsTable,
   reviewsTable,
+  notificationsTable,
   insertReservationSchema,
 } from "@workspace/db/schema";
 import { eq, and, sql, lt, isNotNull, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 import { isReviewDemoOwner } from "../lib/app-review.js";
+import { supabaseAdmin } from "../lib/supabase.js";
 
 const HOLD_MINUTES = 5;
 
@@ -54,6 +56,116 @@ async function cancelStripePI(piId: string | null | undefined): Promise<void> {
     }
   } catch (e: any) {
     console.warn(`[stripe] cancel PI ${piId} failed:`, e?.message);
+  }
+}
+
+/**
+ * ★ #1: 既決済 (paymentStatus='paid') の予約を Stripe で全額返金する。
+ *
+ * - mock / review_bypass / 既に refunded はスキップ (idempotent)
+ * - PI 実体の transfer_data / application_fee_amount を見て Connect destination
+ *   charge かを判定し、 適切なオプション (reverse_transfer / refund_application_fee) を付ける
+ * - 失敗してもエラー throw せず {ok: false, reason} を返す → 呼び出し側で admin 通知
+ *
+ * 設計判断: 「予約を cancelled にする」 のと 「Stripe 返金」 を分離。
+ *   返金失敗時も予約は cancelled のまま (在庫復元済) で、 admin 通知で手動対応する。
+ *   こうしないと「キャンセル UI が永遠に成功しない」 状態が発生し UX が壊れる。
+ */
+async function refundReservationPayment(opts: {
+  reservationId: number;
+  paymentIntentId: string | null;
+}): Promise<{ ok: boolean; reason?: string; refundId?: string }> {
+  const piId = opts.paymentIntentId;
+  if (!piId) return { ok: false, reason: "no_payment_intent_id" };
+  if (piId.startsWith("pi_mock_")) return { ok: true, reason: "mock_skipped" };
+  if (piId.startsWith("pi_review_bypass_")) return { ok: true, reason: "review_bypass_skipped" };
+
+  const stripeKey = process.env["STRIPE_SECRET_KEY"];
+  if (!stripeKey) return { ok: false, reason: "no_stripe_key" };
+
+  try {
+    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+    const intent = await stripe.paymentIntents.retrieve(piId);
+
+    // succeeded ではない (canceled, requires_*) → cancelStripePI 側で対応 → 返金不要
+    if (intent.status !== "succeeded") {
+      return { ok: true, reason: `not_succeeded:${intent.status}` };
+    }
+
+    // 既存 refund を確認 (冪等性) — 全額既に返金済みならスキップ
+    const existingRefunds = await stripe.refunds.list({ payment_intent: piId, limit: 10 });
+    const totalRefunded = existingRefunds.data.reduce(
+      (sum, r) => sum + ((r.status === "succeeded" || r.status === "pending") ? r.amount : 0),
+      0,
+    );
+    if (totalRefunded >= intent.amount) {
+      console.log(`[refund] PI ${piId} 既に全額 refunded (${totalRefunded}/${intent.amount})`);
+      return { ok: true, reason: "already_refunded" };
+    }
+
+    // ★ PI 実体で Connect destination charge か判定 (stores.stripeAccountId 依存しない)
+    const piAny = intent as any;
+    const isDestinationCharge =
+      Boolean(piAny.transfer_data?.destination) ||
+      Boolean(piAny.application_fee_amount);
+
+    const refundParams: Record<string, unknown> = {
+      payment_intent: piId,
+      reason: "requested_by_customer",
+      metadata: {
+        reservationId: String(opts.reservationId),
+        cancelled_by: "user_request",
+      },
+    };
+    if (isDestinationCharge) {
+      // Connect: 店舗送金を巻き戻し + プラットフォーム手数料も返却
+      refundParams.reverse_transfer = true;
+      refundParams.refund_application_fee = true;
+    }
+
+    const refund = await stripe.refunds.create(refundParams as any);
+    console.log(
+      `💸 [refund] PI ${piId} refunded ${refund.amount}JPY ` +
+      `(mode=${isDestinationCharge ? "destination" : "direct"}, refundId=${refund.id})`,
+    );
+    return { ok: true, refundId: refund.id };
+  } catch (err: any) {
+    console.error(`[refund] PI ${piId} failed:`, err?.message);
+    return { ok: false, reason: err?.message ?? "unknown" };
+  }
+}
+
+/**
+ * 返金失敗時に admin 通知を入れる (notifications テーブル経由)。
+ * admin の supabase user id を取得して notifications に insert。
+ * 取得失敗・notification 失敗はログのみ (best-effort)。
+ */
+async function notifyAdminRefundFailed(opts: {
+  reservationId: number;
+  paymentIntentId: string | null;
+  reason: string;
+}): Promise<void> {
+  try {
+    const adminEmail = Buffer.from("eXV1aGkwMTI1NDE2QGljbG91ZC5jb20=", "base64").toString();
+    const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+    const adminUser = list?.users.find(
+      (u: any) => u.email?.toLowerCase() === adminEmail.toLowerCase(),
+    );
+    if (!adminUser) {
+      console.error("[refund-admin-notify] admin user not found in supabase");
+      return;
+    }
+    await db.insert(notificationsTable).values({
+      userId: adminUser.id,
+      type: "refund_failed",
+      title: "❗手動返金が必要です",
+      body:
+        `予約 #${opts.reservationId} の自動返金が失敗しました ` +
+        `(PI: ${opts.paymentIntentId ?? "なし"}, 理由: ${opts.reason})。` +
+        ` Stripe ダッシュボードで手動返金してください。`,
+    });
+  } catch (e: any) {
+    console.error("[refund-admin-notify] failed:", e?.message);
   }
 }
 
@@ -538,12 +650,37 @@ router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res)
     const wasPaid = existing.paymentStatus === "paid";
 
     // ① 予約ステータスを cancelled に更新（最重要・失敗したら 500）
+    //   ★ paid → refunded に paymentStatus も同時遷移 (返金処理は ②で実施)
     await db
       .update(reservationsTable)
-      .set({ status: "cancelled" })
+      .set({
+        status: "cancelled",
+        ...(wasPaid ? { paymentStatus: "refunded" as const } : {}),
+      })
       .where(eq(reservationsTable.id, reservationId));
 
-    // ② 在庫を戻す — 仮押さえ廃止後は「決済済み(paid)の取り消し」のときだけ復元する。
+    // ② Stripe 全額返金 (#1) — paid のときだけ実行
+    //   返金失敗時は予約は cancelled のままで admin 通知 (手動対応用)
+    if (wasPaid) {
+      const refundResult = await refundReservationPayment({
+        reservationId,
+        paymentIntentId: existing.paymentIntentId,
+      });
+      if (!refundResult.ok) {
+        console.error(
+          `[cancel] ❌ refund failed reservation=${reservationId} ` +
+          `pi=${existing.paymentIntentId} reason=${refundResult.reason} — admin manual refund required`,
+        );
+        // best-effort で admin 通知 (失敗しても予約 cancel は完了させる)
+        notifyAdminRefundFailed({
+          reservationId,
+          paymentIntentId: existing.paymentIntentId,
+          reason: refundResult.reason ?? "unknown",
+        }).catch((e) => console.error("[cancel] admin notify failed:", e?.message));
+      }
+    }
+
+    // ③ 在庫を戻す — 仮押さえ廃止後は「決済済み(paid)の取り消し」のときだけ復元する。
     //   未決済(unpaid)の予約は元から在庫を減らしていないので復元不要。
     if (wasPaid) {
       try {

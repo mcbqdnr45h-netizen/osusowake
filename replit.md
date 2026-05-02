@@ -310,6 +310,16 @@ HelpPage で「2店舗目以降は営業許可証の提出のみで完了」 と
 8. **キャンセル済注文の領収書発行**: `Orders.tsx` `selected = picked_up` のみ
 9. **商品詳細ページ下部に領収書 DOM が見える**: 原因は `window.print()` 後 iOS Safari で `afterprint` 不発 → `osusowake-print-root` が body 残存。 `matchMedia('print') change` リスナー + 30 秒 setTimeout の double-fail-safe で確実 cleanup。 `App.tsx` 起動時に既に stuck な print-root を削除する保険も追加
 
+### App Store 審査前 セキュリティ監査対応 (Critical #1-#5 + High #6)
+
+監査リスト 6 件を architect 評価 (全項目 OK) を経て一括実装。
+
+- **#1 自動返金 (`reservations.ts`)** — `refundReservationPayment` 新設。 cancel エンドポイントで paid 予約を全額自動返金。 PI 実体の `transfer_data.destination` / `application_fee_amount` で Connect destination charge 判別 → `reverse_transfer:true` + `refund_application_fee:true`。 既存 refund を `refunds.list` で確認して冪等性確保。 失敗時は `notifyAdminRefundFailed` で `notifications` テーブル経由で admin 通知 (手動対応用)、 予約は cancelled 維持。 mock / `pi_review_bypass_*` はスキップ。 paymentStatus を 'refunded' に同時遷移。
+- **#2 CORS allowlist (`app.ts`)** — `cors()` 全許可を撤廃。 本番ドメイン (`https://osusowakejapan.org` / `www`) + Capacitor (`capacitor://localhost` / `ionic://localhost`) のみ許可。 dev は `*.replit.dev` / `*.replit.app` / `localhost` も追加許可。 origin 無し (curl, mobile native fetch, Stripe webhook) は素通し。 credentials:false (JWT は Authorization header)。
+- **#3 公開 store API PII 除去 (`stores.ts` + `SearchPage.tsx`)** — `publicStoreSelectFields` を新設し `GET /stores` と `GET /stores/:storeId` で使用。 `ownerId`, `licenseNumber`, `licenseImageUrl`, `idImageUrl`, `pledgeSigned`, `rejectionReason`, `stripeAccountId`, `stripeNeedsBankReregister` を非公開化。 オーナー専用は引き続き `GET /stores/by-owner` でフルデータ返却。 SearchPage の locKey 重複排除を id ベースに変更 (ownerId 不要に)。
+- **#5 App Review Bypass fail-closed + 監査 (`payment.ts`)** — `REVIEW_BYPASS_DEFAULT` (固定 email) を削除し、 `APP_REVIEW_BYPASS_EMAILS` env 未設定時は bypass を完全停止 (fail-closed)。 Apple 審査時は env 設定必須に運用変更。 `logBypassAudit` を新設し create-intent / confirm の両経路で `admin_audit_log` テーブルに `app_review_bypass:{endpoint}` アクションで記録 (paymentIntentId / amount / timestamp 含む)。
+- **#6 管理者 role の段階移行 (`index.ts` migration + `admin.ts` + `auth.ts`)** — フェーズ A: 既存ハードコード `ADMIN_EMAIL` 判定を残しつつ `users.role = 'admin'` も OR 判定で通すように `requireAdmin` (admin.ts) と新設 `checkAdmin(user)` (auth.ts、 is-admin / admin-otp/send / admin-otp/verify で使用) を更新。 起動時 migration で (a) `users_role_check` 制約を `'customer','store_owner','admin'` に緩和、 (b) `auth.users` から ADMIN_EMAIL の uid を取得 → `public.users.role='admin'` に upsert (idempotent、 `insufficient_privilege` 例外は no-op)。 適用後 admin 1 名 seed 完了確認済。 将来フェーズ B でハードコード email を完全削除予定。
+
 ### 設計メモ
 - `lib/authed-fetch.ts` は Supabase session から Bearer 自動付与。 認証必須 API 呼び出しは必ずこれを使う
 - vite manualChunks は **絶対 NG** (framer-motion 内 react path 誤マッチで真っ白事故)
