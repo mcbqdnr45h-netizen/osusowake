@@ -173,6 +173,13 @@
 
 ## Recent Updates (2026-05-02)
 
+### 営業許可証番号の重複登録ブロック (1施設1番号原則)
+ユーザ確認で「同じ営業許可証で 2個目追加できないようになってるよな?」 と指摘 → 未実装だったため追加。 食品衛生法上、 営業許可は施設ごとに発行される (1施設 = 1番号) ため、 同じ番号の使い回しは無効入力 or なりすましの強い指標。
+- `lib/normalize-store.ts`: `normalizeLicenseNumber()` 追加 (NFKC + 全角→半角 + 大小統一 + 空白/ハイフン/記号除去 / 数字 0個なら "" を返し誤マッチ防止)。
+- `stores.ts /stores/apply`: 既存 self_duplicate チェックの前段で pending/approved 全店舗をスキャンし、 正規化キー一致なら **409 `license_duplicate`** を返す。 isSelf 判定で文言を出し分け (自オーナは existingStoreId 付き、 他オーナは情報漏洩防止のため出さない)。
+- `StoreOnboarding.tsx` L413-426: 409 license_duplicate 専用ハンドラ追加。 番号だけ修正して再送信できるよう draft / 画面状態は保持 (toast 表示のみで navigate しない)。
+- 1店舗目 onboarding では番号を送らないため、 実質 2店舗目以降で機能する。 並行リクエストの厳密保護は将来の DB UNIQUE INDEX 案件 (スコープ外)。
+
 ### 同一オーナの自己重複登録ブロック (前リリースのリグレッション修正)
 ユーザ報告: スクショで「松村製麺所」 が同じ住所で 2件 (pending + approved) 登録されていた。 直前の「別オーナ重複ブロック撤廃」 リリースで WHERE 句に `ne(ownerId, ownerId)` を残したまま判定対象から同オーナ行を除外していたため、 同オーナの自己二重登録が無検査で通っていた。
 - `stores.ts /stores/apply` L235-290: WHERE を `status IN ('pending','approved')` のみに絞り、 候補に対して (a) `ownerId` 一致 → **409 `self_duplicate`** で即ブロック (`existingStoreId` / `existingStatus` を返す)、 (b) `ownerId` 不一致 → 警告ログのみ (フードコート等の正規ケースは引き続き許可) という二段判定に。

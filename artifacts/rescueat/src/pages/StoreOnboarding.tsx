@@ -407,6 +407,20 @@ export default function StoreOnboarding() {
         if (res.status === 404 || res.status === 503 || res.status === 502) {
           throw new Error('サーバーに接続できませんでした。少し時間をおいて再度お試しください。');
         }
+        // ★ 409 license_duplicate: 営業許可証番号の重複 (自店舗 / 他店舗どちらも)
+        //    食品衛生法上 1施設1番号原則 → 別の正しい番号を入力してもらう
+        if (res.status === 409 && body?.error === 'license_duplicate') {
+          console.warn('[StoreOnboarding] 営業許可証番号 重複', body);
+          toast({
+            title: 'この営業許可証番号は使用できません',
+            description:
+              body?.message ||
+              'この営業許可証番号は既に登録されています。 番号にお間違いがないかご確認ください。',
+            variant: 'destructive',
+          });
+          // draft / 画面状態は保持 (番号だけ修正して再送信できるように)
+          return;
+        }
         // ★ 409 self_duplicate: 同オーナが同じ店名+住所を二重登録しようとした場合
         //    → トーストで通知 + draft クリア + 既存店舗リスト (マイページ) へ戻す
         if (res.status === 409 && body?.error === 'self_duplicate') {

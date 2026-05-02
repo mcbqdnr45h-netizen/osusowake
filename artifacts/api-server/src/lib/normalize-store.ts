@@ -35,3 +35,20 @@ export function normalizeForCompare(input: string | null | undefined): string {
 export function storeIdentityKey(name: string, address: string, city: string): string {
   return `${normalizeForCompare(name)}|${normalizeForCompare(city)}${normalizeForCompare(address)}`;
 }
+
+/**
+ * 営業許可証番号の比較用正規化キー。
+ * 食品衛生法上「営業許可は施設ごと (1施設 = 1番号)」 が原則のため、
+ * 同じ番号が複数店舗で再利用されることは原則ない。 自店舗・他店舗を問わず
+ * 同番号が登録済みなら 申請ブロック (なりすまし / 入力ミス防止) に使う。
+ *
+ * - NFKC + 全角→半角 + 全空白・ハイフン類・記号除去
+ * - 大文字小文字統一
+ * - 数字 0 個になったら "" を返す (= 比較対象外)
+ */
+export function normalizeLicenseNumber(input: string | null | undefined): string {
+  const k = normalizeForCompare(input);
+  // 数字を 1文字も含まない場合は許可証番号として無効扱い (比較しない)
+  if (!/[0-9]/.test(k)) return "";
+  return k;
+}

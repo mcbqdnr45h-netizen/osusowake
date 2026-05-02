@@ -15,7 +15,7 @@ import {
 } from "@workspace/api-zod";
 import { Resend } from "resend";
 import { sendStoreApprovalEmail } from "../utils/emails";
-import { normalizeForCompare, storeIdentityKey } from "../lib/normalize-store.js";
+import { normalizeForCompare, storeIdentityKey, normalizeLicenseNumber } from "../lib/normalize-store.js";
 
 const REPORT_TYPES = ["closed", "temp_closed", "wrong_hours", "wrong_info", "inappropriate_review", "other"] as const;
 
@@ -230,11 +230,46 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
     }
 
     // ── 重複店舗の検出 ─────────────────────────────────────────────────
-    //   ★ 同オーナ自己重複: 同じ店名+住所+市区町村で pending/approved を持っているなら 409 でブロック。
-    //      (二重タップ / リトライ暴走 / 戻るボタンで再送信 などを防ぐ)
-    //   ★ 別オーナ重複: 同じ住所に別オーナが複数店舗を登録するケース
-    //      (フードコート / 同一ビル別テナント / マーケット内複数出店 等) は許可し、 警告ログのみ残す。
-    //      admin dashboard 側で別途精査する運用。
+    //   ★ 同オーナ自己重複 (店名+住所+市区町村): 409 self_duplicate
+    //   ★ 営業許可証番号の重複 (自/他オーナ問わず): 409 license_duplicate
+    //      食品衛生法上「1施設 1番号」 が原則 = 同じ番号の使い回しは無効入力 or なりすましの強い指標。
+    //   ★ 別オーナの店名+住所重複: 警告ログのみ (フードコート等の正規ケース)。
+    const incomingLicenseKey = normalizeLicenseNumber(body.licenseNumber);
+    if (incomingLicenseKey) {
+      try {
+        const licenseRows = await db
+          .select({
+            id: storesTable.id,
+            ownerId: storesTable.ownerId,
+            name: storesTable.name,
+            licenseNumber: storesTable.licenseNumber,
+            status: storesTable.status,
+          })
+          .from(storesTable)
+          .where(sql`${storesTable.status} IN ('pending', 'approved')`);
+
+        const licenseCollision = licenseRows.find(
+          (r) => normalizeLicenseNumber(r.licenseNumber) === incomingLicenseKey,
+        );
+        if (licenseCollision) {
+          const isSelf = licenseCollision.ownerId === ownerId;
+          console.warn(
+            `[/stores/apply] 🚫 営業許可証番号 重複ブロック: ownerId=${ownerId} licenseKey="${incomingLicenseKey}" → 既存storeId=${licenseCollision.id} ownerId=${licenseCollision.ownerId} status=${licenseCollision.status} isSelf=${isSelf}`,
+          );
+          return res.status(409).json({
+            error: "license_duplicate",
+            scope: isSelf ? "self" : "other",
+            message: isSelf
+              ? "この営業許可証番号は、 すでにあなたの別の店舗で使用されています。 営業許可は施設ごとに発行されるため、 2店舗目には別の番号をご入力ください。"
+              : "この営業許可証番号は、 すでに別のお店で登録されています。 番号にお間違いがないかご確認ください。 (お問い合わせが必要な場合はサポートまで)",
+            existingStoreId: isSelf ? licenseCollision.id : undefined,
+          });
+        }
+      } catch (licEx: any) {
+        console.warn(`[/stores/apply] 営業許可証重複チェック失敗 (申請は継続): ${licEx?.message}`);
+      }
+    }
+
     const incomingKey = storeIdentityKey(body.name, body.address, body.city);
     if (incomingKey) {
       try {
