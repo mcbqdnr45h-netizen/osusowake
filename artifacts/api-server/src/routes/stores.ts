@@ -19,6 +19,62 @@ import { normalizeForCompare, storeIdentityKey, normalizeLicenseNumber } from ".
 
 const REPORT_TYPES = ["closed", "temp_closed", "wrong_hours", "wrong_info", "inappropriate_review", "other"] as const;
 
+/**
+ * 営業許可証番号の重複検出 (共通ヘルパー)。
+ * /stores/apply / reapply / bank-setup の 3 経路で再利用する。
+ * 食品衛生法上「営業許可は施設ごと (1施設 = 1番号)」 が原則のため、
+ * 同じ番号での 2店舗目登録 / 他店舗から番号盗用は無効入力扱いで全部ブロックする。
+ *
+ * @param opts.ownerId - 申請ユーザの ID (isSelf 判定用)
+ * @param opts.rawLicenseNumber - 入力された営業許可証番号 (生の文字列)
+ * @param opts.excludeStoreId - 自分自身の店舗を除外するため (bank-setup / reapply で必須)
+ * @returns 重複ヒットがあれば情報、 なければ null
+ */
+async function findLicenseDuplicate(opts: {
+  ownerId: string;
+  rawLicenseNumber: string | null | undefined;
+  excludeStoreId?: number;
+}): Promise<{ id: number; ownerId: string | null; status: string; isSelf: boolean } | null> {
+  const key = normalizeLicenseNumber(opts.rawLicenseNumber);
+  if (!key) return null;
+  const rows = await db
+    .select({
+      id: storesTable.id,
+      ownerId: storesTable.ownerId,
+      licenseNumber: storesTable.licenseNumber,
+      status: storesTable.status,
+    })
+    .from(storesTable)
+    .where(sql`${storesTable.status} IN ('pending', 'applied', 'approved')`);
+  const hit = rows.find(
+    (r) =>
+      (opts.excludeStoreId == null || r.id !== opts.excludeStoreId) &&
+      normalizeLicenseNumber(r.licenseNumber) === key,
+  );
+  if (!hit) return null;
+  return {
+    id: hit.id,
+    ownerId: hit.ownerId,
+    status: hit.status,
+    isSelf: hit.ownerId === opts.ownerId,
+  };
+}
+
+/** 営業許可証番号 重複時の 409 レスポンスを統一 */
+function sendLicenseDuplicate(
+  res: any,
+  hit: { id: number; ownerId: string | null; status: string; isSelf: boolean },
+) {
+  return res.status(409).json({
+    error: "license_duplicate",
+    scope: hit.isSelf ? "self" : "other",
+    message: hit.isSelf
+      ? "この営業許可証番号は、 すでにあなたの別の店舗で使用されています。 営業許可は施設ごとに発行されるため、 別の番号をご入力ください。"
+      : "この営業許可証番号は、 すでに別のお店で登録されています。 番号にお間違いがないかご確認ください。 (お問い合わせが必要な場合はサポートまで)",
+    existingStoreId: hit.isSelf ? hit.id : undefined,
+  });
+}
+
 // ⚠️ Stripe Connect business_profile.url 用の公開ドメイン
 // Replit の dev/preview ドメイン（*.replit.dev / *.replit.app）を Stripe に送信すると、
 // JCB / ダイナース / ディスカバー等のカードブランド審査で「不審な URL」と判定され
@@ -234,40 +290,16 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
     //   ★ 営業許可証番号の重複 (自/他オーナ問わず): 409 license_duplicate
     //      食品衛生法上「1施設 1番号」 が原則 = 同じ番号の使い回しは無効入力 or なりすましの強い指標。
     //   ★ 別オーナの店名+住所重複: 警告ログのみ (フードコート等の正規ケース)。
-    const incomingLicenseKey = normalizeLicenseNumber(body.licenseNumber);
-    if (incomingLicenseKey) {
-      try {
-        const licenseRows = await db
-          .select({
-            id: storesTable.id,
-            ownerId: storesTable.ownerId,
-            name: storesTable.name,
-            licenseNumber: storesTable.licenseNumber,
-            status: storesTable.status,
-          })
-          .from(storesTable)
-          .where(sql`${storesTable.status} IN ('pending', 'approved')`);
-
-        const licenseCollision = licenseRows.find(
-          (r) => normalizeLicenseNumber(r.licenseNumber) === incomingLicenseKey,
+    try {
+      const licHit = await findLicenseDuplicate({ ownerId, rawLicenseNumber: body.licenseNumber });
+      if (licHit) {
+        console.warn(
+          `[/stores/apply] 🚫 営業許可証番号 重複ブロック: ownerId=${ownerId} → 既存storeId=${licHit.id} ownerId=${licHit.ownerId} status=${licHit.status} isSelf=${licHit.isSelf}`,
         );
-        if (licenseCollision) {
-          const isSelf = licenseCollision.ownerId === ownerId;
-          console.warn(
-            `[/stores/apply] 🚫 営業許可証番号 重複ブロック: ownerId=${ownerId} licenseKey="${incomingLicenseKey}" → 既存storeId=${licenseCollision.id} ownerId=${licenseCollision.ownerId} status=${licenseCollision.status} isSelf=${isSelf}`,
-          );
-          return res.status(409).json({
-            error: "license_duplicate",
-            scope: isSelf ? "self" : "other",
-            message: isSelf
-              ? "この営業許可証番号は、 すでにあなたの別の店舗で使用されています。 営業許可は施設ごとに発行されるため、 2店舗目には別の番号をご入力ください。"
-              : "この営業許可証番号は、 すでに別のお店で登録されています。 番号にお間違いがないかご確認ください。 (お問い合わせが必要な場合はサポートまで)",
-            existingStoreId: isSelf ? licenseCollision.id : undefined,
-          });
-        }
-      } catch (licEx: any) {
-        console.warn(`[/stores/apply] 営業許可証重複チェック失敗 (申請は継続): ${licEx?.message}`);
+        return sendLicenseDuplicate(res, licHit);
       }
+    } catch (licEx: any) {
+      console.warn(`[/stores/apply] 営業許可証重複チェック失敗 (申請は継続): ${licEx?.message}`);
     }
 
     const incomingKey = storeIdentityKey(body.name, body.address, body.city);
@@ -1023,6 +1055,27 @@ router.post("/stores/:storeId/reapply", requireAuth, requireStoreOwner, async (r
       "legalName", "legalRepresentative", "legalAddress", "legalPhone", "legalEmail", "legalOther"];
     for (const f of editableFields) {
       if (body[f] !== undefined) updateData[f] = body[f];
+    }
+
+    // ★ 営業許可証番号の重複チェック (自分自身の店舗は除外)
+    //    却下→再申請の経路で、 他店舗の番号を盗用 / 自分の別店舗の番号に書き換える攻撃を防ぐ
+    if (typeof body.licenseNumber === "string") {
+      try {
+        const licHit = await findLicenseDuplicate({
+          ownerId: store.ownerId!,
+          rawLicenseNumber: body.licenseNumber,
+          excludeStoreId: storeId,
+        });
+        if (licHit) {
+          console.warn(
+            `[/reapply] 🚫 営業許可証番号 重複ブロック: storeId=${storeId} ownerId=${store.ownerId} → 既存storeId=${licHit.id} isSelf=${licHit.isSelf}`,
+          );
+          sendLicenseDuplicate(res, licHit);
+          return;
+        }
+      } catch (licEx: any) {
+        console.warn(`[/reapply] 営業許可証重複チェック失敗 (申請は継続): ${licEx?.message}`);
+      }
     }
 
     const [updated] = await db
@@ -2447,6 +2500,28 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
   }
 
   const wasRejected = store.status === "rejected";
+
+  // ★ 営業許可証番号の重複チェック (自分自身の店舗は除外)
+  //    bank-setup 経路で他店舗の番号を盗用 / 自分の別店舗の番号に書き換える攻撃を防ぐ。
+  //    bizLicenseNumber が空の場合は既存値を変更しないので、 入力があった時のみ検証する。
+  if (typeof bizLicenseNumber === "string" && bizLicenseNumber.trim().length > 0) {
+    try {
+      const licHit = await findLicenseDuplicate({
+        ownerId: store.ownerId!,
+        rawLicenseNumber: bizLicenseNumber,
+        excludeStoreId: storeId,
+      });
+      if (licHit) {
+        console.warn(
+          `[bank-setup] 🚫 営業許可証番号 重複ブロック: storeId=${storeId} ownerId=${store.ownerId} → 既存storeId=${licHit.id} isSelf=${licHit.isSelf}`,
+        );
+        sendLicenseDuplicate(res, licHit);
+        return;
+      }
+    } catch (licEx: any) {
+      console.warn(`[bank-setup] 営業許可証重複チェック失敗 (申請は継続): ${licEx?.message}`);
+    }
+  }
 
   // オーナーメール取得
   let ownerEmail: string | undefined;

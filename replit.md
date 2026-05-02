@@ -173,7 +173,17 @@
 
 ## Recent Updates (2026-05-02)
 
-### 営業許可証番号の重複登録ブロック (1施設1番号原則)
+### 営業許可証番号の重複ブロックを 3 経路全てに展開 (apply + reapply + bank-setup)
+直前リリースは /stores/apply のみで重複チェックしていたため、 抜け穴 2つを修正:
+1. **bank-setup 経路の盗用**: 架空番号で /apply 通過 → bank-setup で他店舗番号に書き換える経路をブロック。
+2. **reapply 経路の盗用**: 却下店舗を再申請する際に番号を他店舗のものに書き換える経路をブロック。
+- `stores.ts` L25-79: 共通ヘルパー `findLicenseDuplicate({ ownerId, rawLicenseNumber, excludeStoreId? })` + `sendLicenseDuplicate(res, hit)` を追加。 WHERE は `status IN ('pending', 'applied', 'approved')` (`applied` を追加して bank-setup 完了直後の店舗も検出対象に)。 `excludeStoreId` で自分自身は除外可能。
+- `/stores/apply` L296-306: 既存インラインチェックを共通ヘルパーに置換。
+- `/stores/:storeId/reapply` L1063-1082: `body.licenseNumber` が来た時のみ `excludeStoreId=storeId` でチェック。
+- `/stores/:storeId/connect/bank-setup` L2507-2527: `bizLicenseNumber.trim()` がある時のみ `excludeStoreId=storeId` でチェック (空送信は既存値温存なので skip 安全)。
+- 全 3 経路で同一ヘルパー使用 → 文言・正規化のドリフトなし。 フロントの 409 `license_duplicate` ハンドラはレスポンス形が統一されているのでそのまま動く。
+
+### 営業許可証番号の重複登録ブロック (1施設1番号原則 — 初回実装)
 ユーザ確認で「同じ営業許可証で 2個目追加できないようになってるよな?」 と指摘 → 未実装だったため追加。 食品衛生法上、 営業許可は施設ごとに発行される (1施設 = 1番号) ため、 同じ番号の使い回しは無効入力 or なりすましの強い指標。
 - `lib/normalize-store.ts`: `normalizeLicenseNumber()` 追加 (NFKC + 全角→半角 + 大小統一 + 空白/ハイフン/記号除去 / 数字 0個なら "" を返し誤マッチ防止)。
 - `stores.ts /stores/apply`: 既存 self_duplicate チェックの前段で pending/approved 全店舗をスキャンし、 正規化キー一致なら **409 `license_duplicate`** を返す。 isSelf 判定で文言を出し分け (自オーナは existingStoreId 付き、 他オーナは情報漏洩防止のため出さない)。
