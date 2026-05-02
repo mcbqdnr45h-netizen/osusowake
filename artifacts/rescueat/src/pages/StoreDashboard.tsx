@@ -253,9 +253,10 @@ function PostBagModal({
     }
     setIsSubmitting(true);
     try {
-      const cleanTitle = (pastBag.title?.trim().length >= 4)
-        ? pastBag.title.trim()
-        : `${storeName}のおすそわけバッグ`;
+      // ★ ユーザーが過去に設定した商品名は文字数に関わらず必ず尊重する。
+      //   旧版は「4文字未満なら店舗名にフォールバック」していたため、 短い商品名
+      //   (例: 「丼」「鯛茶」) が「<店舗名>のおすそわけバッグ」 に置き換わる不具合があった。
+      const cleanTitle = pastBag.title?.trim() || `${storeName}のおすそわけバッグ`;
       await createBag.mutateAsync({
         storeId,
         data: {
@@ -311,7 +312,9 @@ function PostBagModal({
       await createBag.mutateAsync({
         storeId,
         data: {
-          title: form.title.trim().length >= 2 ? form.title.trim() : (itemType === 'bag' ? 'おすそわけ袋' : `${storeName}の商品`),
+          // ★ ユーザーが入力した商品名は文字数に関わらず必ず尊重する (旧 length>=2 は短い商品名を弾いていた)。
+          //   空欄のときだけフォールバック: bag → 「おすそわけ袋」、 item → 「<店舗名>の商品」
+          title: form.title.trim() || (itemType === 'bag' ? 'おすそわけ袋' : `${storeName}の商品`),
           description: form.description.trim() || `${storeName}の美味しいおすそわけです！`,
           originalPrice: Number(form.originalPrice),
           discountedPrice: Number(form.discountedPrice),
