@@ -31,9 +31,13 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
     }
   };
 
-  // ★ 出品管理 (/store/dashboard) は店舗フローのルート。 ここに戻るボタンを置くと
+  // ★ ボトムナビのタブ自体は店舗フローのルート扱い。 ここに戻るボタンを置くと
   //   「どこに戻るんや」 となるので非表示。 サブページ (出品編集 / 売上詳細 / 銀行設定 等) のみ表示。
-  const isStoreRoot = location === '/store/dashboard' || location === '/store';
+  const isStoreRoot =
+    location === '/store/dashboard' ||
+    location === '/store' ||
+    location === '/store/sales' ||
+    location === '/mypage';
   const showBackButton = !isStoreRoot;
 
   // ナビ表示条件:
