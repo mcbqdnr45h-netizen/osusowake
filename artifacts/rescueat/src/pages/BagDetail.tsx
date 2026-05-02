@@ -474,7 +474,7 @@ export default function BagDetail() {
           {/* Hero Image（shimmer + フェードイン + プレミアム仕上げ）*/}
           {/* 暖色グラデ背景 + radial アクセント — 画像が白/透明/壊れていても寂しくならないように */}
           <div
-            className="relative h-80 md:h-[28rem] w-full overflow-hidden"
+            className="relative h-56 md:h-80 w-full overflow-hidden"
             style={{
               background:
                 'radial-gradient(circle at 30% 20%, rgba(255,180,140,0.55) 0%, transparent 55%),' +
@@ -823,14 +823,38 @@ export default function BagDetail() {
                   </button>
                 </div>
 
-                {/* 住所 */}
+                {/* 住所 + 埋込地図 (タップで地図アプリ起動) */}
                 {bag.store.address && (
-                  <div className="flex items-start gap-3 px-4 py-3.5">
-                    <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">住所</div>
-                      <div className="text-sm text-foreground font-medium leading-relaxed">{bag.store.address}</div>
-                    </div>
+                  <div className="px-4 py-3.5">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        ((bag.store as any).lat && (bag.store as any).lng)
+                          ? `${(bag.store as any).lat},${(bag.store as any).lng}`
+                          : bag.store.address
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-3 mb-3 -mx-2 px-2 py-1.5 rounded-xl hover:bg-muted/60 active:bg-muted transition-colors"
+                    >
+                      <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">住所（タップで地図を開く）</div>
+                        <div className="text-sm text-primary font-bold leading-relaxed underline underline-offset-2 decoration-primary/40">{bag.store.address}</div>
+                      </div>
+                    </a>
+                    {(bag.store as any).lat != null && (bag.store as any).lng != null && (
+                      <div className="rounded-2xl overflow-hidden border border-border/60 shadow-sm bg-muted/30">
+                        <iframe
+                          src={`https://www.google.com/maps?q=${(bag.store as any).lat},${(bag.store as any).lng}&z=16&output=embed`}
+                          width="100%"
+                          height="180"
+                          style={{ border: 0, display: 'block' }}
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                          title={`${bag.store.name}の地図`}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
