@@ -202,7 +202,7 @@ export default function SignUp() {
               <ul className="space-y-1.5">
                 {[
                   '余剰食品を手軽に出品・管理',
-                  '売上は毎週月曜に自動振込',
+                  '売上は毎月25日に自動振込',
                   'プラットフォーム手数料は25%のみ',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-foreground font-medium">

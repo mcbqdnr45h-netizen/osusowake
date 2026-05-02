@@ -2055,7 +2055,7 @@ export default function StoreDashboard() {
                     <div>
                       <p className="text-xs text-amber-700 font-bold">保留中とは？</p>
                       <p className="text-[11px] text-amber-600 leading-relaxed mt-0.5">
-                        決済から{balanceData.delayDays ?? 7}日後に「振込可能」へ移動します。振込可能になった次の月曜日に振込されます。
+                        決済から{balanceData.delayDays ?? 7}日後に「振込可能」へ移動します。振込可能になった残高は、毎月25日にまとめて銀行口座へ振込されます。
                       </p>
                     </div>
                   </div>
@@ -2068,7 +2068,7 @@ export default function StoreDashboard() {
                     {balanceData.payoutSchedule?.interval === 'weekly'
                       ? '週次振込（毎週月曜）'
                       : balanceData.payoutSchedule?.interval === 'monthly'
-                        ? '月次振込'
+                        ? `月次振込（毎月${balanceData.payoutSchedule?.monthly_anchor ?? 25}日）`
                         : '自動振込'}
                   </span>
                   {balanceData.nextPayoutDate && (
@@ -2131,7 +2131,7 @@ export default function StoreDashboard() {
                       {/* ケース②: まだ銀行振込は発生していないが売上はある（保留中の説明） */}
                       {!hasActivePayouts && transfers.length > 0 && balanceData.pending === 0 && balanceData.available === 0 && (
                         <p className="text-[11px] text-muted-foreground bg-secondary/40 rounded-xl px-3 py-2">
-                          ⏳ 売上は確認できています。振込可能日（保留期間終了後）の次の月曜日に銀行口座へ振り込まれます。
+                          ⏳ 売上は確認できています。振込可能日（保留期間終了後）以降、最初に到来する毎月25日に銀行口座へ振り込まれます。
                         </p>
                       )}
 

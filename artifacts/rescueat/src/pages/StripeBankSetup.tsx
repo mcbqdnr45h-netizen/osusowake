@@ -888,7 +888,7 @@ export default function StripeBankSetup() {
               <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">⏱️ 審査期間：通常 1〜3営業日</p>
               <p className="text-xs text-orange-700 leading-relaxed">審査結果（承認・修正依頼ともに）は<strong>おすそわけ事務局</strong>よりメールでご連絡します。</p>
               <div className="border-t border-orange-200 pt-2">
-                <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">💰 振込：毎週月曜日（初回は約7営業日後）</p>
+                <p className="text-xs font-black text-orange-900 flex items-center gap-1.5">💰 振込：毎月25日（初回は約7営業日後）</p>
               </div>
             </div>
           )}
@@ -1008,7 +1008,8 @@ export default function StripeBankSetup() {
                 <p className="text-sm font-black text-orange-900">売上の振込スケジュール</p>
                 <p className="text-xs text-orange-700 leading-relaxed mt-0.5">
                   審査通過後、<strong>初回振込は最初の売上から約7営業日後</strong>となります。
-                  2回目以降は<strong>毎週月曜日</strong>に、2営業日以上前の売上が自動的に口座へ振り込まれます。
+                  2回目以降は<strong>毎月25日</strong>に、振込可能になっている残高がまとめて口座へ振り込まれます。
+                  ※売上は決済から約7日後に「振込可能」へ移動し、その後最初に到来する25日に振込されます（例：5月22日の売上 → 5月29日に振込可能 → 6月25日に振込）。
                 </p>
               </div>
             </div>
@@ -1112,7 +1113,7 @@ export default function StripeBankSetup() {
                 <span className="text-orange-500 text-sm mt-0.5">⏱️</span>
                 <div>
                   <p className="text-[11px] font-black text-orange-800">審査期間：通常 1〜3営業日</p>
-                  <p className="text-[11px] text-orange-600 leading-relaxed mt-0.5">振込：初回は約7営業日後 / 2回目以降は毎週月曜日</p>
+                  <p className="text-[11px] text-orange-600 leading-relaxed mt-0.5">振込：初回は約7営業日後 / 2回目以降は毎月25日</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
