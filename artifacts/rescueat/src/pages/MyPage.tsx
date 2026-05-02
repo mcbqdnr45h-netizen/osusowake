@@ -259,6 +259,12 @@ export default function MyPage() {
                 {notifications.slice(0, 8).map(n => {
                   const isRejected = n.type === 'store_rejected';
                   const isApproved = n.type === 'store_approved';
+                  // ★ 通知種別→遷移先 (NotificationsBell.tsx と一貫)
+                  const linkHref =
+                    n.type === 'pickup_reminder' ? '/my-reservations' :
+                    n.type === 'bag_sold'        ? '/store/sales' :
+                    n.type === 'new_bag'         ? '/' :
+                    null;
                   return (
                   <div key={n.id} className={`px-4 py-3 border-b border-border/30 last:border-0 ${!n.read ? 'bg-primary/[0.03]' : ''} ${isRejected ? 'bg-red-50/50' : isApproved ? 'bg-green-50/50' : ''}`}>
                     <div className="flex items-start gap-2.5">
@@ -275,9 +281,18 @@ export default function MyPage() {
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs font-bold ${isRejected ? 'text-red-700' : isApproved ? 'text-green-700' : !n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
                         <p className={`text-[11px] mt-0.5 leading-relaxed ${isRejected ? 'text-red-600' : 'text-muted-foreground'}`}>{n.body}</p>
-                        <p className="text-[10px] text-muted-foreground/50 mt-1">
-                          {new Date(n.createdAt).toLocaleDateString('ja-JP')}
-                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-[10px] text-muted-foreground/50">
+                            {new Date(n.createdAt).toLocaleDateString('ja-JP')}
+                          </p>
+                          {linkHref && (
+                            <Link href={linkHref}>
+                              <span className="inline-flex items-center gap-0.5 text-[11px] font-black text-primary hover:text-primary/80 transition-colors cursor-pointer">
+                                詳細を見る<ChevronRight className="w-3 h-3" />
+                              </span>
+                            </Link>
+                          )}
+                        </div>
                         {isRejected && (
                           <Link href="/store/reapply">
                             <span className="inline-flex items-center gap-1 mt-2 text-[11px] font-black text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-full transition-colors">

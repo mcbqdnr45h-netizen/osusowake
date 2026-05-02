@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, X, MessageSquare, MoreVertical, Flag, EyeOff, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -299,7 +300,12 @@ export function StoreReviewSheet({ storeId, storeName, avgRating, reviewCount, o
     setReportTarget(review);
   }
 
-  return (
+  // ★ createPortal で document.body 直下に出す。
+  //   親が <motion.div> 等で `transform` を持っていると `position: fixed` の
+  //   containing block が祖先に変わってしまい、 backdrop が画面全体を覆えず
+  //   シート本体も画面中央に小さく表示される (本番ユーザ報告のレイアウト崩壊)。
+  if (typeof document === 'undefined') return null; // SSR / プリレンダ安全網
+  return createPortal(
     <div
       className="fixed inset-0 z-[300] flex items-end justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
@@ -482,6 +488,7 @@ export function StoreReviewSheet({ storeId, storeName, avgRating, reviewCount, o
           />
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body,
   );
 }

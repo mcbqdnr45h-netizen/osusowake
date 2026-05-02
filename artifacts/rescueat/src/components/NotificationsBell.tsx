@@ -18,9 +18,12 @@ function notificationLink(n: AppNotification): string | null {
   switch (n.type) {
     case 'store_approved':   return '/store/bank-setup';   // 承認→口座・本人確認へ
     case 'store_rejected':   return '/store/reapply';      // 却下→店舗情報の再申請へ
-    case 'bag_sold':         return '/store/sales';
-    case 'pickup_reminder':  return '/store/dashboard';
-    case 'new_bag':          return '/';
+    case 'bag_sold':         return '/store/sales';        // 店主宛
+    // ★ pickup_reminder はユーザー(購入者)宛のみ送信される (lib/pickup-reminder.ts)。
+    //   /store/dashboard は store_owner 専用 Protected ルートで、一般ユーザーは
+    //   弾かれて navigate しても何も起きないバグになっていた。 → /my-reservations へ。
+    case 'pickup_reminder':  return '/my-reservations';
+    case 'new_bag':          return '/';                   // お気に入り店から新規バッグ→トップへ
     default:                 return null;
   }
 }
