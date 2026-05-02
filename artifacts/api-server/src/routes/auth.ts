@@ -195,6 +195,13 @@ router.post("/auth/create-profile", async (req: Request, res: Response) => {
     //   display_name は COALESCE で「既存値が NULL の場合のみ EXCLUDED で上書き」する。
     //   これにより SignUp 時の display_name は確実に保存され、 既存ユーザーが再 create-profile を
     //   呼ばれても (例: 確認メール後の自動再作成) 既に設定された display_name は失われない。
+    //
+    //   ★ セキュリティ修正 (2026-05-02): role は ON CONFLICT で上書きしない。
+    //     旧仕様では `role = EXCLUDED.role` のため、 認証済みユーザが /auth/create-profile を
+    //     直接叩くだけで自由にロールを書き換えられた (=customer→store_owner の権限昇格脆弱性)。
+    //     新仕様では INSERT 時 (新規ユーザ) のみ役割を確定させ、 既存ユーザの role は完全に
+    //     固定する。 customer→store_owner への正規昇格は /auth/update-role 経由 (intended_role 検証付き) のみ。
+    //
     //   制約名で 23505 を分類し、phone_number の重複と id の重複を区別する。
     try {
       await db.execute(sql`
@@ -202,7 +209,6 @@ router.post("/auth/create-profile", async (req: Request, res: Response) => {
         VALUES (${user.id}, ${user.email!}, ${role}, ${full_name.trim()}, ${phone_number.trim()}, ${normalizedDisplayName})
         ON CONFLICT (id) DO UPDATE SET
           email = EXCLUDED.email,
-          role = EXCLUDED.role,
           full_name = EXCLUDED.full_name,
           phone_number = EXCLUDED.phone_number,
           display_name = COALESCE(users.display_name, EXCLUDED.display_name)
@@ -311,17 +317,23 @@ router.patch("/auth/update-role", async (req: Request, res: Response) => {
         res.json({ ok: true, role: currentRole, action: "noop" });
         return;
       }
-      // customer だが full_name が設定済み → 意図的に customer 登録したユーザー → 拒否
-      if (currentRole === "customer" && existing.full_name) {
-        res.status(403).json({
-          error: "role_mismatch",
-          message: "このアカウントは一般ユーザー用です。一般ユーザータブからログインしてください。",
-        });
+      // ★ customer → store_owner 昇格は **intended_role === "store_owner"** を持つアカウントのみ許可。
+      //   旧仕様では「full_name=null なら昇格 OK」 にしていたため、 一般ユーザ (signUp で customer
+      //   登録したが名前未入力) が店舗タブからログイン → 自動で store_owner に昇格 → 店舗ダッシュ
+      //   ボードに入れてしまう穴があった。 intended_role は signUpAsStore() でのみ埋め込まれるので、
+      //   この値を持たないアカウントの店舗タブログインは全て拒否する。
+      if (currentRole === "customer" && intendedRole === "store_owner") {
+        await supabaseAdmin.from("users").update({ role: "store_owner" }).eq("id", user.id);
+        console.log(`[/auth/update-role] customer → store_owner 昇格 (intended_role 一致) userId=${user.id}`);
+        res.json({ ok: true, role: "store_owner", action: "upgraded" });
         return;
       }
-      // customer で full_name=null（トリガー自動生成）→ store_owner に昇格
-      await supabaseAdmin.from("users").update({ role: "store_owner" }).eq("id", user.id);
-      res.json({ ok: true, role: "store_owner", action: "upgraded" });
+      // それ以外 (一般ユーザが店舗タブで誤ログイン) → 403
+      console.warn(`[/auth/update-role] 🚫 customer → store_owner 昇格拒否 userId=${user.id} currentRole=${currentRole} intendedRole=${intendedRole ?? "(なし)"} hasFullName=${!!existing.full_name}`);
+      res.status(403).json({
+        error: "role_mismatch",
+        message: "このアカウントは一般ユーザー用です。「お客さま」 タブからログインしてください。 店舗オーナーとして利用したい場合は別のメールアドレスで新規登録してください。",
+      });
       return;
     }
 
