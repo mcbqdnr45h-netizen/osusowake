@@ -1,7 +1,10 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { storesTable, announcementsTable, webPushSubscriptionsTable, notificationsTable, salesLeadsTable } from "@workspace/db/schema";
-import { eq, sql, desc, isNotNull } from "drizzle-orm";
+import {
+  storesTable, announcementsTable, webPushSubscriptionsTable, notificationsTable, salesLeadsTable,
+  surpriseBagsTable, reservationsTable, reviewsTable, reportsTable, favoritesTable, cartReservationsTable,
+} from "@workspace/db/schema";
+import { eq, sql, desc, isNotNull, inArray } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import { escapeHtml } from "../lib/escape.js";
 import { Resend } from "resend";
@@ -506,7 +509,15 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
         s.legal_phone, s.legal_email, s.legal_other,
         COUNT(DISTINCT b.id)::int AS bag_count,
         COUNT(DISTINCT r.id)::int AS reservation_count,
-        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue,
+        (SELECT COUNT(*)::int FROM favorites    WHERE store_id = s.id) AS favorite_count,
+        (SELECT COUNT(*)::int FROM reviews      WHERE store_id = s.id) AS review_count,
+        (SELECT COUNT(*)::int FROM reports      WHERE store_id = s.id) AS report_count,
+        (SELECT COUNT(*)::int FROM notifications WHERE store_id = s.id) AS notification_count,
+        (SELECT COUNT(*)::int FROM cart_reservations cr
+           WHERE cr.bag_id IN (SELECT id FROM surprise_bags WHERE store_id = s.id)
+              OR cr.reservation_id IN (SELECT id FROM reservations WHERE store_id = s.id)
+        ) AS cart_reservation_count
       FROM stores s
       LEFT JOIN surprise_bags b ON b.store_id = s.id
       LEFT JOIN reservations r  ON r.store_id = s.id
@@ -599,48 +610,9 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
   }
 });
 
-// ── POST /admin/stores/:storeId/refresh-stripe-status ────────────────────────
-// Stripe アカウントの charges_enabled を最新取得して DB に保存する
-router.post("/admin/stores/:storeId/refresh-stripe-status", requireAdmin, async (req, res) => {
-  const storeId = Number(req.params.storeId);
-  if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
-  try {
-    const [store] = await db
-      .select({ stripeAccountId: storesTable.stripeAccountId })
-      .from(storesTable)
-      .where(eq(storesTable.id, storeId));
-    if (!store) { res.status(404).json({ error: "not_found" }); return; }
-    if (!store.stripeAccountId) {
-      res.status(400).json({ error: "no_stripe_account", message: "Stripeアカウントが未登録です" });
-      return;
-    }
-    const stripeKey = process.env["STRIPE_SECRET_KEY"];
-    if (!stripeKey) { res.status(503).json({ error: "stripe_not_configured" }); return; }
-
-    const stripe = await import("stripe").then((m) => new m.default(stripeKey));
-    const account = await stripe.accounts.retrieve(store.stripeAccountId);
-
-    await db
-      .update(storesTable)
-      .set({
-        stripeChargesEnabled: account.charges_enabled,
-        stripePayoutsEnabled: account.payouts_enabled,
-      })
-      .where(eq(storesTable.id, storeId));
-
-    res.json({
-      chargesEnabled: account.charges_enabled,
-      payoutsEnabled: account.payouts_enabled,
-      detailsSubmitted: account.details_submitted,
-      currentlyDue: account.requirements?.currently_due ?? [],
-      errors: account.requirements?.errors ?? [],
-      disabledReason: account.requirements?.disabled_reason ?? null,
-    });
-  } catch (err: any) {
-    console.error("[admin/refresh-stripe-status]", err);
-    res.status(500).json({ error: "internal_error", message: err?.message });
-  }
-});
+// ── refresh-stripe-status は廃止 ───────────────────────────────────────────────
+// GET /admin/stores/:storeId/detail が同等処理 (Stripe live fetch + DB 更新) を含むため重複。
+// detail GET 側に統合済み。
 
 // ── POST /admin/stores/:storeId/stripe-sync ────────────────────────────────
 // 管理者専用の完全 Stripe 再同期（requireStoreOwner を使わない）
@@ -1024,17 +996,85 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
 });
 
 // ── DELETE /admin/stores/:storeId (店舗削除) ──────────────────────────────────
+// 店舗を完全削除する（関連レコードもトランザクションでカスケード削除）
+// stores テーブルには FK が設定されていないため手動でクリーンアップする必要がある。
 router.delete("/admin/stores/:storeId", requireAdmin, async (req, res) => {
   const storeId = Number(req.params.storeId);
   if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
   try {
-    const [deleted] = await db
-      .delete(storesTable)
-      .where(eq(storesTable.id, storeId))
-      .returning();
-    if (!deleted) { res.status(404).json({ error: "not_found" }); return; }
-    res.json({ ok: true, store: deleted });
+    const summary = await db.transaction(async (tx) => {
+      // 削除対象の存在確認
+      const [target] = await tx.select().from(storesTable).where(eq(storesTable.id, storeId));
+      if (!target) return null;
+
+      // この店舗の bag id / reservation id を先に取得（cart_reservations の片付け用）
+      const bagRows = await tx.select({ id: surpriseBagsTable.id })
+        .from(surpriseBagsTable).where(eq(surpriseBagsTable.storeId, storeId));
+      const bagIds = bagRows.map((b) => b.id);
+      const resvRows = await tx.select({ id: reservationsTable.id })
+        .from(reservationsTable).where(eq(reservationsTable.storeId, storeId));
+      const resvIds = resvRows.map((r) => r.id);
+
+      // 1) cart_reservations: bag_id か reservation_id 経由で削除
+      let cartDeleted = 0;
+      if (bagIds.length > 0) {
+        const r = await tx.delete(cartReservationsTable)
+          .where(inArray(cartReservationsTable.bagId, bagIds)).returning({ id: cartReservationsTable.id });
+        cartDeleted += r.length;
+      }
+      if (resvIds.length > 0) {
+        const r = await tx.delete(cartReservationsTable)
+          .where(inArray(cartReservationsTable.reservationId, resvIds)).returning({ id: cartReservationsTable.id });
+        cartDeleted += r.length;
+      }
+
+      // 2) reviews
+      const reviewsDel = await tx.delete(reviewsTable)
+        .where(eq(reviewsTable.storeId, storeId)).returning({ id: reviewsTable.id });
+      // 3) reports
+      const reportsDel = await tx.delete(reportsTable)
+        .where(eq(reportsTable.storeId, storeId)).returning({ id: reportsTable.id });
+      // 4) favorites
+      const favoritesDel = await tx.delete(favoritesTable)
+        .where(eq(favoritesTable.storeId, storeId)).returning({ id: favoritesTable.id });
+      // 5) notifications
+      const notificationsDel = await tx.delete(notificationsTable)
+        .where(eq(notificationsTable.storeId, storeId)).returning({ id: notificationsTable.id });
+      // 6) reservations
+      const reservationsDel = await tx.delete(reservationsTable)
+        .where(eq(reservationsTable.storeId, storeId)).returning({ id: reservationsTable.id });
+      // 7) surprise_bags
+      const bagsDel = await tx.delete(surpriseBagsTable)
+        .where(eq(surpriseBagsTable.storeId, storeId)).returning({ id: surpriseBagsTable.id });
+      // 8) stores 本体
+      const [deleted] = await tx.delete(storesTable)
+        .where(eq(storesTable.id, storeId)).returning();
+
+      return {
+        store: deleted,
+        cascade: {
+          cart_reservations: cartDeleted,
+          reviews: reviewsDel.length,
+          reports: reportsDel.length,
+          favorites: favoritesDel.length,
+          notifications: notificationsDel.length,
+          reservations: reservationsDel.length,
+          surprise_bags: bagsDel.length,
+        },
+      };
+    });
+
+    if (!summary) { res.status(404).json({ error: "not_found" }); return; }
+
+    await writeAuditLog(req, "store_delete", storeId, {
+      name: summary.store?.name,
+      status: summary.store?.status,
+      cascade: summary.cascade,
+    });
+
+    res.json({ ok: true, ...summary });
   } catch (err: any) {
+    console.error("[admin/stores/delete]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });
@@ -1186,6 +1226,8 @@ router.post("/web-push/subscribe", async (req, res) => {
 });
 
 // ── GET /admin/vapid-public-key ────────────────────────────────────────────────
+// 注: 現状 admin UI からは未使用。 web-push 購読は GET /api/settings の publicVapidKey 経由。
+//     将来 admin 専用 push 機能を追加する際の枠として残置。
 router.get("/admin/vapid-public-key", requireAdmin, async (_req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY ?? null });
 });
@@ -1353,6 +1395,9 @@ router.patch("/admin/sales-leads/:id", requireAdmin, async (req: any, res) => {
 
 // ── POST /admin/stores/batch-patch-stripe-license ──────────────────────────────
 // license_image_url が存在するのに stripe_license_file_id が NULL の店舗を一括修正
+// ⚠️ RESCUE 専用エンドポイント: 通常 admin UI からは到達しない。
+//    レガシー店舗の license file id 一括 backfill が必要な場合のみ
+//    管理者が curl 等で手動実行する想定。
 router.post("/admin/stores/batch-patch-stripe-license", requireAdmin, async (_req, res) => {
   try {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -1439,6 +1484,9 @@ router.patch("/admin/stores/:storeId/link-stripe-account", requireAdmin, async (
   }
 });
 
+// ⚠️ RESCUE 専用エンドポイント: 通常 admin UI からは到達しない。
+//    Stripe Connect の business_profile.name が誤登録されているケースで
+//    管理者が curl 等で手動修正する想定。
 router.post("/admin/stores/:storeId/fix-stripe-business-name", requireAdmin, async (req, res) => {
   try {
     const storeId = Number(req.params.storeId);

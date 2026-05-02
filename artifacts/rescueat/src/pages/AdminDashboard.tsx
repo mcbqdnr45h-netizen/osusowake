@@ -522,14 +522,46 @@ export default function AdminDashboard() {
   }
 
   async function deleteStore(storeId: number, storeName: string) {
-    if (!confirm(`「${storeName}」を完全に削除しますか？\nこの操作は取り消せません。`)) return;
     setActionLoading(storeId);
     try {
+      // 削除前に detail から関連件数を取得して警告に表示
+      let warn = `「${storeName}」を完全に削除しますか？\nこの操作は取り消せません。`;
+      try {
+        const dRes = await authedFetch(`${BASE}/api/admin/stores/${storeId}/detail`, { headers: {} });
+        if (dRes.ok) {
+          const d = await dRes.json();
+          const counts = [
+            d.bag_count              ? `商品: ${d.bag_count}件`              : null,
+            d.reservation_count      ? `予約: ${d.reservation_count}件`      : null,
+            d.cart_reservation_count ? `カート: ${d.cart_reservation_count}件` : null,
+            d.favorite_count         ? `お気に入り: ${d.favorite_count}件`   : null,
+            d.review_count           ? `レビュー: ${d.review_count}件`       : null,
+            d.report_count           ? `通報: ${d.report_count}件`           : null,
+            d.notification_count     ? `通知履歴: ${d.notification_count}件` : null,
+          ].filter(Boolean);
+          if (counts.length > 0) {
+            warn = `⚠️ 「${storeName}」を完全に削除します\n\n以下の関連データも全て削除されます:\n  ・${counts.join('\n  ・')}\n\nこの操作は取り消せません。本当に実行しますか？`;
+          }
+        }
+      } catch { /* detail 取得失敗時はデフォルト確認のみ */ }
+      if (!confirm(warn)) return;
+
       const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}`, {
         method: 'DELETE',
         headers: {},
       });
-      if (res.ok) { toast({ title: '🗑 店舗を削除しました' }); await fetchAll(); }
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const c = data?.cascade ?? {};
+        const cascadeMsg = Object.entries(c)
+          .filter(([, n]) => (n as number) > 0)
+          .map(([k, n]) => `${k}:${n}`).join(' ');
+        toast({
+          title: '🗑 店舗を削除しました',
+          description: cascadeMsg ? `関連データも削除: ${cascadeMsg}` : undefined,
+        });
+        await fetchAll();
+      }
       else toast({ title: 'エラー', description: '削除に失敗しました', variant: 'destructive' });
     } finally { setActionLoading(null); }
   }
@@ -1775,14 +1807,12 @@ export default function AdminDashboard() {
                                   再承認する
                                 </button>
                               )}
-                              {/* 削除ボタン — 審査待ち・却下済みのみ表示 */}
-                              {(isStorePending || store.status === 'rejected') && (
-                                <button onClick={() => deleteStore(store.id, store.name)} disabled={isProcessing}
-                                  className="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-500 font-bold text-xs py-2.5 px-3 rounded-xl transition-colors border border-red-200 disabled:opacity-50">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  削除
-                                </button>
-                              )}
+                              {/* 削除ボタン — 神モードでは全ステータスで表示。関連データも合わせてカスケード削除する */}
+                              <button onClick={() => deleteStore(store.id, store.name)} disabled={isProcessing}
+                                className="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-500 font-bold text-xs py-2.5 px-3 rounded-xl transition-colors border border-red-200 disabled:opacity-50">
+                                <Trash2 className="w-3.5 h-3.5" />
+                                削除
+                              </button>
                             </div>
                           </div>
                         </motion.div>

@@ -173,6 +173,19 @@
 
 ## Recent Updates (2026-05-02)
 
+### 神モード admin 全データ連携監査 + 店舗削除カスケード化 + 死にコード一掃
+ユーザ報告「admin UI に店舗削除ボタンが無い、 神モード全データ連携が完璧か確認」 を全面対応:
+1. **発見**: stores テーブルを参照する FK が DB 上 1 つも無い (favorites/notifications/reports/reservations/reviews/surprise_bags は store_id を持つが FK 未設定) → 旧 `DELETE /admin/stores/:storeId` は stores 行のみ削除 = 関連レコードが孤児として残存していた。
+2. **発見**: 削除ボタンが AdminDashboard L1779 と AdminStorePage L750 で `pending/applied/rejected` のみ条件表示 → approved な松村製麺所には削除ボタンが出なかった (= ユーザの「削除ボタンが無い」 報告の真因)。
+3. **発見**: `AdminVerifyShops.tsx` (489行) は import されていたが `/api/admin/reports` と `/dismiss-reports` は admin.ts に未実装 + Route も未登録 = 完全な死にコード。
+- **admin.ts DELETE /admin/stores/:storeId をトランザクション化**: `db.transaction((tx)=>...)` で `cart_reservations (bagId/reservationId 経由) → reviews → reports → favorites → notifications → reservations → surprise_bags → stores` の順に削除。 各テーブル削除件数を `cascade` として返却 + `writeAuditLog("store_delete", storeId, { name, status, cascade })` で監査記録。
+- **admin.ts GET /admin/stores/:storeId/detail 拡張**: `favorite_count / review_count / report_count / notification_count / cart_reservation_count` を SELECT 句に追加。
+- **AdminDashboard.tsx**: 削除ボタンを全ステータスで表示。 削除前に detail を取得して件数を強い警告 confirm dialog (`⚠️ ... 商品: 5件 / カート: 2件 / レビュー: 10件 ... 全て削除されます`) に表示。 削除後 toast に `cascade` 件数を `関連データも削除: bags:5 reviews:10` 形式で表示。
+- **AdminStorePage.tsx**: 同様に削除ボタン全ステータス + detail 既取得済み件数を confirm に反映。
+- **死にコード除去**: `AdminVerifyShops.tsx` ファイル削除 + App.tsx の lazy import / GuardedAdminVerify / Route `/admin-verify-shops` 削除。
+- **未使用 endpoint 整理**: `/admin/stores/:id/refresh-stripe-status` を廃止 (detail GET が同等処理を含み完全重複)。 `/admin/vapid-public-key` `/batch-patch-stripe-license` `/fix-stripe-business-name` は救済用途として残置 + 「⚠️ RESCUE 専用」 コメントで運用方針明文化。
+- architect 評価: PASS (DELETE 順序妥当、 全ステータス削除露出は requireAdmin + 強い警告で許容範囲、 死にコード削除は機能欠落でなく整合回復、 重大新規脆弱性 none observed)。
+
 ### UI/UX バグ修正 4件 (通知タップ無反応 / 並び順 / 文言整理)
 ユーザ報告 4件をまとめて修正:
 1. **NotificationsBell `詳細を見る` 押しても反応しない**: announcement / broadcast / default 系通知は `link='/'` か `null` で navigate しても既に Home に居て無反応。 `isExpandable` 判定 (`!link || link==='/'`) を追加してアコーディオン化 — タップで body 全文をその場で展開、 ラベルは「本文を見る」 ⇄ 「閉じる」 + ChevronDown 回転。 navigable な通知は従来通り遷移。

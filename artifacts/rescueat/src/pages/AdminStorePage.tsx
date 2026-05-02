@@ -231,14 +231,36 @@ export default function AdminStorePage() {
 
   async function deleteStore() {
     if (!store) return;
-    if (!window.confirm(`「${store.name}」を完全に削除しますか？この操作は取り消せません。`)) return;
+    // detail に既に件数が入っているので、それを確認ダイアログに反映
+    const counts = [
+      store.bag_count          ? `商品: ${store.bag_count}件`        : null,
+      store.reservation_count  ? `予約: ${store.reservation_count}件` : null,
+      (store as any).cart_reservation_count ? `カート: ${(store as any).cart_reservation_count}件` : null,
+      (store as any).favorite_count    ? `お気に入り: ${(store as any).favorite_count}件` : null,
+      (store as any).review_count      ? `レビュー: ${(store as any).review_count}件`    : null,
+      (store as any).report_count      ? `通報: ${(store as any).report_count}件`        : null,
+      (store as any).notification_count ? `通知履歴: ${(store as any).notification_count}件` : null,
+    ].filter(Boolean);
+    const warn = counts.length > 0
+      ? `⚠️ 「${store.name}」を完全に削除します\n\n以下の関連データも全て削除されます:\n  ・${counts.join('\n  ・')}\n\nこの操作は取り消せません。本当に実行しますか？`
+      : `「${store.name}」を完全に削除しますか？この操作は取り消せません。`;
+    if (!window.confirm(warn)) return;
+
     setActionLoading(true);
     try {
       const res = await authedFetch(`${BASE}/api/admin/stores/${store.id}`, {
         method: 'DELETE', headers: {},
       });
       if (res.ok) {
-        toast({ title: '🗑 削除しました' });
+        const data = await res.json().catch(() => ({}));
+        const c = data?.cascade ?? {};
+        const cascadeMsg = Object.entries(c)
+          .filter(([, n]) => (n as number) > 0)
+          .map(([k, n]) => `${k}:${n}`).join(' ');
+        toast({
+          title: '🗑 削除しました',
+          description: cascadeMsg ? `関連データも削除: ${cascadeMsg}` : undefined,
+        });
         navigate('/admin');
       } else {
         const d = await res.json();
@@ -747,16 +769,15 @@ export default function AdminStorePage() {
                     再承認する
                   </button>
                 )}
-                {(store.status === 'pending_review' || store.status === 'pending' || store.status === 'applied' || store.status === 'rejected') && (
-                  <button
-                    onClick={deleteStore}
-                    disabled={actionLoading}
-                    className="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-500 font-bold text-sm py-3 px-4 rounded-xl transition-colors border border-red-200 disabled:opacity-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    削除
-                  </button>
-                )}
+                {/* 神モードでは全ステータスで削除可能。関連データもサーバ側でカスケード削除される */}
+                <button
+                  onClick={deleteStore}
+                  disabled={actionLoading}
+                  className="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-500 font-bold text-sm py-3 px-4 rounded-xl transition-colors border border-red-200 disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  削除
+                </button>
               </div>
             </div>
 

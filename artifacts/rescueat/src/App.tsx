@@ -49,7 +49,6 @@ function RegisterStoreRedirect() {
   useEffect(() => { navigate('/store-onboarding', { replace: true }); }, [navigate]);
   return null;
 }
-const AdminVerifyShops   = React.lazy(() => import("./pages/AdminVerifyShops"));
 const Terms              = React.lazy(() => import("./pages/Terms"));
 const Privacy            = React.lazy(() => import("./pages/Privacy"));
 const SignUp             = React.lazy(() => import("./pages/SignUp"));
@@ -111,7 +110,6 @@ const GuardedStoreBags       = Protected(StoreBagsPage, 'store_owner');
 const GuardedStoreSales      = Protected(StoreSalesPage, 'store_owner');
 const GuardedStoreOnboarding = Protected(StoreOnboarding, 'store_owner');
 const GuardedStripeBankSetup = Protected(StripeBankSetup, 'store_owner');
-const GuardedAdminVerify     = Protected(AdminVerifyShops);
 const GuardedStoreProfileEdit = Protected(StoreProfileEdit, 'store_owner');
 const GuardedStoreReviews    = Protected(StoreReviews, 'store_owner');
 const GuardedStoreReapply    = Protected(StoreReapply, 'store_owner');
@@ -332,7 +330,6 @@ function AnimatedRoutes() {
               {/* ── 管理者 ── */}
               <Route path="/admin" component={AdminDashboard} />
               <Route path="/admin/store/:id" component={AdminStorePage} />
-              <Route path="/admin-verify-shops" component={GuardedAdminVerify} />
 
               <Route component={NotFound} />
             </Switch>
