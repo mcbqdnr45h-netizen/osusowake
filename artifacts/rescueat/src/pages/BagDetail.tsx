@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation, getListAllBagsQueryKey, getGetBagQueryKey } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
-import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, Sparkles, TrendingDown, Package, Quote } from 'lucide-react';
+import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, Sparkles, TrendingDown, Package } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -519,6 +519,55 @@ export default function BagDetail() {
           </div>
 
           <div className="p-6 md:p-8 space-y-8">
+            {/* 店舗ヘッダー — refine-b 風 (タイトルの下に店名 + ⭐ + 📍) */}
+            <div className="flex items-center justify-between gap-3 -mt-2">
+              <div className="min-w-0 flex-1">
+                <h2 className="font-black text-foreground text-lg leading-tight truncate">
+                  {bag.store.name}
+                </h2>
+                <div className="flex items-center gap-3 mt-1.5 text-[13px] text-muted-foreground font-medium flex-wrap">
+                  {reviewData?.avgRating != null && reviewData.count > 0 ? (
+                    <span className="flex items-center gap-1">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" strokeWidth={0} />
+                      <span className="font-bold text-foreground tabular-nums">
+                        {reviewData.avgRating.toFixed(1)}
+                      </span>
+                      <span className="text-muted-foreground/70">({reviewData.count})</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-muted-foreground/70">
+                      <Star className="w-3.5 h-3.5" strokeWidth={2} />
+                      <span>口コミなし</span>
+                    </span>
+                  )}
+                  {bag.store.lat && bag.store.lng && userCoords ? (() => {
+                    const meters = haversineMeters(userCoords.lat, userCoords.lng, bag.store.lat!, bag.store.lng!);
+                    return (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" strokeWidth={2.2} />
+                        {formatDistanceLabel(meters)}
+                      </span>
+                    );
+                  })() : bag.store.city ? (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" strokeWidth={2.2} />
+                      {bag.store.city}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              {/* 店舗アイコン (右) */}
+              {bag.store.iconUrl ? (
+                <div className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 ring-1 ring-border shadow-sm">
+                  <img src={bag.store.iconUrl} alt={bag.store.name} loading="lazy" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/10 flex items-center justify-center shrink-0">
+                  <span className="text-2xl leading-none">{getCategoryIcon(bag.store.category)}</span>
+                </div>
+              )}
+            </div>
+
             {/* 受取時間終了バナー */}
             {isExpired && (
               <motion.div
@@ -701,19 +750,19 @@ export default function BagDetail() {
             {/* グラデーション区切り線 */}
             <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
-            {/* Description — 引用風カード */}
+            {/* Description — 吹き出し (refine-b 風) */}
             <div>
               <h3 className="font-black text-lg mb-3 flex items-center gap-2">
                 <Info className="w-5 h-5 text-primary" /> バッグの内容
               </h3>
-              <div className="relative rounded-2xl bg-gradient-to-br from-stone-50 to-stone-100/40 dark:from-stone-900/40 dark:to-stone-900/20 border border-border/50 px-5 py-5 overflow-hidden">
-                <Quote
+              <div className="relative rounded-2xl bg-gradient-to-br from-stone-50 to-stone-100/40 dark:from-stone-900/40 dark:to-stone-900/20 border border-border/50 px-5 py-4 mt-1">
+                {/* 三角ポインター (上向き) */}
+                <div
                   aria-hidden
-                  className="absolute -top-2 -left-1 w-12 h-12 text-primary/8 dark:text-primary/15 rotate-180"
-                  strokeWidth={1.5}
+                  className="absolute -top-[7px] left-7 w-3 h-3 bg-stone-50 dark:bg-stone-900/40 rotate-45 border-l border-t border-border/50"
                 />
-                <p className="relative text-foreground/85 leading-relaxed whitespace-pre-wrap text-[14px] pl-2">
-                  {bag.description || bag.store.description || `${bag.store.name}のお料理がランダムに入ったお得なサプライズバッグです。お店の味を、ぜひ受け取ってください！`}
+                <p className="relative text-foreground/85 leading-relaxed whitespace-pre-wrap text-[14px] italic">
+                  「{bag.description || bag.store.description || `${bag.store.name}のお料理がランダムに入ったお得なサプライズバッグです。お店の味を、ぜひ受け取ってください！`}」
                 </p>
               </div>
               {bag.description && bag.store.description && (
