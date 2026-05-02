@@ -14,6 +14,24 @@ function timeAgo(dateStr: string) {
   }
 }
 
+// ★ 絶対時刻も併記して 23時 vs 翌2時 等を一目で見分けられるようにする。
+//   24h 以内 → "HH:MM" / それ以降 → "M/D" を表示。
+function absTime(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const within24h = diffMs >= 0 && diffMs < 24 * 60 * 60 * 1000;
+    if (within24h) {
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  } catch {
+    return '';
+  }
+}
+
 // ★ サーバ側で通知 body 末尾に埋め込まれた `[bag:123]` トークンから bag id を抽出する。
 //   無ければ null。 表示時にはこのトークンを除去して見た目を綺麗にする (stripBagToken)。
 const BAG_TOKEN_RE = /\s*\[bag:(\d+)\]\s*$/;
@@ -107,7 +125,10 @@ function NotificationItem({ n, onRead, onClose }: {
             </p>
           )}
           <div className="flex items-center justify-between mt-1">
-            <p className="text-[10px] text-gray-400">{timeAgo(n.createdAt)}</p>
+            <p className="text-[11px] text-gray-500 font-medium tabular-nums">
+              {timeAgo(n.createdAt)}
+              <span className="text-gray-400 font-normal"> · {absTime(n.createdAt)}</span>
+            </p>
             {isExpandable ? (
               n.body && (
                 <span className="text-[10px] text-primary font-bold flex items-center gap-0.5">
