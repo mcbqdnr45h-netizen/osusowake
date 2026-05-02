@@ -86,6 +86,11 @@ export default function MyReservations() {
       badge: 'bg-slate-100 text-slate-500 border border-slate-200',
       bar: 'bg-slate-300',
     };
+    if (status === 'confirmed' && expired) return {
+      label: '受取期限切れ', icon: <AlertCircle className="w-3 h-3" />,
+      badge: 'bg-slate-100 text-slate-500 border border-slate-200',
+      bar: 'bg-slate-300',
+    };
     switch (status) {
       case 'confirmed': return {
         label: '予約確定', icon: <CheckCircle2 className="w-3 h-3" />,
@@ -296,8 +301,8 @@ export default function MyReservations() {
                         const expired         = isPickupExpired(res.bag?.pickupEnd, res.createdAt);
                         const cfg             = statusConfig(res.status, expired);
                         const alreadyReviewed = (res as any).hasReview || reviewedIds.has(res.id);
-                        const isFaded         = res.status === 'picked_up' || (res.status === 'pending' && expired);
-                        const showDismiss     = res.status === 'pending' && expired;
+                        const isFaded         = res.status === 'picked_up' || ((res.status === 'pending' || res.status === 'confirmed') && expired);
+                        const showDismiss     = (res.status === 'pending' || res.status === 'confirmed') && expired;
                         const storeId         = res.storeId ?? res.store?.id;
 
                         return (
@@ -363,9 +368,9 @@ export default function MyReservations() {
                                 </p>
 
                                 {/* アクションボタン */}
-                                {(res.status === 'confirmed' || (res.status === 'pending' && !expired) || res.status === 'picked_up' || showDismiss) && (
+                                {((res.status === 'confirmed' && !expired) || (res.status === 'pending' && !expired) || res.status === 'picked_up' || showDismiss) && (
                                   <div className="flex items-center flex-wrap gap-2 mt-2">
-                                    {res.status === 'confirmed' && (
+                                    {res.status === 'confirmed' && !expired && (
                                       // ★ iOS WebView でも確実にタップが拾われるよう <button> + onClick で実装
                                       // （以前は <Link> + <span> だったが、稀にタップが拾われない事象あり）
                                       <button
