@@ -347,3 +347,15 @@ id = "ngFiiOyc_X4Py1Eng_vHk"
 uri = "file://.local/patches/replit-fixes.patch.txt"
 type = "text"
 title = "replit-fixes.patch.txt (Macで mv して git apply)"
+
+[[outputs]]
+id = "kOQ90TWw_6nBVi5-1WvNr"
+uri = "file://.local/patches/signup-speed.patch.txt"
+type = "text"
+title = "signup-speed.patch.txt (推奨・txtとしてDLしてリネーム)"
+
+[[outputs]]
+id = "plV9E7oFb4sBwaTOy_D-6"
+uri = "file://.local/patches/signup-speed.tar.gz"
+type = "unspecified"
+title = "signup-speed.tar.gz (代替・展開して使用)"
