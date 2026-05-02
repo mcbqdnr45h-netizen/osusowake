@@ -33,11 +33,19 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
 
   // ★ ボトムナビのタブ自体は店舗フローのルート扱い。 ここに戻るボタンを置くと
   //   「どこに戻るんや」 となるので非表示。 サブページ (出品編集 / 売上詳細 / 銀行設定 等) のみ表示。
-  const isStoreRoot =
-    location === '/store/dashboard' ||
-    location === '/store' ||
-    location === '/store/sales' ||
-    location === '/mypage';
+  // 防御的に末尾スラッシュ・クエリパラメータ・ハッシュを取り除いて比較する
+  const normalizedLocation = (() => {
+    const path = (location || '/').split('?')[0].split('#')[0];
+    if (path === '/') return '/';
+    return path.replace(/\/+$/, '');
+  })();
+  const STORE_ROOT_PATHS = new Set([
+    '/store',
+    '/store/dashboard',
+    '/store/sales',
+    '/mypage',
+  ]);
+  const isStoreRoot = STORE_ROOT_PATHS.has(normalizedLocation);
   const showBackButton = !isStoreRoot;
 
   // ナビ表示条件:

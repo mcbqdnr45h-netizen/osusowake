@@ -1689,9 +1689,19 @@ router.get("/stores/:storeId/connect/balance", requireAuth, requireStoreOwner, a
 
   try {
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
-    const [balance, account] = await Promise.all([
-      stripe.balance.retrieve({ stripeAccount: store.stripeAccountId }),
-      stripe.accounts.retrieve(store.stripeAccountId),
+    // ※ クロージャ内で型ナローイングが効かないので、ローカル const に抽出する
+    const stripeAccountId: string = store.stripeAccountId;
+
+    // ── 並列ブロック1: balance / account / transfers / payouts を全部同時に投げる ──
+    // 元々は順次 + N+1 だったので体感5〜10倍速くなる（Stripe は同時接続を許容する）
+    const [balance, account, txfListResult, payoutListResult] = await Promise.all([
+      stripe.balance.retrieve({ stripeAccount: stripeAccountId }),
+      stripe.accounts.retrieve(stripeAccountId),
+      stripe.transfers.list({ destination: stripeAccountId, limit: 5 }).catch(() => null),
+      stripe.payouts.list(
+        { limit: 5 },
+        { stripeAccount: stripeAccountId }
+      ).catch(() => null),
     ]);
 
     const pending   = balance.pending.reduce((s, b) => s + b.amount, 0);
@@ -1707,53 +1717,49 @@ router.get("/stores/:storeId/connect/balance", requireAuth, requireStoreOwner, a
     let actualDelayDays = 7; // JP Stripe default = 7 calendar days
     let pendingAvailableOn: Date | null = null;
 
-    if (pending > 0) {
-      try {
-        // Separate C&T 方式では connected account の balancetransaction は type="transfer"
-        // direct charge 方式では type="payment" → 両方まとめて取得する
-        const txList = await stripe.balanceTransactions.list(
+    // ── 並列ブロック2: balanceTransactions.list + 各 transfer の balanceTransactions.retrieve ──
+    // pending balance の available_on と、各 transfer の available_on を同時に取得する
+    const balanceTxPromise = pending > 0
+      ? stripe.balanceTransactions.list(
           { limit: 20 },
-          { stripeAccount: store.stripeAccountId }
-        );
-        for (const tx of txList.data) {
-          if (!tx.available_on) continue;
-          // payment / transfer いずれも対象
-          if (tx.type !== "payment" && tx.type !== "transfer" && tx.type !== "payout") continue;
-          const d = new Date(tx.available_on * 1000);
-          if (!pendingAvailableOn || d > pendingAvailableOn) pendingAvailableOn = d;
-          if (tx.created) {
-            const days = Math.round((tx.available_on - tx.created) / 86400);
-            if (days > 0) actualDelayDays = days;
-          }
-        }
-      } catch {
-        // 取得失敗時はデフォルト 7 を使用
-      }
-    }
+          { stripeAccount: stripeAccountId }
+        ).catch(() => null)
+      : Promise.resolve(null);
 
-    // プラットフォームから connected account への送金履歴（Separate C&T 方式の診断用）
-    let platformTransfers: Array<{ id: string; amount: number; createdDate: string; available_on: string | null }> = [];
-    try {
-      const txfList = await stripe.transfers.list({ destination: store.stripeAccountId, limit: 5 });
-      for (const t of txfList.data) {
-        // 対応する balance transaction から available_on を取得
-        let availOn: string | null = null;
-        try {
-          if (t.balance_transaction) {
-            const btId = typeof t.balance_transaction === "string" ? t.balance_transaction : (t.balance_transaction as any).id;
-            const bt = await stripe.balanceTransactions.retrieve(btId, { stripeAccount: store.stripeAccountId });
-            availOn = bt.available_on ? new Date(bt.available_on * 1000).toISOString().slice(0, 10) : null;
-          }
-        } catch { /* 取得失敗は無視 */ }
-        platformTransfers.push({
-          id:          t.id,
-          amount:      t.amount,
-          createdDate: new Date(t.created * 1000).toISOString().slice(0, 10),
-          available_on: availOn,
-        });
+    const transferBtPromises = (txfListResult?.data ?? []).map(async (t) => {
+      let availOn: string | null = null;
+      try {
+        if (t.balance_transaction) {
+          const btId: string = typeof t.balance_transaction === "string" ? t.balance_transaction : (t.balance_transaction as any).id;
+          const bt = await stripe.balanceTransactions.retrieve(btId, { stripeAccount: stripeAccountId });
+          availOn = bt.available_on ? new Date(bt.available_on * 1000).toISOString().slice(0, 10) : null;
+        }
+      } catch { /* 取得失敗は無視 */ }
+      return {
+        id:          t.id,
+        amount:      t.amount,
+        createdDate: new Date(t.created * 1000).toISOString().slice(0, 10),
+        available_on: availOn,
+      };
+    });
+
+    const [txList, platformTransfers] = await Promise.all([
+      balanceTxPromise,
+      Promise.all(transferBtPromises),
+    ]);
+
+    if (txList) {
+      for (const tx of txList.data) {
+        if (!tx.available_on) continue;
+        // payment / transfer いずれも対象
+        if (tx.type !== "payment" && tx.type !== "transfer" && tx.type !== "payout") continue;
+        const d = new Date(tx.available_on * 1000);
+        if (!pendingAvailableOn || d > pendingAvailableOn) pendingAvailableOn = d;
+        if (tx.created) {
+          const days = Math.round((tx.available_on - tx.created) / 86400);
+          if (days > 0) actualDelayDays = days;
+        }
       }
-    } catch {
-      // 取得失敗は非致命的
     }
 
     // 基準日：pending のみなら available_on（Stripe実測値）、それ以外は今日
@@ -1782,22 +1788,14 @@ router.get("/stores/:storeId/connect/balance", requireAuth, requireStoreOwner, a
       nextPayoutDate = next.toISOString().slice(0, 10);
     }
 
-    // 最近の振込履歴（最大5件）
-    let recentPayouts: Array<{ id: string; amount: number; arrivalDate: string; status: string }> = [];
-    try {
-      const payoutList = await stripe.payouts.list(
-        { limit: 5 },
-        { stripeAccount: store.stripeAccountId }
-      );
-      recentPayouts = payoutList.data.map((p) => ({
+    // 最近の振込履歴（最大5件）— 並列ブロック1で取得済みの結果を流用
+    const recentPayouts: Array<{ id: string; amount: number; arrivalDate: string; status: string }> =
+      (payoutListResult?.data ?? []).map((p) => ({
         id:          p.id,
         amount:      p.amount,
         arrivalDate: new Date(p.arrival_date * 1000).toISOString().slice(0, 10),
         status:      p.status, // paid / pending / in_transit / canceled / failed
       }));
-    } catch {
-      // 振込履歴の取得失敗は非致命的
-    }
 
     res.json({
       connected:     true,

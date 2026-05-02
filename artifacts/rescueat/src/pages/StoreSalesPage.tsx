@@ -184,7 +184,7 @@ export default function StoreSalesPage() {
                     </p>
                   </div>
                   <p className="text-sm font-black text-primary shrink-0">
-                    ¥{res.totalPrice.toLocaleString()}
+                    ¥{getMerchandise(res).toLocaleString()}
                   </p>
                 </div>
               ))}
