@@ -425,46 +425,12 @@ function ZeroResultsState({ query, category, onClear, recommendBags }: {
 }
 
 
-// ─── Google Places Autocomplete フック ────────────────────────────────────────
-interface PlacesPrediction {
-  placeId: string;
-  mainText: string;
-  secondaryText: string;
-}
-
-function usePlacesAutocomplete(input: string): PlacesPrediction[] {
-  const [predictions, setPredictions] = useState<PlacesPrediction[]>([]);
-  const svcRef = useRef<any>(null);
-
-  useEffect(() => {
-    const q = input.trim();
-    if (q.length < 2) { setPredictions([]); return; }
-    const timer = setTimeout(() => {
-      const gMaps = (window as any).google?.maps;
-      if (!gMaps?.places) return;
-      if (!svcRef.current) svcRef.current = new gMaps.places.AutocompleteService();
-      svcRef.current.getPlacePredictions(
-        { input: q, componentRestrictions: { country: 'jp' }, types: ['geocode', 'establishment'] },
-        (results: any[], status: string) => {
-          if (status === gMaps.places.PlacesServiceStatus.OK && results) {
-            setPredictions(results.slice(0, 6).map((r: any) => ({
-              placeId: r.place_id,
-              mainText: r.structured_formatting?.main_text ?? r.description,
-              secondaryText: r.structured_formatting?.secondary_text ?? '',
-            })));
-          } else {
-            setPredictions([]);
-          }
-        }
-      );
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [input]);
-
-  return predictions;
-}
-
 // ─── メインページ ─────────────────────────────────────────────────────────────
+// ★ 2026-05-02: Google Places Autocomplete + Geocoding API を完全廃止。
+//   理由: 月 $200 の Maps Platform 無料枠を消費するうえ、 リファラ流出時に他人による
+//   不正利用で枠を食い潰されるリスクあり。 検索は stores テーブル内のローカル文字列検索
+//   (title / store.name / store.city / store.category の部分一致) で代替し、 Google API
+//   呼び出しを完全にゼロにしてコスト・依存性を排除する。
 export default function SearchPage() {
   // キャッシュ済み現在地（GPSボタン押下済みなら即座に利用可能）
   const { coords: cachedCoords } = useUserLocation();
@@ -523,9 +489,6 @@ export default function SearchPage() {
 
   const searchRef  = useRef<HTMLInputElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
-
-  const predictions = usePlacesAutocomplete(inputValue);
-  const showPredictions = predictions.length > 0 && inputValue.trim().length >= 2;
 
   const handleUserPositionChange = useCallback((pos: { lat: number; lng: number } | null) => {
     setUserPos(pos);
@@ -694,43 +657,14 @@ export default function SearchPage() {
 
   const handleStoreSelect = useCallback((store: Store) => setSelectedStore(store), []);
 
-  // ── Places prediction 選択 ──────────────────────────────────────────────────
-  const handlePredictionSelect = useCallback((pred: PlacesPrediction) => {
-    setInputValue(pred.mainText);
-    setShowHistory(false);
-    searchRef.current?.blur();
-    const gMaps = (window as any).google?.maps;
-    if (gMaps) {
-      const geocoder = new gMaps.Geocoder();
-      geocoder.geocode(
-        { placeId: pred.placeId },
-        (results: any[], status: string) => {
-          if (status === 'OK' && results?.[0]) {
-            const geom = results[0].geometry;
-            if (geom.viewport) {
-              const ne = geom.viewport.getNorthEast();
-              const sw = geom.viewport.getSouthWest();
-              mapViewRef.current?.fitStores(
-                [{ lat: ne.lat(), lng: ne.lng() }, { lat: sw.lat(), lng: sw.lng() }],
-                { minZoom: 13, maxZoom: 15 },
-              );
-            } else {
-              const loc = geom.location;
-              mapViewRef.current?.panTo(loc.lat(), loc.lng(), 14);
-            }
-          }
-        },
-      );
-    }
-    executeSearch(pred.mainText);
-  }, [executeSearch]);
-
   // ── 検索後マップパン ────────────────────────────────────────────────────────
-  // query が確定したら、一致した店舗にフィット。見つからなければジオコーディング
+  // query が確定したら、 一致した店舗座標にマップをフィット。
+  // ★ 2026-05-02: Google Geocoding API による「店舗が見つからない場合の地名検索」 fallback を廃止。
+  //   ローカル DB 検索でヒットゼロなら、 ZeroResultsState を表示するだけでマップは現状維持。
   useEffect(() => {
     if (!query) return;
 
-    // ① 一致した店舗の座標を収集（重複除去）
+    // 一致した店舗の座標を収集（重複除去）
     const uniqueLocations = filteredBags
       .filter(b => b.store.lat && b.store.lng)
       .reduce<{ lat: number; lng: number }[]>((acc, b) => {
@@ -739,36 +673,10 @@ export default function SearchPage() {
         return acc;
       }, []);
 
-    if (uniqueLocations.length > 0) {
-      const timer = setTimeout(() => {
-        mapViewRef.current?.fitStores(uniqueLocations, { minZoom: 13, maxZoom: 16 });
-      }, 350);
-      return () => clearTimeout(timer);
-    }
+    if (uniqueLocations.length === 0) return;
 
-    // ② 店舗が見つからない → Google Geocoding で地名検索
     const timer = setTimeout(() => {
-      const gMaps = (window as any).google?.maps;
-      if (!gMaps) return;
-      const geocoder = new gMaps.Geocoder();
-      geocoder.geocode(
-        { address: query, region: 'JP' },
-        (results: any[], status: string) => {
-          if (status === 'OK' && results && results[0]) {
-            const geom = results[0].geometry;
-            if (geom.viewport) {
-              const ne = geom.viewport.getNorthEast();
-              const sw = geom.viewport.getSouthWest();
-              mapViewRef.current?.fitStores(
-                [{ lat: ne.lat(), lng: ne.lng() }, { lat: sw.lat(), lng: sw.lng() }],
-                { minZoom: 13, maxZoom: 15 },
-              );
-            } else {
-              mapViewRef.current?.panTo(geom.location.lat(), geom.location.lng(), 14);
-            }
-          }
-        },
-      );
+      mapViewRef.current?.fitStores(uniqueLocations, { minZoom: 13, maxZoom: 16 });
     }, 350);
     return () => clearTimeout(timer);
   }, [query, filteredBags]);
@@ -822,33 +730,9 @@ export default function SearchPage() {
               {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Search className="w-3.5 h-3.5" /><span>検索</span></>}
             </button>
 
-            {/* 予測変換 or 検索履歴ドロップダウン */}
+            {/* 検索履歴ドロップダウン (Google Places Autocomplete は廃止: 課金回避のためローカル文字列検索のみに統一) */}
             <AnimatePresence>
-              {showPredictions ? (
-                <motion.div key="predictions"
-                  initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.97 }} transition={{ duration: 0.13 }}
-                  className="absolute top-full mt-1.5 left-0 right-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
-                  <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border/50">
-                    <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="text-xs font-black text-muted-foreground">候補</span>
-                  </div>
-                  {predictions.map(pred => (
-                    <div key={pred.placeId}
-                      onMouseDown={e => e.preventDefault()}
-                      onClick={() => handlePredictionSelect(pred)}
-                      className="flex items-start gap-3 px-4 py-2.5 hover:bg-secondary cursor-pointer tap-opacity border-b border-border/30 last:border-0 transition-colors">
-                      <MapPin className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{pred.mainText}</p>
-                        {pred.secondaryText && (
-                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">{pred.secondaryText}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              ) : showHistory && history.length > 0 ? (
+              {showHistory && history.length > 0 ? (
                 <motion.div key="history"
                   initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.97 }} transition={{ duration: 0.13 }}
