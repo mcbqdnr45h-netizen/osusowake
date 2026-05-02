@@ -352,7 +352,7 @@ export default function Home() {
       const isIosWeb = /iPad|iPhone|iPod/.test(ua) ||
                        (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
       const description = isNative
-        ? '「設定」→「Osusowake」→「位置情報」を「このAppの使用中のみ許可」に変更してください'
+        ? '「設定」→「おすそわけ」→「位置情報」を「このAppの使用中のみ許可」に変更してください'
         : isIosWeb
         ? '「設定」→「プライバシーとセキュリティ」→「位置情報サービス」→「Safari」を「このAppの使用中のみ許可」に変更してください'
         : 'ブラウザのアドレスバー左の鍵アイコンから位置情報を許可してください';

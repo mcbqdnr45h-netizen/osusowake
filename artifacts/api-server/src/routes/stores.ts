@@ -2397,7 +2397,7 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
               business_profile: {
                 mcc: "5812",
                 url: businessUrl,
-                product_description: kycData.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
+                product_description: kycData.productDescription?.trim() || "食品ロス削減おすそわけサービス",
                 ...(businessType === "company"
                   ? { name: kycData.companyNameKanji?.trim() || store.name || (isTestKeyStep1 ? "株式会社テスト" : undefined) }
                   : {}),
@@ -2439,7 +2439,7 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
         business_profile: {
           mcc: "5812",
           url: businessUrl,
-          product_description: kycData.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
+          product_description: kycData.productDescription?.trim() || "食品ロス削減おすそわけサービス",
           ...(businessType === "company"
             ? { name: kycData.companyNameKanji?.trim() || store.name || (isTestKeyStep1Upd ? "株式会社テスト" : undefined) }
             : {}),
@@ -2514,7 +2514,7 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
     const bizProfile: Record<string, string> = {
       mcc: "5812",
       url: businessUrl,
-      product_description: k.productDescription?.trim() || "食品ロス削減おすそ分けサービス",
+      product_description: k.productDescription?.trim() || "食品ロス削減おすそわけサービス",
     };
     if (businessType === "company") {
       const isTestKeyBizProfile = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_");
@@ -3097,7 +3097,7 @@ router.post("/stores/:storeId/connect/fill-requirements", requireAuth, requireSt
     }
 
     if (due.some(f => f.includes("business_profile.product_description"))) {
-      payload.business_profile = { mcc: "5812", product_description: "食品ロス削減おすそ分けサービス" };
+      payload.business_profile = { mcc: "5812", product_description: "食品ロス削減おすそわけサービス" };
     }
     if (due.some(f => f.includes("business_profile.url"))) {
       // ⚠️ Replit dev ドメインを送ると JCB 等カードブランドの審査で「不審な URL」と

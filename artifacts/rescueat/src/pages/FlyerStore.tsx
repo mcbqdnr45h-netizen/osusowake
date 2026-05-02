@@ -268,7 +268,7 @@ export default function FlyerStore() {
             <div>
               <div className="logo">
                 おすそわけ
-                <small>OSUSOWAKE for Business</small>
+                <small>おすそわけ for Business</small>
               </div>
               <div style={{ fontSize: 13, marginTop: 10, fontWeight: 600 }}>
                 🌐 osusowakejapan.org

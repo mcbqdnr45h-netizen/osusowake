@@ -34,7 +34,7 @@ const PROFANITY_CONTAINS = [
   "きちがい", "キチガイ", "気違い", "土人", "部落",
   "殺す", "ころす", "コロス", "死ね", "しね", "シネ", "自殺", "じさつ",
   "首吊り", "リストカット", "リスカ",
-  "おすそわけ", "Osusowake", "OSUSOWAKE", "rescueat", "RescuEat", "RESCUEAT",
+  "おすそわけ", "おすそ分け", "Osusowake", "OSUSOWAKE", "rescueat", "RescuEat", "RESCUEAT",
   "レスキュート", "レスキュー",
 ];
 

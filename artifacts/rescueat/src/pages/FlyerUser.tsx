@@ -206,7 +206,7 @@ export default function FlyerUser() {
             <div>
               <div className="logo">
                 おすそわけ
-                <small>OSUSOWAKE — 食品ロス削減</small>
+                <small>おすそわけ — 食品ロス削減</small>
               </div>
               <div style={{ fontSize: 13, marginTop: 10, fontWeight: 600 }}>
                 🌐 osusowakejapan.org

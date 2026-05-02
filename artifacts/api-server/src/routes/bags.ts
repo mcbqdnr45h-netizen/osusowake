@@ -312,7 +312,7 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
 
       if (fanRows.length > 0 && store) {
         const priceLabel = `¥${Number(body.discountedPrice).toLocaleString()}`;
-        const notifTitle = `🛍️ ${store.name} が新しいおすそ分けを出品`;
+        const notifTitle = `🛍️ ${store.name} が新しいおすそわけを出品`;
         const notifBody  = `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個`;
         await db.insert(notificationsTable).values(
           fanRows.map(f => ({
