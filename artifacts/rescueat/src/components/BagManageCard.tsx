@@ -1,8 +1,24 @@
 import React from 'react';
 import {
   Clock, Loader2, Minus, Package2, Pencil, Plus, ToggleLeft, ToggleRight, Trash2,
-  ShoppingBag, Utensils,
+  ShoppingBag, Utensils, CalendarClock,
 } from 'lucide-react';
+
+// ★ 出品日時を「M/D HH:MM」 形式で表示 (端末タイムゾーン基準 = ほぼ JST)。
+//   オーナーが「これいつ出品したやつ?」 を一目で判別するための補助情報。
+function formatPostedAt(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const m  = d.getMonth() + 1;
+    const dd = d.getDate();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${m}/${dd} ${hh}:${mm}`;
+  } catch {
+    return '';
+  }
+}
 
 // ─── 型 ──────────────────────────────────────────────────────────────────────
 export interface Bag {
@@ -158,6 +174,13 @@ export function BagManageCard({
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                 <Clock className="w-3 h-3" />
                 {bag.pickupStart}〜{bag.pickupEnd}
+              </p>
+            )}
+            {/* 出品日時 (オーナー識別補助) */}
+            {bag.createdAt && (
+              <p className="text-[11px] text-muted-foreground/80 flex items-center gap-1 mt-0.5 tabular-nums">
+                <CalendarClock className="w-3 h-3" />
+                {formatPostedAt(bag.createdAt)} 出品
               </p>
             )}
           </div>
