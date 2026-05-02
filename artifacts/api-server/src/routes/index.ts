@@ -16,6 +16,7 @@ import adminRouter from "./admin";
 import authRouter from "./auth";
 import stripeWebhookRouter from "./stripe-webhook";
 import { supabaseAdmin, supabaseAnon } from "../lib/supabase.js";
+import { validateNickname, normalizeNickname } from "../lib/nickname-validator.js";
 import { Resend } from "resend";
 
 const router: IRouter = Router();
@@ -226,10 +227,11 @@ router.put("/user/display-name", async (req, res) => {
   if (!token) { res.status(401).json({ error: "unauthorized", message: "ログインが必要です" }); return; }
 
   const { displayName } = req.body as { displayName?: string };
-  if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0) {
-    res.status(400).json({ error: "bad_request", message: "表示名を入力してください" }); return;
+  const result = validateNickname(displayName);
+  if (!result.ok) {
+    res.status(400).json({ error: "invalid_display_name", message: result.reason }); return;
   }
-  const trimmed = displayName.trim().slice(0, 40);
+  const trimmed = normalizeNickname(displayName as string);
 
   try {
     const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);

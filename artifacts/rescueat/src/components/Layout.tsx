@@ -11,6 +11,7 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { useMyStoresContext } from '@/contexts/MyStoresContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationsBell } from '@/components/NotificationsBell';
+import { NicknameRequiredModal } from '@/components/NicknameRequiredModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,6 +39,14 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   useEffect(() => { setMenuOpen(false); }, [location]);
 
   const isStoreOwner = profile?.role === 'store_owner';
+
+  // ★ display_name 未設定の既存 customer (新規登録前のレガシーユーザー) には
+  //   強制モーダルでニックネーム設定を促す。 設定が完了するまで他操作はブロック。
+  const needsNicknameSetup =
+    !!user &&
+    !!profile &&
+    profile.role !== 'store_owner' &&
+    (!profile.display_name || profile.display_name.trim().length === 0);
 
   const storeNavItems = [
     { href: '/store/dashboard', icon: Store,     label: '出品管理', isUser: false },
@@ -504,6 +513,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
           </div>
         </div>
       )}
+
+      {/* ニックネーム未設定の既存 customer に強制表示 (操作ブロック) */}
+      {needsNicknameSetup && <NicknameRequiredModal />}
     </div>
   );
 }

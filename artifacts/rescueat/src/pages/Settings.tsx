@@ -399,6 +399,14 @@ export default function Settings() {
     try {
       // ① display_name を Supabase に保存 (authedFetch が Bearer 自動付与)
       if (displayName.trim()) {
+        // ★ クライアント即時バリデーション (サーバー側でも再チェックされる)
+        const { validateNickname } = await import('@/lib/nickname-validator');
+        const v = validateNickname(displayName);
+        if (!v.ok) {
+          toast({ title: '保存に失敗しました', description: v.reason, variant: 'destructive' });
+          setSavingName(false);
+          return;
+        }
         const { authedFetch } = await import('@/lib/authed-fetch');
         // ★ Capacitor (iOS) でも動くよう VITE_API_BASE → BASE_URL の順で解決
         const apiBase =

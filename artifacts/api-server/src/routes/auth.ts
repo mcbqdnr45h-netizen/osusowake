@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
+import { validateNickname, normalizeNickname } from "../lib/nickname-validator";
 import { Resend } from "resend";
 import { promises as dnsPromises } from "node:dns";
 
@@ -163,10 +164,11 @@ router.post("/auth/create-profile", async (req: Request, res: Response) => {
     return;
   }
 
-  const { role, full_name, phone_number } = req.body as {
+  const { role, full_name, phone_number, display_name } = req.body as {
     role?: string;
     full_name?: string;
     phone_number?: string;
+    display_name?: string;
   };
 
   if (!role || !full_name || !phone_number) {
@@ -174,20 +176,45 @@ router.post("/auth/create-profile", async (req: Request, res: Response) => {
     return;
   }
 
+  // ★ display_name (ニックネーム) は customer のみ必須・store_owner は任意 (店舗名で代替)
+  let normalizedDisplayName: string | null = null;
+  if (role === "customer") {
+    if (!display_name || typeof display_name !== "string") {
+      res.status(400).json({ error: "display_name_required", message: "ニックネームを入力してください" });
+      return;
+    }
+    const result = validateNickname(display_name);
+    if (!result.ok) {
+      res.status(400).json({ error: "invalid_display_name", message: result.reason });
+      return;
+    }
+    normalizedDisplayName = normalizeNickname(display_name);
+  } else if (display_name && typeof display_name === "string" && display_name.trim().length > 0) {
+    // store_owner も display_name を渡してきた場合はバリデーションして保存
+    const result = validateNickname(display_name);
+    if (!result.ok) {
+      res.status(400).json({ error: "invalid_display_name", message: result.reason });
+      return;
+    }
+    normalizedDisplayName = normalizeNickname(display_name);
+  }
+
   try {
-    // ★ 原子的 UPSERT: INSERT ... ON CONFLICT (id) DO UPDATE で
-    //   email/role/full_name/phone_number のみ更新。display_name 等は EXCLUDED に
-    //   含めないため既存値を完全に保持する (race-free / 競合状態なし)。
+    // ★ 原子的 UPSERT: INSERT ... ON CONFLICT (id) DO UPDATE。
+    //   display_name は COALESCE で「既存値が NULL の場合のみ EXCLUDED で上書き」する。
+    //   これにより SignUp 時の display_name は確実に保存され、 既存ユーザーが再 create-profile を
+    //   呼ばれても (例: 確認メール後の自動再作成) 既に設定された display_name は失われない。
     //   制約名で 23505 を分類し、phone_number の重複と id の重複を区別する。
     try {
       await db.execute(sql`
-        INSERT INTO users (id, email, role, full_name, phone_number)
-        VALUES (${user.id}, ${user.email!}, ${role}, ${full_name.trim()}, ${phone_number.trim()})
+        INSERT INTO users (id, email, role, full_name, phone_number, display_name)
+        VALUES (${user.id}, ${user.email!}, ${role}, ${full_name.trim()}, ${phone_number.trim()}, ${normalizedDisplayName})
         ON CONFLICT (id) DO UPDATE SET
           email = EXCLUDED.email,
           role = EXCLUDED.role,
           full_name = EXCLUDED.full_name,
-          phone_number = EXCLUDED.phone_number
+          phone_number = EXCLUDED.phone_number,
+          display_name = COALESCE(users.display_name, EXCLUDED.display_name)
       `);
     } catch (dbErr: any) {
       const code = dbErr?.code ?? dbErr?.cause?.code;

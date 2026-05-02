@@ -9,7 +9,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAdmin: boolean;
   pendingAdminMfa: boolean;
-  signUp: (email: string, password: string, name: string, phone: string, onProgress?: (step: string) => void) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signUp: (email: string, password: string, name: string, phone: string, displayName: string, onProgress?: (step: string) => void) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signUpAsStore: (email: string, password: string, name: string, phone: string, onProgress?: (step: string) => void) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null; isAdmin?: boolean; requiresMfa?: boolean }>;
   sendAdminMfa: () => Promise<{ error: string | null }>;
@@ -302,8 +302,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
   }
 
-  async function signUp(email: string, password: string, name: string, phone: string, onProgress?: (step: string) => void) {
+  async function signUp(email: string, password: string, name: string, phone: string, displayName: string, onProgress?: (step: string) => void) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
+    const normalizedDisplayName = displayName.trim();
 
     // 並列実行: メール実在性チェック + 電話番号重複チェック (独立した2つの API 呼び出し)
     onProgress?.('入力内容を確認中…');
@@ -337,13 +338,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileRes = await fetch(`${getApiBase()}/api/auth/create-profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ role: 'customer', full_name: name.trim(), phone_number: normalizedPhone }),
+        body: JSON.stringify({ role: 'customer', full_name: name.trim(), phone_number: normalizedPhone, display_name: normalizedDisplayName }),
       });
       if (!profileRes.ok) {
         const errData = await profileRes.json().catch(() => ({}));
         await cleanupOrphanedAuthUser(token);
         if (profileRes.status === 409 || errData?.error === 'phone_taken') {
           return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
+        }
+        if (errData?.error === 'invalid_display_name' || errData?.error === 'display_name_required') {
+          return { error: errData?.message ?? 'ニックネームを確認してください', needsConfirmation: false };
         }
         return { error: '登録中にエラーが発生しました。もう一度お試しください', needsConfirmation: false };
       }
