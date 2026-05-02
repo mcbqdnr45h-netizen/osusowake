@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation, getListAllBagsQueryKey, getGetBagQueryKey } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
-import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, Sparkles, TrendingDown } from 'lucide-react';
+import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, Sparkles, TrendingDown, Package, Quote } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -551,114 +551,181 @@ export default function BagDetail() {
 
             {/* ── 価格ブロック (プレミアム仕上げ) ───────────────────── */}
             <div>
-              {/* 価格行 */}
-              <div className="flex items-end gap-4 flex-wrap">
-                {/* メイン価格：深い洗練ブラウン + 大胆なウェイト */}
-                <div className="flex items-baseline gap-0.5 leading-none">
-                  <span className="text-2xl font-bold text-[#7B4F2C] dark:text-[#C4956A]">¥</span>
-                  <span
-                    className="text-[58px] md:text-6xl font-black text-[#5C3A1F] dark:text-[#C4956A] tracking-[-0.04em] tabular-nums"
-                    style={{ fontFeatureSettings: '"tnum"' }}
-                  >
-                    {displayDiscountedPrice.toLocaleString()}
-                  </span>
-                </div>
-                {/* 通常価格 + OFF バッジを縦積みで右寄せ風 */}
-                {displayOriginalPrice > displayDiscountedPrice && (
-                  <div className="flex flex-col items-start gap-1.5 pb-1.5">
-                    <span className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.12em]">
-                      通常価格
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground/55 line-through font-medium tabular-nums">
-                        ¥{displayOriginalPrice.toLocaleString()}
+              {/* 価格カード — 洗練されたフレーム */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFF8F1] via-[#FFEFE0] to-[#FFE2CB] dark:from-stone-900/60 dark:via-stone-900/40 dark:to-stone-900/30 border border-[#F2D5B6] dark:border-stone-800 px-5 py-5 shadow-sm">
+                {/* 装飾用 円 */}
+                <div aria-hidden className="absolute -top-12 -right-10 w-40 h-40 rounded-full bg-gradient-to-br from-[#FFD3A8]/40 to-transparent blur-2xl pointer-events-none" />
+
+                <div className="relative flex items-end justify-between gap-4 flex-wrap">
+                  {/* 左: メイン価格 */}
+                  <div>
+                    {discountPercent > 0 && (
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-black tracking-[0.18em] uppercase text-[#8B2906] dark:text-amber-400">
+                          特別価格
+                        </span>
+                        <span className="h-px flex-1 bg-gradient-to-r from-[#B5390B]/30 to-transparent w-8" />
+                      </div>
+                    )}
+                    <div className="flex items-baseline gap-1 leading-none">
+                      <span className="text-2xl font-bold text-[#7B4F2C] dark:text-[#C4956A]">¥</span>
+                      <span
+                        className="text-[60px] md:text-7xl font-black text-[#5C3A1F] dark:text-[#C4956A] tracking-[-0.04em] tabular-nums"
+                        style={{ fontFeatureSettings: '"tnum"' }}
+                      >
+                        {displayDiscountedPrice.toLocaleString()}
                       </span>
+                    </div>
+                    {displayOriginalPrice > displayDiscountedPrice && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground/70 font-bold uppercase tracking-[0.1em]">
+                          通常
+                        </span>
+                        <span className="text-sm text-muted-foreground/60 line-through font-medium tabular-nums">
+                          ¥{displayOriginalPrice.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 右: 割引バッジ + お得額（縦積み） */}
+                  {(discountPercent > 0 || displaySavings > 0) && (
+                    <div className="flex flex-col items-end gap-2 shrink-0 pb-1">
                       {discountPercent > 0 && (
-                        <span
-                          className="inline-flex items-center bg-gradient-to-br from-[#B5390B] to-[#8B2906] text-white font-black text-[11px] px-2.5 py-1 rounded-full shadow-md shadow-[#B5390B]/25 tracking-wider"
-                          style={{ letterSpacing: '0.05em' }}
+                        <motion.span
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+                          className="inline-flex items-center bg-gradient-to-br from-[#D44613] to-[#8B2906] text-white font-black text-[14px] px-3.5 py-1.5 rounded-full shadow-lg shadow-[#B5390B]/30 tracking-wider"
+                          style={{ letterSpacing: '0.04em' }}
                         >
                           {discountPercent}% OFF
-                        </span>
+                        </motion.span>
                       )}
+                      {displaySavings > 0 && (
+                        <motion.span
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 380, damping: 22, delay: 0.08 }}
+                          className="inline-flex items-center gap-1 bg-white/85 dark:bg-emerald-950/60 backdrop-blur-sm text-emerald-700 dark:text-emerald-300 font-black text-[12px] px-2.5 py-1 rounded-full border border-emerald-200/80 dark:border-emerald-900/60"
+                        >
+                          <TrendingDown className="w-3 h-3" strokeWidth={3} />
+                          <span className="tabular-nums" style={{ fontFeatureSettings: '"tnum"' }}>
+                            ¥{displaySavings.toLocaleString()} お得
+                          </span>
+                        </motion.span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 受取情報カード — アイコン付き行 */}
+              <div className="mt-4 rounded-2xl border border-border/60 bg-card overflow-hidden divide-y divide-border/40">
+                {/* 在庫 */}
+                {(() => {
+                  const urgency = getStockUrgency(bag.stockCount);
+                  const iconBg =
+                    urgency.level === 'sold-out' ? 'bg-stone-100 dark:bg-stone-900/40' :
+                    urgency.level === 'critical' ? 'bg-rose-50 dark:bg-red-950/30' :
+                    urgency.level === 'low'      ? 'bg-amber-50 dark:bg-amber-950/30' :
+                                                   'bg-emerald-50 dark:bg-emerald-950/30';
+                  const iconColor =
+                    urgency.level === 'sold-out' ? 'text-stone-400' :
+                    urgency.level === 'critical' ? 'text-rose-600 dark:text-rose-300' :
+                    urgency.level === 'low'      ? 'text-amber-600 dark:text-amber-300' :
+                                                   'text-emerald-600 dark:text-emerald-300';
+                  const labelColor =
+                    urgency.level === 'sold-out' ? 'text-muted-foreground' :
+                    urgency.level === 'critical' ? 'text-rose-700 dark:text-rose-300' :
+                    urgency.level === 'low'      ? 'text-amber-700 dark:text-amber-300' :
+                                                   'text-foreground';
+                  const dotBg =
+                    urgency.level === 'critical' ? 'bg-rose-500' :
+                    urgency.level === 'low'      ? 'bg-amber-500' :
+                                                   'bg-emerald-500';
+                  return (
+                    <div className="flex items-center gap-3 px-4 py-3.5">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                        <Package className={`w-4 h-4 ${iconColor}`} strokeWidth={2.4} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-bold text-muted-foreground/90 uppercase tracking-[0.1em] mb-0.5">在庫</div>
+                        <div className="flex items-center gap-1.5">
+                          {urgency.level !== 'sold-out' && urgency.pulse && (
+                            <span className="relative flex w-2 h-2 shrink-0">
+                              <span className={`absolute inline-flex h-full w-full rounded-full ${dotBg} opacity-50 animate-ping`} />
+                              <span className={`relative inline-flex rounded-full h-2 w-2 ${dotBg}`} />
+                            </span>
+                          )}
+                          <span className={`text-sm font-bold ${labelColor}`}>{urgency.label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 受取時間 */}
+                {bag.pickupStart && (
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
+                      <Clock className="w-4 h-4 text-amber-600 dark:text-amber-300" strokeWidth={2.4} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-bold text-muted-foreground/90 uppercase tracking-[0.1em] mb-0.5">受取時間</div>
+                      <div className="text-sm font-bold text-foreground tabular-nums">
+                        {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
+                      </div>
                     </div>
                   </div>
                 )}
-              </div>
 
-              {/* お得額バッジ (緑グラデ・中サイズ・delight) */}
-              {displaySavings > 0 && (
-                <div className="mt-3.5 flex items-center gap-2 flex-wrap">
-                  <motion.span
-                    initial={{ scale: 0.92, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 22, delay: 0.05 }}
-                    className="inline-flex items-center gap-1.5 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/30 text-[#0F5132] dark:text-emerald-300 font-black text-[13px] px-3 py-1.5 rounded-full border border-emerald-200/80 dark:border-emerald-900/50 shadow-sm shadow-emerald-500/10"
-                  >
-                    <TrendingDown className="w-3.5 h-3.5" strokeWidth={2.8} />
-                    <span className="tabular-nums" style={{ fontFeatureSettings: '"tnum"' }}>
-                      ¥{displaySavings.toLocaleString()} お得
-                    </span>
-                  </motion.span>
-                </div>
-              )}
-
-              {/* ステータスバー (洗練されたピル) */}
-              <div className="flex items-center gap-2 mt-4 flex-wrap">
-                {(() => {
-                  const urgency = getStockUrgency(bag.stockCount);
-                  return (
-                    <span className={`inline-flex items-center gap-1.5 font-bold text-[12px] px-3.5 py-2 rounded-full border ${urgency.pillClass}`}>
-                      {urgency.level !== 'sold-out' && urgency.pulse ? (
-                        <span className="relative flex w-2 h-2 shrink-0">
-                          <span className="absolute inline-flex h-full w-full rounded-full bg-current opacity-50 animate-ping" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-current" />
-                        </span>
-                      ) : (
-                        <span className="inline-flex w-2 h-2 rounded-full bg-current shrink-0" />
-                      )}
-                      {urgency.label}
-                    </span>
-                  );
-                })()}
-                {bag.pickupStart && (
-                  <span className="inline-flex items-center gap-1.5 bg-gradient-to-br from-stone-50 to-stone-100/70 text-[#3D5A47] dark:from-stone-900/50 dark:to-stone-800/30 dark:text-emerald-400 font-bold text-[12px] px-3.5 py-2 rounded-full border border-stone-200 dark:border-stone-800/50">
-                    <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
-                    受取 {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
-                  </span>
-                )}
-                {/* 徒歩距離もピル化 */}
+                {/* 徒歩距離 */}
                 {bag.store.lat && bag.store.lng && userCoords && (() => {
                   const meters = haversineMeters(userCoords.lat, userCoords.lng, bag.store.lat!, bag.store.lng!);
                   return (
-                    <span className="inline-flex items-center gap-1.5 bg-gradient-to-br from-sky-50 to-blue-100/70 text-[#1F4F7B] dark:from-sky-950/50 dark:to-blue-900/30 dark:text-sky-300 font-bold text-[12px] px-3.5 py-2 rounded-full border border-sky-200 dark:border-sky-900/50">
-                      <Navigation className="w-3.5 h-3.5" strokeWidth={2.5} />
-                      {formatDistanceLabel(meters)}
-                    </span>
+                    <div className="flex items-center gap-3 px-4 py-3.5">
+                      <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center shrink-0">
+                        <Navigation className="w-4 h-4 text-sky-600 dark:text-sky-300" strokeWidth={2.4} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-bold text-muted-foreground/90 uppercase tracking-[0.1em] mb-0.5">距離</div>
+                        <div className="text-sm font-bold text-foreground">{formatDistanceLabel(meters)}</div>
+                      </div>
+                    </div>
                   );
                 })()}
               </div>
             </div>
 
-            <hr className="border-border/50" />
+            {/* グラデーション区切り線 */}
+            <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
-            {/* Description */}
+            {/* Description — 引用風カード */}
             <div>
               <h3 className="font-black text-lg mb-3 flex items-center gap-2">
                 <Info className="w-5 h-5 text-primary" /> バッグの内容
               </h3>
-              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {bag.description || bag.store.description || `${bag.store.name}のお料理がランダムに入ったお得なサプライズバッグです。お店の味を、ぜひ受け取ってください！`}
-              </p>
+              <div className="relative rounded-2xl bg-gradient-to-br from-stone-50 to-stone-100/40 dark:from-stone-900/40 dark:to-stone-900/20 border border-border/50 px-5 py-5 overflow-hidden">
+                <Quote
+                  aria-hidden
+                  className="absolute -top-2 -left-1 w-12 h-12 text-primary/8 dark:text-primary/15 rotate-180"
+                  strokeWidth={1.5}
+                />
+                <p className="relative text-foreground/85 leading-relaxed whitespace-pre-wrap text-[14px] pl-2">
+                  {bag.description || bag.store.description || `${bag.store.name}のお料理がランダムに入ったお得なサプライズバッグです。お店の味を、ぜひ受け取ってください！`}
+                </p>
+              </div>
               {bag.description && bag.store.description && (
-                <div className="mt-3 bg-secondary/50 rounded-xl px-3.5 py-3">
-                  <p className="text-xs font-bold text-primary mb-1">お店のPR</p>
+                <div className="mt-3 bg-secondary/50 rounded-xl px-4 py-3.5 border border-border/40">
+                  <p className="text-[11px] font-black text-primary mb-1.5 uppercase tracking-[0.1em]">お店のPR</p>
                   <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{bag.store.description}</p>
                 </div>
               )}
             </div>
 
-            <hr className="border-border/50" />
+            {/* グラデーション区切り線 */}
+            <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
             {/* ── 店舗情報（完全版）──────────────────────────────── */}
             <div>
