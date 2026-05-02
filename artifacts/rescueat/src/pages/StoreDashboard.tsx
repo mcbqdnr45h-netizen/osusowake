@@ -51,6 +51,15 @@ interface Reservation {
 // ─── ヘルパー ───────────────────────────────────────────────────────────────
 
 /** UTCのISO文字列をJST(+09:00)の YYYY-MM-DD 文字列に変換する */
+// ─── 収益モデル: ユーザー側「システム利用料 5%」を加算し10円単位で四捨五入 ─
+//  (api-server/src/routes/reservations.ts と完全同一のロジック)
+//  例: 100円 → 100*1.05=105 → 110円 / 480円 → 504 → 500円
+const BUYER_SERVICE_FEE_RATE = 0.05;
+function buyerTotalJpy(merchandiseJpy: number): number {
+  if (!Number.isFinite(merchandiseJpy) || merchandiseJpy <= 0) return 0;
+  return Math.round((merchandiseJpy * (1 + BUYER_SERVICE_FEE_RATE)) / 10) * 10;
+}
+
 function toJSTDateStr(utcIso: string): string {
   // 末尾に 'Z' がない場合でも UTC として扱う（Drizzle/pg は UTC 値を返す）
   const raw = utcIso.endsWith('Z') || utcIso.includes('+') ? utcIso : utcIso + 'Z';
@@ -697,6 +706,23 @@ function PostBagModal({
                     </div>
                   </div>
                 </div>
+
+                {/* ★ お客様への請求額のプレビュー (システム利用料 5% を加算し10円単位四捨五入) */}
+                {form.discountedPrice > 0 && (
+                  <div className="mt-2 rounded-xl bg-blue-50 border border-blue-200 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[11px] font-bold text-blue-900 leading-tight">
+                        お客様への表示価格
+                        <span className="block text-[10px] font-medium text-blue-700/80 mt-0.5">
+                          システム利用料 5% 加算 (10円単位)
+                        </span>
+                      </div>
+                      <div className="text-base font-black text-blue-700 whitespace-nowrap">
+                        ¥{buyerTotalJpy(form.discountedPrice).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 在庫数（大きなステッパー＋タップ展開） */}
@@ -1107,6 +1133,23 @@ function EditBagModal({
             </div>
             {discountPct > 0 && (
               <p className="text-xs font-bold text-primary mt-2">{discountPct}% OFF で販売</p>
+            )}
+
+            {/* ★ お客様への請求額のプレビュー (システム利用料 5% を加算し10円単位四捨五入) */}
+            {form.discountedPrice > 0 && (
+              <div className="mt-2 rounded-xl bg-blue-50 border border-blue-200 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-bold text-blue-900 leading-tight">
+                    お客様への表示価格
+                    <span className="block text-[10px] font-medium text-blue-700/80 mt-0.5">
+                      システム利用料 5% 加算 (10円単位)
+                    </span>
+                  </div>
+                  <div className="text-base font-black text-blue-700 whitespace-nowrap">
+                    ¥{buyerTotalJpy(form.discountedPrice).toLocaleString()}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
