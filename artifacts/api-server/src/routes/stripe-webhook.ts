@@ -540,7 +540,7 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         const [[store], [bag], [reservation]] = await Promise.all([
           db.select({ ownerId: storesTable.ownerId, name: storesTable.name })
             .from(storesTable).where(eq(storesTable.id, row.storeId)).limit(1),
-          db.select({ title: surpriseBagsTable.title, pickupStart: surpriseBagsTable.pickupStart, pickupEnd: surpriseBagsTable.pickupEnd })
+          db.select({ id: surpriseBagsTable.id, title: surpriseBagsTable.title, pickupStart: surpriseBagsTable.pickupStart, pickupEnd: surpriseBagsTable.pickupEnd })
             .from(surpriseBagsTable)
             .leftJoin(reservationsTable, eq(reservationsTable.id, row.id))
             .where(eq(surpriseBagsTable.id, reservationsTable.bagId)).limit(1),
@@ -564,12 +564,14 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
             ? ` 受取時間: ${bag.pickupStart}〜${bag.pickupEnd}`
             : "";
           const userTitle = "🛍️ おすそわけのご予約が確定しました！";
-          // ★ [bag:ID] トークン付与で「詳細を見る」 から bag detail へ直接遷移可能に
-          const bagToken = bag?.id ? ` [bag:${bag.id}]` : "";
-          const userBody  = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${row.pickupCode ?? "---"}${pickupHint}${bagToken}`;
+          // ★ Push 本文 (アプリ外通知): クリーンに表示。
+          //   DB 通知本文には末尾に [bag:ID] トークン付与 → ベルからの「詳細を見る」 で
+          //   bag detail に直接遷移可能 (NotificationsBell.tsx 側で抽出/除去)
+          const userBodyClean = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${row.pickupCode ?? "---"}${pickupHint}`;
+          const userBodyDb    = bag?.id ? `${userBodyClean} [bag:${bag.id}]` : userBodyClean;
           await Promise.all([
-            db.insert(notificationsTable).values({ userId: reservation.userId, type: "purchase_confirmed", title: userTitle, body: userBody }),
-            sendPushToUser(reservation.userId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${row.id}`, url: bag?.id ? `/bags/${bag.id}` : "/my-reservations" }),
+            db.insert(notificationsTable).values({ userId: reservation.userId, type: "purchase_confirmed", title: userTitle, body: userBodyDb }),
+            sendPushToUser(reservation.userId, { title: userTitle, body: userBodyClean, tag: `purchase-confirmed-${row.id}`, url: bag?.id ? `/bags/${bag.id}` : "/my-reservations" }),
           ]);
         }
       } catch (notifErr) {

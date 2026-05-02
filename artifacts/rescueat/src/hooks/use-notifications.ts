@@ -10,6 +10,7 @@ export interface AppNotification {
   type: string;
   title: string;
   body: string | null;
+  storeId: number | null;
   read: boolean;
   createdAt: string;
 }

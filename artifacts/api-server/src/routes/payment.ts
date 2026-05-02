@@ -716,7 +716,7 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
         const [[store], [bag]] = await Promise.all([
           db.select({ ownerId: storesTable.ownerId, name: storesTable.name })
             .from(storesTable).where(eq(storesTable.id, updated.storeId)).limit(1),
-          db.select({ title: surpriseBagsTable.title, pickupStart: surpriseBagsTable.pickupStart, pickupEnd: surpriseBagsTable.pickupEnd })
+          db.select({ id: surpriseBagsTable.id, title: surpriseBagsTable.title, pickupStart: surpriseBagsTable.pickupStart, pickupEnd: surpriseBagsTable.pickupEnd })
             .from(surpriseBagsTable).where(eq(surpriseBagsTable.id, updated.bagId)).limit(1),
         ]);
 
@@ -736,12 +736,14 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
             ? ` 受取時間: ${bag.pickupStart}〜${bag.pickupEnd}`
             : "";
           const userTitle = "🛍️ おすそわけのご予約が確定しました！";
-          // ★ [bag:ID] トークン付与で「詳細を見る」 から bag detail へ直接遷移可能に
-          const bagToken = bag?.id ? ` [bag:${bag.id}]` : "";
-          const userBody  = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${updated.pickupCode ?? "---"}${pickupHint}${bagToken}`;
+          // ★ Push 本文 (アプリ外通知): クリーンに表示。
+          //   DB 通知本文には末尾に [bag:ID] トークン付与 → ベルからの「詳細を見る」 で
+          //   bag detail に直接遷移可能 (NotificationsBell.tsx 側で抽出/除去)
+          const userBodyClean = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${updated.pickupCode ?? "---"}${pickupHint}`;
+          const userBodyDb    = bag?.id ? `${userBodyClean} [bag:${bag.id}]` : userBodyClean;
           await Promise.all([
-            db.insert(notificationsTable).values({ userId: updated.userId, type: "purchase_confirmed", title: userTitle, body: userBody }),
-            sendPushToUser(updated.userId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${updated.id}`, url: bag?.id ? `/bags/${bag.id}` : "/my-reservations" }),
+            db.insert(notificationsTable).values({ userId: updated.userId, type: "purchase_confirmed", title: userTitle, body: userBodyDb }),
+            sendPushToUser(updated.userId, { title: userTitle, body: userBodyClean, tag: `purchase-confirmed-${updated.id}`, url: bag?.id ? `/bags/${bag.id}` : "/my-reservations" }),
           ]);
         }
       } catch (e) {
@@ -1250,12 +1252,12 @@ router.get("/checkout/verify", async (req, res) => {
                 ? ` 受取時間: ${reservationFull.pickupStart}〜${reservationFull.pickupEnd}`
                 : "";
               const userTitle = "🛍️ おすそわけのご予約が確定しました！";
-              // ★ [bag:ID] トークン付与で「詳細を見る」 から bag detail へ直接遷移可能に
-              const bagToken = reservationFull.bagId ? ` [bag:${reservationFull.bagId}]` : "";
-              const userBody  = `「${reservationFull.bagTitle ?? "おすそわけ袋"}」（${reservationFull.storeName ?? "店舗"}）受取コード: ${reservationFull.pickupCode ?? "---"}${pickupHint}${bagToken}`;
+              // ★ Push はクリーン本文、 DB のみ末尾に [bag:ID] トークン付与
+              const userBodyClean = `「${reservationFull.bagTitle ?? "おすそわけ袋"}」（${reservationFull.storeName ?? "店舗"}）受取コード: ${reservationFull.pickupCode ?? "---"}${pickupHint}`;
+              const userBodyDb    = reservationFull.bagId ? `${userBodyClean} [bag:${reservationFull.bagId}]` : userBodyClean;
               await Promise.all([
-                db.insert(notificationsTable).values({ userId: buyerUserId, type: "purchase_confirmed", title: userTitle, body: userBody }),
-                sendPushToUser(buyerUserId, { title: userTitle, body: userBody, tag: `purchase-confirmed-${reservationId}`, url: reservationFull.bagId ? `/bags/${reservationFull.bagId}` : "/my-reservations" }),
+                db.insert(notificationsTable).values({ userId: buyerUserId, type: "purchase_confirmed", title: userTitle, body: userBodyDb }),
+                sendPushToUser(buyerUserId, { title: userTitle, body: userBodyClean, tag: `purchase-confirmed-${reservationId}`, url: reservationFull.bagId ? `/bags/${reservationFull.bagId}` : "/my-reservations" }),
               ]);
             }
           } catch (e) {

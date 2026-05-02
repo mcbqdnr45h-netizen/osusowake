@@ -313,22 +313,22 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
       if (fanRows.length > 0 && store) {
         const priceLabel = `¥${Number(body.discountedPrice).toLocaleString()}`;
         const notifTitle = `🛍️ ${store.name} が新しいおすそわけを出品`;
-        // ★ [bag:ID] トークン付与で「詳細を見る」 から bag detail へ直接遷移可能に
-        const bagToken = bag?.id ? ` [bag:${bag.id}]` : "";
-        const notifBody  = `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個${bagToken}`;
+        // ★ Push はクリーン本文、 DB のみ末尾に [bag:ID] トークン付与
+        const notifBodyClean = `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個`;
+        const notifBodyDb    = bag?.id ? `${notifBodyClean} [bag:${bag.id}]` : notifBodyClean;
         await db.insert(notificationsTable).values(
           fanRows.map(f => ({
             userId: f.userId,
             type:   "new_bag",
             title:  notifTitle,
-            body:   notifBody,
+            body:   notifBodyDb,
             storeId,
           }))
         );
         // Web Push（アプリ外通知）
         await sendPushToUsers(fanRows.map(f => f.userId), {
           title: notifTitle,
-          body:  notifBody,
+          body:  notifBodyClean,
           tag:   `new-bag-${storeId}`,
           url:   bag?.id ? `/bags/${bag.id}` : `/stores/${storeId}`,
         });

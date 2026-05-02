@@ -1,6 +1,6 @@
 import { db } from '@workspace/db';
 import { reservationsTable, surpriseBagsTable, storesTable, notificationsTable } from '@workspace/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, or, sql } from 'drizzle-orm';
 import { sendPushToUser } from './push.js';
 
 /**
@@ -51,7 +51,13 @@ export async function sendPickupReminders(): Promise<void> {
           and(
             eq(notificationsTable.userId, row.userId),
             eq(notificationsTable.type,   'pickup_reminder'),
-            sql`body LIKE ${'%#' + row.reservationId}`,
+            // ★ 末尾に `[bag:ID]` トークンを付与するようにしたため、 末尾固定の
+            //   `'%#106'` では重複検出が漏れて再送される。 両端ワイルドカード + 単語境界に
+            //   なる文字 (空白 or 文字列終端) で挟むことで誤ヒット (#1060 等) も防ぐ。
+            or(
+              sql`body LIKE ${'%#' + row.reservationId}`,
+              sql`body LIKE ${'%#' + row.reservationId + ' %'}`,
+            ),
           ),
         )
         .limit(1);
@@ -72,7 +78,8 @@ export async function sendPickupReminders(): Promise<void> {
         body:   `${body} #${row.reservationId}${bagToken}`,
       });
 
-      // Web Push
+      // Web Push (本文にはトークンを入れない: アプリ外通知の見栄えを汚さないため。
+      //  画面内ベルからの遷移用トークンは DB 通知本文側のみに付与済)
       await sendPushToUser(row.userId, {
         title,
         body,
