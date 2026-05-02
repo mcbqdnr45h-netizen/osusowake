@@ -229,12 +229,12 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
       }
     }
 
-    // ── 重複店舗の警告ログ (ブロックはしない) ─────────────────────────────
-    //   2026-05 仕様変更: 同じ住所に別オーナが複数店舗を登録するケース
-    //   (フードコート / 同一ビル別テナント / マーケット内複数出店 等) を許可する。
-    //   過去は別オーナの同店名+同住所を 409 でブロックしていたが、 正規ユーザの
-    //   登録もブロックされる誤検出が多発したため、 警告ログのみ残し申請は通す。
-    //   admin dashboard 側で別途精査する運用に変更。
+    // ── 重複店舗の検出 ─────────────────────────────────────────────────
+    //   ★ 同オーナ自己重複: 同じ店名+住所+市区町村で pending/approved を持っているなら 409 でブロック。
+    //      (二重タップ / リトライ暴走 / 戻るボタンで再送信 などを防ぐ)
+    //   ★ 別オーナ重複: 同じ住所に別オーナが複数店舗を登録するケース
+    //      (フードコート / 同一ビル別テナント / マーケット内複数出店 等) は許可し、 警告ログのみ残す。
+    //      admin dashboard 側で別途精査する運用。
     const incomingKey = storeIdentityKey(body.name, body.address, body.city);
     if (incomingKey) {
       try {
@@ -249,23 +249,40 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
           })
           .from(storesTable)
           .where(
-            and(
-              ne(storesTable.ownerId, ownerId),
-              sql`${storesTable.status} IN ('pending', 'approved')`,
-            ),
+            sql`${storesTable.status} IN ('pending', 'approved')`,
           );
 
-        const collision = sameNameCandidates.find(
-          (s) => storeIdentityKey(s.name, s.address, s.city ?? "") === incomingKey,
+        // (1) 自己重複チェック (同オーナ) → 即 409
+        const selfCollision = sameNameCandidates.find(
+          (s) => s.ownerId === ownerId &&
+                 storeIdentityKey(s.name, s.address, s.city ?? "") === incomingKey,
         );
-        if (collision) {
+        if (selfCollision) {
           console.warn(
-            `[/stores/apply] ⚠️ 重複候補 (申請は通します): 申請ownerId=${ownerId} name="${body.name}" addr="${body.address}" → 既存storeId=${collision.id} ownerId=${collision.ownerId} (admin で要精査)`,
+            `[/stores/apply] 🚫 自己重複ブロック: ownerId=${ownerId} name="${body.name}" addr="${body.address}" → 既存storeId=${selfCollision.id} status=${selfCollision.status}`,
+          );
+          return res.status(409).json({
+            error: "self_duplicate",
+            message:
+              "同じ店名・住所のお店が既に登録されています。 マイページの「所有店舗」 から既存のお店を確認してください。",
+            existingStoreId: selfCollision.id,
+            existingStatus: selfCollision.status,
+          });
+        }
+
+        // (2) 別オーナ重複は警告のみ (admin 精査運用)
+        const otherCollision = sameNameCandidates.find(
+          (s) => s.ownerId !== ownerId &&
+                 storeIdentityKey(s.name, s.address, s.city ?? "") === incomingKey,
+        );
+        if (otherCollision) {
+          console.warn(
+            `[/stores/apply] ⚠️ 別オーナ重複候補 (申請は通します): 申請ownerId=${ownerId} name="${body.name}" addr="${body.address}" → 既存storeId=${otherCollision.id} ownerId=${otherCollision.ownerId} (admin で要精査)`,
           );
         }
       } catch (collEx: any) {
-        // 重複検出は best-effort なので失敗しても申請は通す
-        console.warn(`[/stores/apply] 重複候補チェック失敗 (申請は継続): ${collEx?.message}`);
+        // 重複検出は best-effort だが、 自己重複ブロックは安全側に倒し失敗時のみログ
+        console.warn(`[/stores/apply] 重複検出失敗 (申請は継続): ${collEx?.message}`);
       }
     }
 

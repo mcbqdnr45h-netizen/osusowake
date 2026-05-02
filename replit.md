@@ -173,6 +173,13 @@
 
 ## Recent Updates (2026-05-02)
 
+### 同一オーナの自己重複登録ブロック (前リリースのリグレッション修正)
+ユーザ報告: スクショで「松村製麺所」 が同じ住所で 2件 (pending + approved) 登録されていた。 直前の「別オーナ重複ブロック撤廃」 リリースで WHERE 句に `ne(ownerId, ownerId)` を残したまま判定対象から同オーナ行を除外していたため、 同オーナの自己二重登録が無検査で通っていた。
+- `stores.ts /stores/apply` L235-290: WHERE を `status IN ('pending','approved')` のみに絞り、 候補に対して (a) `ownerId` 一致 → **409 `self_duplicate`** で即ブロック (`existingStoreId` / `existingStatus` を返す)、 (b) `ownerId` 不一致 → 警告ログのみ (フードコート等の正規ケースは引き続き許可) という二段判定に。
+- `StoreOnboarding.tsx` L413-428: 409 self_duplicate 専用ハンドラ追加 → トースト通知 + `clearOnboardingDraft()` + `refetchStores()` + `/mypage` 遷移。
+- 既存 `isSubmitting` ガード + ボタン disabled で実用的な二重タップ防止は維持。 厳密な並行リクエスト保護は将来の DB UNIQUE INDEX (ownerId, normalize(name+addr+city)) で対応予定 (スコープ外)。
+- architect 評価: 条件付き Pass (重大違反なし、 残懸念は並行レースのみで設計通り)。
+
 ### 2店舗目登録 致命的3バグ修正 (営業許可証 UI 欠落 + 重複ブロック誤検出 + Stripe 再有効化未実装)
 HelpPage で「2店舗目以降は営業許可証の提出のみで完了」 と謳う仕様にも関わらず、 StoreOnboarding に営業許可証 UI が存在せず、 サーバ `/stores/apply` は body.licenseImageBase64 を期待していたため 2店舗目は全て営業許可証 NULL のまま approved 化されていた。 さらに別オーナの同店名・同住所を 409 でブロックするロジックがフードコート / 同一ビル別テナント等の正規申請を誤検出し、 既存 Stripe アカウントが `charges_enabled=false` (口座無効化・KYC期限切れ) の状態で 2店舗目を登録してもサイレントに承認される問題があった。 本リリースで以下を修正:
 1. **営業許可証 UI 追加** (`StoreOnboarding.tsx`): isInherited (=isAddMode && hasExistingStripeAccount) 時のみ営業許可証セクション (画像 + 番号) 表示。 `handleBizLicenseFile` で PDF はそのまま dataURL 化、 画像は `compressImage` で圧縮。 リアルタイム + 提出時の両方でバリデーション (`bizLicensePreview` / `bizLicenseNumber.trim()` 必須)。 提出 body に `licenseImageBase64` + `licenseNumber` 追加。 localStorage draft には番号のみ保存 (画像はサイズ大なので除外)。

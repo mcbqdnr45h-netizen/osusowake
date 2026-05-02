@@ -407,6 +407,22 @@ export default function StoreOnboarding() {
         if (res.status === 404 || res.status === 503 || res.status === 502) {
           throw new Error('サーバーに接続できませんでした。少し時間をおいて再度お試しください。');
         }
+        // ★ 409 self_duplicate: 同オーナが同じ店名+住所を二重登録しようとした場合
+        //    → トーストで通知 + draft クリア + 既存店舗リスト (マイページ) へ戻す
+        if (res.status === 409 && body?.error === 'self_duplicate') {
+          console.warn('[StoreOnboarding] 自己重複 — 既存店舗へ戻ります', body);
+          toast({
+            title: 'すでに登録されているお店です',
+            description:
+              body?.message ||
+              '同じ店名・住所のお店が既に登録されています。 マイページの「所有店舗」 から既存のお店をご確認ください。',
+            variant: 'destructive',
+          });
+          clearOnboardingDraft();
+          try { refetchStores(); } catch (_) {}
+          navigate('/mypage');
+          return;
+        }
         const msg = body?.message || body?.error || `登録に失敗しました（HTTP ${res.status}）`;
         throw new Error(msg);
       }
