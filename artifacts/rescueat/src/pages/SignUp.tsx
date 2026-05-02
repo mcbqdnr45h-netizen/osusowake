@@ -25,6 +25,7 @@ export default function SignUp() {
   const [showConfirmPw,   setShowConfirmPw]   = useState(false);
   const [agreed,          setAgreed]          = useState(false);
   const [isLoading,       setIsLoading]       = useState(false);
+  const [loadingStep,     setLoadingStep]     = useState('');
   const [error,           setError]           = useState('');
   const [shakeKey,        setShakeKey]        = useState(0);
   const [done,            setDone]            = useState(false);
@@ -59,21 +60,28 @@ export default function SignUp() {
     if (!isValid) return;
     setError('');
     setIsLoading(true);
+    setLoadingStep('処理中…');
 
-    if (activeTab === 'store') {
-      const { error: err, needsConfirmation: confirm } = await signUpAsStore(email, password, name.trim(), normalizedPhone);
+    try {
+      if (activeTab === 'store') {
+        const { error: err, needsConfirmation: confirm } = await signUpAsStore(email, password, name.trim(), normalizedPhone, setLoadingStep);
+        if (err) { setError(err); setShakeKey(k => k + 1); return; }
+        setNeedsConfirm(confirm);
+        setDone(true);
+        if (!confirm) setTimeout(() => navigate('/store-onboarding'), 2000);
+      } else {
+        const { error: err, needsConfirmation: confirm } = await signUp(email, password, name, phone, setLoadingStep);
+        if (err) { setError(err); setShakeKey(k => k + 1); return; }
+        setNeedsConfirm(confirm);
+        setDone(true);
+        if (!confirm) setTimeout(() => navigate('/'), 1200);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? '登録中にエラーが発生しました');
+      setShakeKey(k => k + 1);
+    } finally {
       setIsLoading(false);
-      if (err) { setError(err); setShakeKey(k => k + 1); return; }
-      setNeedsConfirm(confirm);
-      setDone(true);
-      if (!confirm) setTimeout(() => navigate('/store-onboarding'), 2000);
-    } else {
-      const { error: err, needsConfirmation: confirm } = await signUp(email, password, name, phone);
-      setIsLoading(false);
-      if (err) { setError(err); setShakeKey(k => k + 1); return; }
-      setNeedsConfirm(confirm);
-      setDone(true);
-      if (!confirm) setTimeout(() => navigate('/'), 1200);
+      setLoadingStep('');
     }
   }
 
@@ -356,7 +364,7 @@ export default function SignUp() {
               </div>
             )}
 
-            <AuthPrimaryButton disabled={!isValid} isLoading={isLoading}>
+            <AuthPrimaryButton disabled={!isValid} isLoading={isLoading} loadingText={loadingStep}>
               {isStore ? <><Store className="w-4.5 h-4.5" />店舗として登録する</> : '登録する'}
             </AuthPrimaryButton>
 

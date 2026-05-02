@@ -9,8 +9,8 @@ interface AuthContextValue {
   isLoading: boolean;
   isAdmin: boolean;
   pendingAdminMfa: boolean;
-  signUp: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
-  signUpAsStore: (email: string, password: string, name: string, phone: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signUp: (email: string, password: string, name: string, phone: string, onProgress?: (step: string) => void) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signUpAsStore: (email: string, password: string, name: string, phone: string, onProgress?: (step: string) => void) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signIn: (email: string, password: string, forceRole?: 'store_owner' | 'customer') => Promise<{ error: string | null; role: string | null; isAdmin?: boolean; requiresMfa?: boolean }>;
   sendAdminMfa: () => Promise<{ error: string | null }>;
   verifyAdminMfa: (code: string) => Promise<{ error: string | null }>;
@@ -293,10 +293,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
   }
 
-  async function signUp(email: string, password: string, name: string, phone: string) {
+  async function signUp(email: string, password: string, name: string, phone: string, onProgress?: (step: string) => void) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
 
     // 並列実行: メール実在性チェック + 電話番号重複チェック (独立した2つの API 呼び出し)
+    onProgress?.('入力内容を確認中…');
     const [emailCheck, phoneAvailable] = await Promise.all([
       validateEmail(email),
       checkPhoneAvailable(normalizedPhone),
@@ -308,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
     }
 
+    onProgress?.('アカウントを作成中…');
     const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
@@ -322,6 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // この場合は後でログイン時に create-profile が呼ばれる想定
         return { error: null, needsConfirmation: true };
       }
+      onProgress?.('プロフィールを保存中…');
       const profileRes = await fetch(`${getApiBase()}/api/auth/create-profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -341,10 +344,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null, needsConfirmation };
   }
 
-  async function signUpAsStore(email: string, password: string, name: string, phone: string) {
+  async function signUpAsStore(email: string, password: string, name: string, phone: string, onProgress?: (step: string) => void) {
     const normalizedPhone = phone.trim().replace(/[-\s]/g, '');
 
     // 並列実行: メール実在性チェック + 電話番号重複チェック (独立した2つの API 呼び出し)
+    onProgress?.('入力内容を確認中…');
     const [emailCheck, phoneAvailable] = await Promise.all([
       validateEmail(email),
       checkPhoneAvailable(normalizedPhone),
@@ -356,6 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'この電話番号は既に登録されています', needsConfirmation: false };
     }
 
+    onProgress?.('アカウントを作成中…');
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -375,6 +380,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!token) {
         return { error: null, needsConfirmation: true };
       }
+      onProgress?.('プロフィールを保存中…');
       const profileRes = await fetch(`${getApiBase()}/api/auth/create-profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

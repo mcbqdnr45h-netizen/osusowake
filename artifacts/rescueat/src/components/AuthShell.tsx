@@ -144,12 +144,14 @@ export function AuthPrimaryButton({
   children,
   disabled,
   isLoading,
+  loadingText,
   type = 'submit',
   onClick,
 }: {
   children: React.ReactNode;
   disabled?: boolean;
   isLoading?: boolean;
+  loadingText?: string;
   type?: 'submit' | 'button';
   onClick?: () => void;
 }) {
@@ -160,7 +162,7 @@ export function AuthPrimaryButton({
       onClick={onClick}
       whileHover={!disabled ? { scale: 1.015, boxShadow: '0 8px 28px rgba(242,100,25,0.38)' } : {}}
       whileTap={!disabled ? { scale: 0.97 } : {}}
-      className={`w-full font-black text-[17px] md:text-[20px] py-4 md:py-6 rounded-2xl md:rounded-3xl min-h-[56px] md:min-h-[72px] flex items-center justify-center gap-2 transition-colors duration-150 ${
+      className={`w-full font-black text-[17px] md:text-[20px] py-4 md:py-6 rounded-2xl md:rounded-3xl min-h-[56px] md:min-h-[72px] flex items-center justify-center gap-3 transition-colors duration-150 ${
         disabled
           ? 'bg-muted text-muted-foreground cursor-not-allowed'
           : 'text-white cursor-pointer'
@@ -171,10 +173,12 @@ export function AuthPrimaryButton({
         letterSpacing: '-0.02em',
       } : {}}
     >
-      {isLoading
-        ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        : children
-      }
+      {isLoading ? (
+        <>
+          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+          {loadingText && <span className="text-[15px] md:text-[17px] font-bold">{loadingText}</span>}
+        </>
+      ) : children}
     </motion.button>
   );
 }
