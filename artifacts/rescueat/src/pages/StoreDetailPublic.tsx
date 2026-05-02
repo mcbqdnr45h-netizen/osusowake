@@ -44,7 +44,11 @@ export default function StoreDetailPublic() {
     } }
   );
 
-  const bags = (allBags ?? []).filter((b: any) => b.storeId === storeId && b.stockCount > 0);
+  // ★ API レスポンスは bag.store.id (ネスト) で来る。 旧コードは b.storeId を見ていたため
+  //    常に undefined === number で false になり「現在出品中のバッグはありません」 と誤表示していた。
+  const bags = (allBags ?? []).filter(
+    (b: any) => (b?.store?.id ?? b?.storeId) === storeId && (b.stockCount ?? 0) > 0,
+  );
 
   // Google Maps ルート案内リンク
   const mapsUrl = store

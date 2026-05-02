@@ -236,6 +236,53 @@ export default function StoreOnboarding() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // ── 店舗アイコン (地図ピン用) — 256x256 JPEG にリサイズしてサーバへアップロード ──
+  const handleIconFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: 'ファイルが大きすぎます', description: '10MB 以下の画像を選択してください', variant: 'destructive' });
+      return;
+    }
+    setIconUploading(true);
+    try {
+      let uploadBlob: Blob;
+      try {
+        uploadBlob = await resizeIconToSquare(file, 256);
+      } catch (resizeErr) {
+        const msg = resizeErr instanceof Error ? resizeErr.message : '画像処理エラー';
+        throw new Error(`アイコンのリサイズに失敗しました (${msg})。 別の画像でお試しください。`);
+      }
+      if (uploadBlob.size > 1024 * 1024) {
+        throw new Error('リサイズ後のサイズが想定外に大きいため中止しました。 別の画像でお試しください。');
+      }
+      const fd = new FormData();
+      fd.append('image', uploadBlob, 'icon.jpg');
+      const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { message?: string }));
+        throw new Error(data.message || `送信失敗 (HTTP ${res.status})`);
+      }
+      const { url } = await res.json();
+      setForm(prev => ({ ...prev, iconUrl: url }));
+      setIconPreview(url);
+    } catch (err) {
+      toast({
+        title: 'アイコンのアップロードに失敗しました',
+        description: err instanceof Error ? err.message : '通信を確認して再度お試しください',
+        variant: 'destructive',
+      });
+    } finally {
+      setIconUploading(false);
+    }
+  };
+
+  const handleIconRemove = () => {
+    setForm(prev => ({ ...prev, iconUrl: '' }));
+    setIconPreview('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -257,6 +304,7 @@ export default function StoreOnboarding() {
     // 未入力項目を収集 → ひとつでも欠けていたら送信をブロック
     const warnings: string[] = [];
     if (!form.imageUrl)                         warnings.push('店舗写真が未入力です。');
+    if (!form.iconUrl)                          warnings.push('店舗アイコン（地図ピン用）が未入力です。');
     if (!form.name.trim())                      warnings.push('店名が未入力です。');
     if (!form.address.trim())                   warnings.push('住所が未入力です。');
     if (!form.city.trim())                      warnings.push('市区町村が未入力です。');
@@ -290,6 +338,7 @@ export default function StoreOnboarding() {
           category: form.category,
           phone: form.phone.trim() || null,
           imageUrl: form.imageUrl || null,
+          iconUrl: form.iconUrl || null,
           lat: pinPos?.lat ?? null,
           lng: pinPos?.lng ?? null,
           pledgeSigned: true,
@@ -509,6 +558,72 @@ export default function StoreOnboarding() {
                 )}
               </div>
             </label>
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+              店舗詳細・商品カードのトップに表示されます。
+            </p>
+          </div>
+
+          {/* 店舗アイコン (地図ピン用) — 必須 */}
+          <div>
+            <label className="block text-sm font-bold text-muted-foreground mb-2 flex items-center gap-1.5">
+              <MapPinned className="w-4 h-4 text-primary" />
+              店舗アイコン <span className="text-destructive">*</span>
+            </label>
+            <input
+              ref={iconFileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleIconFile}
+            />
+            <div
+              className={`flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed transition-all
+              ${iconPreview ? 'border-primary/40 bg-white' : 'border-red-300 bg-red-50/40'}`}
+            >
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => iconFileRef.current?.click()}
+                  disabled={iconUploading}
+                  className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-primary/30 shadow-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-60"
+                  aria-label="アイコンを選ぶ"
+                >
+                  {iconPreview ? (
+                    <img loading="lazy" decoding="async" src={iconPreview} alt="店舗アイコン" className="w-full h-full object-cover" />
+                  ) : iconUploading ? (
+                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  ) : (
+                    <Camera className="w-6 h-6 text-primary" />
+                  )}
+                </button>
+                {iconPreview && !iconUploading && (
+                  <button
+                    type="button"
+                    onClick={handleIconRemove}
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white border border-border shadow-md flex items-center justify-center hover:bg-red-50 active:scale-90 transition-all"
+                    aria-label="アイコンを削除"
+                  >
+                    <XIcon className="w-3.5 h-3.5 text-red-500" />
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-foreground">
+                  {iconPreview ? 'アイコンを設定しました' : 'アイコンを選んでください'}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                  マップのアイコンにも表示されます。お店のロゴや看板写真がおすすめです（正方形・512×512px 推奨）。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => iconFileRef.current?.click()}
+                  disabled={iconUploading}
+                  className="mt-2 text-xs font-bold text-primary hover:underline disabled:opacity-60"
+                >
+                  {iconUploading ? 'アップロード中…' : iconPreview ? 'アイコンを変更' : 'アイコンを選ぶ'}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* 店名 */}

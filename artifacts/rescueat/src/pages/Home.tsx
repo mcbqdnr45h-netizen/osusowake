@@ -420,53 +420,51 @@ export default function Home() {
   // 日次シードは1日中固定（ページリフレッシュしても同じ順番）
   const dailySeed = useMemo(() => getDailySeed(), []);
 
-  // ── 現在時刻 (分) を 60 秒ごとに更新 (もうすぐ終わるセクションの動的判定用) ──
-  const [nowMinutes, setNowMinutes] = useState(() => {
-    const d = new Date();
-    return d.getHours() * 60 + d.getMinutes();
-  });
+  // ── 現在時刻 (ms) を 60 秒ごとに更新 (もうすぐ終わるセクションの動的判定用) ──
+  //   旧版は HH:MM 文字列比較だったため "02:00" < "23:59" の辞書順逆転で
+  //   「23:59 終了の商品が 02:00 終了の商品より後ろになる」不具合が起きていた。
+  //   完全に Date 演算 (ms) に統一して、 深夜跨ぎ・null (= 23:59 扱い) も厳密に処理する。
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
   useEffect(() => {
-    const tick = () => {
-      const d = new Date();
-      setNowMinutes(d.getHours() * 60 + d.getMinutes());
-    };
-    const id = setInterval(tick, 60_000);
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
 
+  // 受付終了 "HH:MM" を「今からの残り時間 (ms)」に厳密変換
+  //   ・null/不正/未設定 → その日の 23:59:59.999 として扱う (画面表示「23:59」と整合)
+  //   ・終了時刻が「今」より過去なら翌日とみなして +1日 する (深夜跨ぎ)
+  //   戻り値は常に >= 0 (= 受付終了までのミリ秒)
+  const remainingMs = useCallback((end: string | null | undefined): number => {
+    const now = new Date(nowMs);
+    const target = new Date(now);
+    const m = end?.match(/^(\d{1,2}):(\d{2})$/);
+    if (m) {
+      target.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+    } else {
+      // 未設定 → 当日 23:59:59.999 として確実に拾う
+      target.setHours(23, 59, 59, 999);
+    }
+    if (target.getTime() <= now.getTime()) {
+      target.setDate(target.getDate() + 1);
+    }
+    return target.getTime() - now.getTime();
+  }, [nowMs]);
+
   // ── ① もうすぐ終わるおすそわけ ──
-  //   判定: 受付終了時刻まで残り 120 分以内 ＊または＊ 在庫が残り 1〜4 個
-  //   並び: 受付終了が早い順 (最も急ぎの商品を前に)
+  //   判定: 受付終了まで「0ms 以上 〜 180 分以内」
+  //   並び: 残り時間が短い順 (昇順) — null/未設定 (= 23:59) は当日終了として正しく拾う
+  const URGENT_WINDOW_MS = 180 * 60 * 1000;
   const urgentBags = useMemo(() => {
-    // 受付終了時刻 "HH:MM" を、 現在時刻からの残り分数 (深夜跨ぎ対応) に変換
-    const remainingMinutes = (end: string | null | undefined): number | null => {
-      if (!end) return null;
-      const m = end.match(/^(\d{1,2}):(\d{2})$/);
-      if (!m) return null;
-      const endMin = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-      let remaining = endMin - nowMinutes;
-      // 終了時刻が現在より小さい場合は翌日扱い (例: 現在 23:00, 終了 02:00 → 残り 180 分)
-      if (remaining < 0) remaining += 24 * 60;
-      return remaining;
-    };
     const filtered = sortedVisibleBags.filter(b => {
       if (b.stockCount <= 0) return false;
-      // (a) 在庫残り少
-      if (b.stockCount < 5) return true;
-      // (b) 受付終了まで 120 分以内 (= 「もうすぐ」)
-      const rem = remainingMinutes(b.pickupEnd);
-      return rem !== null && rem > 0 && rem <= 120;
+      const rem = remainingMs(b.pickupEnd);
+      return rem >= 0 && rem <= URGENT_WINDOW_MS;
     });
     if (sortKey === 'default') {
-      return [...filtered].sort((a, b) => {
-        // 受付終了が早い順 (残り時間が短い順)。 終了時刻不明は最後尾
-        const ra = remainingMinutes(a.pickupEnd) ?? Number.POSITIVE_INFINITY;
-        const rb = remainingMinutes(b.pickupEnd) ?? Number.POSITIVE_INFINITY;
-        return ra - rb;
-      }).slice(0, 8);
+      return [...filtered].sort((a, b) => remainingMs(a.pickupEnd) - remainingMs(b.pickupEnd)).slice(0, 8);
     }
     return applySortKey(filtered).slice(0, 8);
-  }, [sortedVisibleBags, applySortKey, sortKey, nowMinutes]);
+  }, [sortedVisibleBags, applySortKey, sortKey, remainingMs]);
 
   // ── ② 今日のおすすめ ── デフォルト時は日次シードシャッフルで全店舗公平に露出
   const recommendedBags = useMemo(() => {
