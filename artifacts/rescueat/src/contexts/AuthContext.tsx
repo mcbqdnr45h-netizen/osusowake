@@ -62,6 +62,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdminRef    = useRef(false);
   const fetchingRef   = useRef(false);
   const adminLoginAt  = useRef<number | null>(null);
+  // ★ initAuth 完走まで onAuthStateChange の fetchProfile を抑止する
+  //    (adminCheck → fetchProfile の順序を全経路で保証 → adminUserMode role 上書きのレース回避)
+  const initInProgressRef = useRef(true);
 
   // MFA 検証済みか sessionStorage で確認（同一タブのページ更新では再要求しない）
   function isMfaVerifiedInSession(): boolean {
@@ -104,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await raceTimeout(
         supabase.from('users').select('*').eq('id', userId).single().then(r => r),
-        5000  // 5秒でタイムアウト
+        2000  // ★ 2秒でタイムアウト (5秒は長すぎ → MyPage の体感ロード短縮)
       );
       if (result && result.data) {
         const prof = result.data as PublicUser;
@@ -171,7 +174,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             search.has('token_hash') ||
             search.has('token');
 
-          // セッション復元時: 管理者チェック + MFA 検証確認（回復フロー時はスキップ）
+          // セッション復元時: 管理者チェック → MFA 検証 → プロフィール取得 (直列維持)
+          //   ★ fetchProfile は isAdminRef.current に依存するため (adminUserMode 時の role 上書き)、
+          //     並列化するとレース条件が発生する → 直列順序を必ず守る。
+          //     代わりに fetchProfile タイムアウトを 5s→2s に短縮することで体感ロードを改善。
           if (sess.access_token && !isRecoveryFlow) {
             const adminCheck = await checkIsAdmin(sess.access_token);
             if (adminCheck) {
@@ -196,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn('[AuthContext] initAuth error:', err);
       } finally {
         clearTimeout(absoluteTimeout);
+        initInProgressRef.current = false; // ★ 完了 → onAuthStateChange の fetchProfile を解禁
         if (!cancelled) setIsLoading(false);
       }
     };
@@ -222,7 +229,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          if (!fetchingRef.current) {
+          // ★ initAuth 進行中はスキップ (adminCheck 前に fetchProfile が走るレース回避)
+          //   initAuth 側で adminCheck → fetchProfile が必ず実行されるので二重取得不要
+          if (!fetchingRef.current && !initInProgressRef.current) {
             fetchProfile(session.user.id);
           }
         } else {

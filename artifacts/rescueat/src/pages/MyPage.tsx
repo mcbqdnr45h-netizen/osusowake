@@ -172,11 +172,14 @@ export default function MyPage() {
 
   const isStoreOwner = profile?.role === 'store_owner';
 
-  // ★ profile 読み込み待ちのタイムアウト (1.2秒経ったら諦めて描画する → 永久スケルトン防止)
+  // ★ profile 読み込み待ちのタイムアウト (1000ms 経ったら諦めて描画する → 永久スケルトン防止)
+  //    fetchProfile のタイムアウトを 5s→2s に短縮済みなので、1000ms で十分余裕がある。
+  //    キャッシュヒット時 (2回目以降) は即座に描画される。
+  //    ★ 1000ms は role flash 防止と永久ロード防止のバランス点 (architect 推奨範囲)。
   const [profileWaitElapsed, setProfileWaitElapsed] = useState(false);
   useEffect(() => {
     if (profile) { setProfileWaitElapsed(true); return; }
-    const t = setTimeout(() => setProfileWaitElapsed(true), 1200);
+    const t = setTimeout(() => setProfileWaitElapsed(true), 1000);
     return () => clearTimeout(t);
   }, [profile]);
 

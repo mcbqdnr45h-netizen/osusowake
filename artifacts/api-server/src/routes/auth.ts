@@ -23,7 +23,9 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
 ]);
 
 // DNS ルックアップにタイムアウトを設定（遅い DNS でサインアップが詰まらないように）
-const DNS_TIMEOUT_MS = 1500;
+// ★ 600ms: 主要メールドメイン (gmail/icloud/yahoo/outlook) は通常 50-200ms で解決する。
+//   それ以上待つメリットは小さく、登録 UX を優先してタイムアウトは通過扱い (valid: true)。
+const DNS_TIMEOUT_MS = 600;
 function withDnsTimeout<T>(p: Promise<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -55,27 +57,36 @@ async function validateEmailExistence(email: string): Promise<{ valid: boolean; 
     return { valid: false, reason: "disposable" };
   }
   // 3. MX レコードを引いてドメインがメール受信可能か確認（タイポや偽ドメイン排除）
+  // ★ A レコード fallback は削除 (タイムアウト時に追加で待たせる原因 → 登録が遅くなる)。
+  //    MX が無い = no_mx で即返す。NXDOMAIN は domain_not_found。
   try {
     const records = await withDnsTimeout(dnsPromises.resolveMx(domain));
     if (!records || records.length === 0) {
-      // MX が無い場合 A レコードでもメール配送可能なケースがあるが厳しめに弾く
-      try {
-        await withDnsTimeout(dnsPromises.resolve4(domain));
-        // A レコードはあるが MX が無い → 受信できない可能性が高い
-        return { valid: false, reason: "no_mx" };
-      } catch {
-        return { valid: false, reason: "no_mx" };
-      }
+      return { valid: false, reason: "no_mx" };
     }
     return { valid: true };
   } catch (err: any) {
-    // DNS ルックアップ失敗 → ドメイン存在しない
-    if (err?.code === "ENOTFOUND" || err?.code === "ENODATA") {
+    // ドメインが存在しない (NXDOMAIN) → 確実に無効
+    if (err?.code === "ENOTFOUND") {
       return { valid: false, reason: "domain_not_found" };
     }
-    // タイムアウトなど一時的な障害は通過させる（誤判定で正常ユーザー弾かないため）
-    console.warn("[validateEmailExistence] DNS lookup error:", err?.code, err?.message);
-    return { valid: true };
+    // ドメインは存在するが MX レコードが無い → メール受信不可
+    if (err?.code === "ENODATA") {
+      return { valid: false, reason: "no_mx" };
+    }
+    // ★ 一時的障害のみ valid:true で通過 (whitelist 方式: 想定外エラーは弾く)
+    //    - ETIMEOUT: withDnsTimeout が投げるカスタムエラー
+    //    - ETIMEDOUT: Node.js DNS のタイムアウトエラー
+    //    - EAI_AGAIN: 一時的な DNS resolver 障害 (リトライ可能)
+    //    - ESERVFAIL: DNS サーバー側の一時障害
+    const TRANSIENT = new Set(["ETIMEOUT", "ETIMEDOUT", "EAI_AGAIN", "ESERVFAIL"]);
+    if (TRANSIENT.has(err?.code)) {
+      console.warn("[validateEmailExistence] DNS transient error (passing through):", err?.code, err?.message);
+      return { valid: true };
+    }
+    // それ以外の想定外エラーは無効扱い (誤通過よりも弾く方が安全)
+    console.warn("[validateEmailExistence] DNS unknown error:", err?.code, err?.message);
+    return { valid: false, reason: "no_mx" };
   }
 }
 
@@ -333,8 +344,10 @@ router.post("/auth/check-email", async (req: Request, res: Response) => {
     res.json(result);
   } catch (err: any) {
     console.error("[auth/check-email]", err);
-    // エラー時は通過させる（誤判定で正常ユーザー弾かないため）
-    res.json({ valid: true });
+    // ★ 想定外の例外時は無効扱い (validateEmailExistence の方針一貫性確保)。
+    //   一時的障害は validateEmailExistence 内で valid:true 通過済みなので、
+    //   ここに到達するのは想定外のエラー → 弾く方が安全。
+    res.json({ valid: false, reason: "no_mx" });
   }
 });
 
