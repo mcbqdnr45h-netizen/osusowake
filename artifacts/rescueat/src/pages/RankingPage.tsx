@@ -20,7 +20,7 @@ import { useGetMonthlyRanking, getGetMonthlyRankingQueryKey } from '@workspace/a
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserId } from '@/hooks/use-user';
 import { useAvatar } from '@/hooks/use-avatar';
-import { ChevronLeft, Trophy, Medal, Award, Heart, TrendingUp } from 'lucide-react';
+import { ChevronLeft, Trophy, Medal, Award, Heart, TrendingUp, Pencil } from 'lucide-react';
 
 // ─── 表示名から決定論的にパステル色を生成 (他ユーザのアバター代替) ──────────
 function colorForName(name: string): string {
@@ -130,7 +130,7 @@ export default function RankingPage() {
         </div>
 
         {/* ── ヒーロー: トロフィーと月次回数 ── */}
-        <div className="mx-4 mb-4 rounded-3xl bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 border border-amber-200/60 p-5">
+        <div className="mx-4 mb-3 rounded-3xl bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 border border-amber-200/60 p-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-300 to-amber-500 text-white flex items-center justify-center shadow-md">
               <Trophy className="w-6 h-6" />
@@ -148,6 +148,28 @@ export default function RankingPage() {
             </div>
           </div>
         </div>
+
+        {/* ── あなたの表示名プレビュー ── */}
+        {data?.myRank?.displayName && (
+          <div className="mx-4 mb-4 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-card border border-border/50">
+            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <span className="text-[13px] font-black text-primary">
+                {initialOf(data.myRank.displayName)}
+              </span>
+            </div>
+            <p className="text-[12px] text-muted-foreground leading-tight flex-1 min-w-0">
+              あなたは <span className="font-black text-foreground">「{data.myRank.displayName}」</span> として表示されます
+            </p>
+            <button
+              onClick={() => navigate('/settings')}
+              className="flex items-center gap-1 text-[11px] font-bold text-primary shrink-0 px-2.5 py-1.5 hover:bg-primary/10 active:bg-primary/15 rounded-lg transition-colors"
+              aria-label="表示名を変更"
+            >
+              <Pencil className="w-3 h-3" strokeWidth={2.6} />
+              変更
+            </button>
+          </div>
+        )}
 
         {/* ── ランキングリスト ── */}
         <div className="flex-1 px-4 pb-40">
