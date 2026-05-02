@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
-import { getCategoryIcon, getCategoryImage, normalizeCategory } from '@/lib/category-utils';
+import { getCategoryIcon, getCategoryImage, getCategoryLabel, normalizeCategory } from '@/lib/category-utils';
 import { useUserLocation, updateCachedCoords, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 
@@ -208,7 +208,7 @@ function StoreBottomSheet({
             <div className="absolute bottom-0 left-0 right-0 px-4 pb-3.5 pt-8">
               {/* カテゴリバッジ */}
               <p className="text-white/60 text-[11px] font-semibold tracking-wide mb-1">
-                {getCategoryIcon(store.category)}&nbsp;{store.category ?? 'その他'}
+                {getCategoryIcon(store.category)}&nbsp;{getCategoryLabel(store.category)}
               </p>
               {/* 店名 — 大きく太く */}
               <h2 className="text-white font-black text-2xl leading-tight tracking-tight line-clamp-1 drop-shadow-sm">

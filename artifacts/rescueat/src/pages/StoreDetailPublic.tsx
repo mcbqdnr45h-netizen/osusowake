@@ -5,20 +5,10 @@ import { Layout } from '@/components/Layout';
 import { useGetStore, useListAllBags, getGetStoreQueryKey, getListAllBagsQueryKey } from '@workspace/api-client-react';
 import { ArrowLeft, MapPin, Clock, Star, Navigation, ChevronRight, ExternalLink, Package } from 'lucide-react';
 import { getDisplayPrice } from '@/lib/price-display';
+import { getCategoryLabel } from '@/lib/category-utils';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
-const CATEGORY_LABEL: Record<string, string> = {
-  meals:          'お食事',
-  bakery_sweets:  'パン・スイーツ',
-  ingredients:    '食材',
-  restaurant:     'レストラン',
-  bakery:         'ベーカリー',
-  cafe:           'カフェ',
-  convenience:    'コンビニ',
-  supermarket:    'スーパー',
-  other:          'その他',
-};
 
 function StarRating({ rating }: { rating?: number | null }) {
   const r = rating ?? 0;
@@ -130,7 +120,7 @@ export default function StoreDetailPublic() {
               </h1>
               {store.category && (
                 <span className="mt-1 shrink-0 px-2.5 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
-                  {CATEGORY_LABEL[store.category] ?? store.category}
+                  {getCategoryLabel(store.category)}
                 </span>
               )}
             </div>
