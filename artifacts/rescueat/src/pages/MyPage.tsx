@@ -959,7 +959,7 @@ export default function MyPage() {
                       >
                         <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 relative">
                           {s.imageUrl
-                            ? <img src={s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
+                            ? <img loading="lazy" decoding="async" src={s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
                             : <div className="w-full h-full bg-orange-100 flex items-center justify-center">
                                 <StoreIcon className="w-5 h-5 text-orange-400" />
                               </div>

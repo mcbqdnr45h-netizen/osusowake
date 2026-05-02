@@ -534,7 +534,7 @@ export default function StoreProfileEdit() {
                   aria-label="アイコンを変更"
                 >
                   {iconPreviewUrl ? (
-                    <img src={iconPreviewUrl} alt="店舗アイコン" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={iconPreviewUrl} alt="店舗アイコン" className="w-full h-full object-cover" />
                   ) : iconUploading ? (
                     <Loader2 className="w-6 h-6 text-primary animate-spin" />
                   ) : (

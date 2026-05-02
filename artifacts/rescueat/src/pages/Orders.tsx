@@ -4,6 +4,7 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserId } from '@/hooks/use-user';
+import { useToast } from '@/hooks/use-toast';
 import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -66,6 +67,7 @@ function formatDateShort(dateStr?: string | null) {
 
 function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () => void }) {
   const { profile } = useAuth();
+  const { toast } = useToast();
   const status    = (reservation.status as ReservationStatus) || 'pending';
   const orderId   = `ORD-${String(reservation.id).padStart(8, '0')}`;
   const total     = Math.round(reservation.totalPrice);
@@ -107,7 +109,11 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
       // スクリーンショット保存 を案内し、 Share Sheet も併用できるようにする。
       const text = `おすそわけ 電子領収書\n${storeName}\n${bagTitle}\n金額: ¥${total.toLocaleString()}\n注文番号: ${orderId}\n発行日: ${issueDateStr}`;
       const fallbackAlert = () => {
-        alert('スクリーンショットで保存してください\n\nアプリ画面をスクリーンショットすることで、 領収書をカメラロールに保存できます。');
+        toast({
+          title: 'スクリーンショットで保存してください',
+          description: 'アプリ画面をスクリーンショットすると、領収書をカメラロールに保存できます',
+          duration: 6000,
+        });
       };
       if ((navigator as any).share) {
         (navigator as any)
@@ -175,9 +181,12 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
     } else {
       try {
         await navigator.clipboard.writeText(text);
-        alert('領収書情報をコピーしました');
+        toast({ title: '領収書情報をコピーしました' });
       } catch {
-        alert('シェアに対応していないデバイスです');
+        toast({
+          title: 'シェアに対応していないデバイスです',
+          variant: 'destructive',
+        });
       }
     }
   }

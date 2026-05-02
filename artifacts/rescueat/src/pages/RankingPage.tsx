@@ -198,7 +198,7 @@ export default function RankingPage() {
                       isMe && myAvatar ? '' : colorForName(entry.displayName),
                     ].join(' ')}>
                       {isMe && myAvatar ? (
-                        <img src={myAvatar} alt="" className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={myAvatar} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <span>{initialOf(entry.displayName)}</span>
                       )}

@@ -91,7 +91,7 @@ export function StoreSelector({ className = '' }: StoreSelectorProps) {
               >
                 <div className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 ${s.imageUrl ? '' : 'bg-orange-100 flex items-center justify-center'}`}>
                   {s.imageUrl
-                    ? <img src={s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
+                    ? <img loading="lazy" decoding="async" src={s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
                     : <Store size={16} className="text-orange-500" />
                   }
                 </div>

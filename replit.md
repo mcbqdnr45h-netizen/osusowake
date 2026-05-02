@@ -168,6 +168,30 @@
 
 ## Recent Updates (2026-05-02)
 
+### 世界品質パス Phase 1+2+3 + Favorites race 完全防御 (9 ラウンド)
+- **Phase 1 — Critical UX**:
+  - `not-found.tsx`: 英語の開発者向けメッセージ → 日本語の温かい案内 + ホーム/戻るボタン (暖色グラデ + safe-area + framer-motion)
+  - `App.tsx`: `/register` を `/signup` の互換エイリアスとして追加 (古いブックマーク・外部リンク対策)
+  - `alert()` → toast 置換: `Home.tsx` (位置情報拒否ガイド)、 `Orders.tsx` (印刷案内・コピー成功・シェア非対応)
+  - `lib/error-message.ts` 新設 (`toUserErrorMessage`): RegisterStore/OrderTicket の生 `err.message` を HTTP status 別 (401/403/404/408/409/413/429/5xx + TypeError network) の自然日本語メッセージに変換
+- **Phase 2 — Performance**:
+  - `<img>` 22 ファイルに `loading="lazy" decoding="async"` 一括追加 (LCP/モバイル通信改善)
+  - `lib/maps-loader.ts`: `gm_authFailure` を全環境共通化、 `window.__gmAuthFailed` フラグ + `CustomEvent('gm-auth-failure')` を dispatch
+  - `Map.tsx`: auth failure event リッスン + `authFailedRef` で `tilesloaded`/3秒 safety timer の `setStatus('ready')` 上書きをガード、 status='error' 時は再読込ボタン付き案内 UI を表示
+- **Phase 3 — UX Polish (FavoritesContext race condition 完全防御)**:
+  全 9 ラウンドの architect レビューで指摘された並行性 race を順次解消:
+  1. **基本ロールバック**: 4xx/5xx で楽観 UI を反対方向トグル再適用、 409 は許容
+  2. **stale ref**: `favoritesRef = useRef<Set<number>>` を `setFavorites` updater 内で**即時同期** (useEffect 経由は同一フレーム連続トグルで stale)
+  3. **stale rollback**: `opSeqRef = useRef<Map<storeId, number>>` で storeId 単位の操作シーケンス、 古い失敗が新意図を巻戻すのを防ぐ
+  4. **cross-user contamination**: `authEpochRef` (userId 変更で +1) + `inFlightControllersRef` (`AbortController` Set) で旧ユーザーの in-flight を全 abort、 catch で epoch 不一致なら破棄
+  5. **sync useEffect 順序**: `authEpochRef` reset useEffect を sync useEffect の**前に宣言** (useEffect は宣言順実行)、 sync 内に epoch capture + 2 段階チェック + AbortController + cleanup return
+  6. **lost-update + delete-revival**: `mutationSeqRef` (toggle で +1、 sync 開始時 capture、 commit 直前に不一致なら commit skip) + `pendingDeletesRef` (削除 tombstone を merged から引く)
+  7. **server-poisoning**: sync の `toAdd` を `favoritesRef.current` ベース + `pendingDeletes` filter、 各 POST 発行直前に最終チェック、 POST 中に delete されたら follow-up DELETE を発行
+  8. **DELETE-clear-race**: follow-up DELETE 条件に `pendingDeletesRef.has(id) || !favoritesRef.current.has(id)` の OR ガード (DELETE in-flight + 完了済みの両方を検知)
+  9. **re-ADD 後の stale DELETE**: follow-up DELETE 発行直前に再度 latest intent をチェックして skip
+- **対象外スコープ** (意図的): AdminDashboard alert (管理者専用)、 巨大ページ分割、 i18n、 デザイン全面リフ
+- **検証**: TypeScript strict check OK / 全画面 screenshot OK / 26 ファイル変更 + 新規 1 (`lib/error-message.ts`)、 +424/-96 行
+
 ### App Store 申請前 最終QA対応 (優先度高+中)
 - **Info.plist**: `ITSAppUsesNonExemptEncryption=false` 追加 → Apple Export Compliance の毎回ダイアログをスキップ (HTTPS 標準暗号のみで独自暗号未使用のため `false` で正)
 - **pbxproj ビルド番号バンプ**: `CURRENT_PROJECT_VERSION = 1 → 101` (Debug/Release 両方)。`MARKETING_VERSION = 1.0` は据え置き (再提出時の標準運用)

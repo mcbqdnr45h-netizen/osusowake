@@ -452,7 +452,7 @@ export default function StoreOnboarding() {
               <div className={`relative w-full aspect-video rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 overflow-hidden transition-all
                 ${imagePreview ? 'border-primary/40' : 'border-red-300 bg-red-50/40 hover:border-primary/40 hover:bg-primary/5'}`}>
                 {imagePreview ? (
-                  <img src={imagePreview} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={imagePreview} alt="" className="absolute inset-0 w-full h-full object-cover" />
                 ) : (
                   <>
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl">📷</div>

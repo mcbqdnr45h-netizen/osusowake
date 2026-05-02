@@ -301,7 +301,7 @@ export default function AdminVerifyShops() {
                       <div className="flex">
                         <div className="w-24 h-24 md:w-32 md:h-32 shrink-0 bg-secondary overflow-hidden">
                           {store.imageUrl ? (
-                            <img src={store.imageUrl} alt={store.name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={store.imageUrl} alt={store.name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <Store className="w-8 h-8 text-muted-foreground/30" />

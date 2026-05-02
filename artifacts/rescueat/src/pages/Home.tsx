@@ -22,6 +22,7 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters, requestGpsManually } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
 import { useAppSettings } from '@/hooks/use-app-settings';
+import { useToast } from '@/hooks/use-toast';
 import { Capacitor } from '@capacitor/core';
 
 // ─── 日次シードシャッフル ─────────────────────────────────────────────────
@@ -269,6 +270,7 @@ export default function Home() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { settings: appSettings } = useAppSettings();
+  const { toast } = useToast();
 
   // ── お知らせバナー ──
   const [announcement, setAnnouncement]         = useState<{ id: number; title: string; body: string } | null>(null);
@@ -326,15 +328,18 @@ export default function Home() {
       const ua = navigator.userAgent;
       const isIosWeb = /iPad|iPhone|iPod/.test(ua) ||
                        (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-      alert(
-        isNative
-          ? '位置情報の使用が許可されていません。\n\n「設定」→「Osusowake」→「位置情報」を「このAppの使用中のみ許可」に設定してください。'
-          : isIosWeb
-          ? '位置情報の使用が許可されていません。\n\n「設定」→「プライバシーとセキュリティ」→「位置情報サービス」→「Safari」を「このAppの使用中のみ許可」に設定してください。'
-          : '位置情報の使用が許可されていません。\nブラウザのアドレスバー左の鍵アイコンから位置情報を許可してください。',
-      );
+      const description = isNative
+        ? '「設定」→「Osusowake」→「位置情報」を「このAppの使用中のみ許可」に変更してください'
+        : isIosWeb
+        ? '「設定」→「プライバシーとセキュリティ」→「位置情報サービス」→「Safari」を「このAppの使用中のみ許可」に変更してください'
+        : 'ブラウザのアドレスバー左の鍵アイコンから位置情報を許可してください';
+      toast({
+        title: '位置情報が許可されていません',
+        description,
+        duration: 8000,
+      });
     }
-  }, [retryGeo]);
+  }, [retryGeo, toast]);
 
   useEffect(() => {
     if (authLoading) return;

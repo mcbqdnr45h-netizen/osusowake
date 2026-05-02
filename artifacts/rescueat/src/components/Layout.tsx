@@ -95,7 +95,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-              <img src={logoUrl} alt="おすそわけ" className="w-8 h-8 rounded-[10px] object-cover shadow-sm transition-transform duration-200 group-hover:scale-105" />
+              <img loading="lazy" decoding="async" src={logoUrl} alt="おすそわけ" className="w-8 h-8 rounded-[10px] object-cover shadow-sm transition-transform duration-200 group-hover:scale-105" />
               <span className="leading-none font-black text-[19px]" style={{ letterSpacing: '-0.04em' }}>
                 <span className="text-foreground">おすそわけ</span>
               </span>
@@ -288,7 +288,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
               {/* Brand column */}
               <div className="col-span-1">
                 <div className="flex items-center gap-2.5 mb-3">
-                  <img src={logoUrl} alt="おすそわけ" className="w-7 h-7 rounded-[8px] object-cover shrink-0" />
+                  <img loading="lazy" decoding="async" src={logoUrl} alt="おすそわけ" className="w-7 h-7 rounded-[8px] object-cover shrink-0" />
                   <span className="font-black text-[17px]" style={{ letterSpacing: '-0.03em' }}>
                     <span className="text-foreground">おすそわけ</span>
                   </span>

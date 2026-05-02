@@ -136,7 +136,7 @@ export default function ResetPassword() {
       >
         {/* ロゴ */}
         <div className="text-center mb-8 flex flex-col items-center gap-2">
-          <img src={logoUrl} alt="おすそわけ" className="w-12 h-12 rounded-[14px] object-cover shadow-sm" />
+          <img loading="lazy" decoding="async" src={logoUrl} alt="おすそわけ" className="w-12 h-12 rounded-[14px] object-cover shadow-sm" />
           <div>
             <p className="text-3xl font-black text-primary tracking-tight">おすそわけ</p>
             <p className="text-xs text-muted-foreground mt-1">食品ロスをなくす、おすそわけマーケット</p>

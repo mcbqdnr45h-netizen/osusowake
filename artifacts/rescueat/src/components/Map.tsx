@@ -5,7 +5,7 @@ import { Store } from '@workspace/api-client-react';
 import { getCategoryIcon } from '@/lib/category-utils';
 import { LocateFixed, AlertTriangle, Layers } from 'lucide-react';
 
-import { loadGoogleMapsScript } from '@/lib/maps-loader';
+import { loadGoogleMapsScript, GM_AUTH_FAILURE_EVENT } from '@/lib/maps-loader';
 import { updateCachedCoords, TAKATSUKI_STATION } from '@/hooks/use-user-location';
 
 // ── バッグ情報（ピン色判定用）────────────────────────────────────────────────
@@ -316,7 +316,28 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const resizeObserverRef       = useRef<ResizeObserver | null>(null);
   const readySafetyTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>(
+    () => (typeof window !== 'undefined' && (window as any).__gmAuthFailed) ? 'error' : 'loading'
+  );
+
+  // ─── Maps API auth failure (RefererNotAllowedMapError 等) を検知 ──────────
+  //   loadGoogleMapsScript() 自体は成功するが、 タイル取得時に 403 が返り
+  //   gm_authFailure コールバックが発火する。 maps-loader が CustomEvent を
+  //   dispatch してくれるので、 ここで listen して error 状態に切り替える。
+  //   ★ authFailedRef は init() 中の tilesloaded / 3秒 safety timer が
+  //     後から setStatus('ready') で上書きしないようガードする。
+  const authFailedRef = useRef<boolean>(
+    typeof window !== 'undefined' && !!(window as any).__gmAuthFailed
+  );
+  useEffect(() => {
+    const onAuthFail = () => {
+      authFailedRef.current = true;
+      setStatus('error');
+    };
+    window.addEventListener(GM_AUTH_FAILURE_EVENT, onAuthFail);
+    return () => window.removeEventListener(GM_AUTH_FAILURE_EVENT, onAuthFail);
+  }, []);
+
   const [locating,        setLocating]       = useState(false);
   const [mapType,         setMapType]        = useState<'roadmap' | 'satellite'>('roadmap');
   const [showMapTypePick, setShowMapTypePick]= useState(false);
@@ -555,10 +576,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const fireReady = () => {
           if (readyFired || cancelled) return;
           readyFired = true;
+          // ★ auth failure 検知後は ready に戻さない (エラー UI を維持)
+          if (authFailedRef.current) return;
           // タイル再フェッチを促してから ready 化 (1フレ後に状態反映)
           try { gMaps.event.trigger(map, 'resize'); } catch { /* noop */ }
           requestAnimationFrame(() => {
-            if (!cancelled) setStatus('ready');
+            if (!cancelled && !authFailedRef.current) setStatus('ready');
           });
         };
         gMaps.event.addListenerOnce(map, 'tilesloaded', fireReady);
@@ -787,8 +810,18 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       {status === 'error' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f2f0eb] gap-3 px-6 text-center">
           <AlertTriangle className="w-10 h-10 text-amber-500" />
-          <p className="text-sm font-bold text-foreground">地図を読み込めませんでした</p>
-          <p className="text-xs text-muted-foreground">Google Maps APIキーを確認してください</p>
+          <p className="text-sm font-bold text-foreground">地図を表示できませんでした</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            電波状況を確認してリトライしてください。<br />
+            ボタンからリスト表示に切り替えることもできます。
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-2 px-5 py-2 rounded-full bg-primary text-white text-xs font-bold active:scale-95 transition-transform"
+          >
+            再読み込み
+          </button>
         </div>
       )}
 

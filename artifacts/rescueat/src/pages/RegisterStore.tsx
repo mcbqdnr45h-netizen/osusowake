@@ -3,6 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useCreateStore, useCreateBag } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
+import { toUserErrorMessage } from '@/lib/error-message';
 import { Store, ChevronLeft, CheckCircle, Camera, RefreshCw, Info } from 'lucide-react';
 import { getDisplayPrice } from '@/lib/price-display';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
@@ -134,8 +135,13 @@ export default function RegisterStore() {
       setCreatedStoreId(store.id);
       setStep('bag');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
-      toast({ title: '登録失敗', description: err.message, variant: 'destructive' });
+    } catch (err) {
+      console.error('[RegisterStore] createStore failed:', err);
+      toast({
+        title: '登録に失敗しました',
+        description: toUserErrorMessage(err, '入力内容をご確認のうえ、再度お試しください'),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -157,8 +163,13 @@ export default function RegisterStore() {
       });
       setStep('done');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
-      toast({ title: '出品失敗', description: err.message, variant: 'destructive' });
+    } catch (err) {
+      console.error('[RegisterStore] createBag failed:', err);
+      toast({
+        title: '出品に失敗しました',
+        description: toUserErrorMessage(err, '入力内容をご確認のうえ、再度お試しください'),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -221,7 +232,7 @@ export default function RegisterStore() {
                 className="relative w-full h-40 bg-secondary/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-secondary/80 transition-colors overflow-hidden"
               >
                 {storeForm.imagePreview ? (
-                  <img src={storeForm.imagePreview} alt="preview" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={storeForm.imagePreview} alt="preview" className="w-full h-full object-cover" />
                 ) : (
                   <>
                     <Camera className="w-8 h-8 text-muted-foreground mb-2" />

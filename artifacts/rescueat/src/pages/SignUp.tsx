@@ -178,7 +178,7 @@ export default function SignUp() {
               >
                 {isStore
                   ? <Store className="w-7 h-7 text-primary" strokeWidth={2.4} />
-                  : <img src={logoUrl} alt="おすそわけ" className="w-full h-full rounded-2xl object-cover" />
+                  : <img loading="lazy" decoding="async" src={logoUrl} alt="おすそわけ" className="w-full h-full rounded-2xl object-cover" />
                 }
               </div>
             </motion.div>

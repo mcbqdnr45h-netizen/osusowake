@@ -726,7 +726,7 @@ export default function StripeKYCPage() {
                 onChange={handleDocFileChange('front')} className="hidden" />
               {docFrontPreview ? (
                 <div className="relative">
-                  <img src={docFrontPreview} alt="表面" className="w-full max-h-48 object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
+                  <img loading="lazy" decoding="async" src={docFrontPreview} alt="表面" className="w-full max-h-48 object-contain rounded-xl border-2 border-gray-200 bg-gray-50" />
                   <button type="button"
                     onClick={() => { setDocFrontFile(null); setDocFrontPreview(null); setDocFrontDone(false); if (frontInputRef.current) frontInputRef.current.value = ''; }}
                     className="absolute top-2 right-2 w-7 h-7 bg-gray-800/60 rounded-full flex items-center justify-center">
@@ -1014,7 +1014,7 @@ export default function StripeKYCPage() {
 
               {docFrontPreview ? (
                 <div className="relative">
-                  <img src={docFrontPreview} alt="表面プレビュー"
+                  <img loading="lazy" decoding="async" src={docFrontPreview} alt="表面プレビュー"
                     className="w-full max-h-48 object-contain rounded-xl border-2 border-green-300 bg-gray-50" />
                   {!docFrontDone && (
                     <button type="button"
@@ -1048,7 +1048,7 @@ export default function StripeKYCPage() {
 
               {docBackPreview ? (
                 <div className="relative">
-                  <img src={docBackPreview} alt="裏面プレビュー"
+                  <img loading="lazy" decoding="async" src={docBackPreview} alt="裏面プレビュー"
                     className="w-full max-h-48 object-contain rounded-xl border-2 border-green-300 bg-gray-50" />
                   {!docBackDone && (
                     <button type="button"

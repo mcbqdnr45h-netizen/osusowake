@@ -1294,7 +1294,7 @@ export default function AdminDashboard() {
                       <div className="p-4">
                         <div className="flex items-start gap-3">
                           {store.image_url ? (
-                            <img src={store.image_url} alt={store.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                            <img loading="lazy" decoding="async" src={store.image_url} alt={store.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                           ) : (
                             <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center shrink-0 text-2xl">🏪</div>
                           )}

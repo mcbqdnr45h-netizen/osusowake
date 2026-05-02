@@ -9,11 +9,33 @@ export const MAPS_API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
 //   公開可: API キーと同様、リファラ制限で保護される client-side 値。
 export const GOOGLE_MAP_ID = (import.meta.env.VITE_GOOGLE_MAP_ID as string) || '';
 
+// ─── Maps auth failure: always notify Map components (env-agnostic) ──────────
+// Google Maps では RefererNotAllowedMapError 等で auth が失敗すると、
+// グローバル `gm_authFailure` を呼び出す。 Web/iOS 共通で:
+//   1. window に `__gmAuthFailed` フラグを立てる (後発 mount 時のために)
+//   2. CustomEvent 'gm-auth-failure' を dispatch (既存の Map にエラー UI 表示)
+// これにより Map.tsx が status='error' に切り替えてリスト表示にフォールバック可能。
+export const GM_AUTH_FAILURE_EVENT = 'gm-auth-failure';
+
+if (typeof window !== 'undefined') {
+  const prev = (window as any).gm_authFailure as undefined | (() => void);
+  (window as any).gm_authFailure = function () {
+    try {
+      (window as any).__gmAuthFailed = true;
+      window.dispatchEvent(new Event(GM_AUTH_FAILURE_EVENT));
+    } catch { /* noop */ }
+    if (prev) try { prev(); } catch { /* noop */ }
+  };
+}
+
 // ─── Capacitor: Suppress Google Maps auth failure dialog (triple approach) ───
 if (import.meta.env.VITE_IS_CAPACITOR === 'true') {
 
-  // 1. gm_authFailure — official Maps API hook; also actively hides any dialog
+  // 1. gm_authFailure — Capacitor 限定: ダイアログを能動的に閉じる
+  //    (auth-failure event は上記で既に dispatch 済み)
+  const prevAuth = (window as any).gm_authFailure as undefined | (() => void);
   (window as any).gm_authFailure = function () {
+    if (prevAuth) try { prevAuth(); } catch { /* noop */ }
     try {
       // Hide all gm-err-* elements
       document.querySelectorAll<HTMLElement>(

@@ -116,7 +116,7 @@ export function ImageUpload({ value, onChange, required }: ImageUploadProps) {
       {value ? (
         /* ── 画像選択済み ── */
         <div className="relative rounded-2xl overflow-hidden border-2 border-primary/30 shadow-sm">
-          <img src={value} alt="商品写真" className="w-full h-48 object-cover" />
+          <img loading="lazy" decoding="async" src={value} alt="商品写真" className="w-full h-48 object-cover" />
 
           {/* 削除ボタン */}
           <button

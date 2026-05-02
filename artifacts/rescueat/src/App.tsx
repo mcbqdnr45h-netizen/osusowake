@@ -297,6 +297,8 @@ function AnimatedRoutes() {
               {/* ── ゲスト専用 ── */}
               <Route path="/login" component={GuardedLogin} />
               <Route path="/signup" component={GuardedSignUp} />
+              {/* /register は /signup の互換エイリアス (古いブックマーク・外部リンク対策) */}
+              <Route path="/register" component={GuardedSignUp} />
               <Route path="/store/login" component={GuardedStoreLogin} />
               <Route path="/store/signup" component={GuardedStoreSignUp} />
 

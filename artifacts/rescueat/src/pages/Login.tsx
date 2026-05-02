@@ -157,7 +157,7 @@ export default function Login() {
               >
                 {isStore
                   ? <Store className="w-7 h-7 md:w-12 md:h-12 text-primary" strokeWidth={2.4} />
-                  : <img src={logoUrl} alt="おすそわけ" className="w-full h-full rounded-2xl md:rounded-3xl object-cover" />
+                  : <img loading="lazy" decoding="async" src={logoUrl} alt="おすそわけ" className="w-full h-full rounded-2xl md:rounded-3xl object-cover" />
                 }
               </div>
             </motion.div>

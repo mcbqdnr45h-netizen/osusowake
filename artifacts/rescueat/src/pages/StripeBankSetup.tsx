@@ -1428,7 +1428,7 @@ export default function StripeBankSetup() {
                   }`}>
                   {docFrontPreview ? (
                     <>
-                      <img src={docFrontPreview} alt="表面プレビュー" className="absolute inset-0 w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={docFrontPreview} alt="表面プレビュー" className="absolute inset-0 w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
                         <Camera className="w-6 h-6 text-white opacity-80" />
                         <span className="text-xs text-white font-medium">タップして変更</span>
@@ -1452,7 +1452,7 @@ export default function StripeBankSetup() {
                   }`}>
                   {docBackPreview ? (
                     <>
-                      <img src={docBackPreview} alt="裏面プレビュー" className="absolute inset-0 w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={docBackPreview} alt="裏面プレビュー" className="absolute inset-0 w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
                         <Camera className="w-6 h-6 text-white opacity-80" />
                         <span className="text-xs text-white font-medium">タップして変更</span>
@@ -1501,7 +1501,7 @@ export default function StripeBankSetup() {
             >
               {bizLicensePreview ? (
                 <>
-                  <img src={bizLicensePreview} alt="営業許可証プレビュー" className="absolute inset-0 w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={bizLicensePreview} alt="営業許可証プレビュー" className="absolute inset-0 w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
                     <Camera className="w-7 h-7 text-white opacity-80" />
                     <span className="text-sm text-white font-bold">タップして変更</span>

@@ -92,7 +92,7 @@ export default function Welcome() {
           className="flex items-center gap-2.5">
           <div className="relative">
             <div aria-hidden className="absolute inset-0 rounded-[12px] bg-amber-200/30 blur-md" />
-            <img src={logoUrl} alt="おすそわけ" className="relative w-9 h-9 rounded-[11px] object-cover ring-1 ring-white/30" />
+            <img loading="lazy" decoding="async" src={logoUrl} alt="おすそわけ" className="relative w-9 h-9 rounded-[11px] object-cover ring-1 ring-white/30" />
           </div>
           <span className="font-black text-[20px] tracking-[-0.03em] leading-none">
             <span className="text-white">おすそわけ</span>

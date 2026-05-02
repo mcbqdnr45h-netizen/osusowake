@@ -16,7 +16,7 @@ function AuthLoadingScreen() {
       <div className="flex flex-col items-center gap-4">
         <div className="relative">
           <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl animate-pulse" />
-          <img src={logoUrl} alt="おすそわけ" className="relative w-16 h-16 rounded-2xl object-cover shadow-lg ring-1 ring-black/5" />
+          <img loading="lazy" decoding="async" src={logoUrl} alt="おすそわけ" className="relative w-16 h-16 rounded-2xl object-cover shadow-lg ring-1 ring-black/5" />
         </div>
         <Loader2 className="w-5 h-5 animate-spin text-primary" />
         <p className="text-xs text-muted-foreground font-medium tracking-wide">読み込み中…</p>
@@ -76,7 +76,7 @@ function GuestPlaceholderScreen() {
         >
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/30 to-orange-300/30 blur-xl" />
           <div className="relative w-14 h-14 md:w-24 md:h-24 rounded-2xl md:rounded-3xl overflow-hidden ring-1 ring-black/5 shadow-lg shadow-primary/10 bg-white">
-            <img src={logoUrl} alt="おすそわけ" className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={logoUrl} alt="おすそわけ" className="w-full h-full object-cover" />
           </div>
         </motion.div>
 

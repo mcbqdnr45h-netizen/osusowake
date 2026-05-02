@@ -10,6 +10,7 @@ import {
   ChevronRight, AlertCircle, Leaf,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { toUserErrorMessage } from '@/lib/error-message';
 import { ReviewModal } from '@/components/ReviewModal';
 import { useUserId } from '@/hooks/use-user';
 import { authedFetch } from '@/lib/authed-fetch';
@@ -313,8 +314,16 @@ export default function OrderTicket() {
       throw new Error('already_used');
     }
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      toast({ title: 'エラーが発生しました', description: err.message, variant: 'destructive' });
+      const errBody = await res.json().catch(() => ({}));
+      console.error('[OrderTicket] confirmPickup failed:', res.status, errBody);
+      toast({
+        title: '受取に失敗しました',
+        description: toUserErrorMessage(
+          { ...errBody, status: res.status },
+          'お店のスタッフにお声がけください',
+        ),
+        variant: 'destructive',
+      });
       throw new Error('failed');
     }
 

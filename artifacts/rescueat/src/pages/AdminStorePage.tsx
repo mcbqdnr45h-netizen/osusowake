@@ -436,7 +436,7 @@ export default function AdminStorePage() {
             {/* 店舗画像 + 基本情報 */}
             <div className="bg-card border border-border/60 rounded-2xl p-4 flex items-start gap-3">
               {store.image_url ? (
-                <img src={store.image_url} alt={store.name}
+                <img loading="lazy" decoding="async" src={store.image_url} alt={store.name}
                   className="w-16 h-16 rounded-xl object-cover shrink-0" />
               ) : (
                 <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center shrink-0 text-3xl">🏪</div>
@@ -609,7 +609,7 @@ export default function AdminStorePage() {
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wide">オーナー確認（本人確認・口座）</p>
                 {store.id_image_url ? (
                   <button onClick={() => setLightboxImg(store.id_image_url!)} className="block w-full">
-                    <img src={store.id_image_url} alt="本人確認書類"
+                    <img loading="lazy" decoding="async" src={store.id_image_url} alt="本人確認書類"
                       className="w-full max-h-36 object-contain rounded-lg border border-border bg-background cursor-zoom-in hover:opacity-90 transition-opacity" />
                   </button>
                 ) : store.stripe_account_id ? (
@@ -629,7 +629,7 @@ export default function AdminStorePage() {
                 </p>
                 {store.license_image_url ? (
                   <button onClick={() => setLightboxImg(store.license_image_url!)} className="block w-full">
-                    <img src={store.license_image_url} alt="営業許可証"
+                    <img loading="lazy" decoding="async" src={store.license_image_url} alt="営業許可証"
                       className="w-full max-h-40 object-contain rounded-lg border border-border bg-background cursor-zoom-in hover:opacity-90 transition-opacity" />
                   </button>
                 ) : store.stripe_payouts_enabled ? (
