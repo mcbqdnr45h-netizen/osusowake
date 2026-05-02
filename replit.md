@@ -173,6 +173,14 @@
 
 ## Recent Updates (2026-05-02)
 
+### UI/UX バグ修正 4件 (通知タップ無反応 / 並び順 / 文言整理)
+ユーザ報告 4件をまとめて修正:
+1. **NotificationsBell `詳細を見る` 押しても反応しない**: announcement / broadcast / default 系通知は `link='/'` か `null` で navigate しても既に Home に居て無反応。 `isExpandable` 判定 (`!link || link==='/'`) を追加してアコーディオン化 — タップで body 全文をその場で展開、 ラベルは「本文を見る」 ⇄ 「閉じる」 + ChevronDown 回転。 navigable な通知は従来通り遷移。
+2. **Home `もうすぐ終わるおすそわけ` の並び順バグ**: sortKey='time_asc' 時に `applySortKey` が pickup_start 文字列比較していたため "00:22" < "23:44" の辞書順で**日跨ぎ商品 (23:44-02:00) が翌日商品 (00:22-03:00) より後ろ**になっていた。 urgent セクションは sortKey 関係なく**常に `remainingMs(pickupEnd)` 昇順で固定** (= 終了が近い順)。 他セクションには影響なし。
+3. **UsageGuide.tsx**: USER_TIPS から `カート予約は10分間有効。時間内に決済を完了してください` を削除 (混乱コピー)。
+4. **HelpPage.tsx**: FAQ から `アプリをスマホのホーム画面に追加するには？` (PWA インストール手順) を削除 (iOS ネイティブ Capacitor ビルドでは無関係)。
+- architect 評価: PASS (regression 無し、 edge case = body=null の通知も安全)。
+
 ### 営業許可証番号の重複ブロックを 3 経路全てに展開 (apply + reapply + bank-setup)
 直前リリースは /stores/apply のみで重複チェックしていたため、 抜け穴 2つを修正:
 1. **bank-setup 経路の盗用**: 架空番号で /apply 通過 → bank-setup で他店舗番号に書き換える経路をブロック。

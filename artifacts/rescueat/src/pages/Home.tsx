@@ -452,7 +452,9 @@ export default function Home() {
 
   // ── ① もうすぐ終わるおすそわけ ──
   //   判定: 受付終了まで「0ms 以上 〜 180 分以内」
-  //   並び: 残り時間が短い順 (昇順) — null/未設定 (= 23:59) は当日終了として正しく拾う
+  //   並び: 「もうすぐ終わる」 セクションは sortKey に関係なく必ず残り時間が短い順で固定。
+  //   (sortKey='time_asc' で applySortKey を使うと pickup_start の文字列比較になり
+  //    "00:22" < "23:44" の辞書順で日跨ぎ商品が後ろに行ってしまう不具合を回避)
   const URGENT_WINDOW_MS = 180 * 60 * 1000;
   const urgentBags = useMemo(() => {
     const filtered = sortedVisibleBags.filter(b => {
@@ -460,11 +462,10 @@ export default function Home() {
       const rem = remainingMs(b.pickupEnd);
       return rem >= 0 && rem <= URGENT_WINDOW_MS;
     });
-    if (sortKey === 'default') {
-      return [...filtered].sort((a, b) => remainingMs(a.pickupEnd) - remainingMs(b.pickupEnd)).slice(0, 8);
-    }
-    return applySortKey(filtered).slice(0, 8);
-  }, [sortedVisibleBags, applySortKey, sortKey, remainingMs]);
+    return [...filtered]
+      .sort((a, b) => remainingMs(a.pickupEnd) - remainingMs(b.pickupEnd))
+      .slice(0, 8);
+  }, [sortedVisibleBags, remainingMs]);
 
   // ── ② 今日のおすすめ ── デフォルト時は日次シードシャッフルで全店舗公平に露出
   const recommendedBags = useMemo(() => {

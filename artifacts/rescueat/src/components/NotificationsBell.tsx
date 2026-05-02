@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, X, CheckCheck, ChevronRight } from 'lucide-react';
+import { Bell, X, CheckCheck, ChevronRight, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { useNotifications, AppNotification } from '@/hooks/use-notifications';
@@ -71,14 +71,21 @@ function NotificationItem({ n, onRead, onClose }: {
   onClose: () => void;
 }) {
   const [, navigate] = useLocation();
+  const [expanded, setExpanded] = useState(false);
   const link = notificationLink(n);
+  // ── 「お知らせ」 系 (announcement / broadcast) や link 無しは画面遷移先が無いので、
+  //    タップで body 全文をその場で展開するアコーディオンに切り替える。
+  //    これで「詳細を見る」 を押しても何も起きない感を防止。
+  const isExpandable = !link || link === '/';
 
   const handleClick = () => {
     if (!n.read) onRead(n.id);
-    if (link) {
-      onClose();
-      navigate(link);
+    if (isExpandable) {
+      setExpanded(v => !v);
+      return;
     }
+    onClose();
+    navigate(link!);
   };
 
   return (
@@ -95,11 +102,20 @@ function NotificationItem({ n, onRead, onClose }: {
             {n.title}
           </p>
           {n.body && (
-            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-3">{stripBagToken(n.body)}</p>
+            <p className={`text-xs text-gray-500 mt-0.5 leading-relaxed whitespace-pre-wrap ${expanded || !isExpandable ? '' : 'line-clamp-3'}`}>
+              {stripBagToken(n.body)}
+            </p>
           )}
           <div className="flex items-center justify-between mt-1">
             <p className="text-[10px] text-gray-400">{timeAgo(n.createdAt)}</p>
-            {link && (
+            {isExpandable ? (
+              n.body && (
+                <span className="text-[10px] text-primary font-bold flex items-center gap-0.5">
+                  {expanded ? '閉じる' : '本文を見る'}
+                  <ChevronDown className={`w-2.5 h-2.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                </span>
+              )
+            ) : (
               <span className="text-[10px] text-primary font-bold flex items-center gap-0.5">
                 {n.type === 'store_rejected' ? '修正して再申請' : n.type === 'store_approved' ? '口座登録へ' : '詳細を見る'}
                 <ChevronRight className="w-2.5 h-2.5" />
