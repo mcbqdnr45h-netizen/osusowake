@@ -490,6 +490,25 @@ export default function SearchPage() {
   const searchRef  = useRef<HTMLInputElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
 
+  // ─── 検索ボックス右アクション (X + 検索) の実寸を計測 ───────────────────────
+  // 旧実装は input の pr を固定値 (pr-[124px]) で確保していたが、
+  // 検索ボタン文言の変更・iOS Dynamic Type・言語切替でボタン幅が変動すると
+  // 入力テキストとボタンが重なるリスクが残る。
+  // ResizeObserver で右アクション群の実 width を計測し、 余白 16px を足して
+  // input.style.paddingRight に反映することで「重なり再発ゼロ」を構造的に保証する。
+  const searchActionsRef = useRef<HTMLDivElement>(null);
+  const [actionsWidth, setActionsWidth] = useState(124); // 初期値はフォールバック
+  useEffect(() => {
+    const el = searchActionsRef.current;
+    if (!el) return;
+    const update = () => setActionsWidth(Math.ceil(el.getBoundingClientRect().width));
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const handleUserPositionChange = useCallback((pos: { lat: number; lng: number } | null) => {
     setUserPos(pos);
   }, []);
@@ -702,14 +721,17 @@ export default function SearchPage() {
             ) : (
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             )}
+            {/* ★ X と検索ボタンは右端の同一 flex コンテナ内に配置 (gap-1.5 で間隔を構造保証)。
+                input.paddingRight は ResizeObserver で計測した実寸 + 16px 余白を動的に反映し、
+                ボタン幅が文言/Dynamic Type/言語切替で変動しても入力テキストと重ならない。 */}
             <input
               ref={searchRef}
               type="search"
               inputMode="search"
-              className="w-full bg-card border border-border text-foreground rounded-xl pl-9 pr-20 py-2.5 text-sm font-medium outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="w-full bg-card border border-border text-foreground rounded-xl pl-9 py-2.5 text-sm font-medium outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
               placeholder="エリア・お店・カテゴリで探す..."
               value={inputValue}
-              style={{ fontSize: '16px' }}
+              style={{ fontSize: '16px', paddingRight: `${actionsWidth + 16}px` }}
               onChange={e => { setInputValue(e.target.value); setShowHistory(true); }}
               onFocus={() => history.length > 0 && setShowHistory(true)}
               onBlur={() => setTimeout(() => setShowHistory(false), 150)}
@@ -717,18 +739,22 @@ export default function SearchPage() {
               onFocusCapture={e => { e.currentTarget.style.boxShadow = '0 0 0 3px rgba(255,140,0,0.15)'; }}
               onBlurCapture={e => { e.currentTarget.style.boxShadow = ''; }}
             />
-            {inputValue && (
-              <button
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => { setInputValue(''); setQuery(''); }}
-                className="absolute right-[66px] top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-muted-foreground/20 flex items-center justify-center tap-scale-sm">
-                <X className="w-3 h-3 text-muted-foreground" />
+            <div ref={searchActionsRef} className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+              {inputValue && (
+                <button
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { setInputValue(''); setQuery(''); }}
+                  aria-label="検索内容を消去"
+                  className="pointer-events-auto w-6 h-6 rounded-full bg-muted-foreground/15 hover:bg-muted-foreground/25 flex items-center justify-center tap-scale-sm transition-colors shrink-0">
+                  <X className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              )}
+              <button onClick={() => executeSearch(inputValue)} disabled={isSearching}
+                aria-label="検索を実行"
+                className="pointer-events-auto flex items-center gap-1 bg-primary text-primary-foreground text-xs font-black px-2.5 py-1.5 rounded-lg tap-scale shadow-sm shadow-primary/20 shrink-0 whitespace-nowrap">
+                {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Search className="w-3.5 h-3.5" /><span>検索</span></>}
               </button>
-            )}
-            <button onClick={() => executeSearch(inputValue)} disabled={isSearching}
-              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-primary text-primary-foreground text-xs font-black px-2.5 py-1.5 rounded-lg tap-scale shadow-sm shadow-primary/20">
-              {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Search className="w-3.5 h-3.5" /><span>検索</span></>}
-            </button>
+            </div>
 
             {/* 検索履歴ドロップダウン (Google Places Autocomplete は廃止: 課金回避のためローカル文字列検索のみに統一) */}
             <AnimatePresence>

@@ -95,63 +95,68 @@ function CompactCardBody({
     : null;
   const distMinutes = distM != null ? Math.round(distM / 67) : 99;
 
-  return (
-    <div className="flex flex-col gap-[3px]">
+  // ── 距離 chip カラーパレット (5/15 分しきい値) ─────────────────────────────
+  const distChipClass = distMinutes <= 5
+    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200/70'
+    : distMinutes <= 15
+    ? 'bg-amber-50 text-amber-700 ring-amber-200/70'
+    : 'bg-sky-50 text-sky-700 ring-sky-200/70';
 
-      {/* ① 店舗名（左）＋ 受取時間（右） — 同一行・絶対に重ならない */}
-      <div className="flex items-center justify-between gap-1 min-w-0">
-        <span className="text-[10px] text-muted-foreground font-medium truncate leading-none">
+  return (
+    <div className="flex flex-col gap-[5px]">
+
+      {/* ① 店舗名（左）＋ 受取時間（右） — 同一行・絶対に重ならない
+          受取時間はオレンジ tabular-nums chip で「次のアクション」を強調 */}
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <span className="text-[10.5px] text-muted-foreground/95 font-bold truncate leading-none tracking-[-0.01em]">
           {bag.store.name}
         </span>
         {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
-          <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground shrink-0">
-            <Clock className="w-2.5 h-2.5 shrink-0" />
-            <span className="leading-none whitespace-nowrap">
+          <div className="flex items-center gap-0.5 text-[10px] text-primary/85 font-black shrink-0 bg-primary/8 px-1.5 py-[3px] rounded-md leading-none">
+            <Clock className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />
+            <span className="whitespace-nowrap tabular-nums">
               {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
             </span>
           </div>
         )}
       </div>
 
-      {/* ② 商品タイトル */}
-      <p className={`font-black text-[14px] leading-snug line-clamp-1
+      {/* ② 商品タイトル — 視覚的な主役。15px black, タイト tracking */}
+      <p className={`font-black text-[15px] leading-[1.15] line-clamp-1 tracking-[-0.018em]
         ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}`}>
         {bag.title}
       </p>
 
-      {/* ③ 距離バッジ（左）＋ 価格（右） */}
+      {/* ③ chip 群（左・1行で並列）＋ 価格（右・大きく） */}
       {!isSoldOut ? (
-        <div className="flex items-end justify-between gap-1 mt-0.5">
-          {/* 左: 残りわずか + 距離バッジ */}
-          <div className="flex flex-col gap-0.5">
+        <div className="flex items-end justify-between gap-1.5 mt-[3px]">
+          {/* 左: 残数 chip + 距離 chip を 1 行で（縦積みではなく並列で密度を上げる）
+              ★ flex-nowrap + min-w-0 + overflow-hidden で 2列 grid の狭幅でも改行させず、
+                溢れた場合は最後の chip がはみ出さない (chip 自体に whitespace-nowrap で内部改行も抑止) */}
+          <div className="flex flex-nowrap items-center gap-1 min-w-0 flex-1 pb-[1px] overflow-hidden">
             {isLowStock && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-500 bg-rose-50
-                px-1.5 py-[2px] rounded-full ring-1 ring-rose-200/70 leading-none w-fit">
-                🔥 残り{bag.stockCount}個
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-600 bg-rose-50
+                px-1.5 py-[3px] rounded-md ring-1 ring-rose-200/70 leading-none whitespace-nowrap">
+                🔥 残り{bag.stockCount}
               </span>
             )}
             {distLabel ? (
-              <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[10px] px-1.5 py-[2px] leading-none w-fit
-                ${distMinutes <= 5
-                  ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70'
-                  : distMinutes <= 15
-                  ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/70'
-                  : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/70'}`}>
-                <Navigation className="w-2.5 h-2.5 shrink-0" />
+              <span className={`inline-flex items-center gap-0.5 rounded-md font-black text-[10px] px-1.5 py-[3px] leading-none whitespace-nowrap ring-1 ${distChipClass}`}>
+                <Navigation className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />
                 {distLabel}
               </span>
             ) : gpsLoading ? (
-              <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
+              <span className="inline-block w-10 h-[16px] rounded-md bg-muted animate-pulse" />
             ) : null}
           </div>
-          {/* 右: 元値 + 販売価格 (税込・サービス手数料込み) */}
+          {/* 右: 元値（取消線・控えめ）＋ 販売価格（特大・tabular-nums で揃え） */}
           <div className="flex flex-col items-end shrink-0">
             {bag.originalPrice > bag.discountedPrice && (
-              <span className="text-[10px] text-muted-foreground/40 line-through font-medium leading-none mb-[1px]">
+              <span className="text-[10px] text-muted-foreground/45 line-through font-semibold leading-none mb-[2px] tabular-nums">
                 ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
               </span>
             )}
-            <span className="text-[18px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+            <span className="text-[20px] font-black text-primary leading-none tracking-[-0.025em] whitespace-nowrap tabular-nums">
               ¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}
             </span>
           </div>
@@ -366,7 +371,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
           : 'cursor-pointer hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(10,8,6,0.14),0_4px_8px_rgba(10,8,6,0.06)]',
       ].join(' ')}
       style={{
-        boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)',
+        boxShadow: '0 4px 14px -3px rgba(10,8,6,0.10), 0 1.5px 4px -1px rgba(10,8,6,0.05), inset 0 1px 0 rgba(255,255,255,0.6)',
       }}
       onClick={(e) => isSoldOut && e.preventDefault()}
       onPointerDown={handlePrefetch}
@@ -409,9 +414,15 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
         {compact ? (
           /* ─── compact モード: HorizBagCard と同じシンプルオーバーレイ ─── */
           <>
-            {/* 左上: 割引バッジ */}
+            {/* 左上: 割引バッジ — 高割引(20%+)はグラデ + Sparkles で訴求力UP
+                whitespace-nowrap で 79%/100% など 2-3 桁数字でも折返し発生ゼロを保証 */}
             {!isSoldOut && discountPercent > 0 && (
-              <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-[3px] rounded-lg shadow-sm">
+              <span className={`absolute top-2 left-2 inline-flex items-center gap-0.5 text-white text-[10px] font-black px-2 py-[4px] rounded-lg whitespace-nowrap
+                ${discountPercent >= 20
+                  ? 'bg-gradient-to-br from-[#FF8A3D] to-[#E8520C] shadow-[0_2px_8px_rgba(232,82,12,0.40)]'
+                  : 'bg-primary shadow-[0_2px_6px_rgba(255,140,0,0.30)]'
+                }`}>
+                {discountPercent >= 20 && <Sparkles className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />}
                 {discountPercent}% OFF
               </span>
             )}
@@ -489,7 +500,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
               ) : (
                 <>
                   {discountPercent > 0 && (
-                    <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
+                    <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1 whitespace-nowrap
                       ${discountPercent >= 20
                         ? 'bg-gradient-to-r from-[#F07826] to-[#E85A0C] shadow-[0_2px_10px_rgba(240,120,38,0.45)]'
                         : 'bg-primary shadow-[0_2px_8px_rgba(255,140,0,0.30)]'
