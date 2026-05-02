@@ -320,6 +320,42 @@ async function runMigrations() {
     `);
     console.log('[migration] app_settings table ✅');
 
+    // ── users.ranking_opt_out: オプトイン制ランキング (デフォルト非掲載) ──────
+    // 仕様変更 2026-05: ニックネーム強制を廃止 → ランキングは完全オプトイン化。
+    // 1) カラム保証 (既に存在する想定だが冪等に IF NOT EXISTS)
+    // 2) DEFAULT を true に変更 (新規ユーザーは非掲載スタート)
+    // 3) 一回限りリセット (app_settings フラグで管理): 既存ユーザー全員を非掲載に戻す
+    try {
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema='public' AND table_name='users' AND column_name='ranking_opt_out'
+          ) THEN
+            ALTER TABLE public.users ADD COLUMN ranking_opt_out BOOLEAN NOT NULL DEFAULT true;
+          END IF;
+        END $$;
+      `);
+      await client.query(`
+        ALTER TABLE public.users ALTER COLUMN ranking_opt_out SET DEFAULT true;
+      `);
+      // 一回限りリセット (オプトイン制への移行) — 同じキーが既に入っていれば skip
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM public.app_settings WHERE key = 'ranking_opt_in_reset_2026_05'
+          ) THEN
+            UPDATE public.users SET ranking_opt_out = true WHERE ranking_opt_out IS NOT TRUE;
+            INSERT INTO public.app_settings (key, value)
+              VALUES ('ranking_opt_in_reset_2026_05', 'done');
+          END IF;
+        END $$;
+      `);
+      console.log('[migration] users.ranking_opt_out (opt-in scheme) ✅');
+    } catch (e: any) {
+      console.warn('[migration] users.ranking_opt_out skipped:', e.message?.split('\n')[0]);
+    }
+
     // ── ヒール: KYC完了済み(stripe_charges_enabled=true)なのに applied のまま残っている店舗を自動承認 ──
     // auto_approve_stripe_verified が ON の場合に限り実行（冪等・何度実行しても安全）
     try {

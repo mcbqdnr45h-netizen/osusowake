@@ -27,6 +27,31 @@ router.patch("/user/ranking-preference", requireAuth, async (req, res) => {
       });
     }
 
+    // ★ オプトイン (rankingOptOut=false) する時は display_name (ニックネーム) 必須。
+    //   未設定のまま参加すると "ゲスト" としてランキングに表示されてしまうので、
+    //   ニックネーム未設定なら 400 を返してフロント側でモーダル誘導させる。
+    if (body.rankingOptOut === false) {
+      const { data: u, error: ue } = await supabaseAdmin
+        .from("users")
+        .select("display_name")
+        .eq("id", meId)
+        .maybeSingle();
+      if (ue) {
+        console.error("[PATCH /user/ranking-preference] users lookup error:", ue.message);
+        return res.status(500).json({
+          error: "internal_error",
+          message: "設定の保存に失敗しました",
+        });
+      }
+      const dn = (u as { display_name?: string | null } | null)?.display_name;
+      if (!dn || dn.trim().length === 0) {
+        return res.status(400).json({
+          error: "display_name_required",
+          message: "ランキング参加にはニックネーム (表示名) の設定が必要です",
+        });
+      }
+    }
+
     const { error } = await supabaseAdmin
       .from("users")
       .update({ ranking_opt_out: body.rankingOptOut })
