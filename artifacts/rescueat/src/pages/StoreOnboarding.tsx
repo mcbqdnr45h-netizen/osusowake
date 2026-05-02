@@ -8,7 +8,7 @@ import { authedFetch } from '@/lib/authed-fetch';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
-  ShieldCheck,
+  ShieldCheck, Camera, MapPinned, X as XIcon,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -47,10 +47,51 @@ async function compressImage(file: File, maxPx = 1200, quality = 0.80): Promise<
 const ONBOARDING_DRAFT_KEY = 'store-onboarding-draft-v2';
 type OnboardingDraft = {
   name: string; address: string; city: string; category: string;
-  phone: string; imageUrl: string;
+  phone: string; imageUrl: string; iconUrl: string;
   pledgeSigned: boolean;
   pinLat: number | null; pinLng: number | null;
 };
+
+// ── 店舗アイコン用 (地図ピンに表示) ────────────────────────────────────
+//   StoreProfileEdit と同じロジックを onboarding にも持ち込む。
+//   ・正方形 256x256 JPEG にリサイズしてからアップロード
+//   ・地図側の 5MB fetch 制限と Supabase 容量を抑える
+async function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.85): Promise<Blob> {
+  if (typeof canvas.toBlob === 'function') {
+    const blob = await new Promise<Blob | null>((resolve) => {
+      try { canvas.toBlob(resolve, 'image/jpeg', quality); } catch { resolve(null); }
+    });
+    if (blob) return blob;
+  }
+  const dataUrl = canvas.toDataURL('image/jpeg', quality);
+  const r = await fetch(dataUrl);
+  return await r.blob();
+}
+
+async function resizeIconToSquare(file: File, size = 256): Promise<Blob> {
+  const dataUrl: string = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(typeof r.result === 'string' ? r.result : '');
+    r.onerror = () => reject(new Error('読み込み失敗'));
+    r.readAsDataURL(file);
+  });
+  const img: HTMLImageElement = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error('画像のデコードに失敗しました'));
+    im.src = dataUrl;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('canvas未対応');
+  const srcSize = Math.min(img.width, img.height);
+  const sx = (img.width - srcSize) / 2;
+  const sy = (img.height - srcSize) / 2;
+  ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
+  return await canvasToJpegBlob(canvas, 0.85);
+}
 function saveOnboardingDraft(d: Partial<OnboardingDraft>) {
   try { localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(d)); } catch (_) {}
 }
@@ -108,6 +149,8 @@ export default function StoreOnboarding() {
     obDraft.pinLat != null && obDraft.pinLng != null ? { lat: obDraft.pinLat, lng: obDraft.pinLng } : null
   );
   const [imagePreview, setImagePreview] = useState<string>(obDraft.imageUrl ?? '');
+  const [iconPreview, setIconPreview] = useState<string>(obDraft.iconUrl ?? '');
+  const [iconUploading, setIconUploading] = useState(false);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   const [form, setForm] = useState({
@@ -117,10 +160,12 @@ export default function StoreOnboarding() {
     category:      obDraft.category ?? '',
     phone:         obDraft.phone    ?? '',
     imageUrl:      obDraft.imageUrl ?? '',
+    iconUrl:       obDraft.iconUrl  ?? '',
   });
 
   // ★ ファイル input の ref (同じファイル再選択時に value をリセットするため)
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const iconFileRef  = useRef<HTMLInputElement>(null);
 
   // ★ 初回ロード後は2度とスピナー画面に戻らない (form アンマウント = 入力消失を防ぐ)
   const hasInitializedRef = useRef(false);
@@ -148,19 +193,21 @@ export default function StoreOnboarding() {
         category: form.category,
         phone: form.phone,
         imageUrl: form.imageUrl,
+        iconUrl: form.iconUrl,
         pledgeSigned,
         pinLat: pinPos?.lat ?? null,
         pinLng: pinPos?.lng ?? null,
       });
     }, 600);
     return () => clearTimeout(t);
-  }, [form.name, form.address, form.city, form.category, form.phone, form.imageUrl, pledgeSigned, pinPos]);
+  }, [form.name, form.address, form.city, form.category, form.phone, form.imageUrl, form.iconUrl, pledgeSigned, pinPos]);
 
   // 警告が表示中のとき、フィールドが埋まったら警告をリアルタイム更新
   useEffect(() => {
     if (validationWarnings.length === 0) return;
     const updated: string[] = [];
     if (!form.imageUrl)                         updated.push('店舗写真が未入力です。');
+    if (!form.iconUrl)                          updated.push('店舗アイコン（地図ピン用）が未入力です。');
     if (!form.name.trim())                      updated.push('店名が未入力です。');
     if (!form.address.trim())                   updated.push('住所が未入力です。');
     if (!form.city.trim())                      updated.push('市区町村が未入力です。');
@@ -169,7 +216,7 @@ export default function StoreOnboarding() {
     if (!pledgeSigned)                          updated.push('利用規約への同意が未完了です。');
     setValidationWarnings(updated);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.imageUrl, form.name, form.address, form.city, form.phone, form.category, pledgeSigned]);
+  }, [form.imageUrl, form.iconUrl, form.name, form.address, form.city, form.phone, form.category, pledgeSigned]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({

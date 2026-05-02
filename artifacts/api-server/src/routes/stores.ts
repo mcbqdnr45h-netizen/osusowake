@@ -377,6 +377,7 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
       lat: body.lat != null ? Number(body.lat) : 35.6895,
       lng: body.lng != null ? Number(body.lng) : 139.6917,
       imageUrl: body.imageUrl ?? null,
+      iconUrl: body.iconUrl ?? null,
       phone: body.phone ?? null,
       isActive: false,
       status: initialStatus,
