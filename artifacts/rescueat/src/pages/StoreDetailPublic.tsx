@@ -44,7 +44,7 @@ export default function StoreDetailPublic() {
     } }
   );
 
-  const bags = (allBags ?? []).filter((b: any) => b.storeId === storeId && b.stock > 0);
+  const bags = (allBags ?? []).filter((b: any) => b.storeId === storeId && b.stockCount > 0);
 
   // Google Maps ルート案内リンク
   const mapsUrl = store
@@ -227,7 +227,7 @@ export default function StoreDetailPublic() {
                                   ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
                                 </span>
                               )}
-                              <span className="text-xs text-muted-foreground">残り {bag.stock}個</span>
+                              <span className="text-xs text-muted-foreground">残り {bag.stockCount}個</span>
                             </div>
                           </div>
                           <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
