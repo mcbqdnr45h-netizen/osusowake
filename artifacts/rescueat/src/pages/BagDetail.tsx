@@ -506,12 +506,6 @@ export default function BagDetail() {
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.18) 100%)' }} />
 
             <div className="absolute bottom-7 left-6 right-6">
-              <div className="flex items-center gap-2 mb-3.5 flex-wrap">
-                <span className="bg-white/18 backdrop-blur-xl text-white px-3.5 py-1.5 rounded-full text-[11px] font-bold border border-white/25 flex items-center gap-1.5 tracking-wide shadow-lg shadow-black/20">
-                  <span className="text-sm leading-none">{getCategoryIcon(bag.store.category)}</span>
-                  <span className="truncate max-w-[180px]">{bag.store.name}</span>
-                </span>
-              </div>
               <h1 className="text-[28px] md:text-4xl font-black text-white leading-[1.15] tracking-tight" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.45)' }}>
                 {bag.title}
               </h1>
