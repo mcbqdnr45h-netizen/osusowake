@@ -17,7 +17,7 @@ import { NotificationsBell } from '@/components/NotificationsBell';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
+import { getCategoryIcon, getCategoryImage, normalizeCategory } from '@/lib/category-utils';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters, requestGpsManually } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
@@ -385,7 +385,7 @@ export default function Home() {
         b.store.city?.toLowerCase().includes(q)
       );
     }
-    if (activeCategory !== 'all') result = result.filter(b => b.category === activeCategory);
+    if (activeCategory !== 'all') result = result.filter(b => normalizeCategory(b.category) === activeCategory);
     return applySortKey(result);
   }, [visibleBags, searchQuery, activeCategory, applySortKey]);
 
@@ -447,17 +447,17 @@ export default function Home() {
   // ── ⑤⑥⑦ カテゴリー別 ──
   // sortKey が 'default' (おすすめ順) のときは日次シードでシャッフル、それ以外は applySortKey の順を尊重
   const mealsBags = useMemo(() => {
-    const filtered = sortedVisibleBags.filter(b => b.category === 'meals');
+    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'meals');
     if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 1).slice(0, 10);
     return filtered.slice(0, 10);
   }, [sortedVisibleBags, sortKey, dailySeed]);
   const bakeryBags = useMemo(() => {
-    const filtered = sortedVisibleBags.filter(b => b.category === 'bakery_sweets');
+    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'bakery_sweets');
     if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 2).slice(0, 10);
     return filtered.slice(0, 10);
   }, [sortedVisibleBags, sortKey, dailySeed]);
   const ingredientBags = useMemo(() => {
-    const filtered = sortedVisibleBags.filter(b => b.category === 'ingredients');
+    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'ingredients');
     if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 3).slice(0, 10);
     return filtered.slice(0, 10);
   }, [sortedVisibleBags, sortKey, dailySeed]);

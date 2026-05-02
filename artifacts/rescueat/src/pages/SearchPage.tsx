@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
-import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
+import { getCategoryIcon, getCategoryImage, normalizeCategory } from '@/lib/category-utils';
 import { useUserLocation, updateCachedCoords, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 
@@ -609,8 +609,8 @@ export default function SearchPage() {
       );
     }
 
-    // カテゴリー
-    if (category) result = result.filter(b => b.category === category);
+    // カテゴリー (旧カテゴリ値も含めて normalize して比較)
+    if (category) result = result.filter(b => normalizeCategory(b.category) === category);
 
     // 在庫あり
     if (inStockOnly) result = result.filter(b => b.stockCount > 0);

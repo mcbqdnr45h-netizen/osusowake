@@ -1,3 +1,33 @@
+// 旧カテゴリ値も含めて 3 グループ ('meals' / 'bakery_sweets' / 'ingredients') + 'assorted' に正規化
+// フィルタ判定 (Home / SearchPage) で必ず使うこと。 厳密一致で b.category === 'bakery_sweets' と
+// 比較すると、DB に残っている旧値 (bakery, cafe, sweets, supermarket, produce, drinks 等) が
+// 全て漏れてしまう。
+export function normalizeCategory(category: string | null | undefined): string {
+  switch (category) {
+    case 'meals':
+    case 'restaurant':
+    case 'convenience':
+    case 'meat':
+    case 'noodles':
+    case 'other':
+      return 'meals';
+    case 'bakery_sweets':
+    case 'bakery':
+    case 'cafe':
+    case 'sweets':
+      return 'bakery_sweets';
+    case 'ingredients':
+    case 'supermarket':
+    case 'produce':
+    case 'drinks':
+      return 'ingredients';
+    case 'assorted':
+      return 'assorted';
+    default:
+      return 'meals';
+  }
+}
+
 export function getCategoryIcon(category: string): string {
   switch (category) {
     case 'meals':          return '🍱';
