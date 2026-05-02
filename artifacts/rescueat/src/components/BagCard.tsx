@@ -121,11 +121,12 @@ function CompactCardBody({
         {bag.store.name}
       </p>
 
-      {/* ② 商品タイトル ＋ 大価格 (同じ行で対比、 タイトル flex-1 truncate / 価格 shrink-0 右寄せ)
-          価格は「取消線 (上に小さく) ＋ 大価格 (下に大きく)」 を縦並びの右寄せ列で表示 */}
+      {/* ② 商品タイトル ＋ 大価格 (同じ行で対比、 タイトル flex-1 / 価格 shrink-0 右寄せ)
+          ★ ユーザ報告: line-clamp-1 で「ぱ...」 と truncate されていた → line-clamp-2 へ拡張
+          ★ 2 行まで折返し可能、 価格は items-end で底揃え */}
       {!isSoldOut ? (
         <div className="flex items-end justify-between gap-2.5 min-w-0">
-          <p className="font-black text-[15px] leading-[1.15] line-clamp-1 tracking-[-0.018em] text-foreground flex-1 min-w-0">
+          <p className="font-black text-[14.5px] leading-[1.18] line-clamp-2 tracking-[-0.018em] text-foreground flex-1 min-w-0 break-all">
             {bag.title}
           </p>
           <div className="flex flex-col items-end shrink-0">
@@ -140,7 +141,7 @@ function CompactCardBody({
           </div>
         </div>
       ) : (
-        <p className="font-black text-[15px] leading-[1.15] line-clamp-1 tracking-[-0.018em] text-muted-foreground">
+        <p className="font-black text-[14.5px] leading-[1.18] line-clamp-2 tracking-[-0.018em] text-muted-foreground break-all">
           {bag.title}
         </p>
       )}
