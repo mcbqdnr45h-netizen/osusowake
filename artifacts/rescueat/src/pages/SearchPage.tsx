@@ -425,46 +425,11 @@ function ZeroResultsState({ query, category, onClear, recommendBags }: {
 }
 
 
-// ─── Google Places Autocomplete フック ────────────────────────────────────────
-interface PlacesPrediction {
-  placeId: string;
-  mainText: string;
-  secondaryText: string;
-}
-
-function usePlacesAutocomplete(input: string): PlacesPrediction[] {
-  const [predictions, setPredictions] = useState<PlacesPrediction[]>([]);
-  const svcRef = useRef<any>(null);
-
-  useEffect(() => {
-    const q = input.trim();
-    if (q.length < 2) { setPredictions([]); return; }
-    const timer = setTimeout(() => {
-      const gMaps = (window as any).google?.maps;
-      if (!gMaps?.places) return;
-      if (!svcRef.current) svcRef.current = new gMaps.places.AutocompleteService();
-      svcRef.current.getPlacePredictions(
-        { input: q, componentRestrictions: { country: 'jp' }, types: ['geocode', 'establishment'] },
-        (results: any[], status: string) => {
-          if (status === gMaps.places.PlacesServiceStatus.OK && results) {
-            setPredictions(results.slice(0, 6).map((r: any) => ({
-              placeId: r.place_id,
-              mainText: r.structured_formatting?.main_text ?? r.description,
-              secondaryText: r.structured_formatting?.secondary_text ?? '',
-            })));
-          } else {
-            setPredictions([]);
-          }
-        }
-      );
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [input]);
-
-  return predictions;
-}
-
 // ─── メインページ ─────────────────────────────────────────────────────────────
+// ★ 2026-05-02: Google Places Autocomplete + Geocoding API を完全廃止。
+//   理由: 課金枠 (月 $200) を消費するうえ、 リファラ流出時の不正利用リスクあり。
+//   代替: stores テーブル内 DB ローカル検索 (title / store.name / store.city / store.category) で
+//   タイトル・店名・市区町村・カテゴリの部分一致を提供。 Google API 呼び出しゼロ。
 export default function SearchPage() {
   // キャッシュ済み現在地（GPSボタン押下済みなら即座に利用可能）
   const { coords: cachedCoords } = useUserLocation();
@@ -523,9 +488,6 @@ export default function SearchPage() {
 
   const searchRef  = useRef<HTMLInputElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
-
-  const predictions = usePlacesAutocomplete(inputValue);
-  const showPredictions = predictions.length > 0 && inputValue.trim().length >= 2;
 
   const handleUserPositionChange = useCallback((pos: { lat: number; lng: number } | null) => {
     setUserPos(pos);
