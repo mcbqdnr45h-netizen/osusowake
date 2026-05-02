@@ -4,13 +4,15 @@ import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation, getListAllBagsQueryKey, getGetBagQueryKey } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
-import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store } from 'lucide-react';
+import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, HelpCircle, Sparkles, TrendingDown } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authed-fetch';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
+import { FeeInfoSheet } from '@/components/FeeInfoSheet';
+import { getStockUrgency } from '@/lib/stock-urgency';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
@@ -254,6 +256,7 @@ export default function BagDetail() {
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showLoginNudge, setShowLoginNudge] = useState(false);
   const [loginNudgeReason, setLoginNudgeReason] = useState<'favorite' | 'purchase'>('purchase');
+  const [showFeeSheet, setShowFeeSheet] = useState(false);
 
   function requireLogin(reason: 'favorite' | 'purchase') {
     setLoginNudgeReason(reason);
@@ -439,6 +442,11 @@ export default function BagDetail() {
       onClose={() => setShowLoginNudge(false)}
       reason={loginNudgeReason}
     />
+    <FeeInfoSheet
+      isOpen={showFeeSheet}
+      onClose={() => setShowFeeSheet(false)}
+      basePrice={bag?.discountedPrice ?? 0}
+    />
     <Layout showBottomNav={false}>
       <AnimatePresence>
         {showReport && userId && (
@@ -583,40 +591,50 @@ export default function BagDetail() {
                 )}
               </div>
 
-              {/* お得額の強調 (delight 要素) */}
-              {bag.originalPrice > bag.discountedPrice && (
-                <div className="mt-3 inline-flex items-center gap-1.5 text-[#5C3A1F] dark:text-[#C4956A]/90 text-[11px] font-bold">
-                  <span className="inline-block w-1 h-1 rounded-full bg-[#B5390B]" />
-                  <span className="tabular-nums">¥{(bag.originalPrice - bag.discountedPrice).toLocaleString()} お得</span>
-                </div>
-              )}
-
-              {/* システム利用料 5% 注記（決済時に加算される旨を明示）*/}
-              <p className="mt-2 text-[11px] text-muted-foreground/80 leading-relaxed">
-                ※ 決済時に <span className="font-bold text-foreground">システム利用料 5%</span> が加算されます（10円単位で四捨五入）
-              </p>
+              {/* お得額バッジ (緑グラデ・中サイズ・delight) + 手数料ⓘボタン */}
+              <div className="mt-3.5 flex items-center gap-2 flex-wrap">
+                {bag.originalPrice > bag.discountedPrice && (
+                  <motion.span
+                    initial={{ scale: 0.92, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 22, delay: 0.05 }}
+                    className="inline-flex items-center gap-1.5 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/30 text-[#0F5132] dark:text-emerald-300 font-black text-[13px] px-3 py-1.5 rounded-full border border-emerald-200/80 dark:border-emerald-900/50 shadow-sm shadow-emerald-500/10"
+                  >
+                    <TrendingDown className="w-3.5 h-3.5" strokeWidth={2.8} />
+                    <span className="tabular-nums" style={{ fontFeatureSettings: '"tnum"' }}>
+                      ¥{(bag.originalPrice - bag.discountedPrice).toLocaleString()} お得
+                    </span>
+                  </motion.span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowFeeSheet(true)}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground/80 hover:text-foreground bg-muted/40 hover:bg-muted/70 px-2.5 py-1.5 rounded-full border border-border/50 hover:border-border transition-all active:scale-95"
+                  aria-label="システム利用料について"
+                >
+                  <HelpCircle className="w-3 h-3" strokeWidth={2.5} />
+                  <span>+ 手数料 5%</span>
+                </button>
+              </div>
 
               {/* ステータスバー (洗練されたピル) */}
               <div className="flex items-center gap-2 mt-4 flex-wrap">
-                {isSoldOut ? (
-                  <span className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground font-bold text-[12px] px-3.5 py-2 rounded-full">
-                    完売しました
-                  </span>
-                ) : (
-                  <span className={`inline-flex items-center gap-1.5 font-bold text-[12px] px-3.5 py-2 rounded-full border ${
-                    bag.stockCount <= 2
-                      ? 'bg-gradient-to-br from-rose-50 to-rose-100/70 text-[#7B1F2A] border-rose-200 dark:from-red-950/50 dark:to-red-900/30 dark:text-red-300 dark:border-red-900/50'
-                      : bag.stockCount <= 5
-                      ? 'bg-gradient-to-br from-amber-50 to-orange-100/70 text-[#7C4A1E] border-amber-200 dark:from-orange-950/50 dark:to-amber-900/30 dark:text-orange-300 dark:border-amber-900/50'
-                      : 'bg-gradient-to-br from-emerald-50 to-green-100/70 text-[#3D5A47] border-emerald-200 dark:from-emerald-950/50 dark:to-green-900/30 dark:text-emerald-400 dark:border-emerald-900/50'
-                  }`}>
-                    <span className="relative flex w-2 h-2 shrink-0">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-current opacity-50 animate-ping" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-current" />
+                {(() => {
+                  const urgency = getStockUrgency(bag.stockCount);
+                  return (
+                    <span className={`inline-flex items-center gap-1.5 font-bold text-[12px] px-3.5 py-2 rounded-full border ${urgency.pillClass}`}>
+                      {urgency.level !== 'sold-out' && urgency.pulse ? (
+                        <span className="relative flex w-2 h-2 shrink-0">
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-current opacity-50 animate-ping" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-current" />
+                        </span>
+                      ) : (
+                        <span className="inline-flex w-2 h-2 rounded-full bg-current shrink-0" />
+                      )}
+                      {urgency.label}
                     </span>
-                    残り{bag.stockCount}個
-                  </span>
-                )}
+                  );
+                })()}
                 {bag.pickupStart && (
                   <span className="inline-flex items-center gap-1.5 bg-gradient-to-br from-stone-50 to-stone-100/70 text-[#3D5A47] dark:from-stone-900/50 dark:to-stone-800/30 dark:text-emerald-400 font-bold text-[12px] px-3.5 py-2 rounded-full border border-stone-200 dark:border-stone-800/50">
                     <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
@@ -1002,12 +1020,39 @@ export default function BagDetail() {
                 )}
               </button>
             </div>
-            {!isUnavailable && (
-              <div className="flex items-center justify-center gap-1.5 mt-2.5 mb-1 text-[11px] text-muted-foreground md:hidden font-bold">
-                <span className="inline-block w-1 h-1 rounded-full bg-[#B5390B] animate-pulse" />
-                残りわずか<span className="tabular-nums text-[#B5390B]">{bag.stockCount}個</span>！お早めに
-              </div>
-            )}
+            {!isUnavailable && (() => {
+              const urgency = getStockUrgency(bag.stockCount);
+              if (urgency.level === 'critical') {
+                return (
+                  <div className="flex items-center justify-center gap-1.5 mt-2.5 mb-1 text-[11px] md:hidden font-bold">
+                    <span className={`inline-block w-1 h-1 rounded-full ${urgency.dotClass} animate-pulse`} />
+                    <span className="text-muted-foreground">残りわずか</span>
+                    <span className={`tabular-nums ${urgency.toneClass}`} style={{ fontFeatureSettings: '"tnum"' }}>
+                      {bag.stockCount}個
+                    </span>
+                    <span className="text-muted-foreground">！お早めに</span>
+                  </div>
+                );
+              }
+              if (urgency.level === 'low') {
+                return (
+                  <div className="flex items-center justify-center gap-1.5 mt-2.5 mb-1 text-[11px] md:hidden font-bold">
+                    <span className={`inline-block w-1 h-1 rounded-full ${urgency.dotClass}`} />
+                    <span className="text-muted-foreground">あと</span>
+                    <span className={`tabular-nums ${urgency.toneClass}`} style={{ fontFeatureSettings: '"tnum"' }}>
+                      {bag.stockCount}個
+                    </span>
+                    <span className="text-muted-foreground">で完売</span>
+                  </div>
+                );
+              }
+              return (
+                <div className="flex items-center justify-center gap-1.5 mt-2.5 mb-1 text-[11px] text-muted-foreground/70 md:hidden font-bold">
+                  <span className={`inline-block w-1 h-1 rounded-full ${urgency.dotClass}`} />
+                  <span>在庫あり</span>
+                </div>
+              );
+            })()}
             {isExpired && (
               <div className="text-center mt-2.5 mb-1 text-[11px] text-muted-foreground md:hidden flex items-center justify-center gap-1 font-bold">
                 <Clock className="w-3 h-3" />
