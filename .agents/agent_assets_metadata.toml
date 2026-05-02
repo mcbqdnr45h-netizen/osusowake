@@ -102,6 +102,132 @@ uri = "file://attached_assets/generated_images/logo_elite_5.png"
 type = "image"
 title = "elite ribbon hands logo"
 
+[[generated]]
+id = "pzig2LdtcrV6UDgtyfeXg"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-c/logo.png"
+type = "image"
+title = "App logo with vivid orange"
+
+[[generated]]
+id = "KfFjs2SWM4j3lzkseKy2j"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-c/food_bakery.png"
+type = "image"
+title = "Appetizing bakery products"
+
+[[generated]]
+id = "UQGmNgfqvprHa3WHMfFIf"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-c/food_bento.png"
+type = "image"
+title = "Delicious Japanese bento box"
+
+[[generated]]
+id = "2D3mF07IXG8qhelz9v6XP"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-c/food_sushi.png"
+type = "image"
+title = "Fresh sushi platter"
+
+[[generated]]
+id = "HGoM60g5s5iX0bGskzBDU"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-c/food_italian.png"
+type = "image"
+title = "Italian pasta and pizza"
+
+[[generated]]
+id = "nLi_2Otd-uBVYFaT4cefe"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-c/food_ingredients.png"
+type = "image"
+title = "Fresh vegetables ingredients"
+
+[[generated]]
+id = "q-wryBVUzry5xwFFnYrsQ"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-c/food_cake.png"
+type = "image"
+title = "Beautiful cake and sweets"
+
+[[generated]]
+id = "k4qX6xJLbuwXUb_v2g9um"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-c/welcome_bg.png"
+type = "image"
+title = "Welcome screen hero background"
+
+[[generated]]
+id = "FPWYYV2iAE0zrEuVcUPgW"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-a/bag1.png"
+type = "image"
+title = "Appetizing Japanese bento box"
+
+[[generated]]
+id = "sBn6lI9TZpOYaD_jVdHhp"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-a/bag2.png"
+type = "image"
+title = "Artisan bakery bread"
+
+[[generated]]
+id = "r0YzDTW_L8ASDACvNJo1l"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-a/bag3.png"
+type = "image"
+title = "Elegant cafe sweets"
+
+[[generated]]
+id = "OkNEhYVP9rQqN0UnbDDac"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-a/bag4.png"
+type = "image"
+title = "Fresh local vegetables"
+
+[[generated]]
+id = "NZ086JsyZtJvDiPxYjlLg"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-a/bag5.png"
+type = "image"
+title = "Rustic Italian pasta dish"
+
+[[generated]]
+id = "WRvlGYHDlFrGlH6piPs2I"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-a/bag6.png"
+type = "image"
+title = "Cafe sandwiches and coffee"
+
+[[generated]]
+id = "qeUHyFGPw6SWK6994wlR-"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-a/welcome-bg.png"
+type = "image"
+title = "Editorial style food texture"
+
+[[generated]]
+id = "z6ON3acLOaB8Jo-WGlkYt"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-b/meal_1.png"
+type = "image"
+title = "Japanese bento on wood"
+
+[[generated]]
+id = "UHdGdQLhHK5aIs-PaBp3n"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-b/meal_2.png"
+type = "image"
+title = "Japanese deli in craft box"
+
+[[generated]]
+id = "td0_kygVkYlyDpype2xPh"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-b/bakery_1.png"
+type = "image"
+title = "Artisan croissants"
+
+[[generated]]
+id = "Jk26kWAHxhHtzg9KFiFFS"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-b/bakery_2.png"
+type = "image"
+title = "Matcha sweets"
+
+[[generated]]
+id = "6ZxIImNDKMYvGp_0Z4CaT"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-b/ingredient_1.png"
+type = "image"
+title = "Fresh vegetables"
+
+[[generated]]
+id = "B9d5ubwBFfxxgagrVib6G"
+uri = "file://artifacts/mockup-sandbox/public/images/refine-b/hero_bg.png"
+type = "image"
+title = "Warm paper background"
+
 [[outputs]]
 id = "XN11RfSgppjHcJSklu5R2"
 uri = "file://attached_assets/generated_images/logo_1_bag.png"

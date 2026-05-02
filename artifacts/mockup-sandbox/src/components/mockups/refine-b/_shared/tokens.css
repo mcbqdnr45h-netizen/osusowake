@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+.refine-b-scope {
+  /* Colors */
+  --rb-primary: #C96C5F; /* Desaturated Terracotta/Salmon */
+  --rb-primary-hover: #B85F53;
+  --rb-bg: #F9F7F3; /* Creamy paper background */
+  --rb-surface: #FFFFFF;
+  --rb-text: #4A3C38; /* Wood brown */
+  --rb-text-muted: #8A7A77;
+  --rb-accent: #6C8E64; /* Sage green accent */
+  --rb-border: #E8E2DA;
+
+  /* Typography */
+  --rb-font-body: 'Noto Sans JP', sans-serif;
+  --rb-font-price: 'Caveat', cursive;
+
+  /* Layout */
+  --rb-radius-sm: 12px;
+  --rb-radius-md: 20px;
+  --rb-radius-lg: 28px;
+  --rb-radius-xl: 36px;
+
+  /* Shadows (Multi-layered soft neumorphism) */
+  --rb-shadow-card: 
+    0px 4px 20px rgba(74, 60, 56, 0.04),
+    0px 1px 4px rgba(74, 60, 56, 0.02);
+  
+  --rb-shadow-btn: 
+    4px 4px 12px rgba(201, 108, 95, 0.25),
+    -4px -4px 12px rgba(255, 255, 255, 0.8),
+    inset 0px 0px 0px rgba(0,0,0,0);
+
+  --rb-shadow-btn-pressed: 
+    inset 4px 4px 8px rgba(201, 108, 95, 0.15),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.4);
+
+  /* Paper grain overlay */
+  position: relative;
+  background-color: var(--rb-bg);
+  color: var(--rb-text);
+  font-family: var(--rb-font-body);
+}
+
+.refine-b-scope::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  z-index: 100;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.1'/%3E%3C/svg%3E");
+}
+
+/* Custom Utils — all scoped to .refine-b-scope to prevent global leak */
+.refine-b-scope .rb-price {
+  font-family: var(--rb-font-price);
+}
+
+.refine-b-scope .rb-card {
+  background-color: var(--rb-surface);
+  border-radius: var(--rb-radius-lg);
+  box-shadow: var(--rb-shadow-card);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+}
+
+.refine-b-scope .rb-btn {
+  background-color: var(--rb-primary);
+  color: white;
+  border-radius: var(--rb-radius-xl);
+  box-shadow: var(--rb-shadow-btn);
+  font-weight: 700;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.refine-b-scope .rb-btn:active {
+  box-shadow: var(--rb-shadow-btn-pressed);
+  transform: scale(0.98);
+}
+
+.refine-b-scope .rb-btn-secondary {
+  background-color: var(--rb-surface);
+  color: var(--rb-primary);
+  border-radius: var(--rb-radius-xl);
+  box-shadow: 
+    4px 4px 12px rgba(74, 60, 56, 0.05),
+    -4px -4px 12px rgba(255, 255, 255, 0.8);
+  font-weight: 700;
+  transition: all 0.2s ease;
+  border: 1px solid var(--rb-border);
+}
+
+.refine-b-scope .rb-btn-secondary:active {
+  box-shadow: 
+    inset 2px 2px 6px rgba(74, 60, 56, 0.05),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.4);
+  transform: scale(0.98);
+}
+
+/* Hide scrollbar */
+.refine-b-scope .rb-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.refine-b-scope .rb-no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
