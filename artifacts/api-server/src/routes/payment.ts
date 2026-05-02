@@ -1280,17 +1280,16 @@ router.get("/checkout/verify", async (req, res) => {
 });
 
 // ─── 保存済み支払い方法一覧 ────────────────────────────────────────────────
-router.get("/payment/methods", async (req, res) => {
+router.get("/payment/methods", requireAuth, async (req, res) => {
   try {
-    const authHeader = req.headers["authorization"] ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
-
-    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-    if (authErr || !user) { res.status(401).json({ error: "unauthorized" }); return; }
-
     const stripeKey = process.env["STRIPE_SECRET_KEY"];
     if (!stripeKey) { res.json({ methods: [] }); return; }
+
+    // 認可: 認証済みユーザの user_metadata から自分の Stripe Customer ID のみ取得
+    // → 他ユーザの customerId を listすることは構造的に不可能
+    const userId = req.authUser!.id;
+    const { data: { user }, error: getUserErr } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (getUserErr || !user) { res.status(401).json({ error: "unauthorized" }); return; }
 
     const customerId = (user.user_metadata as any)?.stripe_customer_id as string | undefined;
     if (!customerId) { res.json({ methods: [] }); return; }
@@ -1320,25 +1319,33 @@ router.get("/payment/methods", async (req, res) => {
 });
 
 // ─── 保存済み支払い方法の削除 ───────────────────────────────────────────────
-router.delete("/payment/methods/:methodId", async (req, res) => {
+router.delete("/payment/methods/:methodId", requireAuth, async (req, res) => {
   try {
-    const authHeader = req.headers["authorization"] ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (!token) { res.status(401).json({ error: "unauthorized" }); return; }
-
-    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-    if (authErr || !user) { res.status(401).json({ error: "unauthorized" }); return; }
-
-    const { methodId } = req.params;
+    const methodId = req.params["methodId"];
+    if (typeof methodId !== "string" || !methodId) {
+      res.status(400).json({ error: "invalid_method_id" });
+      return;
+    }
     const stripeKey = process.env["STRIPE_SECRET_KEY"];
     if (!stripeKey) { res.status(503).json({ error: "stripe_not_configured" }); return; }
 
+    // 認可: 認証済みユーザの user_metadata から自分の Stripe Customer ID を取得
+    const userId = req.authUser!.id;
+    const { data: { user }, error: getUserErr } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (getUserErr || !user) { res.status(401).json({ error: "unauthorized" }); return; }
+
+    const customerId = (user.user_metadata as any)?.stripe_customer_id as string | undefined;
+    if (!customerId) {
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
+
     const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-    // 支払い方法が本当にこのユーザーのものか確認
+    // IDOR 防止: 支払い方法が本当にこのユーザーのものか確認
     const method = await stripe.paymentMethods.retrieve(methodId);
-    const customerId = (user.user_metadata as any)?.stripe_customer_id as string | undefined;
     if (method.customer !== customerId) {
+      console.warn(`[SECURITY] /payment/methods DELETE: methodId=${methodId} ownerCustomer=${method.customer} requesterCustomer=${customerId} userId=${userId}`);
       res.status(403).json({ error: "forbidden" });
       return;
     }
