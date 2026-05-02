@@ -251,6 +251,36 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "bad_request", message: "必須項目（店舗名・住所・市区町村）が不足しています" });
     }
 
+    // ── 住所構造バリデーション (改ざん/旧クライアント/手入力テスト対策) ───
+    //   「大阪府大阪市旭区」 のような市レベルのみの入力をブロックする。
+    //   食品衛生法上 = 営業許可は施設単位なので、 番地まで特定できない住所は無効扱い。
+    const addrRaw = String(body.address).trim();
+    const HAS_NUM_OR_KANJI_NUM = /[0-9０-９一二三四五六七八九十]/;
+    const HAS_STREET_STRUCTURE = /(丁目|番地|番|号|号室|階|F|f|[0-9０-９]\s*[\-－‐ー][0-9０-９])/;
+    if (
+      addrRaw.length < 10 ||
+      !HAS_NUM_OR_KANJI_NUM.test(addrRaw) ||
+      !HAS_STREET_STRUCTURE.test(addrRaw)
+    ) {
+      console.warn(`[/stores/apply] 🚫 住所形式不正 ownerId=${ownerId} address="${addrRaw}"`);
+      return res.status(400).json({
+        error: "address_invalid",
+        message:
+          "住所が不正です。 番地・建物名まで含めて正確に入力してください。 例: 大阪府大阪市旭区○○町1-2-3 ○○ビル1階",
+      });
+    }
+    // ── 緯度経度の必須化 (Google Places 等で正規化済みの座標が無いと申請不可) ──
+    //   フロント側で pinPos を必須にしているが、 改ざん/旧クライアント対策で server 側でも検証。
+    const latNum = body.lat != null ? Number(body.lat) : NaN;
+    const lngNum = body.lng != null ? Number(body.lng) : NaN;
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum) || (latNum === 0 && lngNum === 0)) {
+      console.warn(`[/stores/apply] 🚫 緯度経度不正 ownerId=${ownerId} lat=${body.lat} lng=${body.lng}`);
+      return res.status(400).json({
+        error: "location_required",
+        message: "位置情報が取得できませんでした。 検索ボックスからお店を選択し直してください。",
+      });
+    }
+
     // 既存店舗のStripeアカウントIDを取得（2店舗目以降で流用するため）
     const existingStores = await db
       .select({ id: storesTable.id, stripeAccountId: storesTable.stripeAccountId })
@@ -281,6 +311,18 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
         return res.status(400).json({
           error: "license_number_required",
           message: "2店舗目以降の登録には営業許可証番号が必須です。",
+        });
+      }
+      // ★ 営業許可証番号フォーマット検証: 「第120号」 のような短すぎる適当入力をブロック。
+      //   実物は通常 10 桁前後 (自治体コード + 連番) なので、 全角→半角正規化後 5 文字以上 + 数字 3 文字以上を要求。
+      const normalizedNumber = rawNumber.normalize("NFKC");
+      const digitsOnly = normalizedNumber.replace(/[^0-9]/g, "");
+      if (normalizedNumber.length < 5 || digitsOnly.length < 4) {
+        console.warn(`[/stores/apply] 🚫 2店舗目登録: 営業許可証番号フォーマット不正 ownerId=${ownerId} number="${rawNumber}" digits=${digitsOnly.length}`);
+        return res.status(400).json({
+          error: "license_number_invalid",
+          message:
+            "営業許可証番号の形式が正しくありません。 通常は10桁前後の番号です。 保健所発行の許可証に記載された番号を正確に入力してください。",
         });
       }
     }
@@ -501,10 +543,13 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
     }
 
     // 基本情報のみ保存
-    // ★ 重要: 「approved」になるのは Stripe 連携が完了している場合のみ
-    //   - 1店舗目（Stripe未登録）: status="pending" → bank-setup 完了で approved 化
-    //   - 2店舗目以降（既存Stripe流用）: status="approved" 即時公開可能
-    const initialStatus = existingStripeAccountId ? "approved" : "pending";
+    // ★ 重要: 「approved」になるのは admin (神モード) が手動で承認した時のみ。
+    //   - 1店舗目（Stripe未登録）: status="pending" → bank-setup → admin 承認で approved 化
+    //   - 2店舗目以降（既存Stripe流用）: status="pending_review" → admin 承認で approved 化
+    //     ↑ 旧仕様では即時 approved にしていたが、 営業許可証 / 住所の真正性を admin が
+    //       目視確認できないため、 適当な住所・許可証番号で公開される穴が発生していた。
+    //       2店舗目も必ず admin レビューを通すことで、 不正店舗の即時公開を防ぐ。
+    const initialStatus = existingStripeAccountId ? "pending_review" : "pending";
     const inserted = await db.insert(storesTable).values({
       name: body.name,
       description: body.description ?? null,

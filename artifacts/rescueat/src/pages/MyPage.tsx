@@ -771,6 +771,26 @@ export default function MyPage() {
           </div>
         )}
 
+        {/* ── 店舗オーナー：管理者の最終承認待ちバナー（pending_review） ── */}
+        {/*    2 店舗目以降の新規追加時 = 親アカウントの Stripe を流用するが、
+                住所・営業許可証の真正性を admin が目視確認するまで非公開 (出品ブロック)。 */}
+        {profile?.role === 'store_owner' && !loadingStore && store?.status === 'pending_review' && (
+          <div className="mb-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0">
+                <Clock className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-foreground text-base">管理者の最終承認待ち</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  申請内容 (住所・営業許可証) を管理者が確認しています。 承認後に公開・出品が可能になります。 通常 1〜2 営業日。
+                </p>
+              </div>
+              <span className="ml-auto text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-1 rounded-full shrink-0">審査中</span>
+            </div>
+          </div>
+        )}
+
         {/* ── 店舗オーナー：承認済み・Stripe連携完了（緑バッジ — ライブAPI判定） ── */}
         {/* ★ レイアウトシフト対策:
               - 承認済みオーナー (大半のユーザ) は緑バナーが最終形 = 36px。

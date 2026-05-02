@@ -359,9 +359,31 @@ export default function StoreOnboarding() {
     if (!form.phone.trim())                     warnings.push('店舗電話番号が未入力です。');
     if (!form.category)                         warnings.push('ジャンルが未選択です。');
     if (!pledgeSigned)                          warnings.push('利用規約への同意が未完了です。');
+    // ★ 住所の構造チェック (適当入力ブロック) — server 側 /stores/apply と完全に同じルール
+    //   「大阪府大阪市旭区」 のような市レベルのみの入力を UX 良く事前にブロックする。
+    {
+      const addr = form.address.trim();
+      const hasDigit = /[0-9０-９一二三四五六七八九十]/.test(addr);
+      const hasStruct = /(丁目|番地|番|号|号室|階|F|f|[0-9０-９]\s*[\-－‐ー][0-9０-９])/.test(addr);
+      if (addr && (addr.length < 10 || !hasDigit || !hasStruct)) {
+        warnings.push('住所が不正です。 番地・建物名まで正確に入力してください (例: 大阪府大阪市旭区○○町1-2-3 ○○ビル1階)。');
+      }
+    }
+    // ★ 位置情報 (pinPos) 必須 — Google Places から座標を取得しない手書き入力を防ぐ
+    if (!pinPos) {
+      warnings.push('位置情報が取得できていません。 検索ボックスからお店を選び直してください。');
+    }
     // ★ 2店舗目登録 (引き継ぎモード) では営業許可証は必須
     if (isInherited && !bizLicensePreview)      warnings.push('この店舗の営業許可証画像が未提出です。');
     if (isInherited && !bizLicenseNumber.trim()) warnings.push('この店舗の営業許可証番号が未入力です。');
+    // ★ 営業許可証番号フォーマット検証 (server 側と同等)
+    if (isInherited && bizLicenseNumber.trim()) {
+      const norm = bizLicenseNumber.trim().normalize('NFKC');
+      const digits = norm.replace(/[^0-9]/g, '');
+      if (norm.length < 5 || digits.length < 4) {
+        warnings.push('営業許可証番号の形式が正しくありません。 通常10桁前後の番号です (例: 第123456号、 大阪市1234567号)。');
+      }
+    }
     setValidationWarnings(warnings);
     if (warnings.length > 0) return;
     if (!user.id) {
@@ -459,7 +481,10 @@ export default function StoreOnboarding() {
               refetchStores();
               try { await refreshProfile(); } catch (_) {}
               if (isInherited) {
-                toast({ title: '店舗を追加しました！', description: 'すぐに商品を出品できます。' });
+                toast({
+                  title: '審査リクエストを送信しました',
+                  description: '管理者の承認後、 公開・出品が可能になります (通常 1〜2 営業日)。',
+                });
                 navigate('/mypage');
               } else {
                 navigate('/store/bank-setup');
@@ -498,8 +523,8 @@ export default function StoreOnboarding() {
         } else {
           // Stripe 引き継ぎ正常 → bank-setup スキップ → マイページへ
           toast({
-            title: '店舗を追加しました！',
-            description: 'すぐに商品を出品できます。',
+            title: '審査リクエストを送信しました',
+            description: '管理者の承認後、 公開・出品が可能になります (通常 1〜2 営業日)。',
           });
           navigate('/mypage');
         }
