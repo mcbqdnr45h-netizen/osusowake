@@ -341,3 +341,9 @@ id = "d_eig1ThxCjII6u0d7g42"
 uri = "file://attached_assets/ipad_screenshots/05_qr_ipad.png"
 type = "image"
 title = "05 電子チケット (iPad 2048×2732)"
+
+[[outputs]]
+id = "ngFiiOyc_X4Py1Eng_vHk"
+uri = "file://.local/patches/replit-fixes.patch.txt"
+type = "text"
+title = "replit-fixes.patch.txt (Macで mv して git apply)"
