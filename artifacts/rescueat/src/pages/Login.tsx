@@ -166,7 +166,7 @@ export default function Login() {
               {isStore ? (
                 <>店舗管理画面へ</>
               ) : (
-                <>おかえりなさい<span className="text-primary">。</span></>
+                <>おかえりなさい</>
               )}
             </h1>
             <p className="text-[13.5px] md:text-[17px] text-muted-foreground mt-2 md:mt-4 font-medium leading-snug">
