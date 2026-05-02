@@ -192,6 +192,16 @@
 - **対象外スコープ** (意図的): AdminDashboard alert (管理者専用)、 巨大ページ分割、 i18n、 デザイン全面リフ
 - **検証**: TypeScript strict check OK / 全画面 screenshot OK / 26 ファイル変更 + 新規 1 (`lib/error-message.ts`)、 +424/-96 行
 
+### iOS デプロイ前 最終クリーンアップ — Vite Fast Refresh 警告完全消去
+- ブラウザコンソールに大量の `[vite] Could not Fast Refresh ("useFavorites" export is incompatible)` 警告が出ていた (`FavoritesContext.tsx` から Provider component と `useFavorites` hook を同時 export していたため、 react-refresh の component-only-export 制約違反)
+- **3 ファイルに分離**:
+  1. `contexts/FavoritesContextValue.ts` (新規 .ts) — `FavoritesContext` object + `FavoritesContextValue` 型のみ
+  2. `hooks/useFavorites.ts` (新規 .ts) — `useFavorites` hook のみ (context は (1) から import)
+  3. `contexts/FavoritesContext.tsx` — `FavoritesProvider` のみに絞る (context は (1) から import)
+- import 元 3 ファイル (`BagDetail.tsx`, `BagCard.tsx`, `FavoritesPage.tsx`) を `@/hooks/useFavorites` に書き換え
+- **検証**: TS strict check OK / HMR 後のブラウザコンソール完全クリーン (vite connecting/connected/auth event のみ、 警告 0) / architect レビュー Pass「9 ラウンドの race fix 全要素 (favoritesRef/opSeqRef/authEpochRef/AbortController/mutationSeqRef/pendingDeletesRef/follow-up DELETE) は全て生存、 context 参照同一性も保たれる」
+- `AuthContext` / `MyStoresContext` も同パターンだが、 現状ログでは警告未発火 (頻繁に編集されないため)、 `useAuth` は 50+ ファイルから import されており予防的リファクタは破壊リスク大なので **iOS デプロイ前は対応不要** (architect 確認済)
+
 ### App Store 申請前 最終QA対応 (優先度高+中)
 - **Info.plist**: `ITSAppUsesNonExemptEncryption=false` 追加 → Apple Export Compliance の毎回ダイアログをスキップ (HTTPS 標準暗号のみで独自暗号未使用のため `false` で正)
 - **pbxproj ビルド番号バンプ**: `CURRENT_PROJECT_VERSION = 1 → 101` (Debug/Release 両方)。`MARKETING_VERSION = 1.0` は据え置き (再提出時の標準運用)

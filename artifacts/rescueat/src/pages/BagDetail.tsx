@@ -7,7 +7,7 @@ import { formatPickupTime } from '@/lib/utils';
 import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, Sparkles, TrendingDown } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
-import { useFavorites } from '@/contexts/FavoritesContext';
+import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authed-fetch';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';

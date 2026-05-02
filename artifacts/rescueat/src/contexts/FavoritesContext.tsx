@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { FavoritesContext } from '@/contexts/FavoritesContextValue';
 
 const GUEST_KEY = 'rescueat_favorites_v1_guest';
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
@@ -26,15 +27,6 @@ function saveToStorage(favorites: Set<number>, userId: string | null) {
     console.warn('[favorites] saveToStorage failed (likely localStorage quota / private mode)', err);
   }
 }
-
-interface FavoritesContextValue {
-  favorites: Set<number>;
-  toggle: (storeId: number) => void;
-  isFavorite: (storeId: number) => boolean;
-  synced: boolean;
-}
-
-const FavoritesContext = createContext<FavoritesContextValue | null>(null);
 
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const { session, user } = useAuth();
@@ -325,10 +317,4 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       {children}
     </FavoritesContext.Provider>
   );
-}
-
-export function useFavorites() {
-  const ctx = useContext(FavoritesContext);
-  if (!ctx) throw new Error('useFavorites must be used inside FavoritesProvider');
-  return ctx;
 }

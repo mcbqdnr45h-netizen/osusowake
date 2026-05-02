@@ -5,7 +5,7 @@ import { Heart, Store, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'wouter';
 import { useListAllBags, useListStores } from '@workspace/api-client-react';
-import { useFavorites } from '@/contexts/FavoritesContext';
+import { useFavorites } from '@/hooks/useFavorites';
 import { BagCard } from '@/components/BagCard';
 import { getCategoryIcon } from '@/lib/category-utils';
 import { motion, AnimatePresence } from 'framer-motion';

@@ -8,7 +8,7 @@ import {
   getBag,
   getGetBagQueryKey,
 } from '@workspace/api-client-react';
-import { useFavorites } from '@/contexts/FavoritesContext';
+import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
