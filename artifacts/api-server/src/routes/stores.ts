@@ -45,7 +45,7 @@ async function findLicenseDuplicate(opts: {
       status: storesTable.status,
     })
     .from(storesTable)
-    .where(sql`${storesTable.status} IN ('pending', 'applied', 'approved')`);
+    .where(sql`${storesTable.status} IN ('pending', 'applied', 'approved', 'pending_review')`);
   const hit = rows.find(
     (r) =>
       (opts.excludeStoreId == null || r.id !== opts.excludeStoreId) &&
@@ -358,7 +358,7 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
           })
           .from(storesTable)
           .where(
-            sql`${storesTable.status} IN ('pending', 'approved')`,
+            sql`${storesTable.status} IN ('pending', 'approved', 'pending_review', 'applied')`,
           );
 
         // (1) 自己重複チェック (同オーナ) → 即 409
