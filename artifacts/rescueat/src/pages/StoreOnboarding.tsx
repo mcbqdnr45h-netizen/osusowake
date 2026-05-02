@@ -8,7 +8,7 @@ import { authedFetch } from '@/lib/authed-fetch';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, CheckCircle2, Leaf, Loader2, AlertTriangle,
-  ShieldCheck, Camera, MapPinned, X as XIcon,
+  ShieldCheck, Camera, MapPinned, X as XIcon, FileText, AlertCircle,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
@@ -50,6 +50,9 @@ type OnboardingDraft = {
   phone: string; imageUrl: string; iconUrl: string;
   pledgeSigned: boolean;
   pinLat: number | null; pinLng: number | null;
+  // ★ 2店舗目登録 (引き継ぎモード) 用: 営業許可証番号は draft 保存
+  //    画像 (base64) は localStorage 容量を超えるため保存しない
+  bizLicenseNumber: string;
 };
 
 // ── 店舗アイコン用 (地図ピンに表示) ────────────────────────────────────
@@ -153,6 +156,14 @@ export default function StoreOnboarding() {
   const [iconUploading, setIconUploading] = useState(false);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
+  // ── 営業許可証 (2店舗目登録 = isInherited 時に必須・1店舗目は bank-setup で別途) ──
+  //   画像 base64 はサーバへ送信するためにのみ保持し、 draft 保存はしない (容量回避)。
+  const [bizLicensePreview, setBizLicensePreview] = useState<string>('');
+  const [bizLicenseMime, setBizLicenseMime] = useState<string>('image/jpeg');
+  const [bizLicenseNumber, setBizLicenseNumber] = useState<string>(obDraft.bizLicenseNumber ?? '');
+  const [bizLicenseError, setBizLicenseError] = useState<string | null>(null);
+  const bizLicenseInputRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     name:          obDraft.name     ?? '',
     address:       obDraft.address  ?? '',
@@ -197,10 +208,11 @@ export default function StoreOnboarding() {
         pledgeSigned,
         pinLat: pinPos?.lat ?? null,
         pinLng: pinPos?.lng ?? null,
+        bizLicenseNumber, // 営業許可証番号のみ保存 (画像は容量大なので除外)
       });
     }, 600);
     return () => clearTimeout(t);
-  }, [form.name, form.address, form.city, form.category, form.phone, form.imageUrl, form.iconUrl, pledgeSigned, pinPos]);
+  }, [form.name, form.address, form.city, form.category, form.phone, form.imageUrl, form.iconUrl, pledgeSigned, pinPos, bizLicenseNumber]);
 
   // 警告が表示中のとき、フィールドが埋まったら警告をリアルタイム更新
   useEffect(() => {
@@ -214,9 +226,11 @@ export default function StoreOnboarding() {
     if (!form.phone.trim())                     updated.push('店舗電話番号が未入力です。');
     if (!form.category)                         updated.push('ジャンルが未選択です。');
     if (!pledgeSigned)                          updated.push('利用規約への同意が未完了です。');
+    if (isInherited && !bizLicensePreview)      updated.push('この店舗の営業許可証画像が未提出です。');
+    if (isInherited && !bizLicenseNumber.trim()) updated.push('この店舗の営業許可証番号が未入力です。');
     setValidationWarnings(updated);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.imageUrl, form.iconUrl, form.name, form.address, form.city, form.phone, form.category, pledgeSigned]);
+  }, [form.imageUrl, form.iconUrl, form.name, form.address, form.city, form.phone, form.category, pledgeSigned, bizLicensePreview, bizLicenseNumber, isInherited]);
 
   const handlePlaceSelected = (place: PlaceResult) => {
     setForm(f => ({
@@ -283,6 +297,40 @@ export default function StoreOnboarding() {
     setIconPreview('');
   };
 
+  // ── 営業許可証ファイル選択ハンドラ ─────────────────────────────────────
+  //   2店舗目登録 (isInherited=true) では必須。 PDF はそのまま、 画像は圧縮してから保持。
+  //   サーバ側 (/stores/apply) の body.licenseImageBase64 に dataURL をそのまま送る。
+  const handleBizLicenseFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 同じファイルを再選択できるよう即リセット
+    if (!file) return;
+    setBizLicenseError(null);
+    try {
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error('ファイルサイズが大きすぎます (10MB 以下にしてください)。');
+      }
+      if (file.type === 'application/pdf') {
+        // PDF はそのまま dataURL 化 (基本的に元から軽量)
+        const raw: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target?.result as string);
+          reader.onerror = () => reject(new Error('PDFが読み込めませんでした。'));
+          reader.readAsDataURL(file);
+        });
+        setBizLicenseMime('application/pdf');
+        setBizLicensePreview(raw);
+      } else {
+        // 画像は compressImage で圧縮 (容量とアップロード速度を両立)
+        const compressed = await compressImage(file);
+        // compressImage の戻り値は image/jpeg 固定なので mime もそれに合わせる
+        setBizLicenseMime('image/jpeg');
+        setBizLicensePreview(compressed);
+      }
+    } catch (err: any) {
+      setBizLicenseError(err?.message ?? 'ファイルを取り込めませんでした。 JPEG・PNG・PDF を選んでください。');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -311,6 +359,9 @@ export default function StoreOnboarding() {
     if (!form.phone.trim())                     warnings.push('店舗電話番号が未入力です。');
     if (!form.category)                         warnings.push('ジャンルが未選択です。');
     if (!pledgeSigned)                          warnings.push('利用規約への同意が未完了です。');
+    // ★ 2店舗目登録 (引き継ぎモード) では営業許可証は必須
+    if (isInherited && !bizLicensePreview)      warnings.push('この店舗の営業許可証画像が未提出です。');
+    if (isInherited && !bizLicenseNumber.trim()) warnings.push('この店舗の営業許可証番号が未入力です。');
     setValidationWarnings(warnings);
     if (warnings.length > 0) return;
     if (!user.id) {
@@ -342,6 +393,10 @@ export default function StoreOnboarding() {
           lat: pinPos?.lat ?? null,
           lng: pinPos?.lng ?? null,
           pledgeSigned: true,
+          // ★ 2店舗目登録時 (isInherited): 営業許可証 (画像 dataURL + 番号) を送信。
+          //    1店舗目では bank-setup で別途送るので onboarding では送らない。
+          licenseImageBase64: isInherited && bizLicensePreview ? bizLicensePreview : undefined,
+          licenseNumber: isInherited && bizLicenseNumber.trim() ? bizLicenseNumber.trim() : undefined,
         }),
       });
 
@@ -351,18 +406,6 @@ export default function StoreOnboarding() {
         const body = await res.json().catch(() => ({}));
         if (res.status === 404 || res.status === 503 || res.status === 502) {
           throw new Error('サーバーに接続できませんでした。少し時間をおいて再度お試しください。');
-        }
-        // ★ 409 = 同名・同住所の店舗が他オーナで既に登録済み (偽造防止ガード)
-        if (res.status === 409 && body?.error === 'store_duplicate') {
-          toast({
-            title: 'この店舗は既に登録されています',
-            description:
-              body?.message ||
-              '同じ店舗名・住所のお店が既に登録されています。 ご自身のお店であるにも関わらずこの表示が出る場合は hello@osusowakejapan.org までご連絡ください。',
-            variant: 'destructive',
-          });
-          // toast を出して通常の throw 経路はスキップ（重複表示を避ける）
-          return;
         }
         const msg = body?.message || body?.error || `登録に失敗しました（HTTP ${res.status}）`;
         throw new Error(msg);
@@ -413,12 +456,23 @@ export default function StoreOnboarding() {
       try { await refreshProfile(); } catch (_) {}
 
       if (isInherited) {
-        // Stripe引き継ぎ → bank-setup スキップ → マイページへ
-        toast({
-          title: '店舗を追加しました！',
-          description: 'すぐに商品を出品できます。',
-        });
-        navigate('/mypage');
+        // ★ Stripe 再有効化フロー: 引き継いだ既存アカウントが charges_enabled=false の場合、
+        //    bank-setup に誘導して再有効化を促す。 そうでなければマイページへ。
+        if (responseBody?.requiresStripeReauth === true) {
+          toast({
+            title: '決済設定の更新が必要です',
+            description:
+              '銀行口座 / 本人確認の情報を更新する必要があります。 続けて手続きを行ってください。',
+          });
+          navigate('/store/bank-setup');
+        } else {
+          // Stripe 引き継ぎ正常 → bank-setup スキップ → マイページへ
+          toast({
+            title: '店舗を追加しました！',
+            description: 'すぐに商品を出品できます。',
+          });
+          navigate('/mypage');
+        }
       } else {
         // 初回登録 → bank-setup へ
         navigate('/store/bank-setup');
@@ -721,6 +775,87 @@ export default function StoreOnboarding() {
               ))}
             </div>
           </div>
+
+          {/* ── 営業許可証 (2店舗目登録時のみ必須) ──────────────────────────── */}
+          {isInherited && (
+            <div className="bg-orange-50/60 border border-orange-200 rounded-2xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-orange-500" />
+                <h3 className="font-black text-foreground">営業許可証 <span className="text-destructive">*</span></h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                この店舗の営業許可証を提出してください。 食品衛生法に基づく許可証の画像 (または PDF) と許可証番号が必須です。
+              </p>
+
+              <input
+                ref={bizLicenseInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+                onChange={handleBizLicenseFile}
+              />
+
+              <button
+                type="button"
+                onClick={() => bizLicenseInputRef.current?.click()}
+                className={`relative w-full aspect-video rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 overflow-hidden transition-colors ${
+                  bizLicensePreview
+                    ? 'border-orange-400 bg-orange-50'
+                    : 'border-red-300 bg-red-50/40 hover:border-orange-300 hover:bg-orange-50'
+                }`}
+              >
+                {bizLicensePreview ? (
+                  bizLicenseMime === 'application/pdf' ? (
+                    <>
+                      <FileText className="w-12 h-12 text-orange-500" />
+                      <span className="text-sm font-bold text-orange-700">PDF を読み込みました</span>
+                      <span className="text-xs text-muted-foreground">タップして変更</span>
+                    </>
+                  ) : (
+                    <>
+                      <img loading="lazy" decoding="async" src={bizLicensePreview} alt="営業許可証プレビュー" className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
+                        <Camera className="w-7 h-7 text-white opacity-80" />
+                        <span className="text-sm text-white font-bold">タップして変更</span>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-orange-400" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-gray-600">タップして書類を追加</p>
+                      <p className="text-xs text-gray-400 mt-0.5">JPG・PNG・HEIC・PDF 対応</p>
+                    </div>
+                  </>
+                )}
+              </button>
+
+              {bizLicenseError && (
+                <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {bizLicenseError}
+                </p>
+              )}
+
+              <div>
+                <label className="block text-sm font-bold text-muted-foreground mb-1.5">
+                  営業許可証番号 <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={bizLicenseNumber}
+                  onChange={e => setBizLicenseNumber(e.target.value)}
+                  className="w-full bg-background border border-input rounded-xl px-4 py-3 text-base font-medium focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 outline-none transition-all"
+                  placeholder="例: 第○○号"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  許可証に記載された番号を入力してください。
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* 誓約チェック */}
           <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">

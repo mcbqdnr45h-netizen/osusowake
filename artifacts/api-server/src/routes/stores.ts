@@ -205,41 +205,67 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
     // 既存店舗のStripeアカウントIDを流用（最初にStripeが設定されている店舗を使用）
     const existingStripeAccountId = existingStores.find(s => s.stripeAccountId)?.stripeAccountId ?? null;
 
-    // ── 偽造店舗の事前ブロック ─────────────────────────────────────────────
-    // 「他人 (別オーナ) が同じ店名・同じ住所で既に登録している」 場合は申請を拒否する。
-    // 表記ゆれ (全角/半角・空白・記号) を吸収するため正規化キーで比較する。
-    // ※ 同オーナの 2店舗目以降は対象外 (上で除外)。 また rejected/suspended の店舗は無視。
+    // ★ サーバ側必須バリデーション (改ざん/旧クライアント対策)
+    //   2店舗目以降 (existingStripeAccountId != null) の場合、 営業許可証 (画像 + 番号) は必須。
+    //   1店舗目では bank-setup で別途送るので onboarding 側では不要。
+    //   data URL は image/jpeg, image/png, image/webp, image/heic, image/heif, application/pdf を許可。
+    const LICENSE_DATA_URL_RE = /^data:(image\/(?:jpeg|jpg|png|webp|heic|heif)|application\/pdf);base64,(.+)$/s;
+    if (existingStripeAccountId) {
+      const rawLicense = typeof body.licenseImageBase64 === "string" ? body.licenseImageBase64 : "";
+      const rawNumber = typeof body.licenseNumber === "string" ? body.licenseNumber.trim() : "";
+      if (!rawLicense || !LICENSE_DATA_URL_RE.test(rawLicense)) {
+        console.warn(`[/stores/apply] 🚫 2店舗目登録: 営業許可証画像が不足 ownerId=${ownerId} hasImage=${!!rawLicense}`);
+        return res.status(400).json({
+          error: "license_image_required",
+          message: "2店舗目以降の登録には営業許可証の画像 (JPG/PNG/HEIC/PDF) が必須です。",
+        });
+      }
+      if (!rawNumber) {
+        console.warn(`[/stores/apply] 🚫 2店舗目登録: 営業許可証番号が不足 ownerId=${ownerId}`);
+        return res.status(400).json({
+          error: "license_number_required",
+          message: "2店舗目以降の登録には営業許可証番号が必須です。",
+        });
+      }
+    }
+
+    // ── 重複店舗の警告ログ (ブロックはしない) ─────────────────────────────
+    //   2026-05 仕様変更: 同じ住所に別オーナが複数店舗を登録するケース
+    //   (フードコート / 同一ビル別テナント / マーケット内複数出店 等) を許可する。
+    //   過去は別オーナの同店名+同住所を 409 でブロックしていたが、 正規ユーザの
+    //   登録もブロックされる誤検出が多発したため、 警告ログのみ残し申請は通す。
+    //   admin dashboard 側で別途精査する運用に変更。
     const incomingKey = storeIdentityKey(body.name, body.address, body.city);
     if (incomingKey) {
-      const sameNameCandidates = await db
-        .select({
-          id: storesTable.id,
-          name: storesTable.name,
-          address: storesTable.address,
-          city: storesTable.city,
-          ownerId: storesTable.ownerId,
-          status: storesTable.status,
-        })
-        .from(storesTable)
-        .where(
-          and(
-            ne(storesTable.ownerId, ownerId),
-            sql`${storesTable.status} IN ('pending', 'approved')`,
-          ),
-        );
+      try {
+        const sameNameCandidates = await db
+          .select({
+            id: storesTable.id,
+            name: storesTable.name,
+            address: storesTable.address,
+            city: storesTable.city,
+            ownerId: storesTable.ownerId,
+            status: storesTable.status,
+          })
+          .from(storesTable)
+          .where(
+            and(
+              ne(storesTable.ownerId, ownerId),
+              sql`${storesTable.status} IN ('pending', 'approved')`,
+            ),
+          );
 
-      const collision = sameNameCandidates.find(
-        (s) => storeIdentityKey(s.name, s.address, s.city ?? "") === incomingKey,
-      );
-      if (collision) {
-        console.warn(
-          `[/stores/apply] 🚫 重複店舗申請ブロック: 申請ownerId=${ownerId} name="${body.name}" addr="${body.address}" → 既存storeId=${collision.id} ownerId=${collision.ownerId}`,
+        const collision = sameNameCandidates.find(
+          (s) => storeIdentityKey(s.name, s.address, s.city ?? "") === incomingKey,
         );
-        return res.status(409).json({
-          error: "store_duplicate",
-          message:
-            "同じ店舗名・住所のお店が既に登録されています。 ご自身のお店であるにも関わらずこの表示が出る場合は、 hello@osusowakejapan.org までお問い合わせください。",
-        });
+        if (collision) {
+          console.warn(
+            `[/stores/apply] ⚠️ 重複候補 (申請は通します): 申請ownerId=${ownerId} name="${body.name}" addr="${body.address}" → 既存storeId=${collision.id} ownerId=${collision.ownerId} (admin で要精査)`,
+          );
+        }
+      } catch (collEx: any) {
+        // 重複検出は best-effort なので失敗しても申請は通す
+        console.warn(`[/stores/apply] 重複候補チェック失敗 (申請は継続): ${collEx?.message}`);
       }
     }
 
@@ -248,12 +274,18 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
     let resolvedLicenseNumber: string | null = body.licenseNumber?.trim() || null;
 
     if (body.licenseImageBase64) {
-      // 直接アップロード
+      // 直接アップロード (image/jpeg|png|webp|heic|heif + application/pdf 対応)
       try {
-        const match = (body.licenseImageBase64 as string).match(/^data:(image\/[\w+]+);base64,(.+)$/s);
+        const match = (body.licenseImageBase64 as string).match(LICENSE_DATA_URL_RE);
         if (match) {
           const contentType = match[1];
-          const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+          const ext =
+            contentType === "image/png" ? "png" :
+            contentType === "image/webp" ? "webp" :
+            contentType === "image/heic" ? "heic" :
+            contentType === "image/heif" ? "heif" :
+            contentType === "application/pdf" ? "pdf" :
+            "jpg";
           const buffer = Buffer.from(match[2], "base64");
           const filePath = `${ownerId}/${Date.now()}-license.${ext}`;
           const { error: uploadError } = await supabaseAdmin.storage
@@ -268,6 +300,8 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
           } else {
             console.warn("[/stores/apply] 営業許可証アップロード失敗:", uploadError.message);
           }
+        } else {
+          console.warn("[/stores/apply] 営業許可証 dataURL パース失敗 (許可外 MIME)");
         }
       } catch (uploadEx: any) {
         console.warn("[/stores/apply] 営業許可証アップロード例外:", uploadEx?.message);
@@ -275,36 +309,55 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
     }
 
     // ── Stripe Files API: 営業許可証をStripeサーバーにアップロード ──────────────
-    // 既存のStripeアカウントがある場合（2店舗目以降）のみ実行
+    // 既存のStripeアカウントがある場合（2店舗目以降）のみ実行。
+    // 同時に既存アカウントの charges_enabled を取得して 2店舗目側の DB / レスポンスに反映する。
+    // ★ charges_enabled=false の場合 = 1店舗目で銀行口座無効化や KYC 期限切れが発生している。
+    //   この場合は 2店舗目も売上を受け取れないので、 フロント側で再有効化フローへ誘導する。
     let stripeLicenseFileId: string | null = null;
+    let existingStripeChargesEnabled: boolean | null = null;
+    let existingStripePayoutsEnabled: boolean | null = null;
     const stripeKey = process.env["STRIPE_SECRET_KEY"];
     if (existingStripeAccountId && stripeKey) {
       try {
         const stripe = await import("stripe").then((m) => new m.default(stripeKey));
 
-        // 営業許可証バッファを確保（base64 から復元）
+        // 既存アカウントの状態取得 (再有効化が必要かフロントで判断するため)
+        try {
+          const existingAccount = await stripe.accounts.retrieve(existingStripeAccountId);
+          existingStripeChargesEnabled = existingAccount.charges_enabled === true;
+          existingStripePayoutsEnabled = existingAccount.payouts_enabled === true;
+          console.log(`[/stores/apply] ℹ️ 既存Stripeアカウント状態: accountId=${existingStripeAccountId} charges=${existingStripeChargesEnabled} payouts=${existingStripePayoutsEnabled}`);
+        } catch (retrieveEx: any) {
+          console.warn(`[/stores/apply] 既存アカウント状態取得失敗 (継続): ${retrieveEx?.message}`);
+        }
+
+        // 営業許可証バッファを確保（base64 から復元 / image + PDF 対応）
         let licenseBuffer: Buffer | null = null;
         let licenseMime = "image/jpeg";
         if (body.licenseImageBase64) {
-          // 新規アップロード: base64 から復元
-          const match = (body.licenseImageBase64 as string).match(/^data:(image\/[\w+]+);base64,(.+)$/s);
+          const match = (body.licenseImageBase64 as string).match(LICENSE_DATA_URL_RE);
           if (match) {
             licenseMime = match[1];
             licenseBuffer = Buffer.from(match[2], "base64");
+          } else {
+            console.warn("[/stores/apply] Stripe Files: 営業許可証 dataURL パース失敗 (許可外 MIME)");
           }
         }
 
         if (licenseBuffer) {
           // Stripe Files API にアップロード（purpose: additional_verification — 追加書類）
+          const fileExt =
+            licenseMime === "application/pdf" ? "pdf" :
+            licenseMime.startsWith("image/") ? licenseMime.split("/")[1] : "jpg";
           const stripeFile = await stripe.files.create(
             {
-              file: { data: licenseBuffer, name: `license-${Date.now()}.${licenseMime.split("/")[1] || "jpg"}`, type: licenseMime },
+              file: { data: licenseBuffer, name: `license-${Date.now()}.${fileExt}`, type: licenseMime },
               purpose: "additional_verification",
             },
             { stripeAccount: existingStripeAccountId }
           );
           stripeLicenseFileId = stripeFile.id;
-          console.log(`[/stores/apply] ✅ Stripe Files API アップロード完了: fileId=${stripeFile.id} accountId=${existingStripeAccountId} size=${stripeFile.size}bytes purpose=${stripeFile.purpose}`);
+          console.log(`[/stores/apply] ✅ Stripe Files API アップロード完了: fileId=${stripeFile.id} accountId=${existingStripeAccountId} size=${stripeFile.size}bytes purpose=${stripeFile.purpose} mime=${licenseMime}`);
         }
 
         // ── Stripe Account Metadata のみ更新（business_profile は一切変更しない）─────
@@ -384,6 +437,9 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
       ownerId: ownerId,
       // 2店舗目以降は既存のStripeアカウントIDを流用（bank-setup不要）
       stripeAccountId: existingStripeAccountId,
+      // 既存アカウントの charges/payouts 状態を反映 (引き継ぎ時のみ)
+      stripeChargesEnabled: existingStripeChargesEnabled,
+      stripePayoutsEnabled: existingStripePayoutsEnabled,
       licenseNumber: resolvedLicenseNumber,
       licenseImageUrl,
       idImageUrl: null,
@@ -414,7 +470,19 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
       console.warn("[/stores/apply] users.role 更新例外:", roleEx?.message);
     }
 
-    res.status(201).json({ ...store, totalBagsAvailable: 0 });
+    // ★ レスポンスに既存 Stripe アカウントの charges_enabled を含める。
+    //   フロントは existingStripeChargesEnabled === false の時のみ
+    //   bank-setup 画面 (再有効化フロー) へ誘導する。
+    res.status(201).json({
+      ...store,
+      totalBagsAvailable: 0,
+      // 引き継ぎ時のみ意味を持つフラグ (1店舗目登録時は null)
+      inheritedFromStripeAccount: existingStripeAccountId,
+      existingStripeChargesEnabled,
+      existingStripePayoutsEnabled,
+      requiresStripeReauth:
+        existingStripeAccountId != null && existingStripeChargesEnabled === false,
+    });
   } catch (err) {
     console.error("[/stores/apply] DB INSERT エラー:", err);
     res.status(500).json({ error: "internal_error", message: "店舗情報の保存に失敗しました" });

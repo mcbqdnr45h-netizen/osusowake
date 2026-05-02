@@ -173,6 +173,15 @@
 
 ## Recent Updates (2026-05-02)
 
+### 2店舗目登録 致命的3バグ修正 (営業許可証 UI 欠落 + 重複ブロック誤検出 + Stripe 再有効化未実装)
+HelpPage で「2店舗目以降は営業許可証の提出のみで完了」 と謳う仕様にも関わらず、 StoreOnboarding に営業許可証 UI が存在せず、 サーバ `/stores/apply` は body.licenseImageBase64 を期待していたため 2店舗目は全て営業許可証 NULL のまま approved 化されていた。 さらに別オーナの同店名・同住所を 409 でブロックするロジックがフードコート / 同一ビル別テナント等の正規申請を誤検出し、 既存 Stripe アカウントが `charges_enabled=false` (口座無効化・KYC期限切れ) の状態で 2店舗目を登録してもサイレントに承認される問題があった。 本リリースで以下を修正:
+1. **営業許可証 UI 追加** (`StoreOnboarding.tsx`): isInherited (=isAddMode && hasExistingStripeAccount) 時のみ営業許可証セクション (画像 + 番号) 表示。 `handleBizLicenseFile` で PDF はそのまま dataURL 化、 画像は `compressImage` で圧縮。 リアルタイム + 提出時の両方でバリデーション (`bizLicensePreview` / `bizLicenseNumber.trim()` 必須)。 提出 body に `licenseImageBase64` + `licenseNumber` 追加。 localStorage draft には番号のみ保存 (画像はサイズ大なので除外)。
+2. **サーバ側必須化** (`stores.ts /stores/apply` L211-233): 共通正規表現 `LICENSE_DATA_URL_RE = /^data:(image\/(?:jpeg|jpg|png|webp|heic|heif)|application\/pdf);base64,(.+)$/s` を関数頭で定義。 `existingStripeAccountId != null` の場合 `licenseImageBase64` (regex match) と `licenseNumber.trim()` を必須化し、 欠落時 400 `license_image_required` / `license_number_required` を返す (旧クライアント / 改ざん耐性)。 同正規表現を Supabase Storage アップロード (L282) と Stripe Files API 復元 (L341) でも使用し不整合排除。
+3. **PDF 提出対応** (`stores.ts`): 過去の data URL パーサが `image/[\w+]` 固定で `application/pdf` を弾いていた問題を修正。 Supabase 拡張子分岐に `pdf` / `heic` / `heif` 追加、 Stripe Files の `fileExt` も `application/pdf → 'pdf'` を含む。
+4. **重複ブロック撤廃** (`stores.ts /stores/apply` L235-272): 別オーナの同店名+同住所を 409 でブロックしていた `storeIdentityKey` 判定を警告ログのみに変更 (admin dashboard で精査する運用)。 フロントの 409 'store_duplicate' ハンドラも削除。
+5. **Stripe 再有効化フロー** (`stores.ts` + `StoreOnboarding.tsx`): /apply で `existingStripeAccountId` 取得後 `stripe.accounts.retrieve` で `charges_enabled` / `payouts_enabled` を取得し DB の `stripeChargesEnabled` / `stripePayoutsEnabled` に反映。 retrieve 失敗時も継続 (try/catch + null 既定)。 レスポンスに `requiresStripeReauth` フラグを含め、 フロントは isInherited && requiresStripeReauth=true なら `/store/bank-setup` へ誘導 (再有効化フロー)、 false なら従来通り `/mypage` へ。
+- architect 評価: 1回目 FAIL (サーバ必須化欠落 + PDF パース失敗) → 修正後 2回目 PASS。 TS チェック (`api-server` / `rescueat`) 両方クリア。
+
 ### 地図ロード高速化 (iOS WebView 体感速度向上)
 - **`index.cap.html`**: Google Maps 用 `preconnect` + `dns-prefetch` 追加 (`maps.googleapis.com` / `maps.gstatic.com`)。 iOS アプリ起動直後に DNS/TLS ハンドシェイクを先行実施 (`fetch` は走らないため帯域消費なし)
 - **`Home.tsx` FloatingMapButton**: 
