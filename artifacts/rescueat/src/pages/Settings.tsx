@@ -619,9 +619,11 @@ export default function Settings() {
                   className="overflow-hidden"
                 >
                   <div className="px-4 py-4 space-y-3 border-b border-border/60 bg-secondary/20">
-                    {/* Display name */}
+                    {/* ニックネーム (任意・ランキング参加時に使用) */}
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">表示名</label>
+                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+                        ニックネーム <span className="font-normal text-muted-foreground/70">(任意)</span>
+                      </label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
@@ -629,9 +631,12 @@ export default function Settings() {
                           value={displayName}
                           onChange={e => setDisplayName(e.target.value)}
                           className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                          placeholder="例: 山田 太郎"
+                          placeholder="例: たろう"
                         />
                       </div>
+                      <p className="text-[11px] text-muted-foreground/70 mt-1 leading-snug">
+                        ランキングに参加する時に他のユーザーへ表示される名前です。 本名ではなく公開しても良い名前を入力してください。
+                      </p>
                     </div>
 
                     {/* Email */}

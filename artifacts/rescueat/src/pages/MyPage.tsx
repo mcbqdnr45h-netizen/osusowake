@@ -514,8 +514,8 @@ export default function MyPage() {
               <div className="mt-1">
                 {monthlyRanking ? (
                   monthlyRanking.optedOut ? (
-                    <div className="text-base font-black text-foreground leading-tight">
-                      非表示中
+                    <div className="text-[13px] font-black text-foreground leading-tight">
+                      参加しよう！
                     </div>
                   ) : monthlyRanking.myRank && monthlyRanking.myRank.rank > 0 ? (
                     <div className="flex items-baseline gap-1">
@@ -536,7 +536,7 @@ export default function MyPage() {
               {monthlyRanking && (
                 <p className="text-[10px] text-muted-foreground font-bold leading-tight mt-1 truncate">
                   {monthlyRanking.optedOut
-                    ? '設定から参加できます'
+                    ? 'タップして街への貢献を見せよう'
                     : monthlyRanking.nextRankDelta === 0
                       ? '🏆 頂点キープ中！'
                       : `あと${monthlyRanking.nextRankDelta}回でランクアップ`}

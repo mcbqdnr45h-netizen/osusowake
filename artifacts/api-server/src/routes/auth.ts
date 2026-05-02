@@ -176,21 +176,12 @@ router.post("/auth/create-profile", async (req: Request, res: Response) => {
     return;
   }
 
-  // ★ display_name (ニックネーム) は customer のみ必須・store_owner は任意 (店舗名で代替)
+  // ★ 仕様変更 2026-05: display_name (ニックネーム) は登録時はすべて任意。
+  //   customer もニックネーム不要で登録可能とし、 ランキング参加 (オプトイン) 時にのみ
+  //   PATCH /user/ranking-preference 側で display_name 必須を要求する。
+  //   渡された場合のみバリデーションして保存する。
   let normalizedDisplayName: string | null = null;
-  if (role === "customer") {
-    if (!display_name || typeof display_name !== "string") {
-      res.status(400).json({ error: "display_name_required", message: "ニックネームを入力してください" });
-      return;
-    }
-    const result = validateNickname(display_name);
-    if (!result.ok) {
-      res.status(400).json({ error: "invalid_display_name", message: result.reason });
-      return;
-    }
-    normalizedDisplayName = normalizeNickname(display_name);
-  } else if (display_name && typeof display_name === "string" && display_name.trim().length > 0) {
-    // store_owner も display_name を渡してきた場合はバリデーションして保存
+  if (display_name && typeof display_name === "string" && display_name.trim().length > 0) {
     const result = validateNickname(display_name);
     if (!result.ok) {
       res.status(400).json({ error: "invalid_display_name", message: result.reason });

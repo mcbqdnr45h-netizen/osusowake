@@ -3,11 +3,10 @@ import { Link, useLocation } from 'wouter';
 import logoUrl from '@/lib/logo';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Eye, EyeOff, Mail, Lock, CheckCircle2, X, User, Phone, Store, ShieldCheck, Sparkles,
+  Eye, EyeOff, Mail, Lock, CheckCircle2, X, User, Phone, Store, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
-import { validateNickname, NICKNAME_MIN, NICKNAME_MAX } from '@/lib/nickname-validator';
 
 export default function SignUp() {
   const [, navigate] = useLocation();
@@ -18,7 +17,6 @@ export default function SignUp() {
 
   const [activeTab,       setActiveTab]       = useState<'user' | 'store'>(initialTab);
   const [name,            setName]            = useState('');
-  const [nickname,        setNickname]        = useState('');
   const [phone,           setPhone]           = useState('');
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
@@ -34,7 +32,7 @@ export default function SignUp() {
   const [needsConfirm,    setNeedsConfirm]    = useState(false);
 
   useEffect(() => {
-    setName(''); setNickname(''); setPhone(''); setEmail('');
+    setName(''); setPhone(''); setEmail('');
     setPassword(''); setConfirmPassword('');
     setAgreed(false); setError('');
   }, [activeTab]);
@@ -43,14 +41,10 @@ export default function SignUp() {
   const normalizedPhone = phone.replace(/[-\s]/g, '');
   const phoneValid      = /^0[0-9]{9,10}$/.test(normalizedPhone);
 
-  // ニックネーム (customer のみ必須・store_owner は店舗名で代替)
-  const nicknameValidation = nickname.trim().length === 0 ? null : validateNickname(nickname);
-  const nicknameValid = activeTab === 'store' ? true : nicknameValidation?.ok === true;
-  const nicknameError = nicknameValidation && nicknameValidation.ok === false ? nicknameValidation.reason : null;
+  // ★ ニックネームは登録時不要 (オプトイン制ランキング参加時にのみ要求)。
 
   const isValid =
     name.trim().length >= 1 &&
-    nicknameValid &&
     phoneValid &&
     email.trim() &&
     password.length >= 6 &&
@@ -78,7 +72,7 @@ export default function SignUp() {
         setDone(true);
         if (!confirm) setTimeout(() => navigate('/store-onboarding'), 2000);
       } else {
-        const { error: err, needsConfirmation: confirm } = await signUp(email, password, name, phone, nickname, setLoadingStep);
+        const { error: err, needsConfirmation: confirm } = await signUp(email, password, name, phone, '', setLoadingStep);
         if (err) { setError(err); setShakeKey(k => k + 1); return; }
         setNeedsConfirm(confirm);
         setDone(true);
@@ -249,46 +243,6 @@ export default function SignUp() {
                 </p>
               )}
             </div>
-
-            {/* ニックネーム (customer のみ・他ユーザー公開) */}
-            {!isStore && (
-              <div>
-                <label className={labelClass}>
-                  ニックネーム <span className="text-destructive normal-case">*</span>
-                  <span className="ml-1.5 text-[10px] text-primary/80 normal-case font-bold tracking-normal">公開</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <Sparkles className="w-4 h-4 text-muted-foreground/60" />
-                  </div>
-                  <input
-                    type="text"
-                    value={nickname}
-                    onChange={e => { setNickname(e.target.value); setError(''); }}
-                    placeholder="たろう"
-                    maxLength={NICKNAME_MAX + 4}
-                    className={`w-full bg-white border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium placeholder:text-muted-foreground/45 focus:ring-4 outline-none transition-all text-[15px] ${
-                      nicknameError ? 'border-destructive focus:border-destructive focus:ring-destructive/10'
-                      : nicknameValid && nickname.length > 0 ? 'border-green-500 focus:border-green-500 focus:ring-green-500/10'
-                      : 'border-border/80 focus:border-primary focus:ring-primary/10'
-                    }`}
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
-                <div className="flex items-center justify-between mt-1.5 min-h-[16px]">
-                  <p className={`text-[11.5px] font-semibold leading-tight ${
-                    nicknameError ? 'text-destructive'
-                    : nicknameValid && nickname.length > 0 ? 'text-green-600'
-                    : 'text-muted-foreground/70'
-                  }`}>
-                    {nicknameError
-                      || (nicknameValid && nickname.length > 0 ? '使用できます ✓' : `ランキングや口コミで他のユーザーに表示されます (${NICKNAME_MIN}〜${NICKNAME_MAX}文字)`)}
-                  </p>
-                  <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0 ml-2">{nickname.trim().length}/{NICKNAME_MAX}</span>
-                </div>
-              </div>
-            )}
 
             {/* 電話番号 */}
             <div>

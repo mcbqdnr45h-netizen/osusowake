@@ -50,6 +50,11 @@
 13. **シェア機能** - `components/ShareAppCard.tsx` で `navigator.share()` (Web Share API / iOS Capacitor 対応) → 失敗時は LINE/X/Facebook/コピーリンクのフォールバック展開。 マイページ (一般ユーザー版・店舗オーナー版) の「アカウント・サポート」直前に「おすそわけを広める」セクションとして配置。 共有 URL は `https://osusowakejapan.org`、文言は variant=user/store で出し分け。
 14. **使い方ガイド** - `pages/UsageGuide.tsx` (`/usage-guide`, `/guide`) FAQ (`/help`) とは別に、 6ステップの図解＋使いこなしのコツ＋シェアカード＋FAQ導線で構成。 `?mode=store` または `profile.role==='store_owner'` で店舗編、それ以外はユーザー編を表示。 マイページの「アカウント・サポート」内ヘルプの上に配置 (BookOpenアイコン)。
 15. **パスワード変更** - `components/ChangePasswordModal.tsx` (現在PW再認証→新PW更新→トースト表示)。 設定 (`Settings.tsx`) のアカウントセクション、ログアウトの上に配置。 メール/パスワードプロバイダのユーザーのみ表示 (`user.identities.provider==='email'` 判定、Google等のソーシャル専用ユーザーには非表示)。 モーダル内に「現在のパスワードを忘れた方はこちら」リンクで `supabase.auth.resetPasswordForEmail` 経由のリセットメール送信もエスケープハッチとして提供。
+16. **ランキング完全オプトイン化** (2026年5月・B案: 全員リセット) - ニックネームは登録時不要、 ランキング参加時のみ要求する完全オプトインモデルへ移行。
+    - **DB**: `users.ranking_opt_out` を `DEFAULT true` に変更し、 `app_settings` に `ranking_opt_in_reset_2026_05` フラグを置き既存ユーザー全員を一回限り `ranking_opt_out=true` にリセット (api-server `index.ts` migration)。 新規ユーザーもデフォルト非掲載。
+    - **API**: `POST /auth/create-profile` の customer 用 `display_name` 必須を撤廃 (任意化)、 `PATCH /user/ranking-preference` で `rankingOptOut=false` 設定時のみ `display_name` 必須を検証 (`display_name_required` 400)。
+    - **Frontend**: `SignUp.tsx` のニックネーム欄を完全削除 (氏名/電話/メール/PW のみで登録完了)。 `Layout.tsx` の `needsNicknameSetup` 強制モーダル撤廃、 `NicknameRequiredModal.tsx` 削除。 新コンポーネント `RankingJoinModal.tsx` でニックネーム入力 → display_name PUT → ranking-preference PATCH を順次実行。 `Settings.tsx` の表示名欄は「ニックネーム (任意)」+ 用途説明に変更。
+    - **誘導**: `MyPage.tsx` のランキングカードは非参加者に「参加しよう！」 CTA、 `RankingPage.tsx` は非参加者向け Hero CTA + sticky bottom 「参加する」 ボタン → モーダルで即時参加可能。 既存参加者は従来どおり表示名プレビュー + 掲載 ON/OFF トグル。
 
 ## Pages
 

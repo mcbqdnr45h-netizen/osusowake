@@ -28,7 +28,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserId } from '@/hooks/use-user';
 import { useAvatar } from '@/hooks/use-avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, Trophy, Medal, Award, Heart, TrendingUp, Pencil, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, Trophy, Medal, Award, Heart, TrendingUp, Pencil, Eye, Sparkles } from 'lucide-react';
+import { RankingJoinModal } from '@/components/RankingJoinModal';
 
 // ─── 表示名から決定論的にパステル色を生成 (他ユーザのアバター代替) ──────────
 function colorForName(name: string): string {
@@ -107,11 +108,12 @@ function MiniToggle({ value, onChange, disabled }: { value: boolean; onChange: (
 
 export default function RankingPage() {
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const userId = useUserId();
   const myAvatar = useAvatar(userId);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showJoinModal, setShowJoinModal] = React.useState(false);
 
   const { data, isLoading, error } = useGetMonthlyRanking(
     { limit: 10 },
@@ -206,8 +208,40 @@ export default function RankingPage() {
           </div>
         </div>
 
-        {/* ── あなたの表示名プレビュー + ランキング掲載 ON/OFF ── */}
-        {data?.myRank?.displayName && (
+        {/* ── 非参加者向け: ヒーロー CTA「ランキングに参加する」 ────────────── */}
+        {user && rankingOptOut && (
+          <div className="mx-4 mb-4 rounded-2xl overflow-hidden border-2 border-amber-300/60 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-5">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-300 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                <Sparkles className="w-5 h-5" strokeWidth={2.4} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-black text-foreground leading-tight">
+                  ランキングに参加しませんか？
+                </p>
+                <p className="text-[11.5px] text-muted-foreground mt-1 leading-snug">
+                  あなたの街への貢献を見える化。 ニックネームを設定するだけで、 すぐに参加できます。 いつでも非掲載に戻せます。
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowJoinModal(true)}
+              disabled={updateRankingPref.isPending}
+              className="w-full flex items-center justify-center gap-2 text-white font-black py-3 rounded-xl active:scale-[0.98] transition-transform disabled:opacity-60"
+              style={{
+                background: 'linear-gradient(180deg, #F07826 0%, #E85A0C 100%)',
+                boxShadow: '0 4px 16px rgba(242,100,25,0.28)',
+              }}
+            >
+              <Trophy className="w-4 h-4" strokeWidth={2.6} />
+              ランキングに参加する
+            </button>
+          </div>
+        )}
+
+        {/* ── 参加者向け: 表示名プレビュー + 掲載 ON/OFF ─────────────────────── */}
+        {user && !rankingOptOut && data?.myRank?.displayName && (
           <div className="mx-4 mb-4 rounded-2xl bg-card border border-border/50 overflow-hidden">
             {/* 1行目: 表示名プレビュー + 編集 */}
             <div className="flex items-center gap-2.5 px-4 py-2.5">
@@ -217,11 +251,7 @@ export default function RankingPage() {
                 </span>
               </div>
               <p className="text-[12px] text-muted-foreground leading-tight flex-1 min-w-0">
-                {rankingOptOut ? (
-                  <>あなたは <span className="font-black text-foreground">「{data.myRank.displayName}」</span> ですが、 現在 <span className="font-black text-foreground">非掲載</span> です</>
-                ) : (
-                  <>あなたは <span className="font-black text-foreground">「{data.myRank.displayName}」</span> として表示されます</>
-                )}
+                あなたは <span className="font-black text-foreground">「{data.myRank.displayName}」</span> として表示されます
               </p>
               <button
                 onClick={() => navigate('/settings')}
@@ -233,14 +263,10 @@ export default function RankingPage() {
               </button>
             </div>
 
-            {/* 2行目: ランキング掲載 ON/OFF (その場で切替可能) */}
+            {/* 2行目: ランキング掲載 ON/OFF (その場で切替可能・OFF にすると非掲載) */}
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-border/40 bg-secondary/20">
               <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                {rankingOptOut ? (
-                  <EyeOff className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={2.4} />
-                ) : (
-                  <Eye className="w-3.5 h-3.5 text-amber-600" strokeWidth={2.4} />
-                )}
+                <Eye className="w-3.5 h-3.5 text-amber-600" strokeWidth={2.4} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[12px] font-bold text-foreground leading-tight">
@@ -362,17 +388,17 @@ export default function RankingPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-foreground leading-tight">
-                  ランキング非表示中
+                  ランキング未参加
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                  Settings の「ランキングに参加する」 をオンにすると表示されます
+                  参加するとあなたの順位もここに表示されます
                 </p>
               </div>
               <button
-                onClick={() => navigate('/settings')}
-                className="text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 px-3 py-2 rounded-xl shrink-0 transition-colors"
+                onClick={() => setShowJoinModal(true)}
+                className="text-xs font-black text-white bg-gradient-to-b from-amber-500 to-orange-600 hover:brightness-110 active:scale-95 px-3.5 py-2 rounded-xl shrink-0 transition-all shadow-sm"
               >
-                設定へ
+                参加する
               </button>
             </div>
           </div>
@@ -434,6 +460,24 @@ export default function RankingPage() {
           </div>
         )}
       </div>
+
+      {/* ── ランキング参加モーダル (オプトイン) ───────────────────────────── */}
+      {showJoinModal && (
+        <RankingJoinModal
+          existingDisplayName={profile?.display_name ?? null}
+          onClose={() => setShowJoinModal(false)}
+          onSuccess={() => {
+            setShowJoinModal(false);
+            // 参加直後のランキング・参加状態を再取得
+            queryClient.invalidateQueries({ queryKey: getGetRankingPreferenceQueryKey() });
+            queryClient.invalidateQueries({ queryKey: ['/api/ranking/monthly'] });
+            toast({
+              title: 'ランキングに参加しました',
+              description: 'あなたのおすそわけがランキングに反映されます',
+            });
+          }}
+        />
+      )}
     </Layout>
   );
 }
