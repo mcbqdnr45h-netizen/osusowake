@@ -11,13 +11,13 @@ const ROWS: { label: string; value: React.ReactNode }[] = [
   { label: 'サービス名称', value: 'おすそわけ' },
   { label: 'サービスの内容', value: '食品ロス削減を目的とした、飲食店・小売店の余剰食品をお客様が割引価格で購入できるマッチングプラットフォーム' },
   { label: '販売価格', value: '各商品ページに表示された価格（税込）' },
-  { label: '商品代金以外の必要料金', value: <>決済時に <span className="font-bold">システム利用料 5%</span> が加算されます（10円単位で四捨五入）。表示金額・お支払い合計は購入確認画面で明示されます。</> },
+  { label: '商品代金以外の必要料金', value: <>アプリに表示される販売価格は <span className="font-bold">税込・サービス手数料込みの総額表示</span> です。追加の手数料は発生しません。</> },
   { label: '支払方法', value: 'クレジットカード決済（Visa・Mastercard・American Express・JCB）' },
   { label: '支払時期', value: '注文確定時に決済されます' },
   { label: '商品の引渡し時期', value: '購入完了後、電子チケット（QRコード）を即時発行。各店舗指定の受取時間内にご来店いただき商品を受け取ってください' },
   { label: '返品・キャンセルについて', value: '食品の特性上、注文確定後のキャンセル・返品・返金は原則お受けできません。ただし、商品未提供・システムエラーによる二重決済など当社の責に帰すべき事由がある場合はこの限りではありません' },
   { label: '動作環境', value: 'iOS / Android の最新ブラウザ（Safari / Chrome）推奨' },
-  { label: '手数料', value: <>購入者からは <span className="font-bold">システム利用料 5%</span>（消費税込）を商品代金に加算してお預かりします。販売店舗からは販売額の <span className="font-bold">25%</span> を当プラットフォーム手数料として申し受けます（決済代行手数料は別途控除されます）。</> },
+  { label: '手数料', value: <>購入者にご請求する金額はアプリに表示される販売価格そのもの（<span className="font-bold">サービス手数料込みの総額表示</span>）です。販売店舗からは出品時に登録した販売額の <span className="font-bold">25%</span> を当プラットフォーム手数料として申し受けます（決済代行手数料は別途控除されます）。</> },
 ];
 
 export default function TokushoPage() {

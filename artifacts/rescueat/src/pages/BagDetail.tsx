@@ -4,15 +4,15 @@ import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation, getListAllBagsQueryKey, getGetBagQueryKey } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
-import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, HelpCircle, Sparkles, TrendingDown } from 'lucide-react';
+import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, Sparkles, TrendingDown } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authed-fetch';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
-import { FeeInfoSheet } from '@/components/FeeInfoSheet';
 import { getStockUrgency } from '@/lib/stock-urgency';
+import { getDisplayPrice, getDisplaySavings, getDisplayDiscountPercent } from '@/lib/price-display';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
@@ -256,7 +256,6 @@ export default function BagDetail() {
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showLoginNudge, setShowLoginNudge] = useState(false);
   const [loginNudgeReason, setLoginNudgeReason] = useState<'favorite' | 'purchase'>('purchase');
-  const [showFeeSheet, setShowFeeSheet] = useState(false);
 
   function requireLogin(reason: 'favorite' | 'purchase') {
     setLoginNudgeReason(reason);
@@ -403,9 +402,10 @@ export default function BagDetail() {
     );
   }
 
-  const discountPercent = bag.originalPrice > 0
-    ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
-    : 0;
+  const discountPercent = getDisplayDiscountPercent(bag.originalPrice, bag.discountedPrice);
+  const displayDiscountedPrice = getDisplayPrice(bag.discountedPrice);
+  const displayOriginalPrice = getDisplayPrice(bag.originalPrice);
+  const displaySavings = getDisplaySavings(bag.originalPrice, bag.discountedPrice);
   const isSoldOut = bag.stockCount <= 0;
   const isUnavailable = isExpired || isSoldOut;
 
@@ -441,11 +441,6 @@ export default function BagDetail() {
       isOpen={showLoginNudge}
       onClose={() => setShowLoginNudge(false)}
       reason={loginNudgeReason}
-    />
-    <FeeInfoSheet
-      isOpen={showFeeSheet}
-      onClose={() => setShowFeeSheet(false)}
-      basePrice={bag?.discountedPrice ?? 0}
     />
     <Layout showBottomNav={false}>
       <AnimatePresence>
@@ -565,18 +560,18 @@ export default function BagDetail() {
                     className="text-[58px] md:text-6xl font-black text-[#5C3A1F] dark:text-[#C4956A] tracking-[-0.04em] tabular-nums"
                     style={{ fontFeatureSettings: '"tnum"' }}
                   >
-                    {bag.discountedPrice.toLocaleString()}
+                    {displayDiscountedPrice.toLocaleString()}
                   </span>
                 </div>
                 {/* 通常価格 + OFF バッジを縦積みで右寄せ風 */}
-                {bag.originalPrice > bag.discountedPrice && (
+                {displayOriginalPrice > displayDiscountedPrice && (
                   <div className="flex flex-col items-start gap-1.5 pb-1.5">
                     <span className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.12em]">
                       通常価格
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground/55 line-through font-medium tabular-nums">
-                        ¥{bag.originalPrice.toLocaleString()}
+                        ¥{displayOriginalPrice.toLocaleString()}
                       </span>
                       {discountPercent > 0 && (
                         <span
@@ -591,9 +586,9 @@ export default function BagDetail() {
                 )}
               </div>
 
-              {/* お得額バッジ (緑グラデ・中サイズ・delight) + 手数料ⓘボタン */}
-              <div className="mt-3.5 flex items-center gap-2 flex-wrap">
-                {bag.originalPrice > bag.discountedPrice && (
+              {/* お得額バッジ (緑グラデ・中サイズ・delight) */}
+              {displaySavings > 0 && (
+                <div className="mt-3.5 flex items-center gap-2 flex-wrap">
                   <motion.span
                     initial={{ scale: 0.92, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -602,20 +597,11 @@ export default function BagDetail() {
                   >
                     <TrendingDown className="w-3.5 h-3.5" strokeWidth={2.8} />
                     <span className="tabular-nums" style={{ fontFeatureSettings: '"tnum"' }}>
-                      ¥{(bag.originalPrice - bag.discountedPrice).toLocaleString()} お得
+                      ¥{displaySavings.toLocaleString()} お得
                     </span>
                   </motion.span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowFeeSheet(true)}
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground/80 hover:text-foreground bg-muted/40 hover:bg-muted/70 px-2.5 py-1.5 rounded-full border border-border/50 hover:border-border transition-all active:scale-95"
-                  aria-label="システム利用料について"
-                >
-                  <HelpCircle className="w-3 h-3" strokeWidth={2.5} />
-                  <span>+ 手数料 5%</span>
-                </button>
-              </div>
+                </div>
+              )}
 
               {/* ステータスバー (洗練されたピル) */}
               <div className="flex items-center gap-2 mt-4 flex-wrap">
@@ -1014,7 +1000,7 @@ export default function BagDetail() {
                   <span className="relative flex items-center gap-2">
                     <span>購入する</span>
                     <span className="text-white/95 font-black tabular-nums" style={{ fontFeatureSettings: '"tnum"' }}>
-                      ¥{(bag.discountedPrice * quantity).toLocaleString()}
+                      ¥{getDisplayPrice(bag.discountedPrice * quantity).toLocaleString()}
                     </span>
                   </span>
                 )}

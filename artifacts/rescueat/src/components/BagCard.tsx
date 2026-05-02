@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
 import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
+import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 import { useToast } from '@/hooks/use-toast';
 import { LoginNudgeSheet } from '@/components/LoginNudgeSheet';
 import { StoreReviewSheet } from '@/components/StoreReviewSheet';
@@ -143,15 +144,15 @@ function CompactCardBody({
               <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
             ) : null}
           </div>
-          {/* 右: 元値 + 販売価格 */}
+          {/* 右: 元値 + 販売価格 (税込・サービス手数料込み) */}
           <div className="flex flex-col items-end shrink-0">
             {bag.originalPrice > bag.discountedPrice && (
               <span className="text-[10px] text-muted-foreground/40 line-through font-medium leading-none mb-[1px]">
-                ¥{bag.originalPrice.toLocaleString()}
+                ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
               </span>
             )}
             <span className="text-[18px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
-              ¥{bag.discountedPrice.toLocaleString()}
+              ¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}
             </span>
           </div>
         </div>
@@ -257,7 +258,7 @@ function FullCardBody({
                 <>
                   <span className="text-[10px] text-muted-foreground/70 font-medium mb-0.5">定価</span>
                   <span className="text-sm text-muted-foreground/60 line-through decoration-rose-400/40 font-semibold leading-tight">
-                    ¥{bag.originalPrice.toLocaleString()}
+                    ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
                   </span>
                 </>
               ) : (
@@ -267,7 +268,7 @@ function FullCardBody({
             <div className="flex flex-col items-end">
               <span className="text-[10px] text-primary/60 font-semibold tracking-wide mb-0.5">おすそわけ価格</span>
               <span className="text-2xl font-black text-primary leading-none whitespace-nowrap tracking-tight">
-                ¥{bag.discountedPrice.toLocaleString()}
+                ¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}
               </span>
             </div>
           </div>
@@ -278,9 +279,7 @@ function FullCardBody({
 }
 
 export function BagCard({ bag, compact = false }: BagCardProps) {
-  const discountPercent = bag.originalPrice > 0
-    ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
-    : 0;
+  const discountPercent = getDisplayDiscountPercent(bag.originalPrice, bag.discountedPrice);
   const isSoldOut  = bag.stockCount <= 0;
   const isLowStock = bag.stockCount > 0 && bag.stockCount <= 2;
   const { isFavorite, toggle } = useFavorites();

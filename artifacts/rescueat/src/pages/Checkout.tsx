@@ -481,15 +481,6 @@ export default function Checkout() {
   }
 
   const total = Math.round(reservation.totalPrice);
-  // 商品代金: サーバーの resolveMerchandise() と同じロジックで決定する。
-  //   - 新データ:  merchandiseAmount があればそれを採用 (5%加算前の本体金額)
-  //   - 旧データ:  merchandiseAmount が NULL/未提供 → totalPrice を商品代金とみなす
-  //                (旧スキーマでは totalPrice にユーザー手数料が含まれていなかった)
-  // → サーバー側の calcFees() / Stripe metadata と完全に整合する。
-  const merchandise = Math.round(
-    reservation.merchandiseAmount != null ? reservation.merchandiseAmount : total
-  );
-  const userServiceFee = Math.max(0, total - merchandise);
 
   return (
     <Layout showBottomNav={false}>
@@ -534,27 +525,14 @@ export default function Checkout() {
             </div>
           </motion.div>
 
-          {/* Total — 商品代金 + システム利用料(5%) = お支払い合計 */}
+          {/* お支払い合計 (税込・サービス料込み総額) */}
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="bg-card border border-border rounded-2xl p-5 shadow-sm"
           >
-            <div className="space-y-2.5 text-sm">
-              <div className="flex items-center justify-between text-foreground">
-                <span>商品代金</span>
-                <span className="font-bold tabular-nums">¥{merchandise.toLocaleString()}</span>
-              </div>
-              <div className="flex items-start justify-between text-muted-foreground">
-                <div className="flex flex-col">
-                  <span>システム利用料 <span className="text-xs">(5%)</span></span>
-                  <span className="text-[11px] text-muted-foreground/70 mt-0.5">合計を10円単位に四捨五入してお預かりします</span>
-                </div>
-                <span className="font-bold tabular-nums">¥{userServiceFee.toLocaleString()}</span>
-              </div>
-              <div className="border-t border-border pt-2.5 flex items-center justify-between">
-                <span className="font-black text-foreground">お支払い合計</span>
-                <span className="font-black text-xl text-primary tabular-nums">¥{total.toLocaleString()}</span>
-              </div>
+            <div className="flex items-center justify-between">
+              <span className="font-black text-foreground">お支払い合計</span>
+              <span className="font-black text-2xl text-primary tabular-nums">¥{total.toLocaleString()}</span>
             </div>
           </motion.div>
 

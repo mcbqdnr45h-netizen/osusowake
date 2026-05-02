@@ -21,6 +21,18 @@
 - **CSS Utilities**: skeleton-shimmer, img-fade-in, hide-scrollbar, scroll-snap-x, tap-scale, hover-lift (index.css)
 - **Accessibility**: prefers-reduced-motion 対応済み (img-fade-in, scroll-snap無効化)
 
+## 価格表示モデル (重要)
+
+**税込・サービス料込み総額表示モデル** (Too Good To Go / Olio 方式に移行 — 2026年5月)。
+- 店舗が登録する `discountedPrice` = **店舗が受け取りたい商品代金** (店舗の取り分計算ベース)
+- ユーザー画面の表示価格 = `getDisplayPrice(discountedPrice) = round(price * 1.05 / 10) * 10` (`lib/price-display.ts`)
+- ユーザーには手数料表記は **一切表示しない** (BagDetail / BagCard / SearchPage / StoreDetailPublic / Checkout すべて総額のみ)
+- 店舗側 (StoreBagsPage / RegisterStore / StoreSalesPage / StoreOwnerDashboard / BagManageCard) は raw discountedPrice ベース表示 + 入力時に「お客様への表示価格」プレビュー
+- バックエンド (`payment.ts` / `reservations.ts`) の Stripe Connect destination charge / 25% 店舗手数料計算は変更なし、`USER_SERVICE_FEE_RATE = 0.05` も継続
+- 法律文言 (Terms 第5条の2 / TokushoPage / HelpPage) は「総額表示・追加料金なし」モデルに更新済み
+- ⚠️ BagDetail CTA 等の qty>1 計算は必ず `getDisplayPrice(price * qty)` (multiply先→round) でサーバー `round10(merchandise * 1.05)` と整合させる
+- ❌ 削除済: `FeeInfoSheet.tsx`, `stock-urgency.ts::calculateFeeBreakdown`, BagDetail の「+ 手数料 5% ⓘ」ピル, Checkout の「商品代金 + システム利用料 5%」内訳
+
 ## Features
 
 1. **マップ表示** - Leafletマップ＋クラスタリング（緑の丸に店舗数）、現在地ボタン、一覧/地図切替

@@ -4,6 +4,7 @@ import { useCreateStore, useCreateBag } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { Store, ChevronLeft, CheckCircle, Camera, RefreshCw, Info } from 'lucide-react';
+import { getDisplayPrice } from '@/lib/price-display';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
 const CATEGORY_OPTIONS = [
@@ -379,6 +380,18 @@ export default function RegisterStore() {
                 </div>
               </div>
             </div>
+
+            {bagForm.discountedPrice > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-blue-800">お客様への表示価格</span>
+                  <span className="text-xl font-black text-blue-700">¥{getDisplayPrice(bagForm.discountedPrice).toLocaleString()}</span>
+                </div>
+                <p className="text-[11px] text-blue-600/80 mt-0.5 leading-snug">
+                  サービス手数料 5% 込みの総額表示。お客様はこの金額をお支払いされます。
+                </p>
+              </div>
+            )}
 
             {discountPct > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex justify-between items-center">

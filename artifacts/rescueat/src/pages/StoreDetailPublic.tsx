@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Layout } from '@/components/Layout';
 import { useGetStore, useListAllBags, getGetStoreQueryKey, getListAllBagsQueryKey } from '@workspace/api-client-react';
 import { ArrowLeft, MapPin, Clock, Star, Navigation, ChevronRight, ExternalLink, Package } from 'lucide-react';
+import { getDisplayPrice } from '@/lib/price-display';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -229,11 +230,11 @@ export default function StoreDetailPublic() {
                             <p className="font-bold text-sm text-foreground leading-snug truncate">{bag.title}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-base font-black text-primary">
-                                ¥{bag.discountedPrice?.toLocaleString() ?? bag.price?.toLocaleString()}
+                                ¥{getDisplayPrice(bag.discountedPrice ?? bag.price).toLocaleString()}
                               </span>
                               {bag.originalPrice && bag.discountedPrice && bag.originalPrice !== bag.discountedPrice && (
                                 <span className="text-xs text-muted-foreground line-through">
-                                  ¥{bag.originalPrice.toLocaleString()}
+                                  ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
                                 </span>
                               )}
                               <span className="text-xs text-muted-foreground">残り {bag.stock}個</span>

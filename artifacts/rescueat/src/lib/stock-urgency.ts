@@ -61,10 +61,3 @@ export function getStockUrgency(count: number): StockUrgency {
   };
 }
 
-export function calculateFeeBreakdown(basePrice: number, quantity = 1) {
-  const subtotal = basePrice * quantity;
-  const rawFee = subtotal * 0.05;
-  const fee = Math.round(rawFee / 10) * 10;
-  const total = subtotal + fee;
-  return { subtotal, fee, total };
-}

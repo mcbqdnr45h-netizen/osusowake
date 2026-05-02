@@ -18,6 +18,7 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage } from '@/lib/category-utils';
 import { useUserLocation, updateCachedCoords, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
+import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 
 // ─── 距離計算 ─────────────────────────────────────────────────────────────────
 function calcDistanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -295,9 +296,7 @@ function StoreBottomSheet({
                 <div className="space-y-3">
                   {storeBags.map(bag => {
                     const isSoldOut   = bag.stockCount <= 0;
-                    const discountPct = bag.originalPrice > 0
-                      ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
-                      : 0;
+                    const discountPct = getDisplayDiscountPercent(bag.originalPrice, bag.discountedPrice);
                     const isLowStock  = bag.stockCount > 0 && bag.stockCount < 3;
                     return (
                       <div key={bag.id}
@@ -333,8 +332,8 @@ function StoreBottomSheet({
                           </div>
                           <div className="flex items-center justify-between">
                             <div>
-                              <span className="text-[10px] text-muted-foreground line-through mr-1">¥{bag.originalPrice.toLocaleString()}</span>
-                              <span className="text-base font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
+                              <span className="text-[10px] text-muted-foreground line-through mr-1">¥{getDisplayPrice(bag.originalPrice).toLocaleString()}</span>
+                              <span className="text-base font-black text-primary">¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}</span>
                               {isSoldOut
                                 ? <span className="text-[10px] text-muted-foreground font-bold ml-1">完売</span>
                                 : isLowStock
