@@ -311,3 +311,33 @@ id = "63rgMsHkMUGaTjkbAR4XQ"
 uri = "file://artifacts/rescueat/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"
 type = "image"
 title = "アイコン最終版（外側枠完全削除）"
+
+[[outputs]]
+id = "YyLmAbu4rYrea7FF-DFw2"
+uri = "file://attached_assets/ipad_screenshots/01_home_1_ipad.png"
+type = "image"
+title = "01 ホーム画面 (iPad 2048×2732)"
+
+[[outputs]]
+id = "o_hnroayhfTpfxcJ_dqG4"
+uri = "file://attached_assets/ipad_screenshots/02_map_ipad.png"
+type = "image"
+title = "02 マップ画面 (iPad 2048×2732)"
+
+[[outputs]]
+id = "Heei1MINzITJynD2vy5cf"
+uri = "file://attached_assets/ipad_screenshots/03_detail_ipad.png"
+type = "image"
+title = "03 商品詳細 (iPad 2048×2732)"
+
+[[outputs]]
+id = "sYwEuJlMlaERU3JadfHEJ"
+uri = "file://attached_assets/ipad_screenshots/04_mypage_1_ipad.png"
+type = "image"
+title = "04 マイページ (iPad 2048×2732)"
+
+[[outputs]]
+id = "d_eig1ThxCjII6u0d7g42"
+uri = "file://attached_assets/ipad_screenshots/05_qr_ipad.png"
+type = "image"
+title = "05 電子チケット (iPad 2048×2732)"
