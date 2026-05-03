@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Layout } from '@/components/Layout';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import {
@@ -51,12 +52,10 @@ const SCROLL_CATS = [
   { label: '食材・その他',  value: 'ingredients',    emoji: '🍎' },
 ];
 
-type SortKey = 'default' | 'time_asc' | 'price_asc' | 'price_desc';
+type SortKey = 'default' | 'time_asc';
 const SORT_OPTIONS: { label: string; value: SortKey }[] = [
-  { label: 'おすすめ順',   value: 'default'    },
-  { label: '時間が早い順', value: 'time_asc'   },
-  { label: '価格が安い順', value: 'price_asc'  },
-  { label: '価格が高い順', value: 'price_desc' },
+  { label: 'おすすめ順',   value: 'default'  },
+  { label: '時間が早い順', value: 'time_asc' },
 ];
 
 // ─── 受け取り時間フォーマット ─────────────────────────────────────────────
@@ -294,6 +293,8 @@ export default function Home() {
   const [showSort,       setShowSort]       = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sortBtnRef = useRef<HTMLButtonElement>(null);
+  const [sortMenuPos, setSortMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   const { settings: appSettings } = useAppSettings();
   const { toast } = useToast();
@@ -382,6 +383,16 @@ export default function Home() {
     else { setSearchQuery(''); }
   }, [showSearch]);
 
+  // ソートメニューを開くたびにボタン位置を計算（Portal で body 直下に出すため）
+  useEffect(() => {
+    if (!showSort || !sortBtnRef.current) return;
+    const rect = sortBtnRef.current.getBoundingClientRect();
+    setSortMenuPos({ top: rect.bottom + 6, left: rect.left });
+    const onScroll = () => setShowSort(false);
+    window.addEventListener('scroll', onScroll, true);
+    return () => window.removeEventListener('scroll', onScroll, true);
+  }, [showSort]);
+
   // 絞り込みモード: 検索・カテゴリ・商品タイプ・横断フィルタが変わった時
   const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || activeItemType !== 'all'
                      || urgent30 || halfOff || under500;
@@ -398,8 +409,6 @@ export default function Home() {
   // ソート関数（各セクション・縦リスト共通）
   const applySortKey = useCallback((arr: SurpriseBagWithStore[]) => {
     if (sortKey === 'time_asc')   return [...arr].sort((a, b) => (a.pickupStart || '').localeCompare(b.pickupStart || ''));
-    if (sortKey === 'price_asc')  return [...arr].sort((a, b) => a.discountedPrice - b.discountedPrice);
-    if (sortKey === 'price_desc') return [...arr].sort((a, b) => b.discountedPrice - a.discountedPrice);
     return arr;
   }, [sortKey]);
 
@@ -713,35 +722,17 @@ export default function Home() {
             </button>
 
             {/* 並び替え */}
-            <div className="relative">
-              <button
-                onClick={() => setShowSort(v => !v)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border tap-scale transition-colors ${
-                  sortKey !== 'default' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-muted-foreground border-border'
-                }`}
-              >
-                <SlidersHorizontal className="w-3 h-3" />
-                {currentSortLabel}
-                <ChevronDown className={`w-3 h-3 transition-transform ${showSort ? 'rotate-180' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {showSort && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.95 }} transition={{ duration: 0.13 }}
-                    className="absolute top-full mt-1.5 left-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden min-w-[148px]"
-                  >
-                    {SORT_OPTIONS.map(opt => (
-                      <button key={opt.value} onClick={() => { setSortKey(opt.value); setShowSort(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-colors hover:bg-secondary tap-opacity
-                          ${sortKey === opt.value ? 'text-primary bg-primary/5' : 'text-foreground'}`}>
-                        {sortKey === opt.value && <span className="mr-1">✓</span>}{opt.label}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <button
+              ref={sortBtnRef}
+              onClick={() => setShowSort(v => !v)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border tap-scale transition-colors shrink-0 ${
+                sortKey !== 'default' ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-muted-foreground border-border'
+              }`}
+            >
+              <SlidersHorizontal className="w-3 h-3" />
+              {currentSortLabel}
+              <ChevronDown className={`w-3 h-3 transition-transform ${showSort ? 'rotate-180' : ''}`} />
+            </button>
 
             {/* ⚡ 30 分以内受取 */}
             <button
@@ -1107,6 +1098,28 @@ export default function Home() {
       </div>
 
       <FloatingMapButton />
+
+      {/* ソートメニュー（Portal で body 直下、横スクロール領域からエスケープ） */}
+      {showSort && sortMenuPos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => setShowSort(false)} />
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.95 }} transition={{ duration: 0.13 }}
+            style={{ position: 'fixed', top: sortMenuPos.top, left: sortMenuPos.left }}
+            className="z-[61] bg-card border border-border rounded-2xl shadow-xl overflow-hidden min-w-[148px]"
+          >
+            {SORT_OPTIONS.map(opt => (
+              <button key={opt.value} onClick={() => { setSortKey(opt.value); setShowSort(false); }}
+                className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-colors hover:bg-secondary tap-opacity
+                  ${sortKey === opt.value ? 'text-primary bg-primary/5' : 'text-foreground'}`}>
+                {sortKey === opt.value && <span className="mr-1">✓</span>}{opt.label}
+              </button>
+            ))}
+          </motion.div>
+        </>,
+        document.body
+      )}
     </Layout>
   );
 }
