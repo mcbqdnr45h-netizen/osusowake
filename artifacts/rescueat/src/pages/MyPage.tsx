@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
 import { useListReservations, getListReservationsQueryKey, useGetMonthlyRanking, getGetMonthlyRankingQueryKey } from '@workspace/api-client-react';
-import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, AlertTriangle, Trash2, Trophy, BookOpen, Share2, Gift } from 'lucide-react';
+import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, AlertTriangle, Trash2, Trophy, BookOpen } from 'lucide-react';
 import { ShareAppCard } from '@/components/ShareAppCard';
 import { ImpactShareButton } from '@/components/ImpactShareButton';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
@@ -92,41 +92,6 @@ export default function MyPage() {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
-
-  // ── 招待情報 (コード・バッジ) ──
-  const { data: inviteInfo } = useQuery<{
-    code: string;
-    acceptedCount: number;
-    earnedBadges: { id: string; label: string; desc: string; threshold: number }[];
-    nextBadge: { id: string; label: string; threshold: number } | null;
-  } | null>({
-    queryKey: ['/api/me/invite', userId],
-    queryFn: async () => {
-      if (!userId) return null;
-      const r = await authedFetch(`${BASE_URL}/api/me/invite`);
-      return r.ok ? r.json() : null;
-    },
-    enabled: !!userId && !isStoreOwner,
-    staleTime: 30_000,
-  });
-  const [inviteCopied, setInviteCopied] = useState(false);
-
-  async function handleShareInvite() {
-    if (!inviteInfo?.code) return;
-    const inviteUrl = `https://osusowakejapan.org/?invite=${inviteInfo.code}`;
-    const text = `「おすそわけ」で食品ロスを一緒に減らしませんか？\n招待コード: ${inviteInfo.code}\n`;
-    const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string; url?: string }) => Promise<void> };
-    if (typeof nav.share === 'function') {
-      try { await nav.share({ title: 'おすそわけに招待します', text, url: inviteUrl }); return; } catch {}
-    }
-    try {
-      await navigator.clipboard.writeText(`${text}${inviteUrl}`);
-      setInviteCopied(true);
-      setTimeout(() => setInviteCopied(false), 2000);
-    } catch {
-      window.prompt('コピーして友達に送ってください:', `${text}${inviteUrl}`);
-    }
-  }
 
   // ── お知らせ（通知）──
   const [notifications, setNotifications] = useState<{ id: number; title: string; body: string; type: string; read: boolean; createdAt: string; storeId?: number | null }[]>([]);
@@ -607,93 +572,6 @@ export default function MyPage() {
                 </p>
               )}
             </button>
-          </motion.div>
-        )}
-
-        {/* ── 招待バッジセクション（カスタマーのみ）── */}
-        {!isStoreOwner && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.05 }}
-            className="mb-3"
-          >
-            <div className="bg-card rounded-2xl overflow-hidden"
-              style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>
-              {/* ヘッダ */}
-              <div className="px-4 pt-3.5 pb-2 flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Gift className="w-3.5 h-3.5 text-primary" />
-                </div>
-                <p className="text-sm font-black text-foreground flex-1">友達を招待する</p>
-                {inviteInfo && (
-                  <span className="text-[11px] font-bold text-muted-foreground">
-                    {inviteInfo.acceptedCount}人招待済み
-                  </span>
-                )}
-              </div>
-
-              {/* 招待リンク共有ボタン */}
-              <div className="px-4 pb-3">
-                <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
-                  友達が登録するとバッジがもらえます！一緒に食品ロスを減らしましょう
-                </p>
-                <button
-                  type="button"
-                  onClick={handleShareInvite}
-                  disabled={!inviteInfo}
-                  className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold py-2.5 rounded-xl text-sm active:scale-[0.98] transition-transform disabled:opacity-50"
-                >
-                  {inviteCopied ? (
-                    <><CheckCircle className="w-4 h-4" />コピーしました！</>
-                  ) : (
-                    <><Share2 className="w-4 h-4" />招待リンクをシェア</>
-                  )}
-                </button>
-                {inviteInfo?.code && (
-                  <p className="text-center text-[11px] text-muted-foreground mt-1.5">
-                    招待コード: <span className="font-black text-foreground tracking-wider">{inviteInfo.code}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* バッジ一覧 */}
-              {inviteInfo && inviteInfo.earnedBadges.length > 0 && (
-                <div className="border-t border-border/60 px-4 py-3">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2">獲得バッジ</p>
-                  <div className="flex flex-wrap gap-2">
-                    {inviteInfo.earnedBadges.map(b => (
-                      <div key={b.id}
-                        className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
-                        <span className="text-sm">{b.label.split(' ')[1]}</span>
-                        <span className="text-[11px] font-bold text-amber-800">{b.label.split(' ')[0]}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 次のバッジまでのプログレス */}
-              {inviteInfo?.nextBadge && (
-                <div className="border-t border-border/60 px-4 py-2.5">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[11px] font-bold text-muted-foreground">次のバッジまで</p>
-                    <p className="text-[11px] font-black text-foreground">
-                      {inviteInfo.acceptedCount} / {inviteInfo.nextBadge.threshold}人
-                    </p>
-                  </div>
-                  <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.min(100, (inviteInfo.acceptedCount / inviteInfo.nextBadge.threshold) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">{inviteInfo.nextBadge.label}</p>
-                </div>
-              )}
-            </div>
           </motion.div>
         )}
 

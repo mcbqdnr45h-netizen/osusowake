@@ -6,7 +6,7 @@ import { Eye, EyeOff, Mail, Lock, Store, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
 
-const SHOW_SSO = true;
+const SHOW_SSO = false;
 
 export default function Login() {
   const [, navigate] = useLocation();
