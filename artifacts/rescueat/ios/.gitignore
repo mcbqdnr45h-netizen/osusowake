@@ -5,9 +5,6 @@ App/App/public
 DerivedData
 xcuserdata
 
-# SPM resolved files (Xcode Cloud regenerates them; keeping stale copies fails the build)
-**/Package.resolved
-
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins
 

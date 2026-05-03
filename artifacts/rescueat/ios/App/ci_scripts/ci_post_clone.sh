@@ -50,52 +50,14 @@ if [ -f "${SPM_FILE}" ]; then
   grep -E '\.package\(name:' "${SPM_FILE}" || true
 fi
 
-# ★ Package.resolved の再生成 (Xcode Cloud automatic resolution 無効環境向け)。
-#   Xcode Cloud は automatic dependency resolution OFF のため、
-#   ① 古い Package.resolved → "out-of-date" で fail
-#   ② Package.resolved 無し → "a resolved file is required" で fail
-#   どちらも fail するので、 sed 書換後に必ず "xcodebuild -resolvePackageDependencies" で
-#   Package.swift と一致する Package.resolved を生成する。
-RESOLVED_FILES=(
-  "${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
-  "${REPO_ROOT}/artifacts/rescueat/ios/App/CapApp-SPM/Package.resolved"
-)
-for f in "${RESOLVED_FILES[@]}"; do
-  if [ -f "$f" ]; then
-    echo "Removing stale Package.resolved: $f"
-    rm -f "$f"
-  fi
-done
-
-# ★ 新しい Package.resolved を SPM に生成させる。
-#   xcodebuild -resolvePackageDependencies は Package.swift を読み込んで
-#   Package.resolved を生成するだけのコマンド。
-#   生成先は workspace の xcshareddata/swiftpm/Package.resolved に確実に出る必要あり。
-XCODEPROJ="${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj"
-EXPECTED_RESOLVED="${XCODEPROJ}/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
-
-if [ -d "${XCODEPROJ}" ]; then
-  echo "Resolving SPM dependencies to regenerate Package.resolved..."
-  # default の DerivedData 配下に書き出してくれるよう -clonedSourcePackagesDirPath を外す。
-  xcodebuild -resolvePackageDependencies \
-    -project "${XCODEPROJ}" \
-    -scheme App
-  echo "✅ resolvePackageDependencies completed"
-
-  # フォールバック: workspace 内に生成されてなかったら DerivedData / 他候補から探してコピー。
-  if [ ! -f "${EXPECTED_RESOLVED}" ]; then
-    echo "⚠️ Package.resolved not at expected workspace path. Searching other locations..."
-    FOUND=$(find "${HOME}/Library/Developer/Xcode/DerivedData" "${REPO_ROOT}/artifacts/rescueat/ios/App" \
-              -name "Package.resolved" -type f 2>/dev/null | head -1)
-    if [ -n "${FOUND}" ]; then
-      mkdir -p "$(dirname "${EXPECTED_RESOLVED}")"
-      cp "${FOUND}" "${EXPECTED_RESOLVED}"
-      echo "✅ Copied Package.resolved from ${FOUND}"
-    else
-      echo "❌ FATAL: Could not locate generated Package.resolved." >&2
-      exit 1
-    fi
-  fi
-  echo "Package.resolved is at: ${EXPECTED_RESOLVED}"
+# Package.resolved は repo に commit 済 (capacitor-swift-pm@8.3.1)。
+# sed で書き換えるのは local path 依存だけなので Package.resolved には影響しない。
+# Xcode Cloud は auto-resolution OFF だが committed Package.resolved があれば OK。
+EXPECTED_RESOLVED="${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+if [ -f "${EXPECTED_RESOLVED}" ]; then
+  echo "✅ Package.resolved found at: ${EXPECTED_RESOLVED}"
+else
+  echo "❌ FATAL: Package.resolved missing from repo." >&2
+  exit 1
 fi
 echo "=== Done ==="
