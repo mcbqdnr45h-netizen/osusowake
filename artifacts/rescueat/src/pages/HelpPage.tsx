@@ -723,7 +723,6 @@ function FaqSectionBlock({ section }: { section: FaqSection }) {
 }
 
 type ContentTab = 'guide' | 'faq';
-type RoleTab = 'user' | 'store';
 
 export default function HelpPage() {
   const { profile } = useAuth();
@@ -733,14 +732,12 @@ export default function HelpPage() {
   const urlMode = params.get('mode');
   const urlTab = params.get('tab');
 
-  // ロール判定: store_owner または ?mode=store → 店舗向けに初期化
-  const initialRole: RoleTab = (urlMode === 'store' || profile?.role === 'store_owner') ? 'store' : 'user';
+  // ロール固定判定: 店舗オーナー (or ?mode=store) は店舗向けのみ、 それ以外はユーザー向けのみ
+  const isStoreMode = urlMode === 'store' || profile?.role === 'store_owner';
   const initialContent: ContentTab = urlTab === 'faq' ? 'faq' : 'guide';
 
-  const [roleTab, setRoleTab] = useState<RoleTab>(initialRole);
   const [contentTab, setContentTab] = useState<ContentTab>(initialContent);
 
-  const isStoreMode = roleTab === 'store';
   const guideSteps = isStoreMode ? STORE_GUIDE_STEPS : USER_GUIDE_STEPS;
   const faqSections = isStoreMode ? STORE_FAQ_SECTIONS : USER_FAQ_SECTIONS;
 
@@ -769,28 +766,15 @@ export default function HelpPage() {
           </div>
         </div>
 
-        {/* ロール切替ピル */}
-        <div className="grid grid-cols-2 gap-2 mb-3 p-1 bg-muted/60 rounded-2xl">
-          <button
-            onClick={() => setRoleTab('user')}
-            className={`py-2.5 rounded-xl text-xs font-black transition-all ${
-              !isStoreMode
-                ? 'bg-white text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            👤 ユーザー向け
-          </button>
-          <button
-            onClick={() => setRoleTab('store')}
-            className={`py-2.5 rounded-xl text-xs font-black transition-all ${
-              isStoreMode
-                ? 'bg-white text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            🏪 店舗オーナー向け
-          </button>
+        {/* ロール表示バッジ (固定: 切替不可) */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black ${
+            isStoreMode
+              ? 'bg-primary/10 text-primary'
+              : 'bg-sky-100 text-sky-700'
+          }`}>
+            {isStoreMode ? '🏪 店舗オーナー向け' : '👤 ユーザー向け'}
+          </div>
         </div>
 
         {/* コンテンツ切替タブ (使い方ガイド / よくある質問) */}
@@ -822,7 +806,7 @@ export default function HelpPage() {
         {/* メインコンテンツ */}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={`${roleTab}-${contentTab}`}
+            key={`${isStoreMode ? 'store' : 'user'}-${contentTab}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
