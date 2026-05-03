@@ -14,6 +14,7 @@ import {
   Globe, Clock, ArrowLeft, ShoppingBag, Megaphone, Star,
 } from 'lucide-react';
 import { NotificationsBell } from '@/components/NotificationsBell';
+import { LiveImpactCounter } from '@/components/LiveImpactCounter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
@@ -701,6 +702,9 @@ export default function Home() {
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >
+          {/* ── ライブ救済カウンター（社会的証明 / 信頼感アップ） ── */}
+          <LiveImpactCounter />
+
           {/* ── お知らせバナー ── */}
           <AnimatePresence>
             {announcement && !annDismissed && (

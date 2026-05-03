@@ -151,6 +151,32 @@
 - `STRIPE_SECRET_KEY` - Stripeシークレットキー（任意・未設定でモック）
 - `VITE_STRIPE_PUBLIC_KEY` - Stripeパブリックキー（任意）
 
+## Recent Updates (2026-05-03) — ユーザ登録増 4 大施策
+
+**T001 救済インパクト見える化 + ライブカウンター + SNS シェア**
+- `routes/impact.ts`: GET `/api/impact/global` (全体集計、 60s メモリキャッシュ + Cache-Control max-age=30)。 `reservations` (`confirmed`+`picked_up`) を totalRescued / totalCo2Kg(2.5kg/食) / totalFoodKg(0.5kg/食) / totalSavedYen / totalUsers(distinct) / totalStores(approved distinct) に集計
+- `LiveImpactCounter.tsx`: Home 先頭、 sessionStorage キャッシュで初回も瞬時、 totalRescued===0 時は非表示
+- `ImpactShareButton.tsx`: MyPage スコアカード内、 Web Share API → clipboard → prompt の三段フォールバック
+
+**T002 ゲスト閲覧解放 (バックエンドは元から公開済)**
+- `LoginNudgeSheet.tsx` 全面リライト: reason 別アイコン + 3 点ベネフィット (入荷通知 / 30〜70%OFF / 30秒登録)、 CTA 順序 新規登録→ログイン
+
+**T003 招待バッジ (¥0 コスト施策)**
+- DB: `invitations(id, inviter_id TEXT, code TEXT UNIQUE, invitee_id TEXT, accepted_at, created_at)` + 部分 UNIQUE INDEX `(invitee_id) WHERE invitee_id IS NOT NULL` (二重 redeem 防止)。 inline migration in `api-server/src/index.ts`
+- `routes/invites.ts`:
+  - `GET /api/me/invite-status` (auto-create personal code = 8桁 [ABCDEFGHJKLMNPQRSTUVWXYZ23456789]、 acceptedCount から 5 段階バッジ算出: 🌱招待まだ / 🤝初心者(1+) / 🎁広め隊(3+) / 🌟マスター(5+) / 🏆街のヒーロー(10+))
+  - `POST /api/invites/redeem` (self-invite 拒否 / replay 拒否 / 受諾行は `${code}__${crypto.randomUUID()}` で UNIQUE 衝突回避)
+- `InviteBadgeCard.tsx`: MyPage カスタマー設定ブロック先頭、 進捗バー = `(count - currentThreshold) / (nextThreshold - currentThreshold)` で正確なステージ進捗
+- 招待 redeem 動線: `App.tsx` AnimatedRoutes で `?invite=XXXX` を sessionStorage に永続化 → SignUp / Login / AuthCallback の三箇所で signup/signin 直後に自動 redeem。 confirm メール経由でも sessionStorage 残存
+
+**T004 Apple / Google SSO**
+- `AuthContext.signInWithProvider(provider)` ラッパー、 `supabase.auth.signInWithOAuth` を `redirectTo=https://osusowakejapan.org/auth-callback?invite=...`
+- `pages/AuthCallback.tsx`: session ポーリング (最大 4.5s) → `/auth/create-profile` (失敗してもログ + 続行) → invite redeem → /mypage
+- `pages/Login.tsx`: Apple (黒) / Google (白) ボタン、 customer タブのみ。 provider 未有効化エラーは「現在準備中です」 に翻訳
+- `auth.ts /auth/create-profile`: `phone_number` を任意化 (OAuth では metadata にないため)、 NULL 保存可。 ON CONFLICT は `phone_number = COALESCE(users.phone_number, EXCLUDED.phone_number)` で既存値を保護
+
+セキュリティ: 招待自演は `phone_number UNIQUE` 制約 + invitee 自演拒否で二重防御。 OAuth flow は Supabase Dashboard で provider 有効化が必要 (env なし)。
+
 ## Recent Updates (2026-05-01)
 
 ### 神モード AdminDashboard 全面リニューアル + 営業許可証 silent fail 修正（ASC 提出前）

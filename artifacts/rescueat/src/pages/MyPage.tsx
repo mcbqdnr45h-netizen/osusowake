@@ -5,6 +5,8 @@ import { useMyStores } from '@/hooks/use-my-stores';
 import { useListReservations, getListReservationsQueryKey, useGetMonthlyRanking, getGetMonthlyRankingQueryKey } from '@workspace/api-client-react';
 import { User, Leaf, ShoppingBag, Heart, ChevronRight, Settings, HelpCircle, LogOut, Store as StoreIcon, CreditCard, Receipt, Mail, Scale, Star, Clock, XCircle, FileCheck, Camera, MessageSquare, Bell, Megaphone, CheckCircle, Flag, ShieldCheck, AlertTriangle, Trash2, Trophy, BookOpen } from 'lucide-react';
 import { ShareAppCard } from '@/components/ShareAppCard';
+import { ImpactShareButton } from '@/components/ImpactShareButton';
+import { InviteBadgeCard } from '@/components/InviteBadgeCard';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { MyTown } from '@/components/MyTown';
 import { Link, useLocation } from 'wouter';
@@ -491,6 +493,13 @@ export default function MyPage() {
                   ? '🌿 街が育っています'
                   : '🏆 街の守護者'}
               </p>
+              <div className="relative">
+                <ImpactShareButton
+                  pickedUpCount={pickedUpCount}
+                  foodSavedKg={foodSavedKg}
+                  co2Saved={co2Saved}
+                />
+              </div>
             </div>
 
             {/* ── 右: 月間ランキング 連動カード ──
@@ -584,6 +593,12 @@ export default function MyPage() {
             ★ A案: 歯車タップ → モーダル の動線を撤廃し、 MyTown の下に常時表示。 */}
         {!isStoreOwner && (
           <div className="space-y-3 mb-4">
+            {/* 招待バッジ (¥0 コスト施策) */}
+            <div>
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">友達を招待してバッジ獲得</p>
+              <InviteBadgeCard />
+            </div>
+
             {/* 購入履歴 */}
             <div className="bg-card rounded-2xl overflow-hidden"
               style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' }}>

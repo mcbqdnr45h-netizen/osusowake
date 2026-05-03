@@ -78,6 +78,7 @@ const MyTownPage         = React.lazy(() => import("./pages/MyTownPage"));
 const RankingPage        = React.lazy(() => import("./pages/RankingPage"));
 const SalesLeadForm      = React.lazy(() => import("./pages/SalesLeadForm"));
 const ResetPassword      = React.lazy(() => import("./pages/ResetPassword"));
+const AuthCallback       = React.lazy(() => import("./pages/AuthCallback"));
 const FlyerUser          = React.lazy(() => import("./pages/FlyerUser"));
 const FlyerStore         = React.lazy(() => import("./pages/FlyerStore"));
 
@@ -263,6 +264,22 @@ function AnimatedRoutes() {
     window.scrollTo(0, 0);
   }, [location]);
 
+  // ?invite=XXXX を URL から grab して sessionStorage に退避 (T003)
+  // どのページに着地しても (Home / Login / SignUp / OAuth callback) 招待コードが永続される。
+  // 続く SignUp / Login / AuthCallback の redeem ハンドラがこれを読む。
+  useEffect(() => {
+    try {
+      const code = new URLSearchParams(window.location.search).get('invite');
+      if (code && code.length >= 4 && code.length <= 16) {
+        const normalized = code.toUpperCase();
+        const existing = sessionStorage.getItem('osusowake_pending_invite');
+        if (existing !== normalized) {
+          sessionStorage.setItem('osusowake_pending_invite', normalized);
+        }
+      }
+    } catch { /* sessionStorage 不可環境は無視 */ }
+  }, [location]);
+
   return (
     <>
       <ErrorBoundary>
@@ -287,6 +304,7 @@ function AnimatedRoutes() {
               <Route path="/tokusho" component={TokushoPage} />
               <Route path="/verify-email" component={VerifyEmail} />
               <Route path="/reset-password" component={ResetPassword} />
+              <Route path="/auth-callback" component={AuthCallback} />
               <Route path="/success" component={CheckoutSuccess} />
               <Route path="/cancel" component={CheckoutCancel} />
               {/* /supabase-test は開発専用 — 本番環境では非公開 */}

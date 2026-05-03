@@ -173,10 +173,14 @@ router.post("/auth/create-profile", async (req: Request, res: Response) => {
     display_name?: string;
   };
 
-  if (!role || !full_name || !phone_number) {
-    res.status(400).json({ error: "role, full_name, phone_number are required" });
+  if (!role || !full_name) {
+    res.status(400).json({ error: "role, full_name are required" });
     return;
   }
+  // ★ T004 OAuth (Apple/Google) では provider metadata に phone が無い → 空欄を許容して NULL 保存。
+  //   後から MyPage 設定 / 予約フローで補完を促す。 phone_number 列は NULL 可。
+  const normalizedPhone: string | null =
+    typeof phone_number === "string" && phone_number.trim().length > 0 ? phone_number.trim() : null;
 
   // ★ 仕様変更 2026-05: display_name (ニックネーム) は登録時はすべて任意。
   //   customer もニックネーム不要で登録可能とし、 ランキング参加 (オプトイン) 時にのみ
@@ -208,11 +212,11 @@ router.post("/auth/create-profile", async (req: Request, res: Response) => {
     try {
       await db.execute(sql`
         INSERT INTO users (id, email, role, full_name, phone_number, display_name)
-        VALUES (${user.id}, ${user.email!}, ${role}, ${full_name.trim()}, ${phone_number.trim()}, ${normalizedDisplayName})
+        VALUES (${user.id}, ${user.email!}, ${role}, ${full_name.trim()}, ${normalizedPhone}, ${normalizedDisplayName})
         ON CONFLICT (id) DO UPDATE SET
           email = EXCLUDED.email,
           full_name = EXCLUDED.full_name,
-          phone_number = EXCLUDED.phone_number,
+          phone_number = COALESCE(users.phone_number, EXCLUDED.phone_number),
           display_name = COALESCE(users.display_name, EXCLUDED.display_name)
       `);
     } catch (dbErr: any) {

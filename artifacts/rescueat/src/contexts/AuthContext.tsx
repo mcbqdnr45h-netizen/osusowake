@@ -17,6 +17,8 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resetPasswordForEmail: (email: string) => Promise<{ error: string | null }>;
+  // ★ Apple / Google SSO (T004): Supabase OAuth リダイレクトフロー
+  signInWithProvider: (provider: 'google' | 'apple') => Promise<{ error: string | null }>;
   // ★ 楽観的ロール更新 (登録途中のユーザーが店舗オーナー UI を見られるように)
   setOptimisticRole: (role: 'store_owner' | 'customer') => void;
 }
@@ -618,6 +620,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     adminLoginAt.current = null;
   }
 
+  // ── Apple / Google SSO ─────────────────────────────────────────────────
+  // Supabase の OAuth リダイレクトフロー。 redirectTo は HTTPS 必須 (capacitor:// は不可) なので
+  // 本番ドメイン (osusowakejapan.org) を使う。 サインアップ後 onAuthStateChange で profile が無い
+  // 場合は MyPage 側で create-profile (display_name 付き) に誘導される (既存フロー流用)。
+  async function signInWithProvider(provider: 'google' | 'apple'): Promise<{ error: string | null }> {
+    try {
+      const apiBase = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_API_BASE : '') ?? '';
+      const origin = window.location.origin;
+      const redirectOrigin = (apiBase || origin).replace(/\/$/, '');
+      // ベルト&サスペンダー: sessionStorage に保留中の invite を redirect URL にも乗せる
+      let inviteQuery = '';
+      try {
+        const pending = sessionStorage.getItem('osusowake_pending_invite');
+        if (pending) inviteQuery = `?invite=${encodeURIComponent(pending)}`;
+      } catch { /* ignore */ }
+      const redirectTo = `${redirectOrigin}/auth-callback${inviteQuery}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo },
+      });
+      if (error) {
+        const m = (error.message || '').toLowerCase();
+        if (m.includes('provider is not enabled') || m.includes('unsupported provider')) {
+          return { error: provider === 'apple'
+            ? 'Apple ログインは現在準備中です。 メール/パスワードでお試しください'
+            : 'Google ログインは現在準備中です。 メール/パスワードでお試しください' };
+        }
+        return { error: translateError(error.message) };
+      }
+      return { error: null };
+    } catch (e: any) {
+      return { error: e?.message ?? 'OAuth ログインに失敗しました' };
+    }
+  }
+
   async function resetPasswordForEmail(email: string): Promise<{ error: string | null }> {
     try {
       const origin = window.location.origin;
@@ -647,7 +684,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, isLoading, isAdmin, pendingAdminMfa, signUp, signUpAsStore, signIn, sendAdminMfa, verifyAdminMfa, signOut, refreshProfile, resetPasswordForEmail, setOptimisticRole }}>
+    <AuthContext.Provider value={{ user, profile, session, isLoading, isAdmin, pendingAdminMfa, signUp, signUpAsStore, signIn, sendAdminMfa, verifyAdminMfa, signOut, refreshProfile, resetPasswordForEmail, signInWithProvider, setOptimisticRole }}>
       {children}
     </AuthContext.Provider>
   );
