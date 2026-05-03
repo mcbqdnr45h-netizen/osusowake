@@ -69,14 +69,33 @@ done
 
 # ★ 新しい Package.resolved を SPM に生成させる。
 #   xcodebuild -resolvePackageDependencies は Package.swift を読み込んで
-#   Package.resolved を生成するだけのコマンド (実ビルドはしない、 高速)。
+#   Package.resolved を生成するだけのコマンド。
+#   生成先は workspace の xcshareddata/swiftpm/Package.resolved に確実に出る必要あり。
 XCODEPROJ="${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj"
+EXPECTED_RESOLVED="${XCODEPROJ}/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+
 if [ -d "${XCODEPROJ}" ]; then
   echo "Resolving SPM dependencies to regenerate Package.resolved..."
+  # default の DerivedData 配下に書き出してくれるよう -clonedSourcePackagesDirPath を外す。
   xcodebuild -resolvePackageDependencies \
     -project "${XCODEPROJ}" \
-    -scheme App \
-    -clonedSourcePackagesDirPath "${REPO_ROOT}/artifacts/rescueat/ios/App/SourcePackages" \
-    || echo "⚠️ resolvePackageDependencies failed (Xcode Cloud may auto-resolve)"
+    -scheme App
+  echo "✅ resolvePackageDependencies completed"
+
+  # フォールバック: workspace 内に生成されてなかったら DerivedData / 他候補から探してコピー。
+  if [ ! -f "${EXPECTED_RESOLVED}" ]; then
+    echo "⚠️ Package.resolved not at expected workspace path. Searching other locations..."
+    FOUND=$(find "${HOME}/Library/Developer/Xcode/DerivedData" "${REPO_ROOT}/artifacts/rescueat/ios/App" \
+              -name "Package.resolved" -type f 2>/dev/null | head -1)
+    if [ -n "${FOUND}" ]; then
+      mkdir -p "$(dirname "${EXPECTED_RESOLVED}")"
+      cp "${FOUND}" "${EXPECTED_RESOLVED}"
+      echo "✅ Copied Package.resolved from ${FOUND}"
+    else
+      echo "❌ FATAL: Could not locate generated Package.resolved." >&2
+      exit 1
+    fi
+  fi
+  echo "Package.resolved is at: ${EXPECTED_RESOLVED}"
 fi
 echo "=== Done ==="
