@@ -10,3 +10,4 @@ export * from "./announcements";
 export * from "./webPushSubscriptions";
 export * from "./apnsRegistrations";
 export * from "./salesLeads";
+export * from "./invitations";

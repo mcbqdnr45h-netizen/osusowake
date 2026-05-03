@@ -9,6 +9,7 @@ import {
   getListReservationsQueryKey,
   SurpriseBagWithStore,
 } from '@workspace/api-client-react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
@@ -300,6 +301,18 @@ export default function Home() {
 
   const { settings: appSettings } = useAppSettings();
   const { toast } = useToast();
+
+  // ── グローバル救済カウンター ──
+  const BASE_G = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+  const { data: globalImpact } = useQuery<{ total: number; foodKg: number; co2Kg: number } | null>({
+    queryKey: ['/api/global-impact'],
+    queryFn: async () => {
+      const r = await fetch(`${BASE_G}/api/global-impact`);
+      return r.ok ? r.json() : null;
+    },
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
 
   // ── お知らせバナー ──
   const [announcement, setAnnouncement]         = useState<{ id: number; title: string; body: string } | null>(null);
@@ -815,6 +828,24 @@ export default function Home() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* ── グローバル救済カウンターバナー ── */}
+          {globalImpact && globalImpact.total > 0 && (
+            <div className="mx-3 mt-3 rounded-2xl overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #1a6b3a 0%, #2d9055 50%, #1e7a42 100%)' }}>
+              <div className="px-4 py-2.5 flex items-center gap-3">
+                <span className="text-xl shrink-0" aria-hidden>🌍</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-[11px] font-bold opacity-80 leading-none mb-0.5">みんなで救済した食品</p>
+                  <p className="text-white font-black leading-none">
+                    <span className="text-lg">{globalImpact.total.toLocaleString()}</span>
+                    <span className="text-xs ml-1 opacity-90">食</span>
+                    <span className="text-[11px] opacity-70 ml-2">CO₂ {globalImpact.co2Kg.toLocaleString()}kg削減</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── 未決済の予約バナー ── */}
           <AnimatePresence>

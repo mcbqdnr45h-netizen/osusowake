@@ -47,17 +47,56 @@ if [ -f "${SPM_FILE}" ]; then
   sed -i.bak -E 's|"\.\./\.\./\.\./\.\./\.\./node_modules/\.pnpm/@capacitor\+[^/]+/node_modules/@capacitor/([^"]+)"|"../../../node_modules/@capacitor/\1"|g' "${SPM_FILE}"
   rm -f "${SPM_FILE}.bak"
   echo "Package.swift now references:"
-  grep -E '\.package\(name:' "${SPM_FILE}" || true
+  grep -E '\.package\(' "${SPM_FILE}" || true
 fi
 
-# Package.resolved は repo に commit 済 (capacitor-swift-pm@8.3.1)。
-# sed で書き換えるのは local path 依存だけなので Package.resolved には影響しない。
-# Xcode Cloud は auto-resolution OFF だが committed Package.resolved があれば OK。
-EXPECTED_RESOLVED="${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
-if [ -f "${EXPECTED_RESOLVED}" ]; then
-  echo "✅ Package.resolved found at: ${EXPECTED_RESOLVED}"
+# ★ Package.resolved を cap sync + sed 後に再生成する。
+#
+#   【なぜ static commit が使えないか】
+#   cap sync ios が Package.swift を毎回ゼロから再生成する。
+#   Package.resolved v3 の originHash は Package.swift 内容の SHA256 なので、
+#   Package.swift が変わるたびに originHash が変わり "out-of-date" で fail する。
+#
+#   【解決策】
+#   sed 書き換え後の正確な Package.swift に対して
+#   xcodebuild -resolvePackageDependencies を実行し Package.resolved を動的生成する。
+#   これにより originHash・revision 両方が常に一致した状態で Archive ステップに渡る。
+
+XCODEPROJ="${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj"
+RESOLVED_DIR="${XCODEPROJ}/project.xcworkspace/xcshareddata/swiftpm"
+RESOLVED_FILE="${RESOLVED_DIR}/Package.resolved"
+
+echo "--- Removing stale Package.resolved (if any) ---"
+rm -f "${RESOLVED_FILE}"
+
+echo "--- Running xcodebuild -resolvePackageDependencies ---"
+mkdir -p "${RESOLVED_DIR}"
+
+xcodebuild \
+  -resolvePackageDependencies \
+  -project "${XCODEPROJ}" \
+  -scheme App \
+  -derivedDataPath "${REPO_ROOT}/artifacts/rescueat/ios/App/DerivedData"
+
+echo "--- Checking generated Package.resolved ---"
+if [ -f "${RESOLVED_FILE}" ]; then
+  echo "✅ Package.resolved generated:"
+  cat "${RESOLVED_FILE}"
 else
-  echo "❌ FATAL: Package.resolved missing from repo." >&2
-  exit 1
+  echo "⚠️  Not found at primary path, searching..."
+  FOUND=$(find \
+    "${REPO_ROOT}/artifacts/rescueat/ios/App/DerivedData" \
+    "${HOME}/Library/Developer/Xcode/DerivedData" \
+    -name "Package.resolved" -type f 2>/dev/null | head -1)
+  if [ -n "${FOUND}" ]; then
+    mkdir -p "${RESOLVED_DIR}"
+    cp "${FOUND}" "${RESOLVED_FILE}"
+    echo "✅ Copied from ${FOUND}:"
+    cat "${RESOLVED_FILE}"
+  else
+    echo "❌ FATAL: xcodebuild -resolvePackageDependencies did not generate Package.resolved" >&2
+    exit 1
+  fi
 fi
+
 echo "=== Done ==="
