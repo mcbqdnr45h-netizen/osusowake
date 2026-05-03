@@ -25,4 +25,6 @@ export interface UpdateBagRequest {
    */
   itemType?: UpdateBagRequestItemType;
   isActive?: boolean;
+  /** 「クイック出品」 履歴リストから非表示にするフラグ。 */
+  hiddenFromQuickPublish?: boolean;
 }

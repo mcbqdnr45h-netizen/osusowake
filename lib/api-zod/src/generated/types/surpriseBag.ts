@@ -30,5 +30,7 @@ export interface SurpriseBag {
  */
   itemType?: SurpriseBagItemType;
   isActive: boolean;
+  /** 「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。 */
+  hiddenFromQuickPublish?: boolean;
   createdAt: Date;
 }

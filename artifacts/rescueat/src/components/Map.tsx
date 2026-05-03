@@ -445,7 +445,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
         // ★ Flexレイアウト確定を待つ (1フレーム遅延)。 ただしコンテナ高さが既に
         //   確定している場合は rAF をスキップしてさらに高速化 (preload+再訪時に効く)。
-        if (containerRef.current.clientHeight === 0 || containerRef.current.clientWidth === 0) {
+        // (TS narrow: ref.current は async 境界後に再アクセスすると null になり得るのでローカル束縛)
+        const sizeProbe = containerRef.current;
+        if (!sizeProbe) return;
+        if (sizeProbe.clientHeight === 0 || sizeProbe.clientWidth === 0) {
           await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
           if (cancelled || !containerRef.current) return;
         }
@@ -467,7 +470,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           backgroundColor: '#f2f0eb',
           styles: MAP_STYLES,
         };
-        const map = new gMaps.Map(containerRef.current, mapOptions);
+        const mapEl = containerRef.current;
+        if (!mapEl) return;
+        const map = new gMaps.Map(mapEl, mapOptions);
 
         mapRef.current = map;
 

@@ -48,7 +48,12 @@ export const ListStoresResponseItem = zod.object({
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
   stripeChargesEnabled: zod.boolean().nullish(),
-  qualifiedInvoiceNumber: zod.string().nullish(),
+  qualifiedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe(
+      "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+    ),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });
@@ -110,7 +115,12 @@ export const GetStoreResponse = zod.object({
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
   stripeChargesEnabled: zod.boolean().nullish(),
-  qualifiedInvoiceNumber: zod.string().nullish(),
+  qualifiedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe(
+      "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+    ),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });
@@ -142,7 +152,10 @@ export const UpdateStoreBody = zod.object({
   openTime: zod.string().optional(),
   closeTime: zod.string().optional(),
   isActive: zod.boolean().optional(),
-  qualifiedInvoiceNumber: zod.string().nullable().optional(),
+  qualifiedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe("適格請求書発行事業者登録番号 (T + 13桁)。 空文字で未登録扱い。"),
 });
 
 export const UpdateStoreResponse = zod.object({
@@ -170,7 +183,12 @@ export const UpdateStoreResponse = zod.object({
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
   stripeChargesEnabled: zod.boolean().nullish(),
-  qualifiedInvoiceNumber: zod.string().nullish(),
+  qualifiedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe(
+      "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+    ),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });
@@ -203,6 +221,12 @@ export const ListStoreBagsResponseItem = zod.object({
       "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
     ),
   isActive: zod.boolean(),
+  hiddenFromQuickPublish: zod
+    .boolean()
+    .optional()
+    .describe(
+      "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+    ),
   createdAt: zod.date(),
 });
 export const ListStoreBagsResponse = zod.array(ListStoreBagsResponseItem);
@@ -259,6 +283,12 @@ export const ListAllBagsResponseItem = zod
         "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
       ),
     isActive: zod.boolean(),
+    hiddenFromQuickPublish: zod
+      .boolean()
+      .optional()
+      .describe(
+        "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+      ),
     createdAt: zod.date(),
   })
   .and(
@@ -291,6 +321,12 @@ export const ListAllBagsResponseItem = zod
         isActive: zod.boolean(),
         ownerId: zod.string().optional(),
         stripeChargesEnabled: zod.boolean().nullish(),
+        qualifiedInvoiceNumber: zod
+          .string()
+          .nullish()
+          .describe(
+            "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+          ),
         totalBagsAvailable: zod.number(),
         createdAt: zod.date(),
       }),
@@ -327,6 +363,12 @@ export const GetBagResponse = zod
         "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
       ),
     isActive: zod.boolean(),
+    hiddenFromQuickPublish: zod
+      .boolean()
+      .optional()
+      .describe(
+        "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+      ),
     createdAt: zod.date(),
   })
   .and(
@@ -359,6 +401,12 @@ export const GetBagResponse = zod
         isActive: zod.boolean(),
         ownerId: zod.string().optional(),
         stripeChargesEnabled: zod.boolean().nullish(),
+        qualifiedInvoiceNumber: zod
+          .string()
+          .nullish()
+          .describe(
+            "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+          ),
         totalBagsAvailable: zod.number(),
         createdAt: zod.date(),
       }),
@@ -391,7 +439,10 @@ export const UpdateBagBody = zod.object({
       "商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。\n",
     ),
   isActive: zod.boolean().optional(),
-  hiddenFromQuickPublish: zod.boolean().optional(),
+  hiddenFromQuickPublish: zod
+    .boolean()
+    .optional()
+    .describe("「クイック出品」 履歴リストから非表示にするフラグ。"),
 });
 
 export const UpdateBagResponse = zod.object({
@@ -415,6 +466,12 @@ export const UpdateBagResponse = zod.object({
       "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
     ),
   isActive: zod.boolean(),
+  hiddenFromQuickPublish: zod
+    .boolean()
+    .optional()
+    .describe(
+      "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+    ),
   createdAt: zod.date(),
 });
 
@@ -472,6 +529,12 @@ export const ListReservationsResponseItem = zod.object({
           "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
         ),
       isActive: zod.boolean(),
+      hiddenFromQuickPublish: zod
+        .boolean()
+        .optional()
+        .describe(
+          "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+        ),
       createdAt: zod.date(),
     })
     .optional(),
@@ -504,6 +567,12 @@ export const ListReservationsResponseItem = zod.object({
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
       stripeChargesEnabled: zod.boolean().nullish(),
+      qualifiedInvoiceNumber: zod
+        .string()
+        .nullish()
+        .describe(
+          "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+        ),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })
@@ -571,6 +640,12 @@ export const GetReservationResponse = zod.object({
           "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
         ),
       isActive: zod.boolean(),
+      hiddenFromQuickPublish: zod
+        .boolean()
+        .optional()
+        .describe(
+          "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+        ),
       createdAt: zod.date(),
     })
     .optional(),
@@ -603,6 +678,12 @@ export const GetReservationResponse = zod.object({
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
       stripeChargesEnabled: zod.boolean().nullish(),
+      qualifiedInvoiceNumber: zod
+        .string()
+        .nullish()
+        .describe(
+          "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+        ),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })
@@ -664,6 +745,12 @@ export const UpdateReservationStatusResponse = zod.object({
           "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
         ),
       isActive: zod.boolean(),
+      hiddenFromQuickPublish: zod
+        .boolean()
+        .optional()
+        .describe(
+          "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+        ),
       createdAt: zod.date(),
     })
     .optional(),
@@ -696,6 +783,12 @@ export const UpdateReservationStatusResponse = zod.object({
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
       stripeChargesEnabled: zod.boolean().nullish(),
+      qualifiedInvoiceNumber: zod
+        .string()
+        .nullish()
+        .describe(
+          "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+        ),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })
@@ -753,6 +846,12 @@ export const CancelReservationResponse = zod.object({
           "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
         ),
       isActive: zod.boolean(),
+      hiddenFromQuickPublish: zod
+        .boolean()
+        .optional()
+        .describe(
+          "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+        ),
       createdAt: zod.date(),
     })
     .optional(),
@@ -785,6 +884,12 @@ export const CancelReservationResponse = zod.object({
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
       stripeChargesEnabled: zod.boolean().nullish(),
+      qualifiedInvoiceNumber: zod
+        .string()
+        .nullish()
+        .describe(
+          "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+        ),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })
@@ -859,6 +964,12 @@ export const ConfirmPaymentResponse = zod.object({
           "商品タイプ。 'bag' = サプライズバッグ（中身おまかせ）、 'item' = 単品商品（中身明示）。\n既存データ・未指定時は 'bag' 扱い。\n",
         ),
       isActive: zod.boolean(),
+      hiddenFromQuickPublish: zod
+        .boolean()
+        .optional()
+        .describe(
+          "「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。",
+        ),
       createdAt: zod.date(),
     })
     .optional(),
@@ -891,6 +1002,12 @@ export const ConfirmPaymentResponse = zod.object({
       isActive: zod.boolean(),
       ownerId: zod.string().optional(),
       stripeChargesEnabled: zod.boolean().nullish(),
+      qualifiedInvoiceNumber: zod
+        .string()
+        .nullish()
+        .describe(
+          "適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。",
+        ),
       totalBagsAvailable: zod.number(),
       createdAt: zod.date(),
     })

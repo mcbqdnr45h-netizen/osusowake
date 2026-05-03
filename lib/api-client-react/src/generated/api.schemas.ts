@@ -60,6 +60,8 @@ export interface Store {
   isActive: boolean;
   ownerId?: string;
   stripeChargesEnabled?: boolean | null;
+  /** 適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。 */
+  qualifiedInvoiceNumber?: string | null;
   totalBagsAvailable: number;
   createdAt: string;
 }
@@ -113,6 +115,8 @@ export interface UpdateStoreRequest {
   openTime?: string;
   closeTime?: string;
   isActive?: boolean;
+  /** 適格請求書発行事業者登録番号 (T + 13桁)。 空文字で未登録扱い。 */
+  qualifiedInvoiceNumber?: string | null;
 }
 
 /**
@@ -152,6 +156,8 @@ export interface SurpriseBag {
  */
   itemType?: SurpriseBagItemType;
   isActive: boolean;
+  /** 「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。 */
+  hiddenFromQuickPublish?: boolean;
   createdAt: string;
 }
 
@@ -220,6 +226,8 @@ export interface UpdateBagRequest {
    */
   itemType?: UpdateBagRequestItemType;
   isActive?: boolean;
+  /** 「クイック出品」 履歴リストから非表示にするフラグ。 */
+  hiddenFromQuickPublish?: boolean;
 }
 
 export type ReservationStatus =
