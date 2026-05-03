@@ -50,11 +50,12 @@ if [ -f "${SPM_FILE}" ]; then
   grep -E '\.package\(name:' "${SPM_FILE}" || true
 fi
 
-# ★ Package.resolved を削除 (Xcode Cloud で out-of-date 判定 → ビルド失敗を防ぐ)。
-#   理由: Xcode Cloud は automatic dependency resolution が無効なので、
-#   リポジトリ内の Package.resolved が Package.swift と一致しないと即 fail する。
-#   Package.swift を sed で書き換えた直後は必ず resolved が古くなるため、
-#   削除して SPM に再生成させるのが最も安全。
+# ★ Package.resolved の再生成 (Xcode Cloud automatic resolution 無効環境向け)。
+#   Xcode Cloud は automatic dependency resolution OFF のため、
+#   ① 古い Package.resolved → "out-of-date" で fail
+#   ② Package.resolved 無し → "a resolved file is required" で fail
+#   どちらも fail するので、 sed 書換後に必ず "xcodebuild -resolvePackageDependencies" で
+#   Package.swift と一致する Package.resolved を生成する。
 RESOLVED_FILES=(
   "${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
   "${REPO_ROOT}/artifacts/rescueat/ios/App/CapApp-SPM/Package.resolved"
@@ -65,4 +66,17 @@ for f in "${RESOLVED_FILES[@]}"; do
     rm -f "$f"
   fi
 done
+
+# ★ 新しい Package.resolved を SPM に生成させる。
+#   xcodebuild -resolvePackageDependencies は Package.swift を読み込んで
+#   Package.resolved を生成するだけのコマンド (実ビルドはしない、 高速)。
+XCODEPROJ="${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj"
+if [ -d "${XCODEPROJ}" ]; then
+  echo "Resolving SPM dependencies to regenerate Package.resolved..."
+  xcodebuild -resolvePackageDependencies \
+    -project "${XCODEPROJ}" \
+    -scheme App \
+    -clonedSourcePackagesDirPath "${REPO_ROOT}/artifacts/rescueat/ios/App/SourcePackages" \
+    || echo "⚠️ resolvePackageDependencies failed (Xcode Cloud may auto-resolve)"
+fi
 echo "=== Done ==="
