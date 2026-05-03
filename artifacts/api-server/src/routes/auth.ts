@@ -138,26 +138,13 @@ function buildAdminOtpHtml(code: string): string {
 </body></html>`;
 }
 
-// 管理者メールはサーバーサイドのみで保持（JS バンドルに露出させない）
-const ADMIN_EMAIL_B64 = "eXV1aGkwMTI1NDE2QGljbG91ZC5jb20=";
-function isAdminEmail(email: string | undefined | null): boolean {
-  if (!email) return false;
-  return email === Buffer.from(ADMIN_EMAIL_B64, "base64").toString();
-}
+// #6 フェーズ B: ハードコード ADMIN_EMAIL を完全廃止し、 DB role=admin で一元判定。
+// 共通ヘルパー (lib/admin.ts) 経由で判定する。
+import { isUserAdmin } from "../lib/admin.js";
 
-// フェーズ A: email OR DB role=admin の OR 判定 (#6 段階移行)
-// 既存 ADMIN_EMAIL 判定を残しつつ、 supabase users.role = 'admin' でも通す。
 async function checkAdmin(user: { id?: string | null; email?: string | null } | null | undefined): Promise<boolean> {
-  if (!user) return false;
-  if (isAdminEmail(user.email)) return true;
-  if (!user.id) return false;
-  try {
-    const { data } = await supabaseAdmin.from("users").select("role").eq("id", user.id).single();
-    return data?.role === "admin";
-  } catch (e) {
-    console.warn("[checkAdmin] users.role lookup failed:", (e as Error).message);
-    return false;
-  }
+  if (!user?.id) return false;
+  return isUserAdmin({ id: user.id });
 }
 
 const router: IRouter = Router();

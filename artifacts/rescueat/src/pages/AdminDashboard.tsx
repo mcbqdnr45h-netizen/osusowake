@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { fetchAppSettings } from '@/hooks/use-app-settings';
 import { authedFetch } from '@/lib/authed-fetch';
+import AdminAdminsSection from '@/components/AdminAdminsSection';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -2171,6 +2172,9 @@ export default function AdminDashboard() {
             </div>
           </div>
         </motion.div>
+
+        {/* ── 管理者の管理 (#6 フェーズ B) ── */}
+        <AdminAdminsSection currentUserId={user?.id} />
 
       </div>
 

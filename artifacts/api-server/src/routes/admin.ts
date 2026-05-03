@@ -7,14 +7,22 @@ import {
 import { eq, sql, desc, isNotNull, inArray } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import { escapeHtml } from "../lib/escape.js";
+import {
+  isUserAdmin,
+  getAllAdminUserIds,
+  getAllAdminUsers,
+  findUserIdByEmail,
+  grantAdminRole,
+  revokeAdminRole,
+} from "../lib/admin.js";
 import { Resend } from "resend";
 import crypto from "node:crypto";
 import { rateLimit } from "express-rate-limit";
 
 const router: IRouter = Router();
 
-// ── セキュリティ定数（ソースに平文を残さない） ────────────────────────────────
-const ADMIN_EMAIL    = Buffer.from("eXV1aGkwMTI1NDE2QGljbG91ZC5jb20=", "base64").toString();
+// #6 フェーズ B: ハードコード ADMIN_EMAIL を完全廃止。 admin 判定は DB
+// (users.role = 'admin') で一元化し、 lib/admin.ts のヘルパー経由で行う。
 const APPROVAL_SECRET = process.env.ADMIN_APPROVAL_SECRET!;
 if (!APPROVAL_SECRET) throw new Error("[SECURITY] ADMIN_APPROVAL_SECRET env var is not set");
 
@@ -127,18 +135,10 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  // ③ 管理者検証 — フェーズ A: email OR DB role=admin の OR 判定 (#6 段階移行)
-  //   既存 ADMIN_EMAIL 判定は残しつつ、 supabase users.role = 'admin' でも通す。
-  //   将来 (フェーズ B) で hardcoded email を完全削除し DB role 一本化予定。
-  let isAdmin = user.email === ADMIN_EMAIL;
-  if (!isAdmin) {
-    try {
-      const { data } = await supabaseAdmin.from("users").select("role").eq("id", user.id).single();
-      if (data?.role === "admin") isAdmin = true;
-    } catch (e) {
-      console.warn("[requireAdmin] users.role lookup failed:", (e as Error).message);
-    }
-  }
+  // ③ 管理者検証 — #6 フェーズ B: DB role=admin で一元判定。
+  //   ハードコード email との OR 判定は廃止。 admin の追加/削除は
+  //   POST/DELETE /admin/admins endpoint と AdminDashboard の管理者タブで行う。
+  const isAdmin = await isUserAdmin({ id: user.id });
   if (!isAdmin) {
     recordFailedAttempt(ip);
     console.warn(`[SECURITY] ⚠️ Unauthorized admin access attempt: ${user.email} from ${ip}`);
@@ -1348,20 +1348,18 @@ router.post("/sales-leads", async (req, res) => {
       status:     "new",
     }).returning();
 
-    // 管理者に in-app 通知
-    const { data: adminRow } = await supabaseAdmin
-      .from("users")
-      .select("id")
-      .eq("email", ADMIN_EMAIL)
-      .maybeSingle();
-    if (adminRow?.id) {
-      await db.insert(notificationsTable).values({
-        userId: adminRow.id,
-        type:   "sales_lead",
-        title:  "🏪 新しい営業リードが届きました！",
-        body:   `${storeName.trim()}（${location.trim()}）`,
-        read:   false,
-      });
+    // 管理者全員に in-app 通知 (#6 フェーズ B: 単一 admin email 依存を廃止)
+    const adminIds = await getAllAdminUserIds();
+    if (adminIds.length > 0) {
+      await db.insert(notificationsTable).values(
+        adminIds.map((adminId) => ({
+          userId: adminId,
+          type:   "sales_lead",
+          title:  "🏪 新しい営業リードが届きました！",
+          body:   `${storeName.trim()}（${location.trim()}）`,
+          read:   false,
+        })),
+      );
     }
     res.json({ ok: true, id: lead.id });
   } catch (err: any) {
@@ -1524,6 +1522,93 @@ router.post("/admin/stores/:storeId/fix-stripe-business-name", requireAdmin, asy
     res.json({ ok: true, stripeAccountId: store.stripeAccountId, businessProfileName: updated.business_profile?.name });
   } catch (err: any) {
     console.error("[admin/fix-stripe-business-name]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #6 フェーズ B: 管理者管理 endpoint
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /admin/admins — 現在の admin 一覧
+router.get("/admin/admins", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const admins = await getAllAdminUsers();
+    await writeAuditLog(req, "admins.list", undefined, { count: admins.length });
+    res.json({ admins });
+  } catch (err: any) {
+    console.error("[admin/admins GET]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// POST /admin/admins — email 指定で admin 昇格
+router.post("/admin/admins", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const email = String((req.body as { email?: string }).email ?? "").trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      res.status(400).json({ error: "bad_request", message: "email が必要です" });
+      return;
+    }
+    const userId = await findUserIdByEmail(email);
+    if (!userId) {
+      res.status(404).json({ error: "user_not_found", message: "該当する登録ユーザーが見つかりません (先にサインアップが必要)" });
+      return;
+    }
+    const ok = await grantAdminRole(userId);
+    if (!ok) {
+      res.status(500).json({ error: "grant_failed", message: "admin 昇格に失敗しました" });
+      return;
+    }
+    await writeAuditLog(req, "admins.grant", userId, { email });
+    console.warn(`[ADMIN] ✅ Granted admin role to ${email} (id=${userId}) by ${(req as any).adminUser?.email}`);
+    res.json({ ok: true, userId, email });
+  } catch (err: any) {
+    console.error("[admin/admins POST]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// DELETE /admin/admins/:userId — admin 剥奪 (atomic、 last-admin / self-revoke 防御)
+//   architect C1 対応: フロント/サーバ二重ガードに加え、 lib/admin.ts::revokeAdminRole が
+//   1 ステートメント条件付き UPDATE で last-admin / self / not-admin を全部 atomic に判定する。
+router.delete("/admin/admins/:userId", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const targetId = String(req.params['userId'] ?? "").trim();
+    if (!targetId) {
+      res.status(400).json({ error: "bad_request", message: "userId が必要です" });
+      return;
+    }
+    const requesterId = (req as any).adminUser?.id as string | undefined;
+    if (!requesterId) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const result = await revokeAdminRole(targetId, requesterId);
+    if (!result.ok) {
+      const statusMap: Record<string, number> = {
+        self_revoke_forbidden: 400,
+        last_admin: 400,
+        not_admin: 404,
+        error: 500,
+      };
+      const messageMap: Record<string, string> = {
+        self_revoke_forbidden: "自分自身の admin 権限は剥奪できません",
+        last_admin: "最後の管理者は削除できません",
+        not_admin: "対象ユーザーは admin ではありません",
+        error: "admin 剥奪に失敗しました",
+      };
+      res.status(statusMap[result.reason] ?? 500).json({
+        error:   result.reason,
+        message: messageMap[result.reason] ?? "admin 剥奪に失敗しました",
+      });
+      return;
+    }
+    await writeAuditLog(req, "admins.revoke", targetId);
+    console.warn(`[ADMIN] ⚠️ Revoked admin role from id=${targetId} by ${(req as any).adminUser?.email}`);
+    res.json({ ok: true, userId: targetId });
+  } catch (err: any) {
+    console.error("[admin/admins DELETE]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });

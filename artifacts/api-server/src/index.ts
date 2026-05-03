@@ -590,13 +590,13 @@ async function runMigrations() {
     `);
     console.log('[migration] users.notif_daily_engagement ✅');
 
-    // ── 管理者 role seed: ハードコードされた ADMIN_EMAIL アカウントの users.role を 'admin' に upsert
-    // 単一 email 集中の運用リスクを段階的に解消するための準備 (フェーズ A)。
-    // 既存 ADMIN_EMAIL 判定は残しつつ、 DB role でも管理者判定できるようにする。
-    // auth.users への直接アクセス権が無い環境では NOTICE のみで no-op (fail-safe)。
+    // ── 管理者 role seed (#6 フェーズ B): ハードコード email を廃止し、 env
+    // INITIAL_ADMIN_EMAILS (カンマ区切り) で初期 admin を seed する。
+    // env が未設定なら何もしない (fail-safe)。 既に DB に admin が居る環境では
+    // env 不要 (idempotent)。
+    // auth.users への直接アクセス権が無い環境では NOTICE のみで no-op。
 
     // ★ 前提: users_role_check 制約に 'admin' を追加 (元々 'user'/'store_owner' のみ許可)
-    //   制約名は固定だが、 念のため動的に取得して再作成する (idempotent)。
     await client.query(`
       DO $$
       DECLARE
@@ -619,23 +619,58 @@ async function runMigrations() {
     `);
     console.log('[migration] users_role_check (allow admin) ✅');
 
-    await client.query(`
-      DO $$
-      DECLARE
-        admin_uid uuid;
-      BEGIN
-        SELECT id INTO admin_uid FROM auth.users WHERE email = 'yuuhi0125416@icloud.com' LIMIT 1;
-        IF admin_uid IS NOT NULL THEN
-          UPDATE public.users
-             SET role = 'admin'
-           WHERE id = admin_uid
-             AND (role IS NULL OR role <> 'admin');
-        END IF;
-      EXCEPTION WHEN insufficient_privilege THEN
-        RAISE NOTICE '[migration] admin role seed: cannot access auth.users (skipped)';
-      END $$;
-    `);
-    console.log('[migration] admin role seed ✅');
+    // architect C2 対応 (revoke 巻き戻し防止):
+    //   既に DB に admin が 1 名以上居る場合、 env による seed は実行しない。
+    //   これにより「revoke した admin が次回ブートで自動復活」 する隠れた privilege
+    //   escalation を防ぐ。 seed は完全な bootstrap (admin=0) のときだけ動く。
+    const initialAdminEmailsEnv = (process.env['INITIAL_ADMIN_EMAILS'] ?? '').trim();
+    if (initialAdminEmailsEnv) {
+      const { rows: adminCountRows } = await client.query(
+        `SELECT COUNT(*)::int AS cnt FROM public.users WHERE role = 'admin'`,
+      );
+      const existingAdminCount = Number(adminCountRows?.[0]?.cnt ?? 0);
+
+      if (existingAdminCount > 0) {
+        console.log(
+          `[migration] admin role seed: SKIPPED (existing admins=${existingAdminCount}, env ignored to prevent revoke rollback)`,
+        );
+      } else {
+        const emails = initialAdminEmailsEnv
+          .split(',')
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => e.length > 0);
+        if (emails.length > 0) {
+          await client.query(
+            `
+            DO $$
+            DECLARE
+              target_email text;
+              admin_uid uuid;
+            BEGIN
+              FOREACH target_email IN ARRAY $1::text[]
+              LOOP
+                SELECT id INTO admin_uid FROM auth.users WHERE LOWER(email) = target_email LIMIT 1;
+                IF admin_uid IS NOT NULL THEN
+                  UPDATE public.users
+                     SET role = 'admin'
+                   WHERE id = admin_uid
+                     AND (role IS NULL OR role <> 'admin');
+                END IF;
+              END LOOP;
+            EXCEPTION WHEN insufficient_privilege THEN
+              RAISE NOTICE '[migration] admin role seed: cannot access auth.users (skipped)';
+            END $$;
+            `,
+            [emails],
+          );
+          console.log(
+            `[migration] admin role seed ✅ bootstrap (admin=0 → ${emails.length} email(s) from INITIAL_ADMIN_EMAILS)`,
+          );
+        }
+      }
+    } else {
+      console.log('[migration] admin role seed: INITIAL_ADMIN_EMAILS not set, skipped');
+    }
 
   } catch (err) {
     console.error('[migration] failed:', err);

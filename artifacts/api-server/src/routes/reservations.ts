@@ -13,6 +13,7 @@ import { eq, and, sql, lt, isNotNull, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth.js";
 import { isReviewDemoOwner } from "../lib/app-review.js";
 import { supabaseAdmin } from "../lib/supabase.js";
+import { getAllAdminUserIds } from "../lib/admin.js";
 
 const HOLD_MINUTES = 5;
 
@@ -146,24 +147,23 @@ async function notifyAdminRefundFailed(opts: {
   reason: string;
 }): Promise<void> {
   try {
-    const adminEmail = Buffer.from("eXV1aGkwMTI1NDE2QGljbG91ZC5jb20=", "base64").toString();
-    const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const adminUser = list?.users.find(
-      (u: any) => u.email?.toLowerCase() === adminEmail.toLowerCase(),
-    );
-    if (!adminUser) {
-      console.error("[refund-admin-notify] admin user not found in supabase");
+    // #6 フェーズ B: ハードコード email を廃止。 DB role=admin の全員に通知。
+    const adminIds = await getAllAdminUserIds();
+    if (adminIds.length === 0) {
+      console.error("[refund-admin-notify] no admin users found in DB (users.role=admin)");
       return;
     }
-    await db.insert(notificationsTable).values({
-      userId: adminUser.id,
-      type: "refund_failed",
-      title: "❗手動返金が必要です",
-      body:
-        `予約 #${opts.reservationId} の自動返金が失敗しました ` +
-        `(PI: ${opts.paymentIntentId ?? "なし"}, 理由: ${opts.reason})。` +
-        ` Stripe ダッシュボードで手動返金してください。`,
-    });
+    await db.insert(notificationsTable).values(
+      adminIds.map((adminId) => ({
+        userId: adminId,
+        type: "refund_failed",
+        title: "❗手動返金が必要です",
+        body:
+          `予約 #${opts.reservationId} の自動返金が失敗しました ` +
+          `(PI: ${opts.paymentIntentId ?? "なし"}, 理由: ${opts.reason})。` +
+          ` Stripe ダッシュボードで手動返金してください。`,
+      })),
+    );
   } catch (e: any) {
     console.error("[refund-admin-notify] failed:", e?.message);
   }
