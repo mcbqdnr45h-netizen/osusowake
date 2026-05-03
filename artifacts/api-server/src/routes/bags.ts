@@ -20,7 +20,7 @@ const router: IRouter = Router();
 
 /**
  * バッグが期限切れかどうかを判定する（深夜またぎ対応）
- * - pickupEnd が null → 期限なし（false）
+ * - pickupEnd が null → 出品日が今日でなければ期限切れ（SQL リスト表示フィルタ・フロント getBagStatus と整合）
  * - 通常バッグ（pickupEnd >= pickupStart）: 今日作成 かつ 現在時刻 > pickupEnd なら期限切れ
  * - 深夜またぎバッグ（pickupEnd < pickupStart 例: 23:00〜01:00）:
  *     今日作成 → 翌日の pickupEnd まで有効（期限切れにならない）
@@ -37,14 +37,21 @@ export function isBagExpired(bag: {
   const ownerId = bag.storeOwnerId ?? bag.store?.ownerId ?? null;
   if (isReviewDemoOwner(ownerId)) return false;
 
-  if (!bag.pickupEnd) return false;
-
   const nowJST      = new Date(Date.now() + 9 * 60 * 60 * 1000);
   const createdJST  = new Date(bag.createdAt.getTime() + 9 * 60 * 60 * 1000);
   const todayStr    = nowJST.toISOString().slice(0, 10);
   const yesterdayStr = new Date(nowJST.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const createdStr  = createdJST.toISOString().slice(0, 10);
   const currentTime = nowJST.toISOString().slice(11, 16); // "HH:MM"
+
+  // ★ pickupEnd=null: 出品日 (JST) が今日でなければ期限切れ。
+  //   旧実装は常に false を返していたが、 SQL リスト表示フィルタ (CASE 1) と
+  //   フロント getBagStatus は「今日出品でなければ非表示/expired」 扱いのため、
+  //   ここも揃えて単一化する。 これにより GET /bags/:id の 410 判定や
+  //   reservations の予約拒否ロジックがリスト表示と齟齬を起こさなくなる。
+  if (!bag.pickupEnd) {
+    return createdStr !== todayStr;
+  }
 
   const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
 
@@ -561,6 +568,63 @@ router.patch("/stores/:storeId/bags/:bagId", requireAuth, requireStoreOwner, asy
       if (!storeCheck.stripePayoutsEnabled) {
         res.status(403).json({ error: "payouts_disabled", message: "入金が一時停止中のため公開できません。本人確認書類を提出して審査を完了してください。" });
         return;
+      }
+
+      // ★ 受取時間が既に過ぎているバッグの公開を拒否 (UI で「編集して公開」 に
+      //   切替えているが、 旧クライアントや直接 API を叩かれた場合の二重防御)。
+      //   isActive=true にしても getBagStatus が即 'expired' を返すため、
+      //   ユーザは「公開できていない」 と感じる致命的な体験バグになる。
+      const [bagCheck] = await db
+        .select({
+          createdAt: surpriseBagsTable.createdAt,
+          pickupStart: surpriseBagsTable.pickupStart,
+          pickupEnd: surpriseBagsTable.pickupEnd,
+        })
+        .from(surpriseBagsTable)
+        .where(and(
+          eq(surpriseBagsTable.id, bagId),
+          eq(surpriseBagsTable.storeId, storeId),
+        ))
+        .limit(1);
+      if (bagCheck) {
+        // JST 基準 (フロント getBagStatus と完全に同じロジック; pickupEnd=null 含む)
+        const nowJst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+        const todayStr     = nowJst.toISOString().slice(0, 10);
+        const yesterdayStr = new Date(nowJst.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const createdRaw   = bagCheck.createdAt instanceof Date
+          ? bagCheck.createdAt.toISOString()
+          : String(bagCheck.createdAt ?? '');
+        const createdIso = createdRaw && (createdRaw.endsWith('Z') || createdRaw.includes('+'))
+          ? createdRaw : createdRaw + 'Z';
+        const createdJstMs = new Date(createdIso).getTime() + 9 * 60 * 60 * 1000;
+        const createdStr   = new Date(createdJstMs).toISOString().slice(0, 10);
+        const currentTime  = nowJst.toISOString().slice(11, 16);
+
+        let isExpired = false;
+        if (bagCheck.pickupEnd) {
+          const isOvernight = bagCheck.pickupStart != null && bagCheck.pickupEnd < bagCheck.pickupStart;
+          if (isOvernight) {
+            if (createdStr === todayStr) {
+              isExpired = false;
+            } else if (createdStr === yesterdayStr) {
+              isExpired = currentTime > bagCheck.pickupEnd;
+            } else {
+              isExpired = true;
+            }
+          } else {
+            isExpired = (createdStr !== todayStr) || (currentTime > bagCheck.pickupEnd);
+          }
+        } else {
+          // pickupEnd 未設定: 出品日が今日でなければ期限切れ (フロント getBagStatus と同等)
+          isExpired = createdStr !== todayStr;
+        }
+        if (isExpired) {
+          res.status(409).json({
+            error: "pickup_time_passed",
+            message: "受取時間が過ぎているため公開できません。 受取時間を編集してから再度公開してください。",
+          });
+          return;
+        }
       }
     }
 

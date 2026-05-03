@@ -132,6 +132,14 @@ export function BagManageCard({
   const badge     = STATUS_BADGE[status];
   const isExpired = status === 'expired';
   const typeInfo  = getItemTypeLabel(bag.itemType);
+
+  // ★ バグ修正: 「公開する」 を押しても受取時間が既に過ぎているバッグは
+  //   即座に 'expired' 扱いとなり「受付終了」 になってしまうため、
+  //   非公開バッグでも仮に isActive=true にしたら expired になるかを事前判定。
+  //   その場合は「公開する」 ではなく「編集して公開」 ボタンに切替えて
+  //   先に受取時間を更新してもらう導線にする。
+  const wouldExpireIfActivated = !bag.isActive
+    && getBagStatus({ ...bag, isActive: true }, now) === 'expired';
   const remaining = bag.stockCount - (bag.reservedCount ?? 0);
   const discountPct = bag.originalPrice > 0
     ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
@@ -197,21 +205,33 @@ export function BagManageCard({
           {/* 右：メイン操作（公開トグル）+ ⋯ メニュー */}
           <div className="shrink-0 flex flex-col items-center gap-2">
             {/* 公開/非公開トグル（メイン操作） */}
+            {/* ★ 受取時間が過ぎている非公開バッグはトグルでなく編集導線へ寄せる */}
             <button
               type="button"
-              onClick={() => onToggle(bag)}
+              onClick={() => {
+                if (wouldExpireIfActivated) onEdit(bag);
+                else onToggle(bag);
+              }}
               disabled={isToggling || isDeleting || isExpired}
-              title={isExpired ? '受付時間が終了しているため変更できません' : undefined}
+              title={
+                isExpired
+                  ? '受付時間が終了しているため変更できません'
+                  : wouldExpireIfActivated
+                    ? '受取時間が過ぎています。 編集して公開してください。'
+                    : undefined
+              }
               className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isToggling
                 ? <Loader2 className="w-7 h-7 animate-spin" />
-                : bag.isActive
-                  ? <ToggleRight className={`w-8 h-8 ${isExpired ? 'text-slate-300' : 'text-primary'}`} />
-                  : <ToggleLeft className="w-8 h-8 text-muted-foreground" />
+                : wouldExpireIfActivated
+                  ? <Pencil className="w-7 h-7 text-orange-500" />
+                  : bag.isActive
+                    ? <ToggleRight className={`w-8 h-8 ${isExpired ? 'text-slate-300' : 'text-primary'}`} />
+                    : <ToggleLeft className="w-8 h-8 text-muted-foreground" />
               }
-              <span className="text-[9px] font-black tracking-tight">
-                {badge.text}
+              <span className={`text-[9px] font-black tracking-tight ${wouldExpireIfActivated ? 'text-orange-600' : ''}`}>
+                {wouldExpireIfActivated ? '時間編集' : badge.text}
               </span>
             </button>
 
@@ -236,38 +256,49 @@ export function BagManageCard({
                   編集
                 </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onSelect={(e) => { e.preventDefault(); if (!isExpired) onToggle(bag); }}
-                  disabled={isToggling || isDeleting || isExpired}
-                  className="text-sm font-bold cursor-pointer"
-                >
-                  {bag.isActive
-                    ? <ToggleLeft className="w-4 h-4 mr-2" />
-                    : <ToggleRight className="w-4 h-4 mr-2" />}
-                  {bag.isActive ? '非公開にする' : '公開する'}
-                </DropdownMenuItem>
-
-                {!bag.isActive && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onSelect={(e) => { e.preventDefault(); onConfirmChange(bag.id); }}
-                      className="text-sm font-bold cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      削除
-                    </DropdownMenuItem>
-                  </>
+                {/* ★ 公開/非公開 切替 (受取時間を過ぎている非公開バッグは編集導線に切替) */}
+                {wouldExpireIfActivated ? (
+                  <DropdownMenuItem
+                    onSelect={(e) => { e.preventDefault(); onEdit(bag); }}
+                    className="text-sm font-bold cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                  >
+                    <Pencil className="w-4 h-4 mr-2" />
+                    受取時間を編集して公開
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    onSelect={(e) => { e.preventDefault(); if (!isExpired) onToggle(bag); }}
+                    disabled={isToggling || isDeleting || isExpired}
+                    className="text-sm font-bold cursor-pointer"
+                  >
+                    {bag.isActive
+                      ? <ToggleLeft className="w-4 h-4 mr-2" />
+                      : <ToggleRight className="w-4 h-4 mr-2" />}
+                    {bag.isActive ? '非公開にする' : '公開する'}
+                  </DropdownMenuItem>
                 )}
+
+                {/* ★ 削除は公開/非公開に関係なく常に表示 (UX 一貫性、 確認ダイアログで誤操作防止) */}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={(e) => { e.preventDefault(); onConfirmChange(bag.id); }}
+                  className="text-sm font-bold cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  削除
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
         {/* ── 削除確認バー（⋯ メニューから「削除」 を選ぶと表示） ── */}
-        {showDeleteConfirm && !bag.isActive && (
+        {/* ★ 公開中バッグも削除可能に統一。 公開中の場合は内部で「非公開→削除」 を連続実行する旨を明示。 */}
+        {showDeleteConfirm && (
           <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2">
-            <span className="text-xs font-bold text-red-700">本当に削除しますか？</span>
+            <span className="text-xs font-bold text-red-700">
+              {bag.isActive ? '公開中ですが、非公開にして削除しますか？' : '本当に削除しますか？'}
+            </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"

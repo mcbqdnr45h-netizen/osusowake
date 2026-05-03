@@ -44,6 +44,14 @@ export default function StoreBagsPage() {
   const [confirmId, setConfirmId]     = useState<number | null>(null);
   const [imageUrl, setImageUrl]       = useState<string | null>(null);
 
+  // ★ 受取時間編集モーダル: 「編集して公開」 導線で開かれる軽量編集 UI。
+  //   pickupStart/pickupEnd を更新しつつ isActive=true に切替えて即公開する。
+  const [editBag, setEditBag] = useState<Bag | null>(null);
+  const [editPickupStart, setEditPickupStart] = useState('18:00');
+  const [editPickupEnd, setEditPickupEnd]     = useState('20:00');
+  const [editAndPublish, setEditAndPublish]   = useState(false);
+  const [editSubmitting, setEditSubmitting]   = useState(false);
+
   const [form, setForm] = useState({
     title: '',
     originalPrice: 0,
@@ -156,6 +164,19 @@ export default function StoreBagsPage() {
     setDeletingId(bag.id);
     setConfirmId(null);
     try {
+      // ★ バックエンドは isActive=true のバッグの DELETE を 409 で拒否する仕様のため、
+      //   公開中なら先に非公開化してから削除を行う (UI 上は 1 アクションに見せる)。
+      if (bag.isActive) {
+        const patchRes = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: false }),
+        });
+        if (!patchRes.ok) {
+          const body = await patchRes.json().catch(() => ({}));
+          throw new Error(body.message ?? body.error ?? `非公開化に失敗しました (HTTP ${patchRes.status})`);
+        }
+      }
       const res = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bag.id}`, {
         method: 'DELETE',
       });
@@ -169,6 +190,57 @@ export default function StoreBagsPage() {
       toast({ title: err.message ?? '削除に失敗しました', variant: 'destructive' });
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  // ★ 編集モーダルを開く。 受取時間が過ぎている非公開バッグの場合は
+  //   「編集して公開」 モード (保存時に isActive=true) でオープン。
+  function openEditModal(bag: Bag) {
+    const now = new Date();
+    const wouldExpire = !bag.isActive && getBagStatus({ ...bag, isActive: true }, now) === 'expired';
+    setEditBag(bag);
+    setEditPickupStart(bag.pickupStart ?? '18:00');
+    setEditPickupEnd(bag.pickupEnd ?? '20:00');
+    setEditAndPublish(wouldExpire);
+  }
+
+  async function handleEditSave() {
+    if (!editBag || !storeId) return;
+    setEditSubmitting(true);
+    try {
+      // ★ 「編集して公開」 の場合、 まず受取時間を更新してから公開フラグを ON にする。
+      //   1 リクエストで送ると、 サーバ側の期限チェックが古いタイムを基に動く可能性があるので 2 段階に分ける。
+      const patchBody: Record<string, unknown> = {
+        pickupStart: editPickupStart,
+        pickupEnd: editPickupEnd,
+      };
+      const r1 = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${editBag.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchBody),
+      });
+      if (!r1.ok) {
+        const body = await r1.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `更新に失敗しました (HTTP ${r1.status})`);
+      }
+      if (editAndPublish) {
+        const r2 = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${editBag.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: true }),
+        });
+        if (!r2.ok) {
+          const body = await r2.json().catch(() => ({}));
+          throw new Error(body.message ?? body.error ?? `公開に失敗しました (HTTP ${r2.status})`);
+        }
+      }
+      queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
+      toast({ title: editAndPublish ? '受取時間を更新して公開しました' : '受取時間を更新しました' });
+      setEditBag(null);
+    } catch (err: any) {
+      toast({ title: err.message ?? '更新に失敗しました', variant: 'destructive' });
+    } finally {
+      setEditSubmitting(false);
     }
   }
 
@@ -590,6 +662,81 @@ export default function StoreBagsPage() {
           )}
         </AnimatePresence>
 
+        {/* ── 受取時間編集モーダル (編集して公開 導線) ── */}
+        <AnimatePresence>
+          {editBag && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4"
+              onClick={() => !editSubmitting && setEditBag(null)}
+            >
+              <motion.div
+                initial={{ y: 40, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 40, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className="bg-white w-full max-w-md rounded-2xl p-5 space-y-4 shadow-2xl"
+              >
+                <div>
+                  <h3 className="font-black text-foreground">
+                    {editAndPublish ? '受取時間を編集して公開' : '受取時間を編集'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    {editAndPublish
+                      ? 'この商品は受取時間が過ぎているため、 新しい受取時間に更新してから公開します。'
+                      : '受取時間を更新します。'}
+                  </p>
+                  <p className="text-xs font-bold text-foreground mt-2">{editBag.title}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取開始</label>
+                    <input
+                      type="time"
+                      value={editPickupStart}
+                      onChange={e => setEditPickupStart(e.target.value)}
+                      className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-2.5 font-bold focus:border-primary outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">受取終了</label>
+                    <input
+                      type="time"
+                      value={editPickupEnd}
+                      onChange={e => setEditPickupEnd(e.target.value)}
+                      className="w-full bg-secondary/40 border-2 border-border rounded-xl px-3 py-2.5 font-bold focus:border-primary outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditBag(null)}
+                    disabled={editSubmitting}
+                    className="flex-1 py-2.5 rounded-xl border-2 border-border font-bold text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditSave}
+                    disabled={editSubmitting || !editPickupStart || !editPickupEnd}
+                    className="flex-1 py-2.5 rounded-xl bg-primary text-white font-black flex items-center justify-center gap-2 shadow-md shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-primary/90 transition-all"
+                  >
+                    {editSubmitting
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : (editAndPublish ? '更新して公開' : '保存')}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── 50円未満バッグ警告バナー ── */}
         {!isLoading && (() => {
           const lowPriceBags = (bags as Bag[]).filter(b => b.discountedPrice > 0 && b.discountedPrice < 50);
@@ -644,7 +791,7 @@ export default function StoreBagsPage() {
                 onDelete={handleDelete}
                 onStockAdjust={handleStockAdjust}
                 onConfirmChange={setConfirmId}
-                onEdit={() => {}}
+                onEdit={openEditModal}
               />
             ))}
           </div>

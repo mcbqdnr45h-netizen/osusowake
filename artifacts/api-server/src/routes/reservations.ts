@@ -277,14 +277,15 @@ function isBagExpired(bag: {
   // App Store 審査用デモ店舗のバッグは常に有効
   if (isReviewDemoOwner(bag.storeOwnerId)) return false;
 
-  if (!bag.pickupEnd) return false;
-
   const nowJST       = new Date(Date.now() + 9 * 60 * 60 * 1000);
   const createdJST   = new Date(bag.createdAt.getTime() + 9 * 60 * 60 * 1000);
   const todayStr     = nowJST.toISOString().slice(0, 10);
   const yesterdayStr = new Date(nowJST.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const createdStr   = createdJST.toISOString().slice(0, 10);
   const currentTime  = nowJST.toISOString().slice(11, 16);
+
+  // ★ pickupEnd=null: 出品日が今日でなければ期限切れ (bags.ts isBagExpired と統一)
+  if (!bag.pickupEnd) return createdStr !== todayStr;
 
   const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
 
