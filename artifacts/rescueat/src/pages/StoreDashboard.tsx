@@ -101,6 +101,7 @@ interface PastBag {
   imageUrl: string | null;
   category?: string | null;
   itemType?: string;
+  hiddenFromQuickPublish?: boolean;
 }
 
 
@@ -132,12 +133,14 @@ function PostBagModal({
   pastBags,
   onClose,
   onSuccess,
+  onHidePastBag,
 }: {
   storeId: number;
   storeName: string;
   pastBags: PastBag[];
   onClose: () => void;
   onSuccess: () => void;
+  onHidePastBag: (bagId: number) => Promise<void> | void;
 }) {
   const { toast } = useToast();
   const createBag = useCreateBag();
@@ -430,12 +433,21 @@ function PostBagModal({
                       const offPct = bag.originalPrice > 0
                         ? Math.round((1 - bag.discountedPrice / bag.originalPrice) * 100)
                         : 0;
+                      // ★ 親要素を <div role="button"> にしているのは、 × ボタン (子 <button>) を
+                      //   ネストしても valid HTML を維持するため (button-in-button 禁止)。
                       return (
-                        <button
+                        <div
                           key={bag.id}
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setPastBag(isSelected ? null : bag)}
-                          className={`w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition-all ${
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setPastBag(isSelected ? null : bag);
+                            }
+                          }}
+                          className={`relative w-full flex items-center gap-3 p-3 pr-10 rounded-2xl border-2 text-left transition-all cursor-pointer select-none ${
                             isSelected
                               ? 'border-primary bg-primary/5 shadow-sm'
                               : 'border-border bg-card hover:border-primary/30'
@@ -474,7 +486,24 @@ function PostBagModal({
                               <CheckCircle2 className="w-4 h-4 text-white" />
                             </div>
                           )}
-                        </button>
+
+                          {/* × ボタン (履歴から非表示) */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`「${normalizeBrand(bag.title)}」 をクイック出品リストから非表示にしますか？\n（過去の出品データは残ります）`)) {
+                                if (isSelected) setPastBag(null);
+                                void onHidePastBag(bag.id);
+                              }
+                            }}
+                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 hover:bg-red-50 hover:text-red-500 border border-border flex items-center justify-center text-muted-foreground transition-colors shadow-sm"
+                            title="クイック出品リストから非表示にする"
+                            aria-label="クイック出品リストから非表示にする"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -1490,10 +1519,11 @@ export default function StoreDashboard() {
   const expiredActiveBags = [...todaysBags]
     .filter((b: any) => b.isActive && getBagStatus(b, now) === 'expired');
 
-  // クイック出品用: title で重複排除（最新 id を優先）
+  // クイック出品用: title で重複排除（最新 id を優先）+ オーナーが × で非表示にしたものを除外
   const deduplicatedBags: PastBag[] = React.useMemo(() => {
     const seen = new Map<string, PastBag>();
     [...(bags as any[])]
+      .filter((b: any) => b.hiddenFromQuickPublish !== true)
       .sort((a: any, b: any) => b.id - a.id)
       .forEach((b: any) => {
         if (!seen.has(b.title)) {
@@ -1505,11 +1535,34 @@ export default function StoreDashboard() {
             imageUrl: b.imageUrl ?? null,
             category: b.category ?? null,
             itemType: b.itemType ?? 'bag',
+            hiddenFromQuickPublish: b.hiddenFromQuickPublish ?? false,
           });
         }
       });
     return Array.from(seen.values()).slice(0, 5);
   }, [bags]);
+
+  // クイック出品履歴から × ボタンで個別非表示にする (論理削除フラグ更新)
+  // ★ 物理削除しない理由: 過去の予約・売上集計と紐づくバッグデータを残しておきたい。
+  //   `hidden_from_quick_publish=true` にするだけで、 オーナーの「クイック出品」 リストにのみ非表示。
+  async function handleHidePastBag(bagId: number) {
+    if (!storeId) return;
+    try {
+      const res = await authedFetch(`${BASE}/api/stores/${storeId}/bags/${bagId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hiddenFromQuickPublish: true }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `非表示にできませんでした (HTTP ${res.status})`);
+      }
+      toast({ title: 'クイック出品から非表示にしました' });
+      await queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
+    } catch (err: any) {
+      toast({ title: err?.message ?? '非表示にできませんでした', variant: 'destructive' });
+    }
+  }
 
   // Stripe ステータスを再同期
   async function syncStripeStatus() {
@@ -2482,6 +2535,7 @@ export default function StoreDashboard() {
               queryClient.refetchQueries({ queryKey: [`/api/stores/${storeId}/bags`], type: 'all' });
               refetch();
             }}
+            onHidePastBag={handleHidePastBag}
           />
         )}
       </AnimatePresence>

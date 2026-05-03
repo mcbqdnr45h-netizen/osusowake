@@ -1,8 +1,11 @@
 import React from 'react';
 import {
-  Clock, Loader2, Minus, Package2, Pencil, Plus, ToggleLeft, ToggleRight, Trash2,
-  ShoppingBag, Utensils, CalendarClock,
+  Clock, Loader2, Minus, MoreVertical, Package2, Pencil, Plus, ToggleLeft, ToggleRight, Trash2,
+  CalendarClock,
 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // ★ 出品日時を「M/D HH:MM」 形式で表示 (端末タイムゾーン基準 = ほぼ JST)。
 //   オーナーが「これいつ出品したやつ?」 を一目で判別するための補助情報。
@@ -33,6 +36,7 @@ export interface Bag {
   isActive: boolean;
   createdAt: string;
   itemType?: string | null;
+  hiddenFromQuickPublish?: boolean;
 }
 
 export function getItemTypeLabel(itemType?: string | null): { label: string; emoji: string; cls: string } {
@@ -115,6 +119,10 @@ interface Props {
 }
 
 // ─── コンポーネント ───────────────────────────────────────────────────────────
+// ★ 設計メモ:
+//   旧 UI は「編集 / 公開トグル / 削除」 を縦に並べていたため、 件数が増えると視覚的にうるさく、
+//   タップ事故も起きやすかった。 メイン操作 (公開トグル + 在庫 +/-) を残し、 サブ操作
+//   (編集 / 非公開切替の代替テキスト導線 / 削除) は ⋯ メニュー (DropdownMenu) に集約。
 export function BagManageCard({
   bag, togglingId, deletingId, adjustingId, confirmId,
   onToggle, onDelete, onStockAdjust, onConfirmChange, onEdit,
@@ -132,6 +140,7 @@ export function BagManageCard({
   const isToggling  = togglingId  === bag.id;
   const isDeleting  = deletingId  === bag.id;
   const isAdjusting = adjustingId === bag.id;
+  const showDeleteConfirm = confirmId === bag.id;
 
   return (
     <div
@@ -140,7 +149,7 @@ export function BagManageCard({
       }`}
     >
       <div className="px-4 pt-4 pb-3">
-        {/* ── 上段：情報 + トグル ── */}
+        {/* ── 上段：情報 + メイン操作（トグル）+ ⋯ メニュー ── */}
         <div className="flex items-start justify-between gap-3">
           {/* 左：テキスト情報 */}
           <div className="flex-1 min-w-0">
@@ -185,19 +194,9 @@ export function BagManageCard({
             )}
           </div>
 
-          {/* 右：編集 + トグル + 削除 */}
+          {/* 右：メイン操作（公開トグル）+ ⋯ メニュー */}
           <div className="shrink-0 flex flex-col items-center gap-2">
-            {/* 編集ボタン（右上） */}
-            <button
-              type="button"
-              onClick={() => onEdit(bag)}
-              className="w-8 h-8 rounded-xl bg-secondary hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-colors"
-              title="編集"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-
-            {/* 公開/非公開トグル */}
+            {/* 公開/非公開トグル（メイン操作） */}
             <button
               type="button"
               onClick={() => onToggle(bag)}
@@ -216,44 +215,80 @@ export function BagManageCard({
               </span>
             </button>
 
-            {/* 削除（非公開のみ） */}
-            {!bag.isActive && (
-              <div className="flex flex-col items-center gap-1">
-                {confirmId === bag.id ? (
-                  <div className="flex flex-col items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onDelete(bag)}
-                      disabled={isDeleting}
-                      className="text-[9px] font-black text-white bg-red-500 px-2 py-1 rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+            {/* ⋯ メニュー（編集 / 公開切替（モバイル代替） / 削除） */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-8 h-8 rounded-xl bg-secondary hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-colors"
+                  title="その他の操作"
+                  aria-label="その他の操作"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  onSelect={(e) => { e.preventDefault(); onEdit(bag); }}
+                  className="text-sm font-bold cursor-pointer"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  編集
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onSelect={(e) => { e.preventDefault(); if (!isExpired) onToggle(bag); }}
+                  disabled={isToggling || isDeleting || isExpired}
+                  className="text-sm font-bold cursor-pointer"
+                >
+                  {bag.isActive
+                    ? <ToggleLeft className="w-4 h-4 mr-2" />
+                    : <ToggleRight className="w-4 h-4 mr-2" />}
+                  {bag.isActive ? '非公開にする' : '公開する'}
+                </DropdownMenuItem>
+
+                {!bag.isActive && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={(e) => { e.preventDefault(); onConfirmChange(bag.id); }}
+                      className="text-sm font-bold cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
                     >
-                      {isDeleting
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : '削除する'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onConfirmChange(null)}
-                      className="text-[9px] text-muted-foreground underline"
-                    >
-                      戻る
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => onConfirmChange(bag.id)}
-                    disabled={isToggling}
-                    className="flex flex-col items-center gap-0.5 text-red-400 hover:text-red-600 transition-colors disabled:opacity-30"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span className="text-[9px] font-bold">削除</span>
-                  </button>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      削除
+                    </DropdownMenuItem>
+                  </>
                 )}
-              </div>
-            )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
+
+        {/* ── 削除確認バー（⋯ メニューから「削除」 を選ぶと表示） ── */}
+        {showDeleteConfirm && !bag.isActive && (
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-red-50 border border-red-200 px-3 py-2">
+            <span className="text-xs font-bold text-red-700">本当に削除しますか？</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onConfirmChange(null)}
+                className="text-[11px] font-bold text-muted-foreground underline"
+              >
+                戻る
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(bag)}
+                disabled={isDeleting}
+                className="text-[11px] font-black text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg active:scale-95 transition-transform disabled:opacity-50 inline-flex items-center gap-1"
+              >
+                {isDeleting
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : <><Trash2 className="w-3 h-3" />削除する</>}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── 下段：在庫インライン調整バー ── */}
         {/* 「残りわずか」判定: remaining ≤ 2 かつ 公開中 → 全画面共通ロジック */}

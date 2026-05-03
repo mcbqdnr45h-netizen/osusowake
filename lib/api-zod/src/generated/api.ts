@@ -391,6 +391,7 @@ export const UpdateBagBody = zod.object({
       "商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。\n",
     ),
   isActive: zod.boolean().optional(),
+  hiddenFromQuickPublish: zod.boolean().optional(),
 });
 
 export const UpdateBagResponse = zod.object({

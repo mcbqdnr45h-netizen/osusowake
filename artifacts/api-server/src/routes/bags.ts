@@ -5,6 +5,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { releaseExpiredCartReservations } from "./reservations";
 import { sendPushToUsers } from "../lib/push.js";
 import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
+import { supabaseAdmin } from "../lib/supabase.js";
 import { getReviewDemoOwnerIds, isReviewDemoOwner } from "../lib/app-review.js";
 import {
   ListStoreBagsParams,
@@ -231,7 +232,34 @@ router.get("/stores/:storeId/bags", async (req, res) => {
       .select()
       .from(surpriseBagsTable)
       .where(eq(surpriseBagsTable.storeId, storeId));
-    res.json(bags);
+
+    // ★ best-effort なオーナー判定。
+    //   `hidden_from_quick_publish` はオーナー本人の UI 設定（クイック出品リストの非表示フラグ）であり、
+    //   一般ユーザに漏らす意味がないので、 オーナー以外には常に false で返す。
+    //   (フロントの dedup 判定が `!== true` なのでオーナーには本当の値が必須、 一般には false 固定で OK)
+    let isOwner = false;
+    const header = req.headers.authorization ?? "";
+    const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+    if (token) {
+      try {
+        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+        if (user) {
+          const [store] = await db
+            .select({ ownerId: storesTable.ownerId })
+            .from(storesTable)
+            .where(eq(storesTable.id, storeId))
+            .limit(1);
+          if (store?.ownerId && store.ownerId === user.id) isOwner = true;
+        }
+      } catch {
+        // 失敗時は単に非オーナー扱い (best-effort)
+      }
+    }
+
+    const sanitized = isOwner
+      ? bags
+      : bags.map((b) => ({ ...b, hiddenFromQuickPublish: false }));
+    res.json(sanitized);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error", message: "Failed to fetch store bags" });

@@ -681,6 +681,9 @@ components:
             既存データ・未指定時は 'bag' 扱い。
         isActive:
           type: boolean
+        hiddenFromQuickPublish:
+          type: boolean
+          description: 「クイック出品」 履歴リストから非表示にするフラグ（オーナー個別× で切替）。
         createdAt:
           type: string
           format: date-time
@@ -776,6 +779,9 @@ components:
             商品タイプ。 'bag' = サプライズバッグ、 'single' = 単品商品。
         isActive:
           type: boolean
+        hiddenFromQuickPublish:
+          type: boolean
+          description: 「クイック出品」 履歴リストから非表示にするフラグ。
 
     Reservation:
       type: object
