@@ -466,10 +466,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
         const gMaps = (window as any).google.maps as typeof google.maps;
 
-        // ★ Cloud-based Map Style 適用: VITE_GOOGLE_MAP_ID があればクラウド配信スタイルを優先。
-        //   Map ID 指定時は inline `styles` プロパティが警告を出すため除外する。
-        //   未設定時は従来の inline styles へフォールバック (ローカル開発でも壊れない)。
-        const mapId = (import.meta.env.VITE_GOOGLE_MAP_ID as string) || '';
+        // ★ 常に inline MAP_STYLES を適用 (Cloud-based Map ID は使わない)
+        //   理由: Map ID を指定すると inline styles が無視され Cloud Console 側の
+        //   スタイルが適用されるが、 環境ごとに env が異なり (Web 未設定 / iOS 設定済み)
+        //   表示差異が生じる。 inline 一本化で「Web もアプリも完全に同じ見た目」 を保証する。
         const mapOptions: google.maps.MapOptions = {
           center: startCenter,
           zoom: zoom ?? 14,
@@ -479,20 +479,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           gestureHandling: 'greedy',
           clickableIcons: false,
           backgroundColor: '#f2f0eb',
+          styles: MAP_STYLES,
         };
-        if (mapId) {
-          mapOptions.mapId = mapId;
-          // ★ Vector レンダリングを明示要求 (Map ID が VECTOR 設定済みのとき有効)
-          //   iPhone (DPR=3) で raster @2x タイルを拡大表示してぼやける問題への根本対策。
-          //   Vector は WebGL 描画なのでどの DPR でも常にシャープ。
-          //   Cloud Console の Map ID が RASTER だと無視されるが、害は無い。
-          try {
-            const RT = (gMaps as any).RenderingType;
-            if (RT?.VECTOR) (mapOptions as any).renderingType = RT.VECTOR;
-          } catch { /* 古いバージョンには無いので無視 */ }
-        } else {
-          mapOptions.styles = MAP_STYLES;
-        }
         const map = new gMaps.Map(containerRef.current, mapOptions);
 
         mapRef.current = map;
@@ -773,16 +761,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map = mapRef.current;
     if (!map || status !== 'ready') return;
     map.setMapTypeId(mapType);
-    // ★ Map ID が設定されている場合はクラウド配信スタイルが優先されるため、
-    //   inline styles の上書きをスキップ (warning 抑制)。
-    //   未設定時のみ従来通り roadmap でカスタムスタイル / satellite で素地を適用。
-    const hasMapId = !!(import.meta.env.VITE_GOOGLE_MAP_ID as string);
-    if (!hasMapId) {
-      if (mapType === 'roadmap') {
-        map.setOptions({ styles: MAP_STYLES });
-      } else {
-        map.setOptions({ styles: [] });
-      }
+    // roadmap でカスタムスタイル / satellite では素地を表示
+    if (mapType === 'roadmap') {
+      map.setOptions({ styles: MAP_STYLES });
+    } else {
+      map.setOptions({ styles: [] });
     }
   }, [mapType, status]);
 

@@ -4,10 +4,9 @@
 // referer に "https://osusowakejapan.org/*" を追加すれば動作する。
 export const MAPS_API_KEY = (import.meta.env.VITE_MAPS_API_KEY as string) || '';
 
-// ★ Cloud-based Map Style 用 Map ID (Google Cloud Console で発行)
-//   AdvancedMarkerElement やクラウド配信スタイルを有効化するために Map に渡す。
-//   公開可: API キーと同様、リファラ制限で保護される client-side 値。
-export const GOOGLE_MAP_ID = (import.meta.env.VITE_GOOGLE_MAP_ID as string) || '';
+// ※ 旧 Cloud-based Map Style (VITE_GOOGLE_MAP_ID) は廃止。
+//   理由: Map ID 指定時は inline styles が無視され、 環境ごとに env 差で見た目がズレる。
+//   現在は Map.tsx の inline MAP_STYLES に一本化している。
 
 // ─── Maps auth failure: always notify Map components (env-agnostic) ──────────
 // Google Maps では RefererNotAllowedMapError 等で auth が失敗すると、
