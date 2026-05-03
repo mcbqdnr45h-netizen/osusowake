@@ -122,44 +122,36 @@ function CompactCardBody({
         {bag.store.name}
       </p>
 
-      {/* ② 商品タイトル ＋ 大価格 (同じ行、 タイトル flex-1 truncate / 価格 shrink-0 右寄せ)
-          ★ 昨日のコンパクト版に復帰: line-clamp-1 truncate で 1 行固定 → 全カード高さ一致。
-            長いタイトルは「タップスバ…」 と省略されるが、 横スクロール内のリズム優先。
-            (2行表示版は items-start で縦に伸びすぎ、 ユーザ NG) */}
-      {!isSoldOut ? (
-        <div className="flex items-center justify-between gap-2 min-w-0">
-          <p className="font-black text-[15px] leading-[1.15] truncate tracking-[-0.018em] text-foreground flex-1 min-w-0">
-            {normalizeBrand(bag.title)}
-          </p>
-          <div className="flex flex-col items-end shrink-0">
-            {bag.originalPrice > bag.discountedPrice && (
-              <span className="text-[10px] text-muted-foreground/45 line-through font-semibold leading-none mb-[2px] tabular-nums">
-                ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
-              </span>
-            )}
-            <span className="text-[20px] font-black text-primary leading-none tracking-[-0.025em] whitespace-nowrap tabular-nums">
-              ¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}
+      {/* ② 商品タイトル (全幅 truncate)
+          ★ 価格と取り合わない設計 → タイトルが 160px フル幅を使え省略されにくい。
+            視線移動: 店名 → タイトル → 価格 → 受取情報 (F パターン準拠)。 */}
+      <p className={`font-black text-[15px] leading-[1.15] truncate tracking-[-0.018em] ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}`}>
+        {normalizeBrand(bag.title)}
+      </p>
+
+      {/* ③ 価格専用行 (左: 元価格 strike / 右: 割引価格 BIG)
+          ★ 価格を独立行に分離 → 最大 20px の主役価格が確実に目立つ。
+            justify-between で「was → now」 の対比が一目瞭然。
+            元価格が無い場合 (定価販売) は割引価格のみ右寄せ。 */}
+      {!isSoldOut && (
+        <div className="flex items-baseline justify-between gap-2 min-h-[20px]">
+          {bag.originalPrice > bag.discountedPrice ? (
+            <span className="text-[11px] text-muted-foreground/55 line-through font-semibold tabular-nums">
+              ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
             </span>
-          </div>
+          ) : <span />}
+          <span className="text-[20px] font-black text-primary leading-none tracking-[-0.025em] whitespace-nowrap tabular-nums">
+            ¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}
+          </span>
         </div>
-      ) : (
-        <p className="font-black text-[15px] leading-[1.15] truncate tracking-[-0.018em] text-muted-foreground">
-          {normalizeBrand(bag.title)}
-        </p>
       )}
 
-      {/* ③ メタ chip 群: 受取時間 + 残数 + 距離 を本文幅いっぱい flex-wrap で表示
-          ★ 受取時間は bg/ring を外した軽量 inline-text スタイルに (~80px → ~55px に圧縮) し、
-            残数・距離 chip と組み合わせても 160px カード幅に 1 行で収まるよう設計。
-          ★ 万一 2 段になっても全情報フル表示を優先 (旧版の truncate よりマシ)。
-          ★ 表示順は「時間 → 残数 → 距離」 が左から、 折返した場合は距離が下段に来る。 */}
+      {/* ④ メタ chip 群: 受取時間 + 残数 + 距離 を本文幅いっぱい flex-wrap で表示
+          ★ 全情報を必ず表示。 1 行で詰めると 160px に溢れるため flex-wrap で折り返し許可。
+          ★ min-h-[40px] で 2 段分の高さを常時予約 → 1 段/2 段の差でカード高さがガタつかない。
+          ★ content-start で 1 段時は上寄せ → 全カード底辺が完全一致。
+          ★ 表示順: 時間 → 残数 → 距離 (左から、 折返し時は距離が下段)。 */}
       {hasMetaRow && (
-        // ★ メタ chip 行: 全情報を必ず表示する方針。 160px カード幅に「時間 + 残数 + 距離」 を
-        //   1 行で詰めると溢れることがあるため flex-wrap で 2 段折り返しを許容。
-        //   ただし「片方は1行、 片方は2行」 でカード高さがガタつくのを防ぐため min-h-[40px] で
-        //   2 段分の高さを常時予約 (chip ~18px × 2 + gap 4px ≒ 40px)。
-        //   content-start で 1 行収まる場合は上寄せ → 全カード底辺が完全一致。
-        //   ★ flex-nowrap で「残数表示時に距離が消える」 バグの根本原因を解消。
         <div className="flex flex-wrap items-start content-start gap-x-2 gap-y-1 mt-[2px] min-h-[40px]">
           {hasTime && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
