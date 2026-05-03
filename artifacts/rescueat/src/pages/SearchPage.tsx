@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage, getCategoryLabel, normalizeCategory } from '@/lib/category-utils';
+import { normalizeBrand } from '@/lib/brand-text';
 import { useUserLocation, updateCachedCoords, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 
@@ -325,7 +326,7 @@ function StoreBottomSheet({
                           )}
                         </div>
                         <div className="flex-1 py-2.5 pr-2 min-w-0">
-                          <p className="font-black text-sm text-foreground leading-tight line-clamp-1 mb-1">{bag.title}</p>
+                          <p className="font-black text-sm text-foreground leading-tight line-clamp-1 mb-1">{normalizeBrand(bag.title)}</p>
                           <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-1.5">
                             <Clock className="w-3 h-3 shrink-0" />
                             <span>受取 {bag.pickupStart}–{bag.pickupEnd}</span>

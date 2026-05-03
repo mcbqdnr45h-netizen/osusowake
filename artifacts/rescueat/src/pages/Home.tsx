@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage, normalizeCategory } from '@/lib/category-utils';
+import { normalizeBrand } from '@/lib/brand-text';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters, requestGpsManually } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
@@ -794,8 +795,8 @@ export default function Home() {
                 className="mx-3 mt-3 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
                 <Megaphone className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black text-amber-800 leading-tight">{announcement.title}</p>
-                  <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed line-clamp-2">{announcement.body}</p>
+                  <p className="text-xs font-black text-amber-800 leading-tight">{normalizeBrand(announcement.title)}</p>
+                  <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed line-clamp-2">{normalizeBrand(announcement.body)}</p>
                 </div>
                 <button
                   onClick={() => {

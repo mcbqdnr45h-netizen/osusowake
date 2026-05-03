@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authed-fetch';
+import { normalizeBrand } from '@/lib/brand-text';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -515,7 +516,7 @@ export default function Checkout() {
               </div>
               <div className="flex-1">
                 <div className="text-sm text-muted-foreground">{reservation.store?.name}</div>
-                <div className="font-bold text-foreground line-clamp-2">{reservation.bag?.title}</div>
+                <div className="font-bold text-foreground line-clamp-2">{normalizeBrand(reservation.bag?.title)}</div>
                 <div className="mt-1 text-sm text-muted-foreground">数量: {reservation.quantity}</div>
               </div>
             </div>

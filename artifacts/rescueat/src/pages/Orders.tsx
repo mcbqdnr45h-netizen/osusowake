@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
+import { normalizeBrand } from '@/lib/brand-text';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Receipt, ShoppingBag, CheckCircle2, XCircle,
@@ -83,7 +84,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
   const displayName = recipientInput.trim() || profileName || 'お客様';
   const showSama    = !!(recipientInput.trim() || profileName);
   const storeName     = reservation.store?.name  || '店舗名';
-  const bagTitle = reservation.bag?.title || 'おすそわけバッグ';
+  const bagTitle = normalizeBrand(reservation.bag?.title) || 'おすそわけバッグ';
 
   const issueDateStr = (() => {
     const d = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
@@ -559,7 +560,7 @@ export default function Orders() {
                           </span>
                         </div>
                         {/* Row 2: bag title */}
-                        <p className="text-xs text-muted-foreground truncate min-w-0">{r.bag?.title || 'おすそわけバッグ'}</p>
+                        <p className="text-xs text-muted-foreground truncate min-w-0">{normalizeBrand(r.bag?.title) || 'おすそわけバッグ'}</p>
                         {/* Row 3: date + price */}
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">

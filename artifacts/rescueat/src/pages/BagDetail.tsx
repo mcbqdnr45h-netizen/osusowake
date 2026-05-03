@@ -4,6 +4,7 @@ import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation, getListAllBagsQueryKey, getGetBagQueryKey } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
+import { normalizeBrand } from '@/lib/brand-text';
 import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, Sparkles, TrendingDown, Package } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
@@ -507,7 +508,7 @@ export default function BagDetail() {
 
             <div className="absolute bottom-7 left-6 right-6">
               <h1 className="text-[28px] md:text-4xl font-black text-white leading-[1.15] tracking-tight" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.45)' }}>
-                {bag.title}
+                {normalizeBrand(bag.title)}
               </h1>
             </div>
           </div>

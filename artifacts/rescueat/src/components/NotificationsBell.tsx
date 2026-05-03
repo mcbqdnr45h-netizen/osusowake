@@ -5,6 +5,7 @@ import { useLocation } from 'wouter';
 import { useNotifications, AppNotification } from '@/hooks/use-notifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { normalizeBrand } from '@/lib/brand-text';
 
 function timeAgo(dateStr: string) {
   try {
@@ -117,11 +118,11 @@ function NotificationItem({ n, onRead, onClose }: {
         <span className="text-base shrink-0 mt-0.5 leading-none">{notificationIcon(n.type)}</span>
         <div className="flex-1 min-w-0">
           <p className={`text-sm leading-snug ${n.read ? 'font-medium text-gray-600' : 'font-black text-gray-900'}`}>
-            {n.title}
+            {normalizeBrand(n.title)}
           </p>
           {n.body && (
             <p className={`text-xs text-gray-500 mt-0.5 leading-relaxed whitespace-pre-wrap ${expanded || !isExpandable ? '' : 'line-clamp-3'}`}>
-              {stripBagToken(n.body)}
+              {normalizeBrand(stripBagToken(n.body))}
             </p>
           )}
           <div className="flex items-center justify-between mt-1">

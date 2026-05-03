@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authedFetch } from '@/lib/authed-fetch';
+import { normalizeBrand } from '@/lib/brand-text';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ImageUpload } from '@/components/ImageUpload';
@@ -455,7 +456,7 @@ function PostBagModal({
 
                           {/* テキスト */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black text-foreground truncate">{bag.title}</p>
+                            <p className="text-sm font-black text-foreground truncate">{normalizeBrand(bag.title)}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-xs line-through text-muted-foreground">¥{bag.originalPrice.toLocaleString()}</span>
                               <span className="text-sm font-black text-primary">¥{bag.discountedPrice.toLocaleString()}</span>
@@ -1225,7 +1226,7 @@ function ReservationCard({
 
       <div className="px-4 pb-3 border-t border-gray-50">
         {/* バッグ名 */}
-        <p className="text-sm font-black text-foreground mt-2 mb-1">{res.bag?.title ?? '商品名なし'}</p>
+        <p className="text-sm font-black text-foreground mt-2 mb-1">{normalizeBrand(res.bag?.title ?? '商品名なし')}</p>
 
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">

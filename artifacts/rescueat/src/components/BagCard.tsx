@@ -12,6 +12,7 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
+import { normalizeBrand } from '@/lib/brand-text';
 import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
 import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 import { useToast } from '@/hooks/use-toast';
@@ -127,7 +128,7 @@ function CompactCardBody({
       {!isSoldOut ? (
         <div className="flex items-end justify-between gap-2.5 min-w-0">
           <p className="font-black text-[14.5px] leading-[1.18] line-clamp-2 tracking-[-0.018em] text-foreground flex-1 min-w-0 break-all">
-            {bag.title}
+            {normalizeBrand(bag.title)}
           </p>
           <div className="flex flex-col items-end shrink-0">
             {bag.originalPrice > bag.discountedPrice && (
@@ -142,7 +143,7 @@ function CompactCardBody({
         </div>
       ) : (
         <p className="font-black text-[14.5px] leading-[1.18] line-clamp-2 tracking-[-0.018em] text-muted-foreground break-all">
-          {bag.title}
+          {normalizeBrand(bag.title)}
         </p>
       )}
 
@@ -213,7 +214,7 @@ function FullCardBody({
       <div className="mb-2">
         <h3 className={`font-bold leading-snug tracking-tight line-clamp-2
           ${isSoldOut ? 'text-muted-foreground' : 'text-foreground text-[15px]'}`}>
-          {bag.title}
+          {normalizeBrand(bag.title)}
         </h3>
         {avgRating && !isSoldOut && (
           <div className="flex items-center gap-1 mt-1">

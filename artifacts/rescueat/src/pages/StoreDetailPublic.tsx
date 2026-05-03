@@ -6,6 +6,7 @@ import { useGetStore, useListAllBags, getGetStoreQueryKey, getListAllBagsQueryKe
 import { ArrowLeft, MapPin, Clock, Star, Navigation, ChevronRight, ExternalLink, Package } from 'lucide-react';
 import { getDisplayPrice } from '@/lib/price-display';
 import { getCategoryLabel } from '@/lib/category-utils';
+import { normalizeBrand } from '@/lib/brand-text';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
@@ -221,7 +222,7 @@ export default function StoreDetailPublic() {
                             {(bag as any).itemType === 'item' && (
                               <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 mb-1 leading-none">🥡 単品</span>
                             )}
-                            <p className="font-bold text-sm text-foreground leading-snug truncate">{bag.title}</p>
+                            <p className="font-bold text-sm text-foreground leading-snug truncate">{normalizeBrand(bag.title)}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-base font-black text-primary">
                                 ¥{getDisplayPrice(bag.discountedPrice ?? bag.price).toLocaleString()}

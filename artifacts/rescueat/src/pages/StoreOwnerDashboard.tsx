@@ -3,6 +3,7 @@ import { useLocation, Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authed-fetch';
+import { normalizeBrand } from '@/lib/brand-text';
 import { StoreLayout } from '@/components/StoreLayout';
 import {
   Store, Package, LogOut, RefreshCw, Loader2, AlertCircle,
@@ -665,7 +666,7 @@ export default function StoreOwnerDashboard() {
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-foreground truncate">{r.bag.title}</p>
+                    <p className="text-sm font-black text-foreground truncate">{normalizeBrand(r.bag.title)}</p>
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
                       {r.bag.pickupStart && r.bag.pickupEnd && (
                         <span>🕐 {r.bag.pickupStart}〜{r.bag.pickupEnd}</span>
@@ -883,7 +884,7 @@ function BagRow({
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <p className="font-black text-foreground text-base truncate">{bag.title}</p>
+            <p className="font-black text-foreground text-base truncate">{normalizeBrand(bag.title)}</p>
             <AnimatePresence>
               {isSoldOut && (
                 <motion.span key="sold-out" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }}

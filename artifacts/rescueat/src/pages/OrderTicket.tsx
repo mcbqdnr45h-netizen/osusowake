@@ -3,6 +3,7 @@ import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetReservation } from '@workspace/api-client-react';
 import { formatPickupTime } from '@/lib/utils';
+import { normalizeBrand } from '@/lib/brand-text';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import {
@@ -452,7 +453,7 @@ export default function OrderTicket() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-black text-foreground">{reservation.store?.name}</p>
-                <p className="text-sm text-muted-foreground truncate">{reservation.bag?.title} × {reservation.quantity}</p>
+                <p className="text-sm text-muted-foreground truncate">{normalizeBrand(reservation.bag?.title)} × {reservation.quantity}</p>
                 <p className="text-xs font-bold text-primary mt-0.5">¥{reservation.totalPrice.toLocaleString()}</p>
               </div>
             </div>
