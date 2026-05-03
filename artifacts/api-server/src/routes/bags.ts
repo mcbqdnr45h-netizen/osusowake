@@ -232,6 +232,9 @@ router.get("/bags/:bagId", async (req, res) => {
         createdAt: surpriseBagsTable.createdAt,
         // ★ PII 除外: storesTable 全カラムではなく公開フィールドのみ
         store: publicStoreCols,
+        // ★ オーナーID は内部の isBagExpired (デモ店舗判定) でのみ使用 ―
+        //   レスポンスには含めない (下で分割代入で除外)
+        storeOwnerId: storesTable.ownerId,
       })
       .from(surpriseBagsTable)
       .innerJoin(storesTable, eq(surpriseBagsTable.storeId, storesTable.id))
@@ -243,12 +246,20 @@ router.get("/bags/:bagId", async (req, res) => {
     }
 
     // 受取時間チェック：期限切れなら 410 Gone（深夜またぎ対応）
-    if (isBagExpired(bag)) {
+    if (isBagExpired({
+      pickupEnd: bag.pickupEnd,
+      pickupStart: bag.pickupStart,
+      createdAt: bag.createdAt,
+      storeOwnerId: bag.storeOwnerId,
+    })) {
       res.status(410).json({ error: "expired", message: "この商品の受取時間が過ぎています" });
       return;
     }
 
-    res.json({ ...bag, store: { ...bag.store, totalBagsAvailable: bag.stockCount } });
+    // ★ storeOwnerId は内部判定専用 — レスポンスから除外して PII リーク防止
+    const { storeOwnerId: _omit, ...publicBag } = bag;
+    void _omit;
+    res.json({ ...publicBag, store: { ...publicBag.store, totalBagsAvailable: publicBag.stockCount } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error", message: "Failed to fetch bag" });

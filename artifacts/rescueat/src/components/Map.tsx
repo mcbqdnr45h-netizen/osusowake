@@ -420,11 +420,24 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     [listingStores, activeStoreIdSet]
   );
 
-  // ── マーカーKey（ID:色 文字列）─────────────────────────────────────────────
-  // 店舗リストや在庫・時間が変わったときだけマーカーを再描画
+  // ── マーカーKey（ID:色:座標:アイコン 文字列）─────────────────────────────
+  // 店舗リストや在庫・時間・座標・アイコンが変わったときだけマーカーを再描画。
+  // ★ 座標 / iconUrl も含めることで、 ID と色が同じでも実質変更があれば検知。
+  //   これにより effect の dep から listingStores 参照を外せる ＝ React Query の
+  //   バックグラウンド refetch (window focus / staleTime 切れ) で配列の参照だけ
+  //   変わっても、 内容が同じなら再描画しなくなる。
+  //   旧実装は refetch のたびに全マーカーを clearInstanceListeners + setMap(null)
+  //   していたため、 ちょうどその瞬間にユーザがピンをタップすると無反応になる
+  //   タップ取りこぼしバグが発生していた。
   const markerKey = useMemo(() => {
     return listingStores
-      .map(s => `${s.id}:${activeStoreIdSet.has(s.id) ? 'orange' : 'gray'}`)
+      .map(s => {
+        const color = activeStoreIdSet.has(s.id) ? 'o' : 'g';
+        const lat   = Number(s.lat).toFixed(5);
+        const lng   = Number(s.lng).toFixed(5);
+        const icon  = s.iconUrl ? '1' : '0';
+        return `${s.id}:${color}:${lat}:${lng}:${icon}`;
+      })
       .join(',');
   }, [listingStores, activeStoreIdSet]);
 
@@ -692,9 +705,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         renderer: makeClusterRenderer(gMaps),
       });
     }
-  // listingStores を直接依存に追加: stores が変化したとき markerKey が
-  // 変わらなかった稀なケース（空→空など）でも確実に再描画するための防御策
-  }, [markerKey, status, listingStores]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ★ markerKey が ID:色:座標:アイコン を全部含むので、 これだけで実質変更を検知できる。
+  //   listingStores 参照の変化 (React Query refetch 等) では再描画させない ＝
+  //   タップ中にマーカーが消える競合バグを根本回避。
+  }, [markerKey, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 現在地マーカー ────────────────────────────────────────────────────────
   useEffect(() => {
