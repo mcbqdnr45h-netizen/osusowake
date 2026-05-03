@@ -35,11 +35,18 @@ export default defineConfig({
     'import.meta.env.VITE_STRIPE_PK': JSON.stringify(process.env.STRIPE_PUBLISHABLE_KEY ?? ''),
     'import.meta.env.VITE_BASE_URL': JSON.stringify('/'),
     'import.meta.env.VITE_API_BASE': JSON.stringify('https://osusowakejapan.org'),
+    // ★ ハードコード fallback を撤去 (gitleaks/SAST 警告解消)。
+    //   ローカルの VITE_* 環境変数を優先、 無ければ Replit Secret (SUPABASE_*) を fallback。
+    //   どちらも無ければ build 時に throw して silent 失敗を防止。
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(
-      process.env.VITE_SUPABASE_URL ?? 'https://dqybzbsdqpbfpimapnwx.supabase.co'
+      process.env.VITE_SUPABASE_URL
+        ?? process.env.SUPABASE_URL
+        ?? (() => { throw new Error('[vite.cap] SUPABASE_URL / VITE_SUPABASE_URL が未設定です'); })()
     ),
     'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(
-      process.env.VITE_SUPABASE_ANON_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxeWJ6YnNkcXBiZnBpbWFwbnd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTcyMzgsImV4cCI6MjA4OTY3MzIzOH0.oEZDaDldnTJ190VRt7hsbrypwQ05RaI1OUhQOLjO6pc'
+      process.env.VITE_SUPABASE_ANON_KEY
+        ?? process.env.SUPABASE_ANON_KEY
+        ?? (() => { throw new Error('[vite.cap] SUPABASE_ANON_KEY / VITE_SUPABASE_ANON_KEY が未設定です'); })()
     ),
   },
   plugins: [

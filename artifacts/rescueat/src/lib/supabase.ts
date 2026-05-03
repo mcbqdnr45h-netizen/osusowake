@@ -1,9 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string)
-  || 'https://dqybzbsdqpbfpimapnwx.supabase.co';
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)
-  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxeWJ6YnNkcXBiZnBpbWFwbnd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTcyMzgsImV4cCI6MjA4OTY3MzIzOH0.oEZDaDldnTJ190VRt7hsbrypwQ05RaI1OUhQOLjO6pc';
+// ★ ハードコード fallback を撤去 (gitleaks/SAST 警告解消)。
+//    URL / ANON_KEY は build 時に Vite が埋め込む。
+//    - Web (dev/prod): artifacts/rescueat/.env.local の VITE_SUPABASE_*
+//    - iOS Capacitor build: vite.config.cap.ts が process.env から注入
+//    値が無い場合は明示的に throw し、 silent 起動失敗を防ぐ。
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    '[supabase] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY が未設定です。 .env.local または build 環境変数を確認してください。',
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
