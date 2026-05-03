@@ -502,18 +502,21 @@ export default function Settings() {
         {/* Header */}
         <div className="flex items-center gap-3 px-4 pt-4 pb-4 sticky bg-background/90 backdrop-blur-sm z-10 border-b border-border/50"
           style={{ top: 'calc(var(--layout-header-height, 0px) + env(safe-area-inset-top))' }}>
-          <button
-            onClick={() => navigate('/mypage')}
-            className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
+          {!isStoreOwner && (
+            <button
+              onClick={() => navigate('/mypage')}
+              className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
           <h1 className="text-xl font-black text-foreground">アカウント設定</h1>
         </div>
 
         <div className="px-4 pt-4">
 
-          {/* ── PROFILE ── */}
+          {/* ── PROFILE (店舗オーナーは店舗プロフィール画面で別途管理するため非表示) ── */}
+          {!isStoreOwner && (<>
           <SectionLabel>プロフィール</SectionLabel>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-1">
 
@@ -655,6 +658,7 @@ export default function Settings() {
               )}
             </AnimatePresence>
           </div>
+          </>)}
 
           {/* ── NOTIFICATIONS ── */}
           <SectionLabel>通知設定</SectionLabel>
