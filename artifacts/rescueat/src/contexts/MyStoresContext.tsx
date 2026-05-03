@@ -100,7 +100,11 @@ export function MyStoresProvider({ children }: { children: React.ReactNode }) {
       return Promise.resolve();
     }
     const uid = user.id;
-    setLoading(true); setFetchError(false);
+    // ★ SWR パターン: キャッシュ済データがある場合は spinner を出さず背景更新する。
+    //   画面遷移する度に「店舗情報を読み込み中...」 が出ないようにするため。
+    const hasCachedData = readCache(uid).length > 0;
+    if (!hasCachedData) setLoading(true);
+    setFetchError(false);
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 
     return authedFetch(`${BASE}/api/stores/all-by-owner?userId=${encodeURIComponent(uid)}`, { cache: 'no-store' })
