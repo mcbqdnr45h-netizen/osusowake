@@ -11,3 +11,7 @@ capacitor-cordova-ios-plugins
 # Generated Config files
 App/App/capacitor.config.json
 App/App/config.xml
+
+# SPM — Package.resolved は cap sync ごとに originHash が変わるため commit しない。
+# Xcode Cloud が自動解決する（committed ファイルがあると automatic resolution が無効化される）。
+App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved

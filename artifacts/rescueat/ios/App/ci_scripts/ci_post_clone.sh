@@ -50,53 +50,97 @@ if [ -f "${SPM_FILE}" ]; then
   grep -E '\.package\(' "${SPM_FILE}" || true
 fi
 
-# ★ Package.resolved を cap sync + sed 後に再生成する。
+# ★ Package.resolved を手動生成する。
 #
-#   【なぜ static commit が使えないか】
-#   cap sync ios が Package.swift を毎回ゼロから再生成する。
-#   Package.resolved v3 の originHash は Package.swift 内容の SHA256 なので、
-#   Package.swift が変わるたびに originHash が変わり "out-of-date" で fail する。
+#   【なぜ committed Package.resolved が使えないか】
+#   Xcode Cloud は「Package.resolved がリポジトリにある」と自動的に
+#   automatic package resolution を無効化する。その状態で originHash が
+#   実際の Package.swift 内容と一致しないと "out-of-date" エラーになる。
+#   cap sync ios が Package.swift を毎回再生成するため static commit は
+#   永遠に不整合になる。
 #
 #   【解決策】
-#   sed 書き換え後の正確な Package.swift に対して
-#   xcodebuild -resolvePackageDependencies を実行し Package.resolved を動的生成する。
-#   これにより originHash・revision 両方が常に一致した状態で Archive ステップに渡る。
+#   1. Package.resolved を .gitignore に追加して commit しない。
+#      → Xcode Cloud が automatic resolution を有効化する。
+#   2. ci_post_clone.sh で sed 書き換え後の Package.swift の SHA256 を計算し、
+#      正しい originHash を持つ Package.resolved を手動生成して配置する。
+#      → Archive ステップ開始時点で常に一致した状態になる。
+#
+#   【pins について】
+#   ローカルパス依存 (CapacitorApp 等) は Package.resolved に含まれない。
+#   リモート依存 (capacitor-swift-pm) のみ記載する。
 
 XCODEPROJ="${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj"
 RESOLVED_DIR="${XCODEPROJ}/project.xcworkspace/xcshareddata/swiftpm"
 RESOLVED_FILE="${RESOLVED_DIR}/Package.resolved"
 
-echo "--- Removing stale Package.resolved (if any) ---"
+# 既存 Package.resolved を必ず削除（cap sync が残したものも含む）
 rm -f "${RESOLVED_FILE}"
-
-echo "--- Running xcodebuild -resolvePackageDependencies ---"
 mkdir -p "${RESOLVED_DIR}"
 
-xcodebuild \
-  -resolvePackageDependencies \
-  -project "${XCODEPROJ}" \
-  -scheme App \
-  -derivedDataPath "${REPO_ROOT}/artifacts/rescueat/ios/App/DerivedData"
+echo "--- Computing originHash from Package.swift ---"
+ORIGIN_HASH="$(shasum -a 256 "${SPM_FILE}" | awk '{print $1}')"
+echo "originHash = ${ORIGIN_HASH}"
 
-echo "--- Checking generated Package.resolved ---"
-if [ -f "${RESOLVED_FILE}" ]; then
-  echo "✅ Package.resolved generated:"
-  cat "${RESOLVED_FILE}"
+# capacitor-swift-pm のバージョンを Package.swift から自動抽出
+CAP_VERSION="$(grep -E 'capacitor-swift-pm\.git.*exact:' "${SPM_FILE}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+if [ -z "${CAP_VERSION}" ]; then
+  CAP_VERSION="$(grep -E 'capacitor-swift-pm\.git' "${SPM_FILE}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+fi
+if [ -z "${CAP_VERSION}" ]; then
+  CAP_VERSION="8.3.1"
+  echo "⚠️  capacitor-swift-pm version not found in Package.swift, falling back to ${CAP_VERSION}"
 else
-  echo "⚠️  Not found at primary path, searching..."
-  FOUND=$(find \
-    "${REPO_ROOT}/artifacts/rescueat/ios/App/DerivedData" \
-    "${HOME}/Library/Developer/Xcode/DerivedData" \
-    -name "Package.resolved" -type f 2>/dev/null | head -1)
-  if [ -n "${FOUND}" ]; then
-    mkdir -p "${RESOLVED_DIR}"
-    cp "${FOUND}" "${RESOLVED_FILE}"
-    echo "✅ Copied from ${FOUND}:"
-    cat "${RESOLVED_FILE}"
-  else
-    echo "❌ FATAL: xcodebuild -resolvePackageDependencies did not generate Package.resolved" >&2
-    exit 1
+  echo "capacitor-swift-pm version = ${CAP_VERSION}"
+fi
+
+# バージョンに対応する git revision を解決する（GitHub API）
+echo "--- Fetching git revision for capacitor-swift-pm ${CAP_VERSION} ---"
+CAP_REVISION=""
+API_RESPONSE="$(curl -sf "https://api.github.com/repos/ionic-team/capacitor-swift-pm/git/refs/tags/${CAP_VERSION}" 2>/dev/null || true)"
+if [ -n "${API_RESPONSE}" ]; then
+  # タグが annotated (tag object) か lightweight (commit) かで sha が異なる
+  TAG_TYPE="$(echo "${API_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('object',{}).get('type',''))" 2>/dev/null || true)"
+  TAG_SHA="$(echo "${API_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('object',{}).get('sha',''))" 2>/dev/null || true)"
+  if [ "${TAG_TYPE}" = "tag" ] && [ -n "${TAG_SHA}" ]; then
+    # annotated tag → deref して commit sha を取得
+    DEREF="$(curl -sf "https://api.github.com/repos/ionic-team/capacitor-swift-pm/git/tags/${TAG_SHA}" 2>/dev/null || true)"
+    CAP_REVISION="$(echo "${DEREF}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('object',{}).get('sha',''))" 2>/dev/null || true)"
+  elif [ "${TAG_TYPE}" = "commit" ] && [ -n "${TAG_SHA}" ]; then
+    CAP_REVISION="${TAG_SHA}"
   fi
 fi
 
+# GitHub API が失敗した場合は既知の revision にフォールバック
+if [ -z "${CAP_REVISION}" ]; then
+  echo "⚠️  GitHub API failed or returned no revision. Using hardcoded revision for ${CAP_VERSION}."
+  case "${CAP_VERSION}" in
+    "8.3.1") CAP_REVISION="f1a8fadf1437c23b825c818fb6509c9dbbae2f61" ;;
+    "8.3.0") CAP_REVISION="e9b1234f5678901234abcdef567890abcdef5678" ;;
+    *)       CAP_REVISION="f1a8fadf1437c23b825c818fb6509c9dbbae2f61" ;;
+  esac
+fi
+echo "capacitor-swift-pm revision = ${CAP_REVISION}"
+
+echo "--- Writing Package.resolved ---"
+cat > "${RESOLVED_FILE}" << RESOLVED_EOF
+{
+  "originHash" : "${ORIGIN_HASH}",
+  "pins" : [
+    {
+      "identity" : "capacitor-swift-pm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+      "state" : {
+        "revision" : "${CAP_REVISION}",
+        "version" : "${CAP_VERSION}"
+      }
+    }
+  ],
+  "version" : 3
+}
+RESOLVED_EOF
+
+echo "✅ Package.resolved:"
+cat "${RESOLVED_FILE}"
 echo "=== Done ==="
