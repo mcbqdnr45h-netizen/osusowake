@@ -134,6 +134,34 @@ const notExpiredCondition = sql`(
   )
 )`;
 
+// ★ 公開エンドポイント用 store 公開フィールド (bags 結合用 — PII 完全除外)
+//   除外: ownerId, licenseNumber, licenseImageUrl, idImageUrl, pledgeSigned,
+//         rejectionReason, stripeAccountId, stripeLicenseFileId,
+//         stripeNeedsBankReregister, stripeChargesEnabled, stripePayoutsEnabled,
+//         approvalEmailSent, stripeKycAdminEmailSent,
+//         licenseUploadFailed/Error/AttemptedAt
+const publicStoreCols = {
+  id: storesTable.id,
+  name: storesTable.name,
+  description: storesTable.description,
+  address: storesTable.address,
+  city: storesTable.city,
+  category: storesTable.category,
+  lat: storesTable.lat,
+  lng: storesTable.lng,
+  imageUrl: storesTable.imageUrl,
+  iconUrl: storesTable.iconUrl,
+  phone: storesTable.phone,
+  openTime: storesTable.openTime,
+  closeTime: storesTable.closeTime,
+  rating: storesTable.rating,
+  isActive: storesTable.isActive,
+  status: storesTable.status,
+  holiday: storesTable.holiday,
+  pickupHours: storesTable.pickupHours,
+  createdAt: storesTable.createdAt,
+} as const;
+
 router.get("/bags", async (_req, res) => {
   // 期限切れ仮押さえを非同期で清算（レスポンスはブロックしない）
   releaseExpiredCartReservations().catch(() => {});
@@ -156,7 +184,8 @@ router.get("/bags", async (_req, res) => {
         itemType: surpriseBagsTable.itemType,
         isActive: surpriseBagsTable.isActive,
         createdAt: surpriseBagsTable.createdAt,
-        store: storesTable,
+        // ★ PII 除外: storesTable 全カラムではなく公開フィールドのみ取得
+        store: publicStoreCols,
         storeAvgRating: sql<number | null>`(SELECT ROUND(AVG(r.rating)::numeric, 1) FROM reviews r WHERE r.store_id = ${storesTable.id})`,
         storeReviewCount: sql<number>`(SELECT COUNT(*)::integer FROM reviews r WHERE r.store_id = ${storesTable.id})`,
       })
@@ -201,7 +230,8 @@ router.get("/bags/:bagId", async (req, res) => {
         category: surpriseBagsTable.category,
         isActive: surpriseBagsTable.isActive,
         createdAt: surpriseBagsTable.createdAt,
-        store: storesTable,
+        // ★ PII 除外: storesTable 全カラムではなく公開フィールドのみ
+        store: publicStoreCols,
       })
       .from(surpriseBagsTable)
       .innerJoin(storesTable, eq(surpriseBagsTable.storeId, storesTable.id))
