@@ -7,7 +7,7 @@ import {
   Leaf, Smartphone, Package,
   MapPin, QrCode, Sparkles, Clock, Star, Search,
   Camera, FileCheck, Bell, ScanLine, TrendingUp,
-  Lightbulb, BookOpen, PartyPopper, CheckCircle2,
+  Lightbulb, PartyPopper, CheckCircle2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
@@ -760,7 +760,7 @@ export default function HelpPage() {
         </div>
 
         {/* ロール表示バッジ (固定: 切替不可) */}
-        <div className="flex items-center justify-between gap-2 mb-5">
+        <div className="flex items-center gap-2 mb-5">
           <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black ${
             isStoreMode
               ? 'bg-primary/10 text-primary'
@@ -768,13 +768,6 @@ export default function HelpPage() {
           }`}>
             {isStoreMode ? '🏪 店舗オーナー向け' : '👤 ユーザー向け'}
           </div>
-          <Link
-            href={isStoreMode ? '/usage-guide?mode=store' : '/usage-guide'}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
-          >
-            <BookOpen className="w-3 h-3" />
-            使い方ガイドを見る →
-          </Link>
         </div>
 
         {/* メインコンテンツ (FAQ のみ) */}
