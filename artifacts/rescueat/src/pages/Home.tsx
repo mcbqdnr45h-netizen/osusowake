@@ -540,7 +540,27 @@ export default function Home() {
     return filtered.slice(0, 10);
   }, [sortedVisibleBags, sortKey, dailySeed]);
 
-  // ── ⑥ 新着店舗（過去7日以内に作成された店舗のバッグ） ──
+  // ── ⑥ 朝の受け取り（5:00〜10:00） ──
+  const morningBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => {
+      if (b.stockCount <= 0) return false;
+      const start = b.pickupStart || '';
+      const end   = b.pickupEnd   || '';
+      if (!start) return false;
+      // 通常: 開始が10:00以前 かつ 終了が5:00以降
+      if (end && end >= start) {
+        return start <= '10:00' && end >= '05:00';
+      }
+      // 深夜またぎ（例: 22:00〜09:00）: 朝時間帯を含む
+      if (end && end < start) return end >= '05:00';
+      // 終了未定: 開始が朝時間帯
+      return start >= '05:00' && start <= '10:00';
+    });
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 6).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
+
+  // ── ⑦ 新着店舗（過去7日以内に作成された店舗のバッグ） ──
   const newStoreBags = useMemo(() => {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const filtered = sortedVisibleBags.filter(b => {
@@ -551,24 +571,6 @@ export default function Home() {
       return Number.isFinite(ts) && ts >= sevenDaysAgo;
     });
     if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 5).slice(0, 10);
-    return filtered.slice(0, 10);
-  }, [sortedVisibleBags, sortKey, dailySeed]);
-
-  // ── ⑦⑧⑨ カテゴリー別 ──
-  // sortKey が 'default' (おすすめ順) のときは日次シードでシャッフル、それ以外は applySortKey の順を尊重
-  const mealsBags = useMemo(() => {
-    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'meals');
-    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 1).slice(0, 10);
-    return filtered.slice(0, 10);
-  }, [sortedVisibleBags, sortKey, dailySeed]);
-  const bakeryBags = useMemo(() => {
-    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'bakery_sweets');
-    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 2).slice(0, 10);
-    return filtered.slice(0, 10);
-  }, [sortedVisibleBags, sortKey, dailySeed]);
-  const ingredientBags = useMemo(() => {
-    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'ingredients');
-    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 3).slice(0, 10);
     return filtered.slice(0, 10);
   }, [sortedVisibleBags, sortKey, dailySeed]);
 
