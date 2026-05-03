@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { authedFetch } from '@/lib/authed-fetch';
 import { useAvatar } from '@/hooks/use-avatar';
+import { normalizeBrand } from '@/lib/brand-text';
 
 export default function MyPage() {
   const userId = useUserId();
@@ -93,7 +94,7 @@ export default function MyPage() {
   });
 
   // ── お知らせ（通知）──
-  const [notifications, setNotifications] = useState<{ id: number; title: string; body: string; type: string; read: boolean; createdAt: string }[]>([]);
+  const [notifications, setNotifications] = useState<{ id: number; title: string; body: string; type: string; read: boolean; createdAt: string; storeId?: number | null }[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -260,11 +261,19 @@ export default function MyPage() {
                 {notifications.slice(0, 8).map(n => {
                   const isRejected = n.type === 'store_rejected';
                   const isApproved = n.type === 'store_approved';
+                  // ★ body 末尾の [bag:ID] トークンを抽出 (NotificationsBell.tsx と同じ)
+                  const bagMatch = n.body?.match(/\s*\[bag:(\d+)\]\s*$/);
+                  const bagId = bagMatch ? Number(bagMatch[1]) : null;
+                  const cleanBody = (n.body || '').replace(/\s*\[bag:\d+\]\s*$/, '').trim();
                   // ★ 通知種別→遷移先 (NotificationsBell.tsx と一貫)
+                  //   - new_bag: bag id があれば商品詳細へ、 なければホーム
+                  //   - purchase_confirmed / pickup_reminder: 予約一覧 (受取コード/QR が見える)
                   const linkHref =
-                    n.type === 'pickup_reminder' ? '/my-reservations' :
-                    n.type === 'bag_sold'        ? '/store/sales' :
-                    n.type === 'new_bag'         ? '/' :
+                    n.type === 'pickup_reminder'      ? '/my-reservations' :
+                    n.type === 'purchase_confirmed'   ? '/my-reservations' :
+                    n.type === 'bag_sold'             ? '/store/sales' :
+                    n.type === 'store_action_required'? '/store/dashboard' :
+                    n.type === 'new_bag'              ? (bagId ? `/bags/${bagId}` : n.storeId ? `/stores/${n.storeId}` : null) :
                     null;
                   return (
                   <div key={n.id} className={`px-4 py-3 border-b border-border/30 last:border-0 ${!n.read ? 'bg-primary/[0.03]' : ''} ${isRejected ? 'bg-red-50/50' : isApproved ? 'bg-green-50/50' : ''}`}>
@@ -280,8 +289,8 @@ export default function MyPage() {
                         }
                       })()}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-bold ${isRejected ? 'text-red-700' : isApproved ? 'text-green-700' : !n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
-                        <p className={`text-[11px] mt-0.5 leading-relaxed ${isRejected ? 'text-red-600' : 'text-muted-foreground'}`}>{n.body}</p>
+                        <p className={`text-xs font-bold ${isRejected ? 'text-red-700' : isApproved ? 'text-green-700' : !n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{normalizeBrand(n.title)}</p>
+                        <p className={`text-[11px] mt-0.5 leading-relaxed whitespace-pre-wrap ${isRejected ? 'text-red-600' : 'text-muted-foreground'}`}>{normalizeBrand(cleanBody)}</p>
                         <div className="flex items-center justify-between mt-1">
                           <p className="text-[10px] text-muted-foreground/50">
                             {new Date(n.createdAt).toLocaleDateString('ja-JP')}

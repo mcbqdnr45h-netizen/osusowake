@@ -47,11 +47,12 @@ function stripBagToken(body: string | null): string {
 }
 
 function notificationLink(n: AppNotification): string | null {
-  // ★ ユーザー向け通知 (受取リマインダー/予約確定/お気に入り店の新着) は
-  //   body から [bag:ID] を抽出して bag detail に直接飛ばすのを最優先にする。
-  //   これにより「詳細を見る」 を押した時に必ず該当商品の詳細ページが開く。
+  // ★ 通知種別ごとの遷移先:
+  //   - new_bag (お気に入り店の新着): bag id があれば商品詳細へ
+  //   - pickup_reminder / purchase_confirmed (受取リマインダー / 予約確定):
+  //     既に予約済みなので、 商品詳細ではなく 予約一覧 (受取コード/QR が見える) へ。
   const bagId = extractBagId(n.body);
-  if (bagId && (n.type === 'pickup_reminder' || n.type === 'purchase_confirmed' || n.type === 'new_bag')) {
+  if (bagId && n.type === 'new_bag') {
     return `/bags/${bagId}`;
   }
   switch (n.type) {
