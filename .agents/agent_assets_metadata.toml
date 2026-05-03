@@ -503,3 +503,9 @@ id = "Xmj5SBuw-w1yK-p81Akbw"
 uri = "file://artifacts/rescueat/.local/downloads/dist-cap-latest.tar.gz"
 type = "unspecified"
 title = "dist-cap-latest.tar.gz (最新ビルド・カードサイズ修正版)"
+
+[[outputs]]
+id = "soYtpTfKW2XfbKX5-gN_Y"
+uri = "file://artifacts/rescueat/.local/downloads/setup-env.tar.gz"
+type = "unspecified"
+title = "setup-env.tar.gz (Macで展開して実行するだけ)"
