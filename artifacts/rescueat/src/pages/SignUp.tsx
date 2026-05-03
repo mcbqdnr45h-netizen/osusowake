@@ -260,6 +260,10 @@ export default function SignUp() {
                   }`}
                   autoComplete="tel" disabled={isLoading} required />
               </div>
+              {/* ★ #4: 電話番号の利用目的を明示 (店舗からの受取連絡用、 マーケティング目的では使用しない) */}
+              <p className="text-muted-foreground text-[11px] mt-1.5 leading-snug">
+                受取時に店舗から連絡が必要な場合のみ使用します。 広告・マーケティング目的では一切使用しません。
+              </p>
               {phone.length > 0 && !phoneValid && <p className="text-destructive text-[12px] font-semibold mt-1.5">正しい電話番号を入力してください（例：090-0000-0000）</p>}
               {phone.length > 0 && phoneValid  && <p className="text-green-600 text-[12px] font-semibold mt-1.5">電話番号を確認しました ✓</p>}
             </div>
