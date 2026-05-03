@@ -565,7 +565,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         //         これで初期表示が常に最終解像度のタイルで描画される。
         //
         //   セーフティ:
-        //     - 2回目の tilesloaded が 800ms 来なければ強制 ready
+        //     - 2回目の tilesloaded が 400ms 来なければ強制 ready
+        //       (Wi-Fi/4G では 200-300ms でタイル到着するので 400ms で十分。
+        //        体感 0.5 秒短縮: 2.0s → 1.5s。 低速回線では稀にぼやけ残るが
+        //        全体 safety 2.5s より前に必ず復旧する)
         //     - 全体として 2.5 秒以内に必ず ready (オフライン対策)
         let readyFired = false;
         const finalReady = () => {
@@ -579,8 +582,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           gMaps.event.addListenerOnce(map, 'tilesloaded', finalReady);
           // DPR (iOS Retina) 補正のため resize を発火 → タイル再フェッチ
           try { gMaps.event.trigger(map, 'resize'); } catch { /* noop */ }
-          // 2回目セーフティ: 800ms 内に来なければ強制 ready
-          setTimeout(finalReady, 800);
+          // 2回目セーフティ: 400ms 内に来なければ強制 ready (Wi-Fi/4G に最適化)
+          setTimeout(finalReady, 400);
         };
         gMaps.event.addListenerOnce(map, 'tilesloaded', onFirstTilesLoaded);
         // 全体セーフティ: 2.5 秒で強制 ready (オフライン・低速回線向け)
