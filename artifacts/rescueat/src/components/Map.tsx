@@ -579,10 +579,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           });
         };
         gMaps.event.addListenerOnce(map, 'tilesloaded', fireReady);
-        // ★ セーフティ: 1.2 秒で強制 ready (旧 3 秒)。 タイル未到着でも map インスタンスは
-        //   既に背後に生成済 → ユーザはスピナーが消えた瞬間に地図が見える。
-        //   tilesloaded が間に合えば即時 ready、 間に合わなくても 1.2s で必ず表示。
-        readySafetyTimerRef.current = setTimeout(fireReady, 1200);
+        // ★ さらに高速化: bounds_changed は map 初期化直後にほぼ即発火する
+        //   (tilesloaded より遥かに早い)。 タイル未完了でも背景色 + 一部タイルが
+        //   既に出ている状態で ready 化することで、 体感ロード時間を大幅短縮。
+        //   tiles は Google Maps が自動でフェードイン描画する (Google Map アプリと同じ挙動)。
+        gMaps.event.addListenerOnce(map, 'bounds_changed', () => {
+          // bounds_changed 直後に 1 フレ待ってから ready (初回 paint 確実化)
+          requestAnimationFrame(() => fireReady());
+        });
+        // ★ セーフティ: 400ms で強制 ready (旧 1200ms)。 上記 2 イベントが両方
+        //   間に合わない極端な低速環境でも 0.4 秒でスピナーを退避し地図 UI を見せる。
+        readySafetyTimerRef.current = setTimeout(fireReady, 400);
       } catch (e) {
         console.error('Google Maps load error:', e);
         if (!cancelled) setStatus('error');
