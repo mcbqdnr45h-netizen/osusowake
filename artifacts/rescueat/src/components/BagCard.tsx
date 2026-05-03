@@ -12,7 +12,6 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage, getImageFromName } from '@/lib/category-utils';
 import { formatPickupTime } from '@/lib/utils';
-import { normalizeBrand } from '@/lib/brand-text';
 import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
 import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 import { useToast } from '@/hooks/use-toast';
@@ -96,91 +95,69 @@ function CompactCardBody({
     : null;
   const distMinutes = distM != null ? Math.round(distM / 67) : 99;
 
-  // ── 距離 chip カラーパレット (5/15 分しきい値) ─────────────────────────────
-  const distChipClass = distMinutes <= 5
-    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200/70'
-    : distMinutes <= 15
-    ? 'bg-amber-50 text-amber-700 ring-amber-200/70'
-    : 'bg-sky-50 text-sky-700 ring-sky-200/70';
-
-  const hasTime = !!(bag.pickupStart || bag.pickupEnd);
-  const hasMetaRow = !isSoldOut && (hasTime || isLowStock || distLabel || gpsLoading);
-
-  /* ─── 新レイアウト方針 (世界品質 v3) ───────────────────────────────────────
-      ユーザ報告: v2 でも店名「タップスバーガーショップ」 が「タップ...」 になっていた
-      原因: ① 行で受取時間を shrink-0 で確保したため、 店名 (flex-1) の使える幅が狭まった
-      v3 では「3行の責務を完全に分離」する:
-        ① 店名 (1 行を独占) ← truncate 不要レベルまで店名にフル幅を与える
-        ② 商品タイトル (flex-1) + 大価格 (右寄せ shrink-0) ← 主役の対比
-        ③ 受取時間 + 残数 + 距離 を chip 群として本文幅いっぱい flex-wrap ← 全 chip フル表示
-      これで「タップスバーガーショップ」 のような長い店名でもフル表示可能。 */
   return (
-    <div className="flex flex-col gap-[4px]">
+    <div className="flex flex-col gap-[3px]">
 
-      {/* ① 店舗名のみ (1 行独占で最大幅を確保) */}
-      <p className="text-[10.5px] text-muted-foreground/95 font-bold truncate leading-none tracking-[-0.01em]">
-        {bag.store.name}
-      </p>
-
-      {/* ② 商品タイトル (全幅 truncate)
-          ★ 価格と取り合わない設計 → タイトルが 160px フル幅を使え省略されにくい。
-            視線移動: 店名 → タイトル → 価格 → 受取情報 (F パターン準拠)。 */}
-      <p className={`font-black text-[15px] leading-[1.15] truncate tracking-[-0.018em] ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}`}>
-        {normalizeBrand(bag.title)}
-      </p>
-
-      {/* ③ 価格専用行 (左: 元価格 strike / 右: 割引価格 BIG)
-          ★ 価格を独立行に分離 → 最大 20px の主役価格が確実に目立つ。
-            justify-between で「was → now」 の対比が一目瞭然。
-            元価格が無い場合 (定価販売) は割引価格のみ右寄せ。 */}
-      {!isSoldOut && (
-        <div className="flex items-baseline justify-between gap-2 min-h-[20px]">
-          {bag.originalPrice > bag.discountedPrice ? (
-            <span className="text-[11px] text-muted-foreground/55 line-through font-semibold tabular-nums">
-              ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
-            </span>
-          ) : <span />}
-          <span className="text-[20px] font-black text-primary leading-none tracking-[-0.025em] whitespace-nowrap tabular-nums">
-            ¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}
-          </span>
-        </div>
-      )}
-
-      {/* ④ メタ chip 群: 受取時間 + 残数 + 距離 を本文幅いっぱい flex-wrap で表示
-          ★ 全情報を必ず表示。 1 行で詰めると 160px に溢れるため flex-wrap で折り返し許可。
-          ★ min-h を確保 → 全カードが 2 行分の高さを必ず取り、 chip 数の差で高さが揃わない問題を防ぐ。
-          ★ mt-auto で下端固定 → 短いタイトルでも下端に揃って整列。 */}
-      {/* ★ chip 表示順を 時間 → 距離 → 残り に固定。
-              理由: 残り badge を中間に置くと、 残り有り/無しで距離の位置がズレ
-                    「全カードで情報配置が同じ」 体験が崩れる。
-                    残り を末尾にすると、 ある時だけ末尾に追加される自然な拡張になる。 */}
-      {hasMetaRow && (
-        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mt-auto pt-[4px] min-h-[40px]">
-          {hasTime && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
-              <Clock className="w-2.5 h-2.5 shrink-0 text-primary/70" strokeWidth={2.4} />
+      {/* ① 店舗名（左）＋ 受取時間（右） — 同一行・絶対に重ならない */}
+      <div className="flex items-center justify-between gap-1 min-w-0">
+        <span className="text-[10px] text-muted-foreground font-medium truncate leading-none">
+          {bag.store.name}
+        </span>
+        {(bag.pickupStart || bag.pickupEnd) && !isSoldOut && (
+          <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground shrink-0">
+            <Clock className="w-2.5 h-2.5 shrink-0" />
+            <span className="leading-none whitespace-nowrap">
               {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
             </span>
-          )}
-          {distLabel ? (
-            <span className={`inline-flex items-center gap-0.5 rounded-md font-black text-[10px] px-1.5 py-[3px] leading-none whitespace-nowrap ring-1 ${distChipClass}`}>
-              <Navigation className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />
-              {distLabel}
-            </span>
-          ) : gpsLoading ? (
-            <span className="inline-block w-12 h-[18px] rounded-md bg-muted animate-pulse" />
-          ) : null}
-          {isLowStock && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-600 bg-rose-50
-              px-1.5 py-[3px] rounded-md ring-1 ring-rose-200/70 leading-none whitespace-nowrap">
-              🔥 残り{bag.stockCount}個
-            </span>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
-      {/* ④ 完売時: 応援ボタン */}
-      {isSoldOut && (
+      {/* ② 商品タイトル */}
+      <p className={`font-black text-[14px] leading-snug line-clamp-1
+        ${isSoldOut ? 'text-muted-foreground' : 'text-foreground'}`}>
+        {bag.title}
+      </p>
+
+      {/* ③ 距離バッジ（左）＋ 価格（右） */}
+      {!isSoldOut ? (
+        <div className="flex items-end justify-between gap-1 mt-0.5">
+          {/* 左: 残りわずか + 距離バッジ */}
+          <div className="flex flex-col gap-0.5">
+            {isLowStock && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-500 bg-rose-50
+                px-1.5 py-[2px] rounded-full ring-1 ring-rose-200/70 leading-none w-fit">
+                🔥 残り{bag.stockCount}個
+              </span>
+            )}
+            {distLabel ? (
+              <span className={`inline-flex items-center gap-0.5 rounded-full font-bold text-[10px] px-1.5 py-[2px] leading-none w-fit
+                ${distMinutes <= 5
+                  ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70'
+                  : distMinutes <= 15
+                  ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/70'
+                  : 'bg-sky-50 text-sky-600 ring-1 ring-sky-200/70'}`}>
+                <Navigation className="w-2.5 h-2.5 shrink-0" />
+                {distLabel}
+              </span>
+            ) : gpsLoading ? (
+              <span className="inline-block w-10 h-[14px] rounded-full bg-muted animate-pulse" />
+            ) : null}
+          </div>
+          {/* 右: 元値 + 販売価格 (税込・サービス手数料込み) */}
+          <div className="flex flex-col items-end shrink-0">
+            {bag.originalPrice > bag.discountedPrice && (
+              <span className="text-[10px] text-muted-foreground/40 line-through font-medium leading-none mb-[1px]">
+                ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
+              </span>
+            )}
+            <span className="text-[18px] font-black text-primary leading-none tracking-tight whitespace-nowrap">
+              ¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}
+            </span>
+          </div>
+        </div>
+      ) : (
+        /* 完売時 */
         <button
           onClick={onSoldOutFan}
           className={`w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-semibold
@@ -216,7 +193,7 @@ function FullCardBody({
       <div className="mb-2">
         <h3 className={`font-bold leading-snug tracking-tight line-clamp-2
           ${isSoldOut ? 'text-muted-foreground' : 'text-foreground text-[15px]'}`}>
-          {normalizeBrand(bag.title)}
+          {bag.title}
         </h3>
         {avgRating && !isSoldOut && (
           <div className="flex items-center gap-1 mt-1">
@@ -382,14 +359,14 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       className={[
-        'group block w-full h-full flex flex-col relative rounded-2xl overflow-hidden bg-card',
+        'group block w-full relative rounded-2xl overflow-hidden bg-card',
         'transition-all duration-250 ease-out',
         isSoldOut
           ? 'opacity-50 cursor-not-allowed grayscale'
           : 'cursor-pointer hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(10,8,6,0.14),0_4px_8px_rgba(10,8,6,0.06)]',
       ].join(' ')}
       style={{
-        boxShadow: '0 4px 14px -3px rgba(10,8,6,0.10), 0 1.5px 4px -1px rgba(10,8,6,0.05), inset 0 1px 0 rgba(255,255,255,0.6)',
+        boxShadow: '0 2px 8px -1px rgba(10,8,6,0.08), 0 1px 3px -1px rgba(10,8,6,0.04)',
       }}
       onClick={(e) => isSoldOut && e.preventDefault()}
       onPointerDown={handlePrefetch}
@@ -432,15 +409,9 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
         {compact ? (
           /* ─── compact モード: HorizBagCard と同じシンプルオーバーレイ ─── */
           <>
-            {/* 左上: 割引バッジ — 高割引(20%+)はグラデ + Sparkles で訴求力UP
-                whitespace-nowrap で 79%/100% など 2-3 桁数字でも折返し発生ゼロを保証 */}
+            {/* 左上: 割引バッジ */}
             {!isSoldOut && discountPercent > 0 && (
-              <span className={`absolute top-2 left-2 inline-flex items-center gap-0.5 text-white text-[10px] font-black px-2 py-[4px] rounded-lg whitespace-nowrap
-                ${discountPercent >= 20
-                  ? 'bg-gradient-to-br from-[#FF8A3D] to-[#E8520C] shadow-[0_2px_8px_rgba(232,82,12,0.40)]'
-                  : 'bg-primary shadow-[0_2px_6px_rgba(255,140,0,0.30)]'
-                }`}>
-                {discountPercent >= 20 && <Sparkles className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />}
+              <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-[3px] rounded-lg shadow-sm">
                 {discountPercent}% OFF
               </span>
             )}
@@ -518,7 +489,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
               ) : (
                 <>
                   {discountPercent > 0 && (
-                    <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1 whitespace-nowrap
+                    <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
                       ${discountPercent >= 20
                         ? 'bg-gradient-to-r from-[#F07826] to-[#E85A0C] shadow-[0_2px_10px_rgba(240,120,38,0.45)]'
                         : 'bg-primary shadow-[0_2px_8px_rgba(255,140,0,0.30)]'
@@ -551,8 +522,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
       </div>
 
       {/* ── カード情報エリア ── */}
-      {/* ★ flex-1 で残り高さを吸収 → grid 内で全カードが最も背の高いカードに揃う */}
-      <div className={`flex-1 flex flex-col ${compact ? 'px-3 pt-2 pb-3' : 'p-4 pb-3.5'}`}>
+      <div className={compact ? 'px-3 pt-2 pb-3' : 'p-4 pb-3.5'}>
         {compact ? (
           <CompactCardBody
             bag={bag}
