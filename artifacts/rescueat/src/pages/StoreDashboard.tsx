@@ -1631,7 +1631,7 @@ export default function StoreDashboard() {
             </p>
             <p className="text-xs text-muted-foreground mb-6">ご不明な点はLINEサポートまでお問い合わせください。</p>
             <a
-              href="/store/bank-setup"
+              href="/store/reapply"
               className="inline-flex items-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-2xl hover:bg-primary/90 transition-colors"
             >
               再申請する
