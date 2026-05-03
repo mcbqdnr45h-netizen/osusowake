@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserId } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
+import { useQuery } from '@tanstack/react-query';
+import { authedFetch } from '@/lib/authed-fetch';
 import { normalizeBrand } from '@/lib/brand-text';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -89,6 +91,38 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
   const issueDateStr = (() => {
     const d = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
     return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+  })();
+
+  // ── 決済方法の正確な表示 (Apple Pay / Google Pay / カード判別) ────────────
+  // 領収書を開いたタイミングで Stripe API から PaymentIntent → Charge → wallet.type
+  // を取得し、 「Apple Pay (Visa)」「Google Pay (Mastercard)」「クレジットカード (JCB)」
+  // のように表示する。 取得失敗 / mock 決済 / Stripe 未設定時は「クレジットカード」 にフォールバック。
+  const apiBase = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+                  (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
+  const { data: pmData } = useQuery<{ wallet: string | null; brand: string | null; last4: string | null } | null>({
+    queryKey: [`/api/reservations/${reservation.id}/payment-method`],
+    queryFn: async () => {
+      try {
+        const res = await authedFetch(`${apiBase}/api/reservations/${reservation.id}/payment-method`);
+        if (!res.ok) return null;
+        return res.json();
+      } catch { return null; }
+    },
+    enabled: !!reservation.id,
+    staleTime: 5 * 60_000,
+  });
+  const paymentMethodLabel = (() => {
+    const brandMap: Record<string, string> = {
+      visa: 'Visa', mastercard: 'Mastercard', amex: 'AMEX',
+      jcb: 'JCB', discover: 'Discover', diners: 'Diners', unionpay: 'UnionPay',
+    };
+    const brand = pmData?.brand ? (brandMap[pmData.brand] ?? pmData.brand.toUpperCase()) : null;
+    const wallet = pmData?.wallet;
+    if (wallet === 'apple_pay') return brand ? `Apple Pay (${brand})` : 'Apple Pay';
+    if (wallet === 'google_pay') return brand ? `Google Pay (${brand})` : 'Google Pay';
+    if (wallet === 'samsung_pay') return brand ? `Samsung Pay (${brand})` : 'Samsung Pay';
+    if (wallet === 'link') return brand ? `Link (${brand})` : 'Link';
+    return brand ? `クレジットカード (${brand})` : 'クレジットカード';
   })();
 
   // iOS Capacitor (WKWebView) では window.print() が無効なので
@@ -346,7 +380,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
               </div>
               <div className="flex justify-between">
                 <span>お支払い方法</span>
-                <span className="font-bold text-gray-800">クレジットカード</span>
+                <span className="font-bold text-gray-800">{paymentMethodLabel}</span>
               </div>
             </div>
 

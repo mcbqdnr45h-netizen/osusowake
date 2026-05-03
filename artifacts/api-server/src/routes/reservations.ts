@@ -537,6 +537,66 @@ router.get("/reservations/:reservationId", requireAuth, async (req, res) => {
   }
 });
 
+// ─── 領収書用 決済方法詳細 (Apple Pay / Google Pay 判別) ─────────────────────
+// GET /api/reservations/:reservationId/payment-method
+//   Stripe PaymentIntent → Charge → payment_method_details.card.wallet.type を取得し、
+//   Apple Pay / Google Pay / 通常カード を判別して領収書に正しい決済方法を表示する。
+//   Stripe API への外部 HTTP コールが入るため、 領収書モーダルを開いた時にだけ呼び出す
+//   (購入履歴一覧では呼ばない)。 失敗時は null を返してフロント側でフォールバック表示。
+router.get("/reservations/:reservationId/payment-method", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.reservationId ?? ""), 10);
+    if (!id) { res.status(400).json({ error: "bad_request", message: "Invalid id" }); return; }
+
+    // 認可: buyer 本人 or 店舗オーナーのみ閲覧可
+    const owners = await loadReservationOwners(id);
+    if (!owners) { res.status(404).json({ error: "not_found", message: "Reservation not found" }); return; }
+    const me = req.authUser!.id;
+    if (owners.userId !== me && owners.storeOwnerId !== me) {
+      res.status(403).json({ error: "forbidden", message: "この予約を閲覧する権限がありません" });
+      return;
+    }
+
+    const [reservation] = await db
+      .select({ paymentIntentId: reservationsTable.paymentIntentId })
+      .from(reservationsTable)
+      .where(eq(reservationsTable.id, id))
+      .limit(1);
+
+    const piId = reservation?.paymentIntentId;
+    // ① mock / review-bypass / 未決済 → 通常カード扱い
+    if (!piId || piId.startsWith("pi_mock_") || piId.startsWith("pi_review_bypass_")) {
+      res.json({ wallet: null, brand: null, last4: null });
+      return;
+    }
+    const stripeKey = process.env["STRIPE_SECRET_KEY"];
+    if (!stripeKey) {
+      res.json({ wallet: null, brand: null, last4: null });
+      return;
+    }
+
+    try {
+      const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+      // expand=latest_charge.payment_method_details で 1 リクエストで決済方法を取得
+      const intent = await stripe.paymentIntents.retrieve(piId, {
+        expand: ["latest_charge.payment_method_details"],
+      });
+      const charge = intent.latest_charge as { payment_method_details?: any } | null;
+      const cardDetails = charge?.payment_method_details?.card;
+      const wallet = cardDetails?.wallet?.type ?? null; // 'apple_pay' | 'google_pay' | 'samsung_pay' | 'link' | null
+      const brand  = cardDetails?.brand ?? null;        // 'visa' | 'mastercard' | 'amex' | 'jcb' | ...
+      const last4  = cardDetails?.last4 ?? null;
+      res.json({ wallet, brand, last4 });
+    } catch (e: any) {
+      console.warn(`[payment-method] retrieve PI ${piId} failed:`, e?.message);
+      res.json({ wallet: null, brand: null, last4: null });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error", message: "Failed to fetch payment method" });
+  }
+});
+
 router.put("/reservations/:reservationId", requireAuth, async (req, res) => {
   try {
     const { reservationId } = UpdateReservationStatusParams.parse(req.params);
