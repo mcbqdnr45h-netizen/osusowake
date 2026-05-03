@@ -385,7 +385,17 @@ export default function MyPage() {
                 }
               >
                 {profile?.role === 'store_owner' ? (
-                  <StoreIcon className="w-5 h-5" strokeWidth={2.4} />
+                  // ★ 統一: 登録時の丸アイコン (iconUrl) があれば表示、 なければ汎用 StoreIcon
+                  store?.iconUrl ? (
+                    <img
+                      src={store.iconUrl}
+                      alt={store.name}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                    />
+                  ) : (
+                    <StoreIcon className="w-5 h-5" strokeWidth={2.4} />
+                  )
                 ) : userAvatarUrl ? (
                   <img
                     src={userAvatarUrl}
@@ -996,12 +1006,11 @@ export default function MyPage() {
                         }`}
                         style={!isSelected ? { boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)' } : undefined}
                       >
-                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 relative">
-                          {s.imageUrl
-                            ? <img loading="lazy" decoding="async" src={s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full bg-orange-100 flex items-center justify-center">
-                                <StoreIcon className="w-5 h-5 text-orange-400" />
-                              </div>
+                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 relative bg-orange-100 flex items-center justify-center">
+                          {/* ★ 統一: 店舗写真 (imageUrl) ではなく登録時の丸アイコン (iconUrl) を表示 */}
+                          {s.iconUrl
+                            ? <img loading="lazy" decoding="async" src={s.iconUrl} alt={s.name} className="w-full h-full object-cover" />
+                            : <StoreIcon className="w-5 h-5 text-orange-400" />
                           }
                           {isSelected && (
                             <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">

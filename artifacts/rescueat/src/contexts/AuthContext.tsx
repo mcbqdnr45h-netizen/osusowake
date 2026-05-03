@@ -38,6 +38,11 @@ const ADMIN_SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
 // ★ profile を localStorage にキャッシュ → ネットワーク不調時でも即座に role 判定
 const PROFILE_CACHE_KEY = 'osusowake_profile_cache_v1';
+// ★ 店舗登録進行中フラグ (sessionStorage): setOptimisticRole('store_owner') で立つ。
+//   StoreOnboarding 中にトークンリフレッシュ等で fetchProfile が DB の customer を返し、
+//   楽観的 store_owner を上書きして MyPage が顧客側に戻るバグを防ぐ。
+//   実 role が store_owner になったら fetchProfile 内で自動クリア。
+const PENDING_STORE_OWNER_KEY = 'osusowake_pending_store_owner_v1';
 function readCachedProfile(): PublicUser | null {
   try {
     const raw = localStorage.getItem(PROFILE_CACHE_KEY);
@@ -115,9 +120,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const prof = result.data as PublicUser;
         // 管理者がユーザーモードでログインしている場合はsessionRoleをcustomerにする
         const adminUserMode = sessionStorage.getItem('adminUserMode') === 'true';
-        const finalProfile = (isAdminRef.current && adminUserMode)
-          ? { ...prof, role: 'customer' as const }
-          : prof;
+        // ★ 店舗登録進行中フラグ: setOptimisticRole('store_owner') で立つ。
+        //   StoreOnboarding 中にトークンリフレッシュで fetchProfile が走り、 DB の
+        //   customer で楽観的 store_owner を上書きして MyPage が顧客側に戻るバグの防止。
+        //   実 role が store_owner になったら自動でフラグ解除する。
+        const pendingStoreOwner = (() => {
+          try { return sessionStorage.getItem(PENDING_STORE_OWNER_KEY) === '1'; }
+          catch (_) { return false; }
+        })();
+        let finalProfile: PublicUser;
+        if (isAdminRef.current && adminUserMode) {
+          finalProfile = { ...prof, role: 'customer' as const };
+        } else if (pendingStoreOwner && prof.role === 'customer') {
+          finalProfile = { ...prof, role: 'store_owner' as const };
+        } else {
+          finalProfile = prof;
+          // 実 role が store_owner に確定したらフラグ解除 (役目終了)
+          if (prof.role === 'store_owner') {
+            try { sessionStorage.removeItem(PENDING_STORE_OWNER_KEY); } catch (_) {}
+          }
+        }
         setProfile(finalProfile);
         writeCachedProfile(finalProfile); // ★ 成功時のみキャッシュ更新
       }
@@ -135,8 +157,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ★ 楽観的にロールを切り替える (StoreOnboarding 開始時など)
   // キャッシュには書き込まない → リロード時は actual DB role に戻る (整合性保持)
+  // store_owner への昇格時のみ sessionStorage フラグも立て、 タブ閉じるまで維持
+  // (TOKEN_REFRESHED 等の再 fetchProfile による顧客側ロールバック防止)
   function setOptimisticRole(newRole: 'store_owner' | 'customer') {
     setProfile(prev => prev ? { ...prev, role: newRole } : prev);
+    try {
+      if (newRole === 'store_owner') {
+        sessionStorage.setItem(PENDING_STORE_OWNER_KEY, '1');
+      } else {
+        sessionStorage.removeItem(PENDING_STORE_OWNER_KEY);
+      }
+    } catch (_) { /* sessionStorage 失敗は無視 */ }
   }
 
   useEffect(() => {
@@ -237,6 +268,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             fetchProfile(session.user.id);
           }
         } else {
+          // ★ 自動サインアウト (トークン失効・リモート無効化等) でもフラグを必ず消す。
+          //    残存すると次の別ユーザがこのタブで顧客ログインした時に
+          //    fetchProfile が role を store_owner にクランプするバグになる。
+          try { sessionStorage.removeItem(PENDING_STORE_OWNER_KEY); } catch (_) {}
           setProfile(null);
           writeCachedProfile(null); // ★ ログアウト時はキャッシュも消す
         }
@@ -590,6 +625,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signOut() {
     sessionStorage.removeItem('adminUserMode');
     sessionStorage.removeItem('adminMfaVerifiedAt');
+    sessionStorage.removeItem(PENDING_STORE_OWNER_KEY);
     // ★ ログアウト時に前ユーザーのローカルデータを完全消去 (新規アカウントに前店舗の写真/店名が残る不具合の根本対策)
     try {
       // 店舗オンボーディング下書き (グローバルキーのため必ず消す)
