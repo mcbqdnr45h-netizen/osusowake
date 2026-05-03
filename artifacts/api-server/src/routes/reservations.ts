@@ -625,39 +625,67 @@ router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res)
   try {
     const { reservationId } = CancelReservationParams.parse(req.params);
 
-    const [existing] = await db
-      .select()
-      .from(reservationsTable)
-      .where(eq(reservationsTable.id, reservationId));
+    // ★ 重要: 並行する /payment/confirm や stripe-webhook の payment_intent.succeeded と
+    //   レースしないよう、 トランザクション + SELECT FOR UPDATE で行ロックを取って判定する。
+    //   従来は plain SELECT → plain UPDATE で wasPaid を「キャッシュ時点」で記憶していたため、
+    //   webhook が後から status=confirmed に上書きしたり、 課金成立後の cancel で paymentStatus が
+    //   paid のまま残る (= 返金も在庫復元もされない) 致命的レースが発生していた。
+    type CancelLockResult =
+      | { kind: "not_found" }
+      | { kind: "forbidden"; ownerId: string }
+      | { kind: "already_cancelled" }
+      | {
+          kind: "ok";
+          existing: typeof reservationsTable.$inferSelect;
+          wasPaid: boolean;
+        };
 
-    if (!existing) {
+    const lockResult: CancelLockResult = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(reservationsTable)
+        .where(eq(reservationsTable.id, reservationId))
+        .for("update");
+
+      if (!existing) return { kind: "not_found" };
+      if (existing.userId !== req.authUser!.id) {
+        return { kind: "forbidden", ownerId: existing.userId };
+      }
+      if (existing.status === "cancelled") {
+        return { kind: "already_cancelled" };
+      }
+
+      // ロック内で実時間の paymentStatus を再判定 (webhook が並行更新済みかも)
+      const wasPaid = existing.paymentStatus === "paid";
+
+      // ① 予約ステータスを cancelled に更新 (paid → refunded も同時遷移)
+      await tx
+        .update(reservationsTable)
+        .set({
+          status: "cancelled",
+          ...(wasPaid ? { paymentStatus: "refunded" as const } : {}),
+        })
+        .where(eq(reservationsTable.id, reservationId));
+
+      return { kind: "ok", existing, wasPaid };
+    });
+
+    if (lockResult.kind === "not_found") {
       res.status(404).json({ error: "not_found", message: "Reservation not found" });
       return;
     }
-
-    // 認可: buyer 本人のみキャンセル可。他人がキャンセル → 自動返金されてしまうので致命的。
-    if (existing.userId !== req.authUser!.id) {
-      console.warn(`[SECURITY] /reservations/${reservationId}/cancel: owner=${existing.userId} requester=${req.authUser!.id}`);
+    if (lockResult.kind === "forbidden") {
+      console.warn(`[SECURITY] /reservations/${reservationId}/cancel: owner=${lockResult.ownerId} requester=${req.authUser!.id}`);
       res.status(403).json({ error: "forbidden", message: "この予約をキャンセルする権限がありません" });
       return;
     }
-
-    if (existing.status === "cancelled") {
+    if (lockResult.kind === "already_cancelled") {
       res.status(400).json({ error: "already_cancelled", message: "Reservation already cancelled" });
       return;
     }
 
-    const wasPaid = existing.paymentStatus === "paid";
-
-    // ① 予約ステータスを cancelled に更新（最重要・失敗したら 500）
-    //   ★ paid → refunded に paymentStatus も同時遷移 (返金処理は ②で実施)
-    await db
-      .update(reservationsTable)
-      .set({
-        status: "cancelled",
-        ...(wasPaid ? { paymentStatus: "refunded" as const } : {}),
-      })
-      .where(eq(reservationsTable.id, reservationId));
+    const { existing, wasPaid } = lockResult;
+    console.log(`[cancel] ✅ reservation=${reservationId} user=${existing.userId} wasPaid=${wasPaid} pi=${existing.paymentIntentId ?? "none"}`);
 
     // ② Stripe 全額返金 (#1) — paid のときだけ実行
     //   返金失敗時は予約は cancelled のままで admin 通知 (手動対応用)
