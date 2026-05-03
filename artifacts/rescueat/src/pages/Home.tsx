@@ -560,7 +560,24 @@ export default function Home() {
     return filtered.slice(0, 10);
   }, [sortedVisibleBags, sortKey, dailySeed]);
 
-  // ── ⑦ 新着店舗（過去7日以内に作成された店舗のバッグ） ──
+  // ── ⑦⑧⑨ カテゴリー別 ──
+  const mealsBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'meals');
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 1).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
+  const bakeryBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'bakery_sweets');
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 2).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
+  const ingredientBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'ingredients');
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 3).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
+
+  // ── ⑩ 新着店舗（過去7日以内に作成された店舗のバッグ） ──
   const newStoreBags = useMemo(() => {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const filtered = sortedVisibleBags.filter(b => {
@@ -962,7 +979,19 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ⑥ 新着店舗 */}
+                {/* ⑥ 朝の受け取り */}
+                {morningBags.length > 0 && (
+                  <div className="pt-1 pb-2">
+                    <SectionHeader
+                      icon={<span className="text-sm leading-none">🌅</span>}
+                      title="朝の受け取り（5〜10時）"
+                      count={morningBags.length}
+                    />
+                    <HorizScrollRow bags={morningBags.slice(0, 6)} loading={false} />
+                  </div>
+                )}
+
+                {/* ⑦ 新着店舗 */}
                 {newStoreBags.length > 0 && (
                   <div className="pt-1 pb-2">
                     <SectionHeader
@@ -974,7 +1003,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ⑦ 料理・お惣菜 */}
+                {/* ⑧ 料理・お惣菜 */}
                 {mealsBags.length > 0 && (
                   <div className="pt-1 pb-2">
                     <SectionHeader
