@@ -34,4 +34,19 @@ pnpm run build:cap
 # resources/icon.png から AppIcon.appiconset の全サイズを生成（cap sync の前に必須）
 pnpm run cap:gen-assets
 npx cap sync ios
+
+# ★ Package.swift の path を pnpm hash パスから shallow symlink パスに書き換え。
+#   理由: cap sync が生成する path は `node_modules/.pnpm/@capacitor+<name>@<ver>_@capacitor+core@<ver>/...`
+#   のように peer dep バージョンを hash に含むため、 環境間 (Replit/Mac/XcodeCloud) で
+#   pnpm-lock.yaml の解決が 1 patch でも違うと SPM resolve が失敗する。
+#   pnpm が必ず作る shallow symlink `node_modules/@capacitor/<name>` を直接参照することで
+#   バージョン解決の差異を完全吸収する。
+SPM_FILE="${REPO_ROOT}/artifacts/rescueat/ios/App/CapApp-SPM/Package.swift"
+if [ -f "${SPM_FILE}" ]; then
+  echo "Rewriting Package.swift paths to use stable shallow symlinks..."
+  sed -i.bak -E 's|"\.\./\.\./\.\./\.\./\.\./node_modules/\.pnpm/@capacitor\+[^/]+/node_modules/@capacitor/([^"]+)"|"../../../node_modules/@capacitor/\1"|g' "${SPM_FILE}"
+  rm -f "${SPM_FILE}.bak"
+  echo "Package.swift now references:"
+  grep -E '\.package\(name:' "${SPM_FILE}" || true
+fi
 echo "=== Done ==="
