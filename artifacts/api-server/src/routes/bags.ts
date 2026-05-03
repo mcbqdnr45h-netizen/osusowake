@@ -156,8 +156,11 @@ const publicStoreCols = {
   category: storesTable.category,
   lat: storesTable.lat,
   lng: storesTable.lng,
-  imageUrl: storesTable.imageUrl,
-  iconUrl: storesTable.iconUrl,
+  // ★ data: URL (base64 埋め込み) は最大数百KB に膨らみ、 一覧 API のレスポンス
+  //    サイズと初期表示速度を著しく悪化させるため、 SQL レベルで NULL に潰す。
+  //    フロント側で正規の Storage URL を再アップロードすれば自動的に復活する。
+  imageUrl: sql<string | null>`CASE WHEN ${storesTable.imageUrl} LIKE 'data:%' THEN NULL ELSE ${storesTable.imageUrl} END`.as('image_url'),
+  iconUrl:  sql<string | null>`CASE WHEN ${storesTable.iconUrl}  LIKE 'data:%' THEN NULL ELSE ${storesTable.iconUrl}  END`.as('icon_url'),
   phone: storesTable.phone,
   openTime: storesTable.openTime,
   closeTime: storesTable.closeTime,
