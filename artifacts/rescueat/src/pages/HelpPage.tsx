@@ -722,23 +722,16 @@ function FaqSectionBlock({ section }: { section: FaqSection }) {
   );
 }
 
-type ContentTab = 'guide' | 'faq';
-
 export default function HelpPage() {
   const { profile } = useAuth();
 
   // URL パラメータ
   const params = new URLSearchParams(window.location.search);
   const urlMode = params.get('mode');
-  const urlTab = params.get('tab');
 
   // ロール固定判定: 店舗オーナー (or ?mode=store) は店舗向けのみ、 それ以外はユーザー向けのみ
   const isStoreMode = urlMode === 'store' || profile?.role === 'store_owner';
-  const initialContent: ContentTab = urlTab === 'faq' ? 'faq' : 'guide';
 
-  const [contentTab, setContentTab] = useState<ContentTab>(initialContent);
-
-  const guideSteps = isStoreMode ? STORE_GUIDE_STEPS : USER_GUIDE_STEPS;
   const faqSections = isStoreMode ? STORE_FAQ_SECTIONS : USER_FAQ_SECTIONS;
 
   return (
@@ -761,13 +754,13 @@ export default function HelpPage() {
             <HelpCircle className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-foreground">使い方ガイド & ヘルプ</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">8 ステップで全部わかる</p>
+            <h1 className="text-xl font-black text-foreground">ヘルプ・お問い合わせ</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">よくある質問とサポート窓口</p>
           </div>
         </div>
 
         {/* ロール表示バッジ (固定: 切替不可) */}
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center justify-between gap-2 mb-5">
           <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black ${
             isStoreMode
               ? 'bg-primary/10 text-primary'
@@ -775,86 +768,40 @@ export default function HelpPage() {
           }`}>
             {isStoreMode ? '🏪 店舗オーナー向け' : '👤 ユーザー向け'}
           </div>
+          <Link
+            href={isStoreMode ? '/usage-guide?mode=store' : '/usage-guide'}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+          >
+            <BookOpen className="w-3 h-3" />
+            使い方ガイドを見る →
+          </Link>
         </div>
 
-        {/* コンテンツ切替タブ (使い方ガイド / よくある質問) */}
-        <div className="grid grid-cols-2 gap-2 mb-5">
-          <button
-            onClick={() => setContentTab('guide')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border-2 transition-all ${
-              contentTab === 'guide'
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-card text-muted-foreground border-border hover:border-primary/40'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            使い方ガイド
-          </button>
-          <button
-            onClick={() => setContentTab('faq')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border-2 transition-all ${
-              contentTab === 'faq'
-                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                : 'bg-card text-muted-foreground border-border hover:border-primary/40'
-            }`}
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            よくある質問
-          </button>
-        </div>
-
-        {/* メインコンテンツ */}
+        {/* メインコンテンツ (FAQ のみ) */}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={`${isStoreMode ? 'store' : 'user'}-${contentTab}`}
+            key={isStoreMode ? 'store' : 'user'}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
           >
-            {contentTab === 'guide' ? (
-              <div className="space-y-5">
-                <GuideHero isStoreMode={isStoreMode} />
-                <div className="space-y-4 px-1">
-                  {guideSteps.map((step, i) => (
-                    <GuideStepCard key={step.num} step={step} isLast={i === guideSteps.length - 1} />
-                  ))}
+            <div className="space-y-4">
+              {isStoreMode && (
+                <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
+                  <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                    <Store className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-black text-sm text-foreground">飲食店・食料品店の方へ</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                      月額・初期費用は¥0。売れた時だけ25%の手数料をいただく完全成果報酬制です。売上確認もアプリ内で完結します。
+                    </p>
+                  </div>
                 </div>
-                <GuideFooterCTA isStoreMode={isStoreMode} />
-                <button
-                  onClick={() => setContentTab('faq')}
-                  className="w-full mt-2 rounded-2xl bg-card border border-border p-4 flex items-center justify-between tap-opacity"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <HelpCircle className="w-4.5 h-4.5 text-primary" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-black text-foreground">もっと詳しく知りたい?</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">よくある質問はこちら</p>
-                    </div>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90" />
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {isStoreMode && (
-                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
-                    <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      <Store className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-black text-sm text-foreground">飲食店・食料品店の方へ</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                        月額・初期費用は¥0。売れた時だけ25%の手数料をいただく完全成果報酬制です。売上確認もアプリ内で完結します。
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {faqSections.map(s => <FaqSectionBlock key={s.id} section={s} />)}
-              </div>
-            )}
+              )}
+              {faqSections.map(s => <FaqSectionBlock key={s.id} section={s} />)}
+            </div>
           </motion.div>
         </AnimatePresence>
 
