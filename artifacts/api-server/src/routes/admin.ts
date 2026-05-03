@@ -474,15 +474,18 @@ router.post("/admin/stores/:storeId/request-license-reupload", requireAdmin, asy
 // ── GET /admin/stores ──────────────────────────────────────────────────────────
 router.get("/admin/stores", requireAdmin, async (_req, res) => {
   try {
+    // ⚠ 重要: bag と reservation を 1 クエリで JOIN すると Cartesian product が発生し
+    // SUM(r.total_price) が bag 数倍に重複加算される (例: bag 6 個 × picked 1 件 ¥110 → ¥660)。
+    // したがって bag 集計と reservation 集計は別サブクエリで先に GROUP BY してから JOIN する。
     const stores = await db.execute(sql`
       SELECT
         s.id, s.name, s.status, s.is_active, s.category, s.address, s.city,
         s.image_url, s.owner_id, s.created_at, s.stripe_account_id,
         s.stripe_charges_enabled,
         s.stripe_payouts_enabled,
-        COUNT(DISTINCT b.id)::int AS bag_count,
-        COUNT(DISTINCT r.id)::int AS reservation_count,
-        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue,
+        COALESCE(b.bag_count, 0)::int AS bag_count,
+        COALESCE(r.reservation_count, 0)::int AS reservation_count,
+        COALESCE(r.revenue, 0)::numeric AS revenue,
         CASE WHEN s.owner_id IS NOT NULL THEN
           (SELECT COUNT(*)::int FROM stores s2 WHERE s2.owner_id = s.owner_id)
         ELSE 1 END AS owner_store_count,
@@ -490,9 +493,17 @@ router.get("/admin/stores", requireAdmin, async (_req, res) => {
           (SELECT COUNT(*)::int FROM stores s2 WHERE s2.owner_id = s.owner_id AND s2.id <= s.id)
         ELSE 1 END AS owner_store_rank
       FROM stores s
-      LEFT JOIN surprise_bags b ON b.store_id = s.id
-      LEFT JOIN reservations r  ON r.store_id = s.id
-      GROUP BY s.id
+      LEFT JOIN (
+        SELECT store_id, COUNT(*)::int AS bag_count
+        FROM surprise_bags GROUP BY store_id
+      ) b ON b.store_id = s.id
+      LEFT JOIN (
+        SELECT
+          store_id,
+          COUNT(*)::int AS reservation_count,
+          COALESCE(SUM(total_price) FILTER (WHERE status IN ('confirmed','picked_up')), 0)::numeric AS revenue
+        FROM reservations GROUP BY store_id
+      ) r ON r.store_id = s.id
       ORDER BY s.created_at DESC
     `);
     res.json(stores.rows);
@@ -508,6 +519,7 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
   const storeId = Number(req.params.storeId);
   if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
   try {
+    // ⚠ /admin/stores と同じ理由で bag/reservation を別サブクエリ化 (Cartesian 防止)
     const result = await db.execute(sql`
       SELECT
         s.id, s.name, s.description, s.status, s.is_active, s.category,
@@ -518,9 +530,10 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
         s.license_number, s.license_image_url, s.stripe_license_file_id, s.id_image_url, s.pledge_signed,
         s.legal_name, s.legal_representative, s.legal_address,
         s.legal_phone, s.legal_email, s.legal_other,
-        COUNT(DISTINCT b.id)::int AS bag_count,
-        COUNT(DISTINCT r.id)::int AS reservation_count,
-        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')), 0)::numeric AS revenue,
+        (SELECT COUNT(*)::int FROM surprise_bags WHERE store_id = s.id) AS bag_count,
+        (SELECT COUNT(*)::int FROM reservations  WHERE store_id = s.id) AS reservation_count,
+        (SELECT COALESCE(SUM(total_price) FILTER (WHERE status IN ('confirmed','picked_up')), 0)::numeric
+           FROM reservations WHERE store_id = s.id) AS revenue,
         (SELECT COUNT(*)::int FROM favorites    WHERE store_id = s.id) AS favorite_count,
         (SELECT COUNT(*)::int FROM reviews      WHERE store_id = s.id) AS review_count,
         (SELECT COUNT(*)::int FROM reports      WHERE store_id = s.id) AS report_count,
@@ -530,10 +543,7 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
               OR cr.reservation_id IN (SELECT id FROM reservations WHERE store_id = s.id)
         ) AS cart_reservation_count
       FROM stores s
-      LEFT JOIN surprise_bags b ON b.store_id = s.id
-      LEFT JOIN reservations r  ON r.store_id = s.id
       WHERE s.id = ${storeId}
-      GROUP BY s.id
     `);
     if (!result.rows[0]) { res.status(404).json({ error: "not_found" }); return; }
     const store = result.rows[0] as any;
