@@ -43,6 +43,8 @@ export function useNotifications() {
     setUnreadCount(prev => Math.max(0, prev - 1));
     try {
       await authedFetch(`${BASE}/api/notifications/${id}/read`, { method: 'PATCH' });
+      // ★ 他画面 (MyPage 等) の通知 state を同期させるため broadcast。
+      window.dispatchEvent(new CustomEvent('notifications:changed', { detail: { id, read: true } }));
     } catch (err) {
       console.warn('[use-notifications] markRead failed', err);
     }
@@ -54,6 +56,7 @@ export function useNotifications() {
     setUnreadCount(0);
     try {
       await authedFetch(`${BASE}/api/notifications/read-all`, { method: 'PATCH' });
+      window.dispatchEvent(new CustomEvent('notifications:changed', { detail: { all: true } }));
     } catch (err) {
       console.warn('[use-notifications] markAllRead failed', err);
     }
@@ -61,6 +64,13 @@ export function useNotifications() {
 
   useEffect(() => {
     fetchNotifications();
+  }, [fetchNotifications]);
+
+  // ★ 他画面で markRead/markAllRead が実行されたら自動で再フェッチして同期する。
+  useEffect(() => {
+    const handler = () => { fetchNotifications(); };
+    window.addEventListener('notifications:changed', handler);
+    return () => window.removeEventListener('notifications:changed', handler);
   }, [fetchNotifications]);
 
   return { notifications, unreadCount, loading, fetchNotifications, markRead, markAllRead };

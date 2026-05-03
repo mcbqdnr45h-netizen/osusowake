@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUserId } from '@/hooks/use-user';
 import { useMyStores } from '@/hooks/use-my-stores';
@@ -101,7 +101,7 @@ export default function MyPage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   // ★ A案: 設定モーダル削除済 → 設定リストは MyPage 本体にインライン表示。 showSettings/scroll-lock は不要。
 
-  useEffect(() => {
+  const fetchNotifications = useCallback(() => {
     if (!userId || !session?.access_token) return;
     // 複数店舗オーナーの場合、現在選択中の店舗の通知のみ表示
     // store_id=NULL の全体通知（管理者お知らせ等）は常に含まれる
@@ -111,6 +111,29 @@ export default function MyPage() {
       .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unreadCount || 0); })
       .catch((err) => { console.warn('[MyPage] notifications fetch failed', err); });
   }, [userId, session?.access_token, storeId]);
+
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+
+  // ★ Home の 🔔 (NotificationsBell) で markRead/markAllRead されたら MyPage 側も同期。
+  //   逆方向 (MyPage→Home) も同じイベントで同期される (markNotificationRead 内で dispatch)。
+  useEffect(() => {
+    const handler = () => { fetchNotifications(); };
+    window.addEventListener('notifications:changed', handler);
+    return () => window.removeEventListener('notifications:changed', handler);
+  }, [fetchNotifications]);
+
+  // ★ 「詳細を見る」 タップ時に既読化: API + 楽観更新 + Home 同期 broadcast。
+  const markNotificationRead = useCallback(async (id: number) => {
+    if (!session?.access_token) return;
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    try {
+      await authedFetch(`${BASE_URL}/api/notifications/${id}/read`, { method: 'PATCH' });
+      window.dispatchEvent(new CustomEvent('notifications:changed', { detail: { id, read: true } }));
+    } catch (err) {
+      console.warn('[MyPage] markRead failed', err);
+    }
+  }, [session?.access_token]);
 
   async function handleLogout() {
     await signOut();
@@ -299,7 +322,9 @@ export default function MyPage() {
                           </p>
                           {linkHref && (
                             <Link href={linkHref}>
-                              <span className="inline-flex items-center gap-0.5 text-[11px] font-black text-primary hover:text-primary/80 transition-colors cursor-pointer">
+                              <span
+                                onClick={() => { if (!n.read) markNotificationRead(n.id); }}
+                                className="inline-flex items-center gap-0.5 text-[11px] font-black text-primary hover:text-primary/80 transition-colors cursor-pointer">
                                 詳細を見る<ChevronRight className="w-3 h-3" />
                               </span>
                             </Link>
@@ -307,14 +332,18 @@ export default function MyPage() {
                         </div>
                         {isRejected && (
                           <Link href="/store/reapply">
-                            <span className="inline-flex items-center gap-1 mt-2 text-[11px] font-black text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-full transition-colors">
+                            <span
+                              onClick={() => { if (!n.read) markNotificationRead(n.id); }}
+                              className="inline-flex items-center gap-1 mt-2 text-[11px] font-black text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-full transition-colors">
                               <ChevronRight className="w-3 h-3" />修正して再申請する
                             </span>
                           </Link>
                         )}
                         {isApproved && (
                           <Link href="/store/bank-setup">
-                            <span className="inline-flex items-center gap-1 mt-2 text-[11px] font-black text-white bg-green-500 hover:bg-green-600 px-2.5 py-1 rounded-full transition-colors">
+                            <span
+                              onClick={() => { if (!n.read) markNotificationRead(n.id); }}
+                              className="inline-flex items-center gap-1 mt-2 text-[11px] font-black text-white bg-green-500 hover:bg-green-600 px-2.5 py-1 rounded-full transition-colors">
                               <ChevronRight className="w-3 h-3" />口座・本人確認を登録する
                             </span>
                           </Link>
