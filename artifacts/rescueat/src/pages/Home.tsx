@@ -20,6 +20,7 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage, normalizeCategory } from '@/lib/category-utils';
 import { normalizeBrand } from '@/lib/brand-text';
+import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useUserLocation, haversineMeters, requestGpsManually } from '@/hooks/use-user-location';
 import { useUserId } from '@/hooks/use-user';
@@ -473,8 +474,11 @@ export default function Home() {
       );
     }
     if (activeCategory !== 'all') result = result.filter(b => normalizeCategory(b.category) === activeCategory);
-    if (halfOff)  result = result.filter(b => b.originalPrice > 0 && (b.originalPrice - b.discountedPrice) / b.originalPrice >= 0.5);
-    if (under500) result = result.filter(b => b.discountedPrice <= 500);
+    // ★ 表示価格ベースで判定 (バッジ表記と必ず一致させる):
+    //   - halfOff: カードの「% OFF」 バッジが getDisplayDiscountPercent ベースなのでフィルタも揃える
+    //   - under500: ¥500以下チップは「お客様お支払い金額」 が ¥500 以下のもののみ含める
+    if (halfOff)  result = result.filter(b => getDisplayDiscountPercent(b.originalPrice, b.discountedPrice) >= 50);
+    if (under500) result = result.filter(b => getDisplayPrice(b.discountedPrice) <= 500);
     if (urgent30) result = result.filter(b => isUrgent30(b));
     return applySortKey(result);
   }, [visibleBags, searchQuery, activeCategory, halfOff, under500, urgent30, applySortKey, isUrgent30]);
@@ -540,11 +544,13 @@ export default function Home() {
   );
 
   // ── ⑤ 半額以上のお得（discount >= 50%） ──
+  //   ★ カードの「% OFF」 バッジは getDisplayDiscountPercent (表示価格ベース) なので、
+  //      セクション抽出条件もそれと揃えてバッジと矛盾しないようにする。
   const halfOffSectionBags = useMemo(() => {
     const filtered = sortedVisibleBags.filter(b =>
       b.stockCount > 0 &&
       b.originalPrice > 0 &&
-      (b.originalPrice - b.discountedPrice) / b.originalPrice >= 0.5
+      getDisplayDiscountPercent(b.originalPrice, b.discountedPrice) >= 50
     );
     if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 4).slice(0, 10);
     return filtered.slice(0, 10);
