@@ -59,7 +59,7 @@ function notificationLink(n: AppNotification): string | null {
     case 'store_approved':       return '/store/bank-setup';   // 承認→口座・本人確認へ
     case 'store_rejected':       return '/store/reapply';      // 却下→店舗情報の再申請へ
     case 'store_action_required':return '/store/dashboard';    // Stripe 追加対応
-    case 'bag_sold':             return '/store/sales';        // 店主宛
+    case 'bag_sold':             return '/store/dashboard';    // 店主宛: 受取準備のため予約一覧 (出品管理) へ
     // ↓ 旧通知 (bag id トークン無し) のフォールバック
     case 'pickup_reminder':      return '/my-reservations';    // 受取リマインダー (購入者)
     case 'purchase_confirmed':   return '/my-reservations';    // 予約確定 (購入者)

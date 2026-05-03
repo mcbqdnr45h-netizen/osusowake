@@ -271,7 +271,9 @@ export default function MyPage() {
                   const linkHref =
                     n.type === 'pickup_reminder'      ? '/my-reservations' :
                     n.type === 'purchase_confirmed'   ? '/my-reservations' :
-                    n.type === 'bag_sold'             ? '/store/sales' :
+                    n.type === 'bag_sold'             ? '/store/dashboard' :
+                    n.type === 'store_approved'       ? '/store/bank-setup' :
+                    n.type === 'store_rejected'       ? '/store/reapply' :
                     n.type === 'store_action_required'? '/store/dashboard' :
                     n.type === 'new_bag'              ? (bagId ? `/bags/${bagId}` : n.storeId ? `/stores/${n.storeId}` : null) :
                     null;
