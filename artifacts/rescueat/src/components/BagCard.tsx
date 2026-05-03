@@ -122,13 +122,16 @@ function CompactCardBody({
         {bag.store.name}
       </p>
 
-      {/* ② 商品タイトル ＋ 大価格 (同じ行で対比、 タイトル flex-1 truncate / 価格 shrink-0 右寄せ)
-          ★ 横スクロール内で全カードの高さを揃えるため line-clamp-1 で固定 (line-clamp-2 にすると
-            1行/2行が混在し、 隣接カードの高さがガタつく — ユーザ強い拒否 NG)
-          ★ 価格は items-center で水平揃え */}
+      {/* ② 商品タイトル ＋ 大価格 (同じ行で対比、 タイトル flex-1 / 価格 shrink-0 右寄せ)
+          ★ 高さ統一の方針: line-clamp-2 + min-h で「常に 2 行分の高さを確保」 する。
+            こうすれば 1 行タイトルは下側に空白が残るが全カードの高さは完全一致し、
+            2 行に渡る長いタイトルも極力フル表示される (旧 line-clamp-1 truncate で
+            「タップスバーガーショップ」 等が「タップス…」 と省略されていたのを解消)。
+          ★ 価格はタイトル先頭行に揃えるため items-start。
+          ★ font-size 15px × leading 1.15 = ~17.25px/行 → 2 行 ~34.5px を min-h-[35px] で確保。 */}
       {!isSoldOut ? (
-        <div className="flex items-center justify-between gap-2 min-w-0">
-          <p className="font-black text-[15px] leading-[1.15] truncate tracking-[-0.018em] text-foreground flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 min-w-0 min-h-[35px]">
+          <p className="font-black text-[15px] leading-[1.15] line-clamp-2 break-words tracking-[-0.018em] text-foreground flex-1 min-w-0">
             {normalizeBrand(bag.title)}
           </p>
           <div className="flex flex-col items-end shrink-0">
@@ -143,7 +146,7 @@ function CompactCardBody({
           </div>
         </div>
       ) : (
-        <p className="font-black text-[15px] leading-[1.15] truncate tracking-[-0.018em] text-muted-foreground">
+        <p className="font-black text-[15px] leading-[1.15] line-clamp-2 break-words tracking-[-0.018em] text-muted-foreground min-h-[35px]">
           {normalizeBrand(bag.title)}
         </p>
       )}
