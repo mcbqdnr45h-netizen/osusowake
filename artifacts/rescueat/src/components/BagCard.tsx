@@ -157,7 +157,11 @@ function CompactCardBody({
           ★ 万一 2 段になっても全情報フル表示を優先 (旧版の truncate よりマシ)。
           ★ 表示順は「時間 → 残数 → 距離」 が左から、 折返した場合は距離が下段に来る。 */}
       {hasMetaRow && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-[2px]">
+        // ★ メタ chip 行も高さ統一: chip 1段 ~18px + gap-y-1 (4px) → 2段 = ~40px。
+        //   時間 + 残数 + 距離 が 1 行に収まる場合も 2 行に折り返す場合も同じ min-h を確保し、
+        //   隣接カード間で「片方は1行、 片方は2行」 で高さがガタつくのを根絶する。
+        //   content-start で 1 行時は上寄せ (下に空白) → 全カードの底辺が完全一致。
+        <div className="flex flex-wrap items-start content-start gap-x-2 gap-y-1 mt-[2px] min-h-[40px]">
           {hasTime && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
               <Clock className="w-2.5 h-2.5 shrink-0 text-primary/70" strokeWidth={2.4} />
