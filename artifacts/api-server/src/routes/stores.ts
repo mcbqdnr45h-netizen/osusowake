@@ -1257,6 +1257,28 @@ router.post("/stores/:storeId/reapply", requireAuth, requireStoreOwner, async (r
       .where(eq(storesTable.id, storeId))
       .returning();
 
+    // 管理者全員に in-app 通知 (再申請を見落とさないため)
+    //   pending_review (= 2店舗目以降の再審査待ち) の場合のみ通知。
+    //   pending (= 1店舗目で bank-setup 未完了) は ユーザ側の作業中なので通知不要。
+    if (reapplyStatus === "pending_review") {
+      try {
+        const { getAllAdminUserIds } = await import("../lib/admin.js");
+        const adminIds = await getAllAdminUserIds();
+        if (adminIds.length > 0) {
+          await db.insert(notificationsTable).values(
+            adminIds.map((adminId) => ({
+              userId: adminId,
+              type:   "store_reapply",
+              title:  "🔄 却下店舗が再申請しました",
+              body:   `${updated.name}（再審査待ち）`,
+              read:   false,
+            })),
+          );
+        }
+      } catch (notifyEx: any) {
+        console.warn(`[/reapply] admin 通知失敗 (申請は成功): ${notifyEx?.message}`);
+      }
+    }
 
     res.json({ ...updated, totalBagsAvailable: 0 });
   } catch (err) {
