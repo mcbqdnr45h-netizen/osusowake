@@ -49,4 +49,20 @@ if [ -f "${SPM_FILE}" ]; then
   echo "Package.swift now references:"
   grep -E '\.package\(name:' "${SPM_FILE}" || true
 fi
+
+# ★ Package.resolved を削除 (Xcode Cloud で out-of-date 判定 → ビルド失敗を防ぐ)。
+#   理由: Xcode Cloud は automatic dependency resolution が無効なので、
+#   リポジトリ内の Package.resolved が Package.swift と一致しないと即 fail する。
+#   Package.swift を sed で書き換えた直後は必ず resolved が古くなるため、
+#   削除して SPM に再生成させるのが最も安全。
+RESOLVED_FILES=(
+  "${REPO_ROOT}/artifacts/rescueat/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+  "${REPO_ROOT}/artifacts/rescueat/ios/App/CapApp-SPM/Package.resolved"
+)
+for f in "${RESOLVED_FILES[@]}"; do
+  if [ -f "$f" ]; then
+    echo "Removing stale Package.resolved: $f"
+    rm -f "$f"
+  fi
+done
 echo "=== Done ==="
