@@ -2,6 +2,8 @@ import React, { Suspense, useRef } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import logoUrl from "@/lib/logo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { persistQueryClient } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
@@ -126,10 +128,37 @@ const queryClient = new QueryClient({
         return failureCount < 1;
       },
       staleTime: 1000 * 60 * 2,   // 2分間キャッシュを新鮮とみなす
-      gcTime:    1000 * 60 * 10,  // 10分間メモリに保持（画面遷移後も再利用）
+      gcTime:    1000 * 60 * 30,  // 30分メモリ保持（画面遷移後も再利用）
     },
   },
 });
+
+// ── localStorage キャッシュ永続化 ─────────────────────────────────────────
+// アプリ再起動後も前回のデータを即時表示し、スケルトン待ち時間をゼロにする。
+// 24時間でキャッシュを自動破棄して古すぎるデータを防ぐ。
+try {
+  const persister = createSyncStoragePersister({
+    storage: window.localStorage,
+    key: 'osusowake-query-cache',
+    throttleTime: 3000,
+  });
+  persistQueryClient({
+    queryClient,
+    persister,
+    maxAge: 1000 * 60 * 60 * 24,
+    dehydrateOptions: {
+      shouldDehydrateQuery: (query) => {
+        const key = query.queryKey[0] as string;
+        return (
+          query.state.status === 'success' &&
+          (key === '/api/bags' || key === '/api/stores')
+        );
+      },
+    },
+  });
+} catch {
+  // プライベートブラウジング等でlocalStorageが使えない場合は無視
+}
 
 // ── 起動時プリフェッチ：Reactレンダリングより前にフェッチ開始（最速） ─────
 // コンポーネントマウントを待たずモジュール初期化時点でリクエストを発行する
