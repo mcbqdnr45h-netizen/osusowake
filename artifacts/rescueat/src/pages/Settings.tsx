@@ -13,14 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar, saveAvatar } from '@/hooks/use-avatar';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
 import { ChangePasswordModal } from '@/components/ChangePasswordModal';
-import {
-  useGetRankingPreference,
-  useUpdateRankingPreference,
-  getGetRankingPreferenceQueryKey,
-  getGetMonthlyRankingQueryKey,
-} from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Trophy } from 'lucide-react';
+// ★ ランキング設定 (参加 ON/OFF) は RankingPage に集約したため、
+//    Settings 側からは関連 import / hook / state / handler を全削除済
 
 /** 画像ファイルを max W/H にリサイズして JPEG DataURL を返す */
 function resizeImageToDataUrl(file: File, maxW: number, maxH: number, quality = 0.85): Promise<string> {
@@ -261,39 +255,7 @@ export default function Settings() {
     }
   }
 
-  // ── ランキング非表示 (opt-out) は API 永続化 ────────────────────
-  const queryClient = useQueryClient();
-  const { data: rankingPref } = useGetRankingPreference({
-    query: {
-      queryKey: getGetRankingPreferenceQueryKey(),
-      enabled: !!user && !isStoreOwner,
-      staleTime: 60_000,
-    },
-  });
-  const updateRankingPref = useUpdateRankingPreference({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetRankingPreferenceQueryKey() });
-        // ★ MyPage は limit:1、 RankingPage は limit:10 で同じ API を使うため、
-        //   全バリエーションを一括 invalidate するためにベースパスのみで prefix-match させる。
-        queryClient.invalidateQueries({ queryKey: ['/api/ranking/monthly'] });
-      },
-      onError: (err: any) => {
-        toast({
-          title: '設定の保存に失敗しました',
-          description: String(err?.message ?? err),
-          variant: 'destructive',
-        });
-      },
-    },
-  });
-  // 楽観的に値を表示するため、 mutation 中の variables を優先
-  const rankingOptOut = updateRankingPref.isPending
-    ? !!updateRankingPref.variables?.data?.rankingOptOut
-    : !!rankingPref?.rankingOptOut;
-  function handleToggleRankingOptOut(val: boolean) {
-    updateRankingPref.mutate({ data: { rankingOptOut: val } });
-  }
+  // ★ ランキング opt-out 関連の hook / state / handler は RankingPage 側に集約 (重複削減)
 
   const [editingProfile, setEditingProfile] = useState(false);
   const [saved_, setSaved_] = useState(false);
@@ -770,29 +732,8 @@ export default function Settings() {
             )}
           </div>
 
-          {/* ── ランキング (一般ユーザのみ) ── */}
-          {!isStoreOwner && (
-            <>
-              <SectionLabel>ランキング</SectionLabel>
-              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-1">
-                <div className="flex items-center gap-3.5 px-4 min-h-[56px]">
-                  <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                    <Trophy className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-foreground">ランキングに参加する</p>
-                    <p className="text-xs text-muted-foreground">
-                      オフにすると、 月間ランキングにあなたの表示名が掲載されなくなります
-                    </p>
-                  </div>
-                  <Toggle
-                    value={!rankingOptOut}
-                    onChange={v => handleToggleRankingOptOut(!v)}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+          {/* ★ ランキング参加トグルは削除 (RankingPage 内にプレビュー付きトグルがあるため重複)。
+                ニックネーム入力 (上のアカウント情報) は残し、 ON/OFF は RankingPage で完結させる。 */}
 
           {/* ── LOGOUT / DELETE ── */}
           <SectionLabel>アカウント</SectionLabel>

@@ -153,9 +153,11 @@ export function RankingJoinModal({ existingDisplayName, onClose, onSuccess }: Pr
             </div>
           )}
 
+          {/* ★ 「不適切な表現は使用できません」 文言は削除 (UX: 先回り注意は逆に刺激)。
+                禁止語バリデーションは validateNickname() 内で継続。 */}
           <div className="bg-secondary/50 rounded-xl px-3.5 py-2.5 border border-border/40">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              <span className="font-bold text-foreground">注意:</span> 不適切な表現は使用できません。 後で設定からいつでも非掲載に戻せます。
+              後で設定からいつでも非掲載に戻せます。
             </p>
           </div>
 

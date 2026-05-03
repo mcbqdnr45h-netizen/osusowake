@@ -133,26 +133,76 @@ export default function RankingPage() {
       staleTime: 60_000,
     },
   });
+  // ★ 連打 race 対策: 直列キュー方式 (latest-intent only)
+  //    1. UI: タップ瞬間に setQueryData で即時反映 (ユーザに「速い」 と感じさせる)
+  //    2. ネットワーク: in-flight 中の追加タップは latestIntentRef を上書きするだけ。
+  //       完了時、 サーバ最終値と最終意図が違えば corrective mutate を 1 回発火。
+  //    → 古いリクエストが新しい意図を覆す可能性を排除 (PATCH は最新意図 1 回のみ実行)。
+  const inFlightRef = React.useRef(false);
+  const latestIntentRef = React.useRef<boolean | null>(null);
+
+  // ★ 整合性判定は「送信した値 (sent) vs 最終意図 (latestIntent)」 の直接比較で行う。
+  //    React Query キャッシュは optimistic 更新で常に最新意図を映すため、 サーバ実値の代用にはできない。
+  //    onSettled の vars を真実の sent 値として使う → in-flight 完了直後に
+  //    latestIntent !== sent なら corrective mutate を 1 回直列発火 (キャッシュ refetch 待ち不要)。
   const updateRankingPref = useUpdateRankingPreference({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetRankingPreferenceQueryKey() });
-        // ★ MyPage は limit:1、 RankingPage は limit:10。 ベースパス prefix-match で一括 invalidate
-        queryClient.invalidateQueries({ queryKey: ['/api/ranking/monthly'] });
+      onMutate: async (vars) => {
+        const intended = !!vars?.data?.rankingOptOut;
+        latestIntentRef.current = intended;
+        inFlightRef.current = true;
+        const key = getGetRankingPreferenceQueryKey();
+        await queryClient.cancelQueries({ queryKey: key });
+        const previous = queryClient.getQueryData(key);
+        queryClient.setQueryData(key, (old: any) => ({
+          ...(old ?? {}),
+          rankingOptOut: intended,
+        }));
+        return { previous };
       },
-      onError: (err: any) => {
+      onError: (err: any, _vars, ctx: any) => {
+        // UI を真の前回サーバ値にロールバック。 latestIntentRef は触らない (連打中の意図を消さない)
+        if (ctx?.previous !== undefined) {
+          queryClient.setQueryData(getGetRankingPreferenceQueryKey(), ctx.previous);
+        }
         toast({
           title: '設定の保存に失敗しました',
           description: String(err?.message ?? err),
           variant: 'destructive',
         });
       },
+      onSettled: (_data, _err, vars) => {
+        inFlightRef.current = false;
+        queryClient.invalidateQueries({ queryKey: getGetRankingPreferenceQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ['/api/ranking/monthly'] });
+        // ★ 整合性ルール (成功/失敗共通):
+        //    latest !== sent → 連打中に新しいユーザ意図あり → 1 回 corrective (失敗時も「新意図」 は再送)
+        //    latest === sent → 同一値の再試行ループを防ぐためここで終了 (失敗時はユーザに toast 通知済 → 再タップ待ち)
+        const sent = !!vars?.data?.rankingOptOut;
+        const latest = latestIntentRef.current;
+        if (latest !== null && latest !== sent && !inFlightRef.current) {
+          updateRankingPref.mutate({ data: { rankingOptOut: latest } });
+        } else {
+          latestIntentRef.current = null;
+        }
+      },
     },
   });
-  // 楽観的に値を表示するため、 mutation 中の variables を優先
-  const rankingOptOut = updateRankingPref.isPending
-    ? !!updateRankingPref.variables?.data?.rankingOptOut
-    : !!rankingPref?.rankingOptOut;
+
+  // タップ用 dispatch: in-flight 中はキューに退避、 アイドル時のみ即送信
+  const dispatchToggle = React.useCallback((nextOptOut: boolean) => {
+    latestIntentRef.current = nextOptOut;
+    // 即時 UI 反映 (in-flight 中でも setQueryData でユーザに見える状態を更新)
+    queryClient.setQueryData(getGetRankingPreferenceQueryKey(), (old: any) => ({
+      ...(old ?? {}),
+      rankingOptOut: nextOptOut,
+    }));
+    if (inFlightRef.current) return; // 完了時に onSettled が latestIntentRef を見て送信
+    updateRankingPref.mutate({ data: { rankingOptOut: nextOptOut } });
+  }, [queryClient, updateRankingPref]);
+
+  // ★ 直接キャッシュを見るだけ (onMutate / dispatchToggle で書き換え済 → 即時反映)
+  const rankingOptOut = !!rankingPref?.rankingOptOut;
 
   const monthLabel = React.useMemo(() => {
     const d = data?.monthStartIso ? new Date(data.monthStartIso) : new Date();
@@ -276,10 +326,10 @@ export default function RankingPage() {
                   オフにすると他の人にあなたの名前は表示されません
                 </p>
               </div>
+              {/* ★ 直列キュー方式 dispatchToggle 経由。 連打しても古い PATCH がサーバを上書きしない */}
               <MiniToggle
                 value={!rankingOptOut}
-                disabled={updateRankingPref.isPending}
-                onChange={(v) => updateRankingPref.mutate({ data: { rankingOptOut: !v } })}
+                onChange={(v) => dispatchToggle(!v)}
               />
             </div>
           </div>
