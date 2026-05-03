@@ -86,8 +86,15 @@ const NOW_TIME   = sql`TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')`;
 const CREATED_JST = sql`DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`;
 
 // App Store 審査用デモ店舗オーナーの allowlist（SQL 配列リテラルに変換）
+// セキュリティ: 値は env 由来 (admin 制御下) だが、 二重防御として UUID v4 形式のみ
+// 通過させ、 不正な値は完全に除外する。 これで sql.raw 経由の injection 余地をゼロに。
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REVIEW_OWNER_IDS_SQL = sql.raw(
-  `ARRAY[${getReviewDemoOwnerIds().map((id) => `'${id.replace(/'/g, "''")}'`).join(",") || "NULL"}]::text[]`,
+  (() => {
+    const ids = getReviewDemoOwnerIds().filter((id) => UUID_RE.test(id));
+    if (ids.length === 0) return `ARRAY[NULL]::text[]`;
+    return `ARRAY[${ids.map((id) => `'${id}'`).join(",")}]::text[]`;
+  })(),
 );
 
 const notExpiredCondition = sql`(

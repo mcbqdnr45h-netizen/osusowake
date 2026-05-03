@@ -330,6 +330,10 @@ HelpPage で「2店舗目以降は営業許可証の提出のみで完了」 と
   - **C2 (env による revoke 巻き戻し)** — `index.ts` migration の admin seed を 「`public.users` に admin が 0 名のときのみ `INITIAL_ADMIN_EMAILS` を実行」 に変更。 これで一度 revoke した admin が次回再起動で env 経由で自動復活する隠れた privilege escalation を排除。 ログは `SKIPPED (existing admins=N, env ignored to prevent revoke rollback)` か `bootstrap (admin=0 → N email(s))`。
   - **H1 (findUserIdByEmail case 依存)** — supabase REST `eq("email", lower)` から drizzle 経由 `db.execute(sql\`SELECT id FROM users WHERE LOWER(email) = ${target} ORDER BY created_at LIMIT 1\`)` に変更。 大文字混入 email でもヒットし、 重複時は最古行を採用。
 - **追加修正: `routes/stripe-webhook.ts::sendAdminKycEmail` のハードコード `ADMIN_EMAIL = "hello@..."` を完全削除** — 全 admin 走査 (`getAllAdminUsers()`) で `to: adminEmails[]` に変更。 admin が 0 名のときは fail-safe で送信スキップ + warn ログ。 これで Stripe KYC 完了通知の単一 email 集中も解消し、 #6 フェーズ B のハードコード ADMIN_EMAIL 廃止が真に完結。
+- **追加 SAST 全件レビュー → 実 XSS 1 件 + sql.raw 二重防御 1 件 修正**:
+  - **XSS (admin.ts L1130 `/admin/approve-store`)** — 店舗名 `updated.name` (オーナー入力値) を生 HTML にそのまま埋め込んでいたため、 admin が承認 URL を踏むと admin ブラウザで任意 JS 実行可能だった。 `escapeHtml` (5 文字置換) を追加し `safeName` / `safeRedirect` で全動的値をエスケープして塞いだ。
+  - **sql.raw 二重防御 (bags.ts L89 `REVIEW_OWNER_IDS_SQL`)** — `getReviewDemoOwnerIds()` (env 由来 = admin 制御下) を sql.raw で配列リテラル化していた。 シングルクォート escape は既にあったが、 二重防御として UUID v4 形式の正規表現フィルタを追加し、 不正値は完全に除外。 これで env が万一誤設定されても injection 経路がゼロに。
+  - その他 SAST 警告 (61 件) は内訳調査済 → ① console.log の template literal を SQL と誤検知 (8 件), ② "BEGIN PRIVATE KEY" 文字列の誤検知 (push.ts、 値は env), ③ Supabase ANON KEY のコードフォールバック (公開鍵、 本番は env), ④ `.replit` の旧 Maps key (ローテ予定で運用タスク化済), ⑤ mockup-sandbox の dynamic import (dev only) — いずれも実害なし。
 
 ### 残運用タスク (本番設定)
 

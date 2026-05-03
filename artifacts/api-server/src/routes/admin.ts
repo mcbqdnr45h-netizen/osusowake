@@ -1127,9 +1127,16 @@ router.get("/admin/approve-store", async (req, res) => {
     }
 
     const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
+    // XSS 対策: 店舗名 (オーナー入力値) と appUrl (env) を HTML エスケープ。
+    // updated.name に <script> 等が含まれていても admin ブラウザでスクリプトが実行されないようにする。
+    const escapeHtml = (s: string) => s
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    const safeName = escapeHtml(String(updated.name ?? ""));
+    const safeRedirect = escapeHtml(`${appUrl}/admin`);
     res.send(`
 <!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
-<meta http-equiv="refresh" content="3;url=${appUrl}/admin">
+<meta http-equiv="refresh" content="3;url=${safeRedirect}">
 <title>承認完了</title>
 <style>body{font-family:'Helvetica Neue',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f0;margin:0;}
 .card{background:#fff;border-radius:20px;padding:48px 40px;text-align:center;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,0.08);}
@@ -1138,7 +1145,7 @@ router.get("/admin/approve-store", async (req, res) => {
 <div class="card">
 <div class="emoji">✅</div>
 <h1>承認完了！</h1>
-<p><strong>${updated.name}</strong> を承認しました。<br>3秒後に管理者ダッシュボードへ移動します。</p>
+<p><strong>${safeName}</strong> を承認しました。<br>3秒後に管理者ダッシュボードへ移動します。</p>
 </div>
 </body></html>
     `);
