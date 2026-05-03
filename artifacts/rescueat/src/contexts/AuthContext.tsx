@@ -597,13 +597,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('store-onboarding-draft-v1');
       // プロフィールキャッシュ
       localStorage.removeItem(PROFILE_CACHE_KEY);
-      // ユーザー別キャッシュ群 (myStores / selectedStore / favorites など) を一括掃除
+      // ユーザー別キャッシュ群 (myStores / favorites など) を一括掃除
+      // ★ ただし osusowake_selectedStore_v1_* は「ユーザ設定」 なのでログアウトしても保持する。
+      //   複数店舗オーナーが再ログイン時に最後に開いていた店舗から始められるようにするため。
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (!k) continue;
         if (k.startsWith('osusowake_myStores_v1_') ||
-            k.startsWith('osusowake_selectedStore_v1_') ||
             k.startsWith('rescueat_favorites_v1_')) {
           keysToRemove.push(k);
         }
