@@ -48,6 +48,7 @@ export const ListStoresResponseItem = zod.object({
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
   stripeChargesEnabled: zod.boolean().nullish(),
+  qualifiedInvoiceNumber: zod.string().nullish(),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });
@@ -109,6 +110,7 @@ export const GetStoreResponse = zod.object({
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
   stripeChargesEnabled: zod.boolean().nullish(),
+  qualifiedInvoiceNumber: zod.string().nullish(),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });
@@ -140,6 +142,7 @@ export const UpdateStoreBody = zod.object({
   openTime: zod.string().optional(),
   closeTime: zod.string().optional(),
   isActive: zod.boolean().optional(),
+  qualifiedInvoiceNumber: zod.string().nullable().optional(),
 });
 
 export const UpdateStoreResponse = zod.object({
@@ -167,6 +170,7 @@ export const UpdateStoreResponse = zod.object({
   isActive: zod.boolean(),
   ownerId: zod.string().optional(),
   stripeChargesEnabled: zod.boolean().nullish(),
+  qualifiedInvoiceNumber: zod.string().nullish(),
   totalBagsAvailable: zod.number(),
   createdAt: zod.date(),
 });

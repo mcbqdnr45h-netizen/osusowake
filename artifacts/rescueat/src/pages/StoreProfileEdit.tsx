@@ -33,6 +33,7 @@ type StoreProfile = {
   holiday: string;
   pickupHours: string;
   category: string;
+  qualifiedInvoiceNumber: string;
 };
 
 export default function StoreProfileEdit() {
@@ -54,6 +55,7 @@ export default function StoreProfileEdit() {
     holiday: '',
     pickupHours: '',
     category: 'other',
+    qualifiedInvoiceNumber: '',
   });
   const [saving, setSaving]         = useState(false);
   const [uploading, setUploading]   = useState(false);
@@ -90,6 +92,7 @@ export default function StoreProfileEdit() {
       holiday:      store.holiday      ?? '',
       pickupHours:  store.pickupHours  ?? '',
       category:     store.category     ?? 'meals',
+      qualifiedInvoiceNumber: (store as any).qualifiedInvoiceNumber ?? '',
     }));
     setPreviewUrl(store.imageUrl ?? '');
     setIconPreviewUrl(store.iconUrl ?? '');
@@ -118,6 +121,7 @@ export default function StoreProfileEdit() {
           holiday:      data.holiday      ?? '',
           pickupHours:  data.pickupHours  ?? '',
           category:     data.category     ?? 'meals',
+          qualifiedInvoiceNumber: data.qualifiedInvoiceNumber ?? '',
         });
         setPreviewUrl(data.imageUrl ?? '');
         setIconPreviewUrl(data.iconUrl ?? '');
@@ -726,6 +730,43 @@ export default function StoreProfileEdit() {
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
+            </div>
+          </motion.div>
+
+          {/* 適格請求書 (インボイス) 登録番号 */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.25 }}
+            className="bg-card rounded-2xl p-5 shadow-sm border border-border/50"
+          >
+            <h2 className="text-sm font-black text-foreground mb-4 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />適格請求書発行事業者登録番号
+              <span className="text-[10px] font-bold text-muted-foreground bg-secondary/60 px-1.5 py-0.5 rounded">任意</span>
+            </h2>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={form.qualifiedInvoiceNumber}
+                onChange={e => {
+                  markDirty();
+                  // T + 数字以外は弾き、 大文字統一、 最大14文字 (T + 13桁)
+                  const v = e.target.value.toUpperCase().replace(/[^T0-9]/g, '').slice(0, 14);
+                  setForm(f => ({ ...f, qualifiedInvoiceNumber: v }));
+                }}
+                placeholder="例：T1234567890123"
+                inputMode="text"
+                autoCapitalize="characters"
+                className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono tracking-wider"
+              />
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                インボイス制度 (2023年10月開始) の登録事業者の方は、 国税庁発行の登録番号 (T + 13桁の数字) を入力してください。 入力すると、 お客様向け領収書に自動で記載され「適格請求書」 として機能します。 未入力の場合は領収書に「※当店は適格請求書発行事業者ではありません」 と表示されます。
+              </p>
+              {form.qualifiedInvoiceNumber && !/^T\d{13}$/.test(form.qualifiedInvoiceNumber) && (
+                <p className="text-[11px] font-bold text-amber-600">
+                  ⚠️ 登録番号は「T + 13桁の数字」 (合計14文字) で入力してください
+                </p>
+              )}
             </div>
           </motion.div>
 

@@ -360,6 +360,16 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                 {reservation.store?.phone && (
                   <p className="text-gray-500">TEL: {reservation.store.phone}</p>
                 )}
+                {/* インボイス制度: 適格請求書発行事業者登録番号 (T + 13桁) があれば表示 */}
+                {(reservation.store as any)?.qualifiedInvoiceNumber ? (
+                  <p className="text-gray-700 font-bold pt-1">
+                    登録番号: <span className="font-mono tracking-wide">{(reservation.store as any).qualifiedInvoiceNumber}</span>
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-gray-400 pt-1 leading-tight">
+                    ※ 当店は適格請求書発行事業者ではありません
+                  </p>
+                )}
               </div>
 
               {/* 電子印鑑（CSSで再現） */}

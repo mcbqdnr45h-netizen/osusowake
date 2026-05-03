@@ -26,6 +26,8 @@ export interface Store {
   isActive: boolean;
   ownerId?: string;
   stripeChargesEnabled?: boolean | null;
+  /** 適格請求書発行事業者登録番号 (T + 13桁、 例: T1234567890123)。 任意。 */
+  qualifiedInvoiceNumber?: string | null;
   totalBagsAvailable: number;
   createdAt: Date;
 }

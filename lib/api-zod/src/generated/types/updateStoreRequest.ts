@@ -18,4 +18,6 @@ export interface UpdateStoreRequest {
   openTime?: string;
   closeTime?: string;
   isActive?: boolean;
+  /** 適格請求書発行事業者登録番号 (T + 13桁) */
+  qualifiedInvoiceNumber?: string | null;
 }

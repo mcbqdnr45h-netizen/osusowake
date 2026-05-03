@@ -3602,11 +3602,26 @@ router.put("/stores/:storeId/profile", requireAuth, requireStoreOwner, async (re
       return;
     }
 
-    const allowed = ["name", "description", "imageUrl", "iconUrl", "phone", "address", "city", "openTime", "closeTime", "holiday", "pickupHours", "category"] as const;
-    const body = req.body as Partial<Record<typeof allowed[number], string>>;
+    const allowed = ["name", "description", "imageUrl", "iconUrl", "phone", "address", "city", "openTime", "closeTime", "holiday", "pickupHours", "category", "qualifiedInvoiceNumber"] as const;
+    const body = req.body as Partial<Record<typeof allowed[number], string | null>>;
     const patch: Record<string, string | null> = {};
     for (const key of allowed) {
       if (key in body) patch[key] = body[key] ?? null;
+    }
+    // 適格請求書発行事業者登録番号は T + 13桁数字 のみ許可。 空文字は null 扱い。
+    if ("qualifiedInvoiceNumber" in patch) {
+      const raw = (patch.qualifiedInvoiceNumber ?? "").toString().trim().toUpperCase();
+      if (raw === "") {
+        patch.qualifiedInvoiceNumber = null;
+      } else if (!/^T\d{13}$/.test(raw)) {
+        res.status(400).json({
+          error: "invalid_qualified_invoice_number",
+          message: "適格請求書発行事業者登録番号は T で始まる 14 文字 (T + 数字 13 桁) で入力してください。",
+        });
+        return;
+      } else {
+        patch.qualifiedInvoiceNumber = raw;
+      }
     }
 
     const [updated] = await db

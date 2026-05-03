@@ -74,6 +74,11 @@ export const storesTable = pgTable("stores", {
   licenseUploadFailed: boolean("license_upload_failed").default(false),
   licenseUploadError: text("license_upload_error"),
   licenseUploadAttemptedAt: timestamp("license_upload_attempted_at", { withTimezone: true }),
+  // 適格請求書発行事業者登録番号 (インボイス制度 / Qualified Invoice System)
+  // 形式: T + 13桁の数字 (例: T1234567890123)。 任意。
+  // 入力されている店舗の電子領収書には自動で T 番号を表示し適格請求書として機能。
+  // 未入力時は領収書に「※当店は適格請求書発行事業者ではありません」 を表示。
+  qualifiedInvoiceNumber: text("qualified_invoice_number"),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });
