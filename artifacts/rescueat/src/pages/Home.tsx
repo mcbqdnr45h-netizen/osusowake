@@ -1086,12 +1086,16 @@ export default function Home() {
                     </div>
                   ) : (
                     <motion.div
-                      className="grid grid-cols-2 gap-2"
+                      className="grid grid-cols-2 gap-2 justify-items-center"
                       initial="hidden" animate="show"
                       variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
                     >
                       {sortedVisibleBags.map(bag => (
-                        <motion.div key={bag.id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+                        <motion.div
+                          key={bag.id}
+                          className="w-full max-w-[160px]"
+                          variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+                        >
                           <BagCard bag={bag} compact />
                         </motion.div>
                       ))}
