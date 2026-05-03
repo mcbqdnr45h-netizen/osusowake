@@ -490,8 +490,64 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         return;
       }
       if (result.kind === "already_cancelled") {
-        console.log(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} は既にキャンセル済み（冪等スキップ）`);
-        res.json({ received: true, type: event.type, handled: true, idempotent: true, reason: "already_cancelled" });
+        // ★ レース対策: cancel が先に DB をロックしてキャンセル → その後 Stripe で
+        //   payment_intent が succeeded になった場合、 ここで自動返金しないと
+        //   「DB cancelled / Stripe で実課金」 の charged-but-cancelled 状態になる。
+        //   event.type === "payment_intent.succeeded" なので intent は必ず succeeded。
+        //   返金失敗時は 5xx を返して Stripe webhook 再送機構に委ねる。
+        try {
+          const stripe = await getStripe();
+          if (!stripe) {
+            // Stripe 未設定 — 返金不可だが、 既に DB 上 cancelled なので状態整合は取れている
+            console.warn(`[stripe-webhook] race detected but Stripe not configured (PI ${intent.id})`);
+          } else {
+            const existingRefunds = await stripe.refunds.list({ payment_intent: intent.id, limit: 10 });
+            const totalRefunded = existingRefunds.data.reduce(
+              (sum, r) => sum + ((r.status === "succeeded" || r.status === "pending") ? r.amount : 0),
+              0,
+            );
+            const fullPI = await stripe.paymentIntents.retrieve(intent.id);
+            const piAmount = fullPI.amount;
+
+            if (totalRefunded < piAmount) {
+              const refund = await stripe.refunds.create({
+                payment_intent: intent.id,
+                reason: "requested_by_customer",
+                metadata: {
+                  reservationId: String(reservationId),
+                  reason: "cancelled_before_webhook",
+                },
+              });
+              console.warn(`[stripe-webhook] ⚠️ race auto-refund: PI ${intent.id} (reservation ${reservationId}, cancel が webhook より先行, refundId=${refund.id})`);
+            } else {
+              console.log(`[stripe-webhook] race detected but PI ${intent.id} 既に全額返金済 (${totalRefunded}/${piAmount})`);
+            }
+
+            // ★ 返金成功 (もしくは既に全額返金済) → DB paymentStatus を refunded に同期
+            //   会計/監査整合のため status=cancelled + paymentStatus=refunded に揃える。
+            try {
+              await db
+                .update(reservationsTable)
+                .set({ paymentStatus: "refunded" })
+                .where(eq(reservationsTable.id, reservationId));
+            } catch (syncErr: any) {
+              console.error(`[stripe-webhook] paymentStatus refunded sync failed (reservation=${reservationId}):`, syncErr?.message);
+            }
+          }
+        } catch (refundErr: any) {
+          // ★ 返金失敗 → 5xx で返して Stripe に再送させる (charged-but-cancelled の永続化を防ぐ)
+          console.error(`[stripe-webhook] race auto-refund failed for PI ${intent.id} (will be retried by Stripe):`, refundErr?.message);
+          res.status(500).json({
+            received: true,
+            type: event.type,
+            handled: false,
+            error: "refund_failed_will_retry",
+            reason: refundErr?.message ?? "unknown",
+          });
+          return;
+        }
+        console.log(`[stripe-webhook] payment_intent.succeeded: reservation ${reservationId} は既にキャンセル済み（返金済みで冪等完了）`);
+        res.json({ received: true, type: event.type, handled: true, idempotent: true, reason: "already_cancelled_refunded" });
         return;
       }
       if (result.kind === "already_paid") {

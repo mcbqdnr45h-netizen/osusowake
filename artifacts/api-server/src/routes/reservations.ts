@@ -687,29 +687,52 @@ router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res)
     const { existing, wasPaid } = lockResult;
     console.log(`[cancel] ✅ reservation=${reservationId} user=${existing.userId} wasPaid=${wasPaid} pi=${existing.paymentIntentId ?? "none"}`);
 
-    // ② Stripe 全額返金 (#1) — paid のときだけ実行
-    //   返金失敗時は予約は cancelled のままで admin 通知 (手動対応用)
-    if (wasPaid) {
+    // ② Stripe 全額返金 — wasPaid だけでなく PI が存在すれば必ず試行する。
+    //   ★ レース対策: cancel が DB 上 paid 化より先にロックを取り、 直後に Stripe で
+    //     課金が succeeded になるケース (cancel→succeeded 順) では DB は wasPaid=false
+    //     のまま記録されるが Stripe では実課金が発生する。 refundReservationPayment は
+    //     PI を retrieve して succeeded のときだけ返金する冪等関数なので、 PI があれば
+    //     常に呼ぶ → 課金取り残し (charged-but-cancelled) を防ぐ。
+    let refundSucceeded = false;
+    if (existing.paymentIntentId) {
       const refundResult = await refundReservationPayment({
         reservationId,
         paymentIntentId: existing.paymentIntentId,
       });
-      if (!refundResult.ok) {
+      refundSucceeded = refundResult.ok && Boolean(refundResult.refundId);
+
+      if (wasPaid && !refundResult.ok) {
         console.error(
           `[cancel] ❌ refund failed reservation=${reservationId} ` +
           `pi=${existing.paymentIntentId} reason=${refundResult.reason} — admin manual refund required`,
         );
-        // best-effort で admin 通知 (失敗しても予約 cancel は完了させる)
         notifyAdminRefundFailed({
           reservationId,
           paymentIntentId: existing.paymentIntentId,
           reason: refundResult.reason ?? "unknown",
         }).catch((e) => console.error("[cancel] admin notify failed:", e?.message));
+      } else if (!wasPaid && refundSucceeded) {
+        // ★ レース検知: DB unpaid だが Stripe では succeeded だった → 返金完了
+        //   paymentStatus を refunded に揃え、 在庫も決済成立後扱いで復元する。
+        console.warn(
+          `[cancel] ⚠️ race detected: DB unpaid だが Stripe PI succeeded → 返金完了 ` +
+          `reservation=${reservationId} pi=${existing.paymentIntentId} refundId=${refundResult.refundId}`,
+        );
+        try {
+          await db
+            .update(reservationsTable)
+            .set({ paymentStatus: "refunded" as const })
+            .where(eq(reservationsTable.id, reservationId));
+        } catch (e: unknown) {
+          console.error("[cancel] paymentStatus refunded update failed:", e instanceof Error ? e.message : String(e));
+        }
       }
     }
 
-    // ③ 在庫を戻す — 仮押さえ廃止後は「決済済み(paid)の取り消し」のときだけ復元する。
-    //   未決済(unpaid)の予約は元から在庫を減らしていないので復元不要。
+    // ③ 在庫を戻す — wasPaid のときだけ。 仮押さえ廃止後、 在庫減算は webhook/verify が
+    //   paid 遷移時に行うため、 cancel→succeeded レース (wasPaid=false + refundSucceeded)
+    //   では webhook 側が already_cancelled 分岐に入って在庫減算をスキップしている。
+    //   ここで復元すると在庫が水増しされるので、 wasPaid のみを条件とする。
     if (wasPaid) {
       try {
         await db
