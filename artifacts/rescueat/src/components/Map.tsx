@@ -435,7 +435,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const color = activeStoreIdSet.has(s.id) ? 'o' : 'g';
         const lat   = Number(s.lat).toFixed(5);
         const lng   = Number(s.lng).toFixed(5);
-        const icon  = s.iconUrl ? '1' : '0';
+        // ★ iconUrl は実 URL を含める (presence だけだと URL→別 URL の変更を検知できない)。
+        //   カンマは join 区切りなので除去。 長さは制限せず content hash 代わりに URL 全体を使用。
+        const icon  = s.iconUrl ? s.iconUrl.replace(/,/g, '%2C') : '';
         return `${s.id}:${color}:${lat}:${lng}:${icon}`;
       })
       .join(',');
