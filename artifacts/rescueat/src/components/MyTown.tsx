@@ -1,7 +1,15 @@
 import React, { useEffect, useRef, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { getTownStage, TOWN_STAGES, MAX_STAGE } from '@/lib/town-stage';
+import {
+  getTownStage,
+  TOWN_STAGES,
+  MAX_STAGE,
+  MAX_LEVEL,
+  getMyTownLevel,
+  getPurchasesUntilNextLevel,
+  getLevelProgressPct,
+} from '@/lib/town-stage';
 
 interface MyTownProps {
   purchaseCount: number;
@@ -1039,6 +1047,12 @@ export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, st
     ? Math.min(100, ((purchaseCount - stageInfo.minCount) / (nextStage.minCount - stageInfo.minCount)) * 100)
     : 100;
 
+  // ── Lv.1 〜 Lv.999 進行システム (Stage と並行) ──────────────────────
+  const level             = getMyTownLevel(purchaseCount);
+  const isMaxLevel        = level >= MAX_LEVEL;
+  const untilNextLevel    = getPurchasesUntilNextLevel(purchaseCount);
+  const levelProgressPct  = getLevelProgressPct(purchaseCount);
+
   // ── Level-up detection ─────────────────────────────────────────────────
   const [showPopup,    setShowPopup]    = useState(false);
   const [popupStage,   setPopupStage]   = useState(stage);
@@ -1063,46 +1077,38 @@ export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, st
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
-  const title = getTitle(stage);
   const gameFont = { fontFamily: "'Outfit', 'Noto Sans JP', sans-serif" };
 
   // ── Info panel ─────────────────────────────────────────────────────────
   const infoPanelCompact = (
     <div className="px-3 py-2.5">
-      {/* Row 1: town name + level badge + stage number */}
+      {/* Row 1: town name + STAGE badge (副) + Lv.X/999 (主役) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-[12px] font-black text-foreground" style={gameFont}>🏘️ マイタウン</span>
-          <motion.span
-            key={stage}
-            initial={{ scale: 1.3, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-            className="bg-primary text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none"
-            style={gameFont}
-          >
-            Lv.{stage}
-          </motion.span>
-          <span className="text-primary text-[10px] font-bold truncate" style={gameFont}>{title}</span>
+          <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none tabular-nums shrink-0" style={gameFont}>
+            STAGE {stage}/{MAX_STAGE}
+          </span>
+          <span className="text-primary text-[10px] font-bold truncate" style={gameFont}>{stageInfo.icon} {stageInfo.name}</span>
         </div>
         <div className="flex items-baseline gap-0.5 shrink-0 ml-2">
-          <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide mr-0.5">STAGE</span>
+          <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide mr-0.5">LV</span>
           <motion.span
-            key={stage}
+            key={level}
             initial={{ scale: 1.4, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className="text-lg font-black text-primary leading-none"
+            className="text-lg font-black text-primary leading-none tabular-nums"
             style={gameFont}
           >
-            {stage}
+            {level}
           </motion.span>
-          <span className="text-[9px] text-muted-foreground font-bold">/{MAX_STAGE}</span>
+          <span className="text-[9px] text-muted-foreground font-bold tabular-nums">/{MAX_LEVEL}</span>
         </div>
       </div>
 
-      {/* Row 2: progress + next stage */}
-      {!isMax ? (
+      {/* Row 2: Lv.X+1 までの進捗バー (主軸) */}
+      {!isMaxLevel ? (
         <div className="mt-2">
           <div className="flex items-center gap-2">
             <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
@@ -1110,21 +1116,29 @@ export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, st
                 className="h-full rounded-full"
                 style={{ background: 'linear-gradient(90deg, #4ade80, #22c55e)' }}
                 initial={{ width: 0 }}
-                animate={{ width: `${Math.max(3, progressPct)}%` }}
+                animate={{ width: `${levelProgressPct}%` }}
                 transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }}
               />
             </div>
-            <span className="text-[10px] text-muted-foreground shrink-0 font-medium">
-              {nextStage!.icon} {nextStage!.name} まであと<span className="font-black text-foreground">{nextStage!.minCount - purchaseCount}</span>回
+            <span className="text-[10px] text-muted-foreground shrink-0 font-medium tabular-nums" style={gameFont}>
+              Lv.{level + 1} まで<span className="font-black text-foreground">{untilNextLevel}</span>回
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
-            ✨ <span className="text-foreground/70">{nextStage!.benefit}</span>
-          </p>
+          {/* 副情報: 次ステージ進化までの距離 (視覚進化のヒント) */}
+          {!isMax && nextStage && (
+            <p className="text-[10px] text-muted-foreground mt-1 leading-snug truncate">
+              次の進化 {nextStage.icon} {nextStage.name} まであと {Math.max(0, nextStage.minCount - purchaseCount)} 回
+            </p>
+          )}
+          {isMax && (
+            <p className="text-[10px] text-emerald-600 mt-1 leading-snug font-bold" style={gameFont}>
+              🌟 街は最高進化! Lv.{MAX_LEVEL} を目指そう
+            </p>
+          )}
         </div>
       ) : (
         <p className="text-[10px] font-bold text-emerald-600 mt-1.5" style={gameFont}>
-          🌟 最高ステージ達成！{stageInfo.benefit}
+          🏆 Lv.{MAX_LEVEL} 制覇! 永久殿堂入り 🌟
         </p>
       )}
     </div>
@@ -1137,52 +1151,65 @@ export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, st
         <div className="flex-1 min-w-0">
           <motion.div key={stage} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}
             className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wide" style={gameFont}>Lv.{stage}</span>
-            <span className="font-black text-primary text-sm" style={gameFont}>{title}</span>
+            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wide" style={gameFont}>STAGE {stage}/{MAX_STAGE}</span>
+            <span className="font-black text-primary text-sm" style={gameFont}>{stageInfo.icon} {stageInfo.name}</span>
           </motion.div>
           <h3 className="font-black text-foreground text-lg flex items-center gap-1" style={gameFont}>🏘️ マイタウン</h3>
           <p className="text-muted-foreground text-sm mt-0 leading-snug">{stageInfo.description}</p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide">STAGE</div>
-          <motion.div key={stage} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          <div className="text-[8px] text-muted-foreground font-bold uppercase tracking-wide">LEVEL</div>
+          <motion.div key={level} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className="font-black text-primary leading-none text-5xl" style={gameFont}>{stage}</motion.div>
-          <div className="text-[8px] text-muted-foreground">/ {MAX_STAGE}</div>
+            className="font-black text-primary leading-none text-5xl tabular-nums" style={gameFont}>{level}</motion.div>
+          <div className="text-[8px] text-muted-foreground tabular-nums">/ {MAX_LEVEL}</div>
         </div>
       </div>
-      {!isMax ? (
+      {!isMaxLevel ? (
         <>
           <div className="mb-1.5">
             <div className="flex items-center justify-between mb-0.5">
-              <span className="text-muted-foreground font-medium text-xs">次: {nextStage!.icon} {nextStage!.name}</span>
-              <span className="font-black text-foreground text-xs">あと {nextStage!.minCount - purchaseCount}回</span>
+              <span className="text-muted-foreground font-medium text-xs" style={gameFont}>次: Lv.{level + 1}</span>
+              <span className="font-black text-foreground text-xs tabular-nums">あと {untilNextLevel} 回</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex-1 relative bg-secondary rounded-full overflow-hidden h-4">
                 <motion.div className="h-full rounded-full" style={{ background: 'linear-gradient(90deg, #4ade80, #22c55e, #16a34a)' }}
-                  initial={{ width: 0 }} animate={{ width: `${Math.max(4, progressPct)}%` }} transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }} />
+                  initial={{ width: 0 }} animate={{ width: `${levelProgressPct}%` }} transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }} />
                 <div className="absolute inset-y-0 left-0 right-0 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none" />
               </div>
               <div className="flex flex-col items-center shrink-0 opacity-35">
                 <span className="text-xs leading-none">{finalStage.icon[0]}</span>
-                <span className="text-[8px] font-black text-muted-foreground whitespace-nowrap">Lv.{MAX_STAGE}</span>
+                <span className="text-[8px] font-black text-muted-foreground whitespace-nowrap tabular-nums">Lv.{MAX_LEVEL}</span>
               </div>
             </div>
           </div>
           <motion.div className="bg-secondary/60 rounded-xl px-2.5 py-1.5" whileTap={{ scale: 0.97 }}>
-            <p className="text-muted-foreground leading-snug text-sm">
-              あと <span className="font-black text-foreground" style={gameFont}>{nextStage!.minCount - purchaseCount}回</span> おすそわけすると「{nextStage!.name}」に進化！🌿
-            </p>
-            <p className="text-primary font-bold mt-0.5 flex items-center gap-1 text-sm">
-              <span>✨</span><span className="text-foreground font-semibold">{nextStage!.benefit}</span>
-            </p>
+            {!isMax && nextStage ? (
+              <>
+                <p className="text-muted-foreground leading-snug text-sm">
+                  あと <span className="font-black text-foreground tabular-nums" style={gameFont}>{Math.max(0, nextStage.minCount - purchaseCount)}回</span> おすそわけで「{nextStage.name}」に進化！🌿
+                </p>
+                <p className="text-primary font-bold mt-0.5 flex items-center gap-1 text-sm">
+                  <span>✨</span><span className="text-foreground font-semibold">{nextStage.benefit}</span>
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground leading-snug text-sm">
+                  🌟 街は最高進化「{stageInfo.name}」 に到達! 残るは <span className="font-black text-foreground tabular-nums" style={gameFont}>Lv.{MAX_LEVEL}</span> 制覇のみ。
+                </p>
+                <p className="text-primary font-bold mt-0.5 flex items-center gap-1 text-sm">
+                  <span>🏆</span><span className="text-foreground font-semibold">伝説の救世主への道</span>
+                </p>
+              </>
+            )}
           </motion.div>
         </>
       ) : (
         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl px-4 py-3 text-center">
-          <p className="font-black text-emerald-700 text-base" style={gameFont}>🌟 最高ステージ達成！フードロス・ヒーロー</p>
-          <p className="text-emerald-600 mt-1 text-sm">{stageInfo.benefit}</p>
+          <p className="font-black text-emerald-700 text-base" style={gameFont}>🏆 Lv.{MAX_LEVEL} 制覇！ 伝説の救世主</p>
+          <p className="text-emerald-600 mt-1 text-sm">永久殿堂入り 🌟 全機能フルアクセス</p>
         </div>
       )}
     </div>
