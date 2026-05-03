@@ -57,26 +57,6 @@ export default function AuthCallback() {
           console.warn('[auth-callback] create-profile network error', e);
         }
 
-        // ── ?invite= があれば redeem (sessionStorage 経由でも) ────────────
-        try {
-          const inviteCode =
-            sessionStorage.getItem('osusowake_pending_invite') ||
-            new URLSearchParams(window.location.search).get('invite');
-          if (inviteCode) {
-            sessionStorage.removeItem('osusowake_pending_invite');
-            await fetch(`${BASE}/api/invites/redeem`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${finalSession.access_token}`,
-              },
-              body: JSON.stringify({ code: inviteCode }),
-            });
-          }
-        } catch (e) {
-          console.warn('[auth-callback] redeem invite failed', e);
-        }
-
         navigate('/mypage');
       } catch (e: unknown) {
         if (cancelled) return;

@@ -7,25 +7,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
-import { authedFetch } from '@/lib/authed-fetch';
-
-const INVITE_BASE = (((import.meta as never as { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE) || '') ||
-                    (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
-
-async function redeemPendingInvite(): Promise<void> {
-  try {
-    const code = sessionStorage.getItem('osusowake_pending_invite');
-    if (!code) return;
-    sessionStorage.removeItem('osusowake_pending_invite');
-    await authedFetch(`${INVITE_BASE}/api/invites/redeem`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    });
-  } catch (e) {
-    console.warn('[signup] redeem invite failed', e);
-  }
-}
 
 export default function SignUp() {
   const [, navigate] = useLocation();
@@ -33,15 +14,6 @@ export default function SignUp() {
 
   const params = new URLSearchParams(window.location.search);
   const initialTab = params.get('tab') === 'store' ? 'store' : 'user';
-
-  // ?invite=XXXX を sessionStorage に退避 (確認メール経由でも保持される)
-  useEffect(() => {
-    const code = params.get('invite');
-    if (code && code.length >= 4 && code.length <= 16) {
-      try { sessionStorage.setItem('osusowake_pending_invite', code.toUpperCase()); } catch { /* ignore */ }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const [activeTab,       setActiveTab]       = useState<'user' | 'store'>(initialTab);
   const [name,            setName]            = useState('');
@@ -102,7 +74,6 @@ export default function SignUp() {
       } else {
         const { error: err, needsConfirmation: confirm } = await signUp(email, password, name, phone, '', setLoadingStep);
         if (err) { setError(err); setShakeKey(k => k + 1); return; }
-        if (!confirm) await redeemPendingInvite();
         setNeedsConfirm(confirm);
         setDone(true);
         if (!confirm) setTimeout(() => navigate('/'), 1200);

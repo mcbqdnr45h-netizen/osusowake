@@ -672,22 +672,6 @@ async function runMigrations() {
       console.log('[migration] admin role seed: INITIAL_ADMIN_EMAILS not set, skipped');
     }
 
-    // ── invitations テーブル (招待バッジ ¥0 コスト施策) ─────────────────────
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS invitations (
-        id           SERIAL PRIMARY KEY,
-        inviter_id   TEXT NOT NULL,
-        code         TEXT NOT NULL UNIQUE,
-        invitee_id   TEXT,
-        accepted_at  TIMESTAMP,
-        created_at   TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-    await client.query(`CREATE INDEX IF NOT EXISTS invitations_inviter_id_idx ON invitations (inviter_id);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS invitations_code_idx ON invitations (code);`);
-    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS invitations_invitee_id_uniq ON invitations (invitee_id) WHERE invitee_id IS NOT NULL;`);
-    console.log('[migration] invitations table ✅');
-
   } catch (err) {
     console.error('[migration] failed:', err);
   } finally {

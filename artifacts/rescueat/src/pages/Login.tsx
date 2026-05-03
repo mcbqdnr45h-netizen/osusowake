@@ -5,25 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, Store, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
-import { authedFetch } from '@/lib/authed-fetch';
-
-const INVITE_BASE = (((import.meta as never as { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE) || '') ||
-                    (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
-
-async function redeemPendingInviteAfterLogin(): Promise<void> {
-  try {
-    const code = sessionStorage.getItem('osusowake_pending_invite');
-    if (!code) return;
-    sessionStorage.removeItem('osusowake_pending_invite');
-    await authedFetch(`${INVITE_BASE}/api/invites/redeem`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    });
-  } catch (e) {
-    console.warn('[login] redeem invite failed', e);
-  }
-}
 
 export default function Login() {
   const [, navigate] = useLocation();
@@ -129,8 +110,6 @@ export default function Login() {
       }
       // 管理者: MFA モーダルが出るのでここでは navigate しない
       if (requiresMfa) return;
-      // 招待コード保留中なら redeem (失敗しても navigate は続行)
-      await redeemPendingInviteAfterLogin();
       // redirect クエリがあればそこへ、なければマイページへ
       const params = new URLSearchParams(window.location.search);
       const redirect = params.get('redirect');

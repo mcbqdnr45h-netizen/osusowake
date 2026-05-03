@@ -629,13 +629,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const apiBase = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_API_BASE : '') ?? '';
       const origin = window.location.origin;
       const redirectOrigin = (apiBase || origin).replace(/\/$/, '');
-      // ベルト&サスペンダー: sessionStorage に保留中の invite を redirect URL にも乗せる
-      let inviteQuery = '';
-      try {
-        const pending = sessionStorage.getItem('osusowake_pending_invite');
-        if (pending) inviteQuery = `?invite=${encodeURIComponent(pending)}`;
-      } catch { /* ignore */ }
-      const redirectTo = `${redirectOrigin}/auth-callback${inviteQuery}`;
+      const redirectTo = `${redirectOrigin}/auth-callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo },
