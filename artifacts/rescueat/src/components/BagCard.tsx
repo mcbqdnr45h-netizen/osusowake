@@ -148,10 +148,10 @@ function CompactCardBody({
 
       {/* ④ メタ chip 群: 受取時間 + 残数 + 距離 を本文幅いっぱい flex-wrap で表示
           ★ 全情報を必ず表示。 1 行で詰めると 160px に溢れるため flex-wrap で折り返し許可。
-          ★ min-h を撤廃 → 1 段カード (短いタイトル) で下に無駄な余白が残らない。
-          ★ 表示順: 時間 → 残数 → 距離 (左から、 折返し時は距離が下段)。 */}
+          ★ min-h を確保 → 全カードが 2 行分の高さを必ず取り、 chip 数の差で高さが揃わない問題を防ぐ。
+          ★ mt-auto で下端固定 → 短いタイトルでも下端に揃って整列。 */}
       {hasMetaRow && (
-        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mt-[2px]">
+        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mt-auto pt-[4px] min-h-[40px]">
           {hasTime && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
               <Clock className="w-2.5 h-2.5 shrink-0 text-primary/70" strokeWidth={2.4} />
@@ -378,7 +378,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
     <Link
       href={isSoldOut ? '#' : `/bags/${bag.id}`}
       className={[
-        'group block w-full relative rounded-2xl overflow-hidden bg-card',
+        'group block w-full h-full flex flex-col relative rounded-2xl overflow-hidden bg-card',
         'transition-all duration-250 ease-out',
         isSoldOut
           ? 'opacity-50 cursor-not-allowed grayscale'
@@ -547,7 +547,8 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
       </div>
 
       {/* ── カード情報エリア ── */}
-      <div className={compact ? 'px-3 pt-2 pb-3' : 'p-4 pb-3.5'}>
+      {/* ★ flex-1 で残り高さを吸収 → grid 内で全カードが最も背の高いカードに揃う */}
+      <div className={`flex-1 flex flex-col ${compact ? 'px-3 pt-2 pb-3' : 'p-4 pb-3.5'}`}>
         {compact ? (
           <CompactCardBody
             bag={bag}
