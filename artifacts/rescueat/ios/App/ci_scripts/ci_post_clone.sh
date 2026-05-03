@@ -12,7 +12,7 @@ cd "${REPO_ROOT}"
 pnpm install --no-frozen-lockfile
 pnpm --filter @workspace/api-client-react run build 2>/dev/null || true
 cd "${REPO_ROOT}/artifacts/rescueat"
-MAPS_API_KEY="${MAPS_API_KEY:-}" STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-}" VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.osusowake.app}" pnpm run build:cap
+VITE_MAPS_API_KEY="${VITE_MAPS_API_KEY:-${MAPS_API_KEY:-}}" STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-}" VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.osusowake.app}" pnpm run build:cap
 # resources/icon.png から AppIcon.appiconset の全サイズを生成（cap sync の前に必須）
 pnpm run cap:gen-assets
 npx cap sync ios
