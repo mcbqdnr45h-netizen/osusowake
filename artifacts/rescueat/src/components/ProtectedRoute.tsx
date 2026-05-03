@@ -222,9 +222,9 @@ export function ProtectedRoute({
   useEffect(() => {
     if (!isLoading && user && requireRole && !profile) {
       const t = setTimeout(() => {
-        console.warn('[ProtectedRoute] profile still null after 3s — proceeding anyway');
+        console.warn('[ProtectedRoute] profile still null after 2.5s — proceeding anyway');
         setProfileWaitExpired(true);
-      }, 3000);
+      }, 2500);
       return () => clearTimeout(t);
     }
     setProfileWaitExpired(false);
@@ -305,9 +305,9 @@ export function GuestRoute({
 
     // profile が確定してからロールで振り分け
     if (profile) {
-      // オーナー・一般とも /mypage へ (発見ページに飛ばさない)
-      logNav('GuestRoute(logged-in)', '/mypage', { role: profile.role });
-      navigate('/mypage', { replace: true });
+      const dest = profile.role === 'store_owner' ? '/store/dashboard' : '/';
+      logNav('GuestRoute(logged-in)', dest, { role: profile.role });
+      navigate(dest, { replace: true });
     }
   }, [isLoading, user, profile, navigate]);
 

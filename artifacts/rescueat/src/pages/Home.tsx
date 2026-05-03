@@ -331,7 +331,7 @@ export default function Home() {
     { userId: user?.id || '' },
     { query: {
       queryKey: getListReservationsQueryKey({ userId: user?.id || '' }),
-      enabled: !!user?.id, refetchInterval: 30_000, staleTime: 0,
+      enabled: !!user?.id, refetchInterval: 60_000, staleTime: 30_000,
     } },
   );
   const activeReservation = useMemo(() => {

@@ -87,9 +87,9 @@ export default function MyPage() {
       return res.json();
     },
     enabled: !!storeId && !!store?.stripeAccountId,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,           // 1分キャッシュ（毎回再取得は重すぎる）
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   // ── お知らせ（通知）──

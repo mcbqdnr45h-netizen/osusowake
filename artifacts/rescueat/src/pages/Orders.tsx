@@ -430,9 +430,9 @@ export default function Orders() {
       query: {
         queryKey: getListReservationsQueryKey({ userId }),
         enabled: !!userId,
-        // 購入履歴は受取直後にも必ず最新を反映するため、マウント時に常に再取得する
-        refetchOnMount: 'always',
-        staleTime: 0,
+        // 購入履歴は受取直後にも反映が要るが、毎回再取得は重いので 30 秒キャッシュ
+        refetchOnMount: true,
+        staleTime: 30_000,
       },
     }
   );
