@@ -555,38 +555,36 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         });
 
         // ★★★ 「マップを開くと最初ぼやけて後から綺麗になる」根本対策 ★★★
-        //   原因: `new gMaps.Map()` は即座に return するが、 タイル画像はまだ
-        //   1枚も読み込まれていない。 ここで即 setStatus('ready') すると
-        //   ローディングスピナーが消え、 ユーザーには「placeholder → 低解像度 →
-        //   フル解像度」のタイル段階読み込みが「ぼやけて → 鮮明になる」と見える。
+        //   旧実装は tilesloaded → resize → setStatus('ready') の順だったが、
+        //   resize がタイルを再フェッチするため ready 化した瞬間には
+        //   まだ古い低解像度タイルが残っていて「ぼやけて → 鮮明」が発生していた。
         //
-        //   解決: 最初の `tilesloaded` イベント (= 表示範囲の全タイルが
-        //   フル解像度で完全に読み込まれた瞬間) を待ってから ready 化。
-        //   さらに直前にもう一度 resize を発火し、 iOS Retina (DPR=3) で
-        //   正しい高解像度タイルを再フェッチさせる (defense-in-depth)。
+        //   修正: resize は最初の tilesloaded ハンドラ内で先に発火し、
+        //         そこから「2回目」の tilesloaded (= DPR補正後の高解像度タイル
+        //         が全部揃った瞬間) を待ってから ready 化する。
+        //         これで初期表示が常に最終解像度のタイルで描画される。
         //
-        //   セーフティ: tilesloaded が万一来ない (オフライン等) 時は
-        //   3 秒で強制 ready 化し、 ユーザを永久ローディングに閉じ込めない。
-        // ★★★ ぼやけ対策: tilesloaded を待ってから ready 化 ★★★
-        //   bounds_changed (タイル未完了) で ready 化すると iOS Retina (DPR=3) で
-        //   低解像度タイルが一瞬見えて「ぼやける」原因になる。
-        //   tilesloaded = 表示範囲の全タイルがフル解像度で完全に揃った瞬間 なので、
-        //   これを待ってから ready にすることでぼやけを根絶する。
-        //   セーフティ: オフライン等で tilesloaded が来ない場合は 1.5 秒で強制 ready。
+        //   セーフティ:
+        //     - 2回目の tilesloaded が 800ms 来なければ強制 ready
+        //     - 全体として 2.5 秒以内に必ず ready (オフライン対策)
         let readyFired = false;
-        const fireReady = () => {
+        const finalReady = () => {
           if (readyFired || cancelled) return;
           readyFired = true;
-          if (authFailedRef.current) return;
-          // タイル再フェッチ (iOS Retina 向け DPR 補正) してから ready 化
-          try { gMaps.event.trigger(map, 'resize'); } catch { /* noop */ }
-          requestAnimationFrame(() => {
-            if (!cancelled && !authFailedRef.current) setStatus('ready');
-          });
+          if (!authFailedRef.current) setStatus('ready');
         };
-        gMaps.event.addListenerOnce(map, 'tilesloaded', fireReady);
-        // セーフティ: 1.5 秒で強制 ready (オフライン・低速回線向け)
-        readySafetyTimerRef.current = setTimeout(fireReady, 1500);
+        const onFirstTilesLoaded = () => {
+          if (cancelled) return;
+          // 2回目の tilesloaded (resize 後の高解像度タイル) を先にリッスン
+          gMaps.event.addListenerOnce(map, 'tilesloaded', finalReady);
+          // DPR (iOS Retina) 補正のため resize を発火 → タイル再フェッチ
+          try { gMaps.event.trigger(map, 'resize'); } catch { /* noop */ }
+          // 2回目セーフティ: 800ms 内に来なければ強制 ready
+          setTimeout(finalReady, 800);
+        };
+        gMaps.event.addListenerOnce(map, 'tilesloaded', onFirstTilesLoaded);
+        // 全体セーフティ: 2.5 秒で強制 ready (オフライン・低速回線向け)
+        readySafetyTimerRef.current = setTimeout(finalReady, 2500);
       } catch (e) {
         console.error('Google Maps load error:', e);
         if (!cancelled) setStatus('error');
