@@ -87,7 +87,30 @@ const authLimiter = rateLimit({
   message: { error: "rate_limited", message: "認証リクエストが多すぎます。1分後に再度お試しください。" },
 });
 
+// ── 公開読み取り (ゲスト含む) 用の厳格 limiter ──────────────────────────────
+// /api/bags, /api/stores 系の GET は認証不要で誰でも叩けるため、
+// スクレイピング・列挙攻撃への耐性を上げる。
+// 一般的な利用 (React Query refetch 60秒間隔 × 数エンドポイント) には十分余裕。
+// GET 以外 (POST/PUT/PATCH/DELETE) はそもそも requireAuth が掛かっているので
+// generalLimiter (600/min/IP) のみで十分 → ここでは GET だけを対象にする。
+const publicReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
+  message: { error: "rate_limited", message: "リクエストが多すぎます。少し時間をおいてから再度お試しください。" },
+});
+const publicReadGate: express.RequestHandler = (req, res, next) => {
+  if (req.method !== "GET") return next();
+  return publicReadLimiter(req, res, next);
+};
+
 app.use("/api/auth", authLimiter);
+// ★ 公開読み取りエンドポイント — generalLimiter より先に厳格な limiter を適用
+//   (express-rate-limit は per-middleware カウンタなので両方独立に効く)
+app.use("/api/bags", publicReadGate);
+app.use("/api/stores", publicReadGate);
 app.use("/api", generalLimiter);
 
 // ── 401/403 を返したエンドポイントをログ出力（運用監視・デバッグ用）──
