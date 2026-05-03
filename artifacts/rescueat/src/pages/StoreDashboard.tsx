@@ -1794,37 +1794,6 @@ export default function StoreDashboard() {
 
         <div className="px-4 space-y-8">
 
-        {/* ── PR文（おすそわけメッセージ）── */}
-        {store.description ? (
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
-            <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-              <span className="text-base">✍️</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-amber-700 mb-1">お店からのメッセージ</p>
-              <p className="text-sm text-amber-900 leading-relaxed">{store.description}</p>
-            </div>
-            <Link href="/store/profile-edit">
-              <button className="w-7 h-7 rounded-lg bg-amber-100 hover:bg-amber-200 flex items-center justify-center transition-colors shrink-0">
-                <Pencil className="w-3.5 h-3.5 text-amber-600" />
-              </button>
-            </Link>
-          </div>
-        ) : (
-          <Link href="/store/profile-edit">
-            <div className="border-2 border-dashed border-amber-200 bg-amber-50/60 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:bg-amber-50 transition-colors group">
-              <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition-colors">
-                <span className="text-base">✍️</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-black text-amber-800">プロフィールが未設定です</p>
-                <p className="text-xs text-amber-600 mt-0.5">お客さんへのメッセージを追加してアピールしましょう！</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-amber-400 group-hover:text-amber-600 transition-colors" />
-            </div>
-          </Link>
-        )}
-
         {/* ── 振込先口座未登録のお知らせ（自動リダイレクトなし・手動遷移のみ）── */}
         {store.status === 'approved' && !store.stripeAccountId && (
           <div className="!mt-8 bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
