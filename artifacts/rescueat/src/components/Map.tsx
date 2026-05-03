@@ -297,6 +297,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const hasUserInteractedRef    = useRef(false);
   const resizeObserverRef       = useRef<ResizeObserver | null>(null);
   const readySafetyTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const watchIdRef              = useRef<number | null>(null);
 
   const [status,          setStatus]         = useState<'loading' | 'ready' | 'error'>(
     () => (typeof window !== 'undefined' && (window as any).__gmAuthFailed) ? 'error' : 'loading'
@@ -566,30 +567,26 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         //
         //   セーフティ: tilesloaded が万一来ない (オフライン等) 時は
         //   3 秒で強制 ready 化し、 ユーザを永久ローディングに閉じ込めない。
+        // ★★★ ぼやけ対策: tilesloaded を待ってから ready 化 ★★★
+        //   bounds_changed (タイル未完了) で ready 化すると iOS Retina (DPR=3) で
+        //   低解像度タイルが一瞬見えて「ぼやける」原因になる。
+        //   tilesloaded = 表示範囲の全タイルがフル解像度で完全に揃った瞬間 なので、
+        //   これを待ってから ready にすることでぼやけを根絶する。
+        //   セーフティ: オフライン等で tilesloaded が来ない場合は 1.5 秒で強制 ready。
         let readyFired = false;
         const fireReady = () => {
           if (readyFired || cancelled) return;
           readyFired = true;
-          // ★ auth failure 検知後は ready に戻さない (エラー UI を維持)
           if (authFailedRef.current) return;
-          // タイル再フェッチを促してから ready 化 (1フレ後に状態反映)
+          // タイル再フェッチ (iOS Retina 向け DPR 補正) してから ready 化
           try { gMaps.event.trigger(map, 'resize'); } catch { /* noop */ }
           requestAnimationFrame(() => {
             if (!cancelled && !authFailedRef.current) setStatus('ready');
           });
         };
         gMaps.event.addListenerOnce(map, 'tilesloaded', fireReady);
-        // ★ さらに高速化: bounds_changed は map 初期化直後にほぼ即発火する
-        //   (tilesloaded より遥かに早い)。 タイル未完了でも背景色 + 一部タイルが
-        //   既に出ている状態で ready 化することで、 体感ロード時間を大幅短縮。
-        //   tiles は Google Maps が自動でフェードイン描画する (Google Map アプリと同じ挙動)。
-        gMaps.event.addListenerOnce(map, 'bounds_changed', () => {
-          // bounds_changed 直後に 1 フレ待ってから ready (初回 paint 確実化)
-          requestAnimationFrame(() => fireReady());
-        });
-        // ★ セーフティ: 400ms で強制 ready (旧 1200ms)。 上記 2 イベントが両方
-        //   間に合わない極端な低速環境でも 0.4 秒でスピナーを退避し地図 UI を見せる。
-        readySafetyTimerRef.current = setTimeout(fireReady, 400);
+        // セーフティ: 1.5 秒で強制 ready (オフライン・低速回線向け)
+        readySafetyTimerRef.current = setTimeout(fireReady, 1500);
       } catch (e) {
         console.error('Google Maps load error:', e);
         if (!cancelled) setStatus('error');
@@ -726,21 +723,57 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map   = mapRef.current;
     if (!gMaps || !map) return;
 
-    userMarkerRef.current?.setMap(null);
     if (userPos) {
-      userMarkerRef.current = new gMaps.Marker({
-        position: userPos,
-        map,
-        icon: {
-          url:        makeUserIconUrl(),
-          scaledSize: new gMaps.Size(48, 48),
-          anchor:     new gMaps.Point(24, 24),
-        },
-        title:  '現在地',
-        zIndex: 999,
-      });
+      if (userMarkerRef.current) {
+        // 既存マーカーの位置だけ更新 (remove/recreate しない → アニメが途切れない)
+        userMarkerRef.current.setPosition(userPos);
+      } else {
+        userMarkerRef.current = new gMaps.Marker({
+          position: userPos,
+          map,
+          icon: {
+            url:        makeUserIconUrl(),
+            scaledSize: new gMaps.Size(48, 48),
+            anchor:     new gMaps.Point(24, 24),
+          },
+          title:  '現在地',
+          zIndex: 999,
+        });
+      }
+    } else {
+      userMarkerRef.current?.setMap(null);
+      userMarkerRef.current = null;
     }
   }, [userPos, status]);
+
+  // ── watchPosition: マップが ready になったら継続的に現在地を追跡 ─────────────
+  //   getCurrentPosition は1回取得のみ → ユーザが移動してもマーカーが動かないバグの修正。
+  //   watchPosition はバックグラウンド追跡でマーカーのみ更新 (地図はパンしない)。
+  //   GPS ボタンタップ時のみパンする (handleLocate) ので地図が勝手に動くことはない。
+  useEffect(() => {
+    if (status !== 'ready') return;
+    if (!navigator.geolocation) return;
+
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        updateCachedCoords(ll);
+        setUserPos(ll);
+      },
+      (err) => {
+        console.warn('[Map] watchPosition error:', err.code, err.message);
+      },
+      { enableHighAccuracy: false, maximumAge: 10000, timeout: 15000 },
+    );
+    watchIdRef.current = id;
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [status]);
 
   // ── GPS ── iOS Safari 対策 ─────────────────────────────────────────────────
   function handleLocate() {
