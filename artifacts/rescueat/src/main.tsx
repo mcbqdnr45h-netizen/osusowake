@@ -46,14 +46,10 @@ createRoot(document.getElementById("root")!).render(
   </ErrorBoundary>
 );
 
-// ★ Google Maps スクリプトをアイドル中に先読みしてキャッシュ温存。
-//    地図ページを開いた瞬間に既にダウンロード済み → 体感ロード時間を大幅短縮。
-//    requestIdleCallback が無い環境 (Safari) では setTimeout でフォールバック。
-const __preloadMaps = () => {
-  import('@/lib/maps-loader').then(m => m.loadGoogleMapsScript().catch(() => {})).catch(() => {});
-};
-if ('requestIdleCallback' in window) {
-  (window as any).requestIdleCallback(__preloadMaps, { timeout: 4000 });
-} else {
-  setTimeout(__preloadMaps, 2500);
-}
+// ★ Google Maps スクリプトを「即時」 preload (旧: idle/2.5s 待ち)。
+//    旧実装ではマップタブを早めにタップすると preload 未完了で長いスピナーが出ていた。
+//    現実装: app マウント直後に並列 fetch 開始 → script は async/defer なので
+//    メインスレッドをブロックせず、 マップタブを開いた頃には既にキャッシュ済み。
+//    initial route が /map だった場合も MapView の loadGoogleMapsScript() が
+//    同じ promise を共有するため二重 fetch にはならない。
+import('@/lib/maps-loader').then(m => m.loadGoogleMapsScript().catch(() => {})).catch(() => {});

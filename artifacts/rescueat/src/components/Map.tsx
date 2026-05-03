@@ -436,15 +436,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     async function init() {
       try {
         const startCenter = mapCenter;
-        await loadGoogleMapsScript();
-        if (cancelled || !containerRef.current) return;
+        // ★ 高速化: スクリプトが既にロード済 (preload キャッシュヒット) なら await を完全スキップ
+        //   旧実装は常に await loadGoogleMapsScript() で micro-task 1 回挟んでいた。
+        if (!(window as any).google?.maps?.Map) {
+          await loadGoogleMapsScript();
+          if (cancelled || !containerRef.current) return;
+        }
 
-        // ★ Flexレイアウト確定を待つ (1フレーム遅延)
-        //   マウント直後はコンテナ高さが 0 → 後で flex で確定する場合があり、
-        //   その状態で Map を作るとタイルが小さい解像度で生成されて拡大表示で
-        //   ぼやける (iOS で顕著)。 1 rAF 待つだけで実寸が確定する。
-        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-        if (cancelled || !containerRef.current) return;
+        // ★ Flexレイアウト確定を待つ (1フレーム遅延)。 ただしコンテナ高さが既に
+        //   確定している場合は rAF をスキップしてさらに高速化 (preload+再訪時に効く)。
+        if (containerRef.current.clientHeight === 0 || containerRef.current.clientWidth === 0) {
+          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+          if (cancelled || !containerRef.current) return;
+        }
 
         const gMaps = (window as any).google.maps as typeof google.maps;
 
@@ -555,8 +559,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           });
         };
         gMaps.event.addListenerOnce(map, 'tilesloaded', fireReady);
-        // セーフティ: 3 秒経っても tilesloaded が来なければ強制 ready
-        readySafetyTimerRef.current = setTimeout(fireReady, 3000);
+        // ★ セーフティ: 1.2 秒で強制 ready (旧 3 秒)。 タイル未到着でも map インスタンスは
+        //   既に背後に生成済 → ユーザはスピナーが消えた瞬間に地図が見える。
+        //   tilesloaded が間に合えば即時 ready、 間に合わなくても 1.2s で必ず表示。
+        readySafetyTimerRef.current = setTimeout(fireReady, 1200);
       } catch (e) {
         console.error('Google Maps load error:', e);
         if (!cancelled) setStatus('error');
