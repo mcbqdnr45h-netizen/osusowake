@@ -425,7 +425,9 @@ export default function Checkout() {
     return () => { cancelled = true; };
   }, []);
 
-  const { data: reservation, isLoading } = useGetReservation(reservationId);
+  // ★ isError / error も取得 — 予約取得失敗時 (404/410/network) に
+  //   無限スピナーになるバグを防止 (Apple 審査 2.1/4.0 違反対策)
+  const { data: reservation, isLoading, isError, error: reservationError, refetch: refetchReservation } = useGetReservation(reservationId);
   const fromPath: string = (window.history.state as any)?.from || '';
 
   useEffect(() => {
@@ -471,11 +473,44 @@ export default function Checkout() {
     navigate(`${BASE}/success?reservation_id=${reservationId}`);
   }, [navigate, reservationId, toast]);
 
-  if (isLoading || !reservation) {
+  // ★ ローディング中: スピナー
+  if (isLoading) {
     return (
       <Layout showBottomNav={false}>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // ★ 予約取得エラー / 取得後 reservation なし: 明示エラー UI + 再試行 / 戻る導線
+  //   旧実装は `isLoading || !reservation` で永続スピナーになっていたため
+  //   Apple 審査員が遭遇すると 2.1/4.0 違反で reject される致命バグだった。
+  if (isError || !reservation) {
+    const errMsg = (reservationError as any)?.message
+      || (isError ? '予約情報を取得できませんでした。 通信状態を確認して再度お試しください。'
+                  : 'この予約は見つかりませんでした。 すでにキャンセル済みか、 受取期限を過ぎている可能性があります。');
+    return (
+      <Layout showBottomNav={false}>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-6 text-center">
+          <div className="text-5xl">😔</div>
+          <h2 className="text-lg font-bold text-foreground">予約情報を読み込めませんでした</h2>
+          <p className="text-sm text-muted-foreground max-w-sm">{errMsg}</p>
+          <div className="flex gap-3 mt-2">
+            <button
+              onClick={() => refetchReservation()}
+              className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold tap-scale"
+            >
+              再試行
+            </button>
+            <button
+              onClick={() => navigate(`${BASE}/`)}
+              className="px-5 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-bold tap-scale"
+            >
+              ホームに戻る
+            </button>
+          </div>
         </div>
       </Layout>
     );
