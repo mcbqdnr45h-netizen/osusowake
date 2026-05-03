@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authed-fetch';
 import { normalizeBrand } from '@/lib/brand-text';
 import { StoreLayout } from '@/components/StoreLayout';
+import { getBagStatus } from '@/components/BagManageCard';
 import {
   Store, Package, LogOut, RefreshCw, Loader2, AlertCircle,
   ChevronRight, TrendingUp, ShoppingBag, PlusCircle,
@@ -46,6 +47,7 @@ interface BagData {
   isActive: boolean;
   pickupStart: string | null;
   pickupEnd: string | null;
+  createdAt: string;
 }
 
 interface TodaySales {
@@ -153,9 +155,11 @@ function nowTimeStr() {
   const now = new Date();
   return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 }
+// ★ 出品管理ページ (StoreBagsPage) と同一の判定ロジックを使用。
+//    旧実装は `pickupEnd < nowTimeStr()` のみで深夜またぎ・出品日を考慮しておらず、
+//    日付が変わった直後にダッシュボードと出品管理で件数が食い違うバグになっていた。
 function isBagExpired(bag: BagData): boolean {
-  if (!bag.pickupEnd) return false;
-  return bag.pickupEnd < nowTimeStr();
+  return getBagStatus(bag, new Date()) === 'expired';
 }
 function isToday(dateStr: string): boolean {
   try {
