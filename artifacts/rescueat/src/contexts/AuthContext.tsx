@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await raceTimeout(
         supabase.from('users').select('*').eq('id', userId).single().then(r => r),
-        2500  // ★ 2.5秒でタイムアウト (低速回線でロール未確定→誤遷移を防ぐ)
+        2000  // ★ 2秒でタイムアウト (5秒は長すぎ → MyPage の体感ロード短縮)
       );
       if (result && result.data) {
         const prof = result.data as PublicUser;

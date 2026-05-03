@@ -52,7 +52,7 @@ export default function MyReservations() {
     { userId: userId || '' },
     { query: {
       queryKey: getListReservationsQueryKey({ userId: userId || '' }),
-      enabled: !!userId, refetchOnMount: true, staleTime: 30_000,
+      enabled: !!userId, refetchOnMount: 'always', staleTime: 0,
     } },
   );
 

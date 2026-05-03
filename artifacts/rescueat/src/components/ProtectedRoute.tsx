@@ -222,9 +222,9 @@ export function ProtectedRoute({
   useEffect(() => {
     if (!isLoading && user && requireRole && !profile) {
       const t = setTimeout(() => {
-        console.warn('[ProtectedRoute] profile still null after 2.5s — proceeding anyway');
+        console.warn('[ProtectedRoute] profile still null after 3s — proceeding anyway');
         setProfileWaitExpired(true);
-      }, 2500);
+      }, 3000);
       return () => clearTimeout(t);
     }
     setProfileWaitExpired(false);

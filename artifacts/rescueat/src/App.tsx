@@ -125,10 +125,8 @@ const queryClient = new QueryClient({
         if (status !== undefined && status >= 400 && status < 500) return false;
         return failureCount < 1;
       },
-      staleTime: 1000 * 60 * 5,   // 5分間キャッシュを新鮮とみなす（体感ロード短縮）
-      gcTime:    1000 * 60 * 30,  // 30分間メモリに保持（画面遷移後も再利用）
-      refetchOnMount: false,      // マウント時の自動リフェッチ抑制（個別 useQuery で上書き可）
-      placeholderData: (prev: unknown) => prev, // 再フェッチ中も前回データを表示（白画面防止）
+      staleTime: 1000 * 60 * 2,   // 2分間キャッシュを新鮮とみなす
+      gcTime:    1000 * 60 * 10,  // 10分間メモリに保持（画面遷移後も再利用）
     },
   },
 });
