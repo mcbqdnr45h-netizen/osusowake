@@ -6,6 +6,8 @@ import { Eye, EyeOff, Mail, Lock, Store, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
 
+const SHOW_SSO = false;
+
 export default function Login() {
   const [, navigate] = useLocation();
   const { signIn, resetPasswordForEmail, signInWithProvider } = useAuth();
@@ -358,13 +360,15 @@ export default function Login() {
               ) : 'ログインする'}
             </AuthPrimaryButton>
 
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border/60" />
-              <span className="text-[11px] text-muted-foreground/60 font-semibold tracking-wider">または</span>
-              <div className="flex-1 h-px bg-border/60" />
-            </div>
+            {SHOW_SSO && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-border/60" />
+                <span className="text-[11px] text-muted-foreground/60 font-semibold tracking-wider">または</span>
+                <div className="flex-1 h-px bg-border/60" />
+              </div>
+            )}
 
-            {!isStore && (
+            {SHOW_SSO && !isStore && (
               <div className="flex flex-col gap-2.5">
                 <button
                   type="button"
