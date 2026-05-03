@@ -59,6 +59,7 @@ export default function StoreBagsPage() {
     stockCount: 3,
     pickupStart: '18:00',
     pickupEnd: '20:00',
+    itemType: 'bag' as 'bag' | 'item',
   });
   const [editingStock, setEditingStock] = useState(false);
   const stockInputRef = useRef<HTMLInputElement>(null);
@@ -121,6 +122,7 @@ export default function StoreBagsPage() {
           pickupEnd: form.pickupEnd,
           imageUrl,
           category: bagCategory || undefined,
+          itemType: form.itemType,
         },
       });
       toast({ title: '出品しました！' });
@@ -129,7 +131,7 @@ export default function StoreBagsPage() {
       setImageUrl(null);
       setBagCategory('');
       setAiSuggested(null);
-      setForm({ title: '', originalPrice: 0, discountedPrice: 0, stockCount: 3, pickupStart: '18:00', pickupEnd: '20:00' });
+      setForm({ title: '', originalPrice: 0, discountedPrice: 0, stockCount: 3, pickupStart: '18:00', pickupEnd: '20:00', itemType: 'bag' });
     } catch {
       toast({ title: '出品に失敗しました', variant: 'destructive' });
     } finally {
@@ -366,6 +368,45 @@ export default function StoreBagsPage() {
               className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-lg space-y-4"
             >
               <h3 className="font-black text-foreground">新しいおすそわけバッグ</h3>
+
+              {/* ── 出品タイプ選択 (おすそわけ袋 / 単品) ──
+                    バックエンド surprise_bags.item_type に 'bag' | 'item' で保存。
+                    お客様向けカードに 🛍 おすそわけ袋 / 🥡 単品 バッジで区別表示される。 */}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">出品タイプ</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, itemType: 'bag' }))}
+                    className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-all active:scale-95 ${
+                      form.itemType === 'bag'
+                        ? 'bg-orange-50 border-orange-400 shadow-sm'
+                        : 'bg-secondary/40 border-border'
+                    }`}
+                  >
+                    <span className="text-2xl leading-none">🛍</span>
+                    <span className={`text-xs font-black ${form.itemType === 'bag' ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                      おすそわけ袋
+                    </span>
+                    <span className="text-[9px] text-muted-foreground leading-tight">中身おまかせ</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, itemType: 'item' }))}
+                    className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-all active:scale-95 ${
+                      form.itemType === 'item'
+                        ? 'bg-blue-50 border-blue-400 shadow-sm'
+                        : 'bg-secondary/40 border-border'
+                    }`}
+                  >
+                    <span className="text-2xl leading-none">🥡</span>
+                    <span className={`text-xs font-black ${form.itemType === 'item' ? 'text-blue-600' : 'text-muted-foreground'}`}>
+                      単品
+                    </span>
+                    <span className="text-[9px] text-muted-foreground leading-tight">商品を指定</span>
+                  </button>
+                </div>
+              </div>
 
               {/* 商品名 */}
               <div>
