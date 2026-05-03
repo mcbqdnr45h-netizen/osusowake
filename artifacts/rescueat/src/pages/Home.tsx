@@ -287,6 +287,9 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeItemType, setActiveItemType] = useState<'all' | 'bag' | 'item'>('all');
   const [inStockOnly,    setInStockOnly]    = useState(true);  // デフォルトON
+  const [urgent30,       setUrgent30]       = useState(false); // ⚡ 30分以内受取
+  const [halfOff,        setHalfOff]        = useState(false); // 💰 半額以上OFF
+  const [under500,       setUnder500]       = useState(false); // 💵 ¥500以下
   const [sortKey,        setSortKey]        = useState<SortKey>('default');
   const [showSort,       setShowSort]       = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -379,8 +382,9 @@ export default function Home() {
     else { setSearchQuery(''); }
   }, [showSearch]);
 
-  // 絞り込みモード: 検索・カテゴリ・商品タイプが変わった時のみ
-  const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || activeItemType !== 'all';
+  // 絞り込みモード: 検索・カテゴリ・商品タイプ・横断フィルタが変わった時
+  const isFiltering = searchQuery.trim() !== '' || activeCategory !== 'all' || activeItemType !== 'all'
+                     || urgent30 || halfOff || under500;
 
   const allBags = bags || [];
 
@@ -401,21 +405,6 @@ export default function Home() {
 
   // ソート済みベース（セクション・全体グリッド共通で使う）
   const sortedVisibleBags = useMemo(() => applySortKey(visibleBags), [visibleBags, applySortKey]);
-
-  // 絞り込み結果（縦リストモード専用 — 検索/カテゴリフィルター + ソート）
-  const filteredBags = useMemo(() => {
-    let result = visibleBags;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(b =>
-        b.title.toLowerCase().includes(q) ||
-        b.store.name.toLowerCase().includes(q) ||
-        b.store.city?.toLowerCase().includes(q)
-      );
-    }
-    if (activeCategory !== 'all') result = result.filter(b => normalizeCategory(b.category) === activeCategory);
-    return applySortKey(result);
-  }, [visibleBags, searchQuery, activeCategory, applySortKey]);
 
   // 日次シードは1日中固定（ページリフレッシュしても同じ順番）
   const dailySeed = useMemo(() => getDailySeed(), []);
@@ -449,6 +438,36 @@ export default function Home() {
     }
     return target.getTime() - now.getTime();
   }, [nowMs]);
+
+  // 30 分以内受取: ピックアップ終了が未来 AND 開始まで 30 分以内 (既に開始済みも含む = 負の値も該当)
+  const isUrgent30 = useCallback((bag: SurpriseBagWithStore) => {
+    if (!bag.pickupStart) return false;
+    if (remainingMs(bag.pickupEnd) <= 0) return false;
+    const m = bag.pickupStart.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return false;
+    const now = new Date(nowMs);
+    const start = new Date(now);
+    start.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+    return (start.getTime() - now.getTime()) <= 30 * 60 * 1000;
+  }, [nowMs, remainingMs]);
+
+  // 絞り込み結果（縦リストモード専用 — 検索/カテゴリ/横断フィルタ + ソート）
+  const filteredBags = useMemo(() => {
+    let result = visibleBags;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(b =>
+        b.title.toLowerCase().includes(q) ||
+        b.store.name.toLowerCase().includes(q) ||
+        b.store.city?.toLowerCase().includes(q)
+      );
+    }
+    if (activeCategory !== 'all') result = result.filter(b => normalizeCategory(b.category) === activeCategory);
+    if (halfOff)  result = result.filter(b => b.originalPrice > 0 && (b.originalPrice - b.discountedPrice) / b.originalPrice >= 0.5);
+    if (under500) result = result.filter(b => b.discountedPrice <= 500);
+    if (urgent30) result = result.filter(b => isUrgent30(b));
+    return applySortKey(result);
+  }, [visibleBags, searchQuery, activeCategory, halfOff, under500, urgent30, applySortKey, isUrgent30]);
 
   // ── ① もうすぐ終わるおすそわけ ──
   //   判定: 受付終了まで「0ms 以上 〜 180 分以内」
@@ -528,10 +547,11 @@ export default function Home() {
     return filtered.slice(0, 10);
   }, [sortedVisibleBags, sortKey, dailySeed]);
 
-  const activeFilterCnt = [activeCategory !== 'all', inStockOnly !== true].filter(Boolean).length;
+  const activeFilterCnt = [activeCategory !== 'all', inStockOnly !== true, urgent30, halfOff, under500].filter(Boolean).length;
 
   function clearAll() {
     setSearchQuery(''); setActiveCategory('all'); setActiveItemType('all'); setInStockOnly(true); setSortKey('default'); setShowSearch(false);
+    setUrgent30(false); setHalfOff(false); setUnder500(false);
   }
 
   const dismissKeyboard = useCallback(() => {
@@ -632,7 +652,7 @@ export default function Home() {
           />
 
           {/* Row 3: フィルターバー */}
-          <div className="flex items-center px-4 pb-2 gap-2">
+          <div className="flex items-center px-4 pb-2 gap-2 overflow-x-auto scrollbar-hide">
             {/* 受付中のみトグル */}
             <button
               onClick={() => setInStockOnly(v => !v)}
@@ -679,8 +699,38 @@ export default function Home() {
               </AnimatePresence>
             </div>
 
+            {/* ⚡ 30 分以内受取 */}
+            <button
+              onClick={() => setUrgent30(v => !v)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border tap-scale transition-colors shrink-0 ${
+                urgent30 ? 'bg-amber-500/10 text-amber-600 border-amber-500/30' : 'bg-card text-muted-foreground border-border'
+              }`}
+            >
+              ⚡<span>すぐ受取</span>
+            </button>
+
+            {/* 💰 半額以上 OFF */}
+            <button
+              onClick={() => setHalfOff(v => !v)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border tap-scale transition-colors shrink-0 ${
+                halfOff ? 'bg-rose-500/10 text-rose-600 border-rose-500/30' : 'bg-card text-muted-foreground border-border'
+              }`}
+            >
+              💰<span>半額以上</span>
+            </button>
+
+            {/* 💵 ¥500 以下 */}
+            <button
+              onClick={() => setUnder500(v => !v)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border tap-scale transition-colors shrink-0 ${
+                under500 ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : 'bg-card text-muted-foreground border-border'
+              }`}
+            >
+              💵<span>¥500以下</span>
+            </button>
+
             <div className="flex-1" />
-            {isFiltering && <span className="text-xs text-muted-foreground font-medium">{filteredBags.length}件</span>}
+            {isFiltering && <span className="text-xs text-muted-foreground font-medium shrink-0">{filteredBags.length}件</span>}
             {(isFiltering || !inStockOnly || sortKey !== 'default') && (
               <motion.button onClick={clearAll} whileTap={{ scale: 0.92 }}
                 className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-destructive/8 text-destructive border border-destructive/20">
