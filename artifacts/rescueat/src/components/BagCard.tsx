@@ -148,11 +148,10 @@ function CompactCardBody({
 
       {/* ④ メタ chip 群: 受取時間 + 残数 + 距離 を本文幅いっぱい flex-wrap で表示
           ★ 全情報を必ず表示。 1 行で詰めると 160px に溢れるため flex-wrap で折り返し許可。
-          ★ min-h-[40px] で 2 段分の高さを常時予約 → 1 段/2 段の差でカード高さがガタつかない。
-          ★ content-start で 1 段時は上寄せ → 全カード底辺が完全一致。
+          ★ min-h を撤廃 → 1 段カード (短いタイトル) で下に無駄な余白が残らない。
           ★ 表示順: 時間 → 残数 → 距離 (左から、 折返し時は距離が下段)。 */}
       {hasMetaRow && (
-        <div className="flex flex-wrap items-start content-start gap-x-2 gap-y-1 mt-[2px] min-h-[40px]">
+        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mt-[2px]">
           {hasTime && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
               <Clock className="w-2.5 h-2.5 shrink-0 text-primary/70" strokeWidth={2.4} />
