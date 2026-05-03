@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, ArrowLeft, CheckCircle, RefreshCw, Store, SendHorizonal } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle, RefreshCw, Store, SendHorizonal, Camera, FileText } from 'lucide-react';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -9,6 +9,33 @@ import { StoreLayout } from '@/components/StoreLayout';
 import { authedFetch } from '@/lib/authed-fetch';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+
+// ── 画像圧縮 (StoreOnboarding と同等ロジック・1200px / JPEG q=0.80) ─────────
+async function compressImage(file: File, maxPx = 1200, quality = 0.80): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+          else { width = Math.round(width * maxPx / height); height = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('canvas未対応')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('この画像は読み込めませんでした。HEIC形式の場合はiPhoneの「設定→カメラ→フォーマット→互換性優先」でJPEG保存に切替えてください。'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('ファイルが読み込めませんでした'));
+    reader.readAsDataURL(file);
+  });
+}
 
 const CATEGORIES = [
   { value: 'restaurant',    label: '飲食店・レストラン' },
@@ -67,6 +94,23 @@ export default function StoreReapply() {
   });
   const [touched, setTouched] = useState<Touched>({});
 
+  // ── 店舗写真 (任意・差し替えたい場合のみ) ────────────────────────────
+  //   既存の imageUrl をプレビュー初期値にし、 ユーザがファイルを選んだ場合は
+  //   差し替え用 base64 (newImageBase64) を保持してサーバへ送る。
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [newImageBase64, setNewImageBase64] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // ── 営業許可証 (任意・差し替えたい場合のみ) ─────────────────────────
+  //   既存の licenseImageUrl をプレビュー初期値にし、 ユーザがファイルを選んだ場合は
+  //   差し替え用 base64 を保持してサーバへ送る。番号 (licenseNumber) は常に編集可能。
+  const [bizLicensePreview, setBizLicensePreview] = useState<string>('');
+  const [bizLicenseMime, setBizLicenseMime] = useState<string>('image/jpeg');
+  const [newLicenseBase64, setNewLicenseBase64] = useState<string | null>(null);
+  const [bizLicenseNumber, setBizLicenseNumber] = useState<string>('');
+  const [bizLicenseError, setBizLicenseError] = useState<string | null>(null);
+  const bizLicenseInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (store) {
       setForm({
@@ -81,8 +125,63 @@ export default function StoreReapply() {
         holiday:     store.holiday     ?? '',
         pickupHours: store.pickupHours ?? '',
       });
+      setImagePreview(store.imageUrl ?? '');
+      setBizLicensePreview(store.licenseImageUrl ?? '');
+      setBizLicenseNumber(store.licenseNumber ?? '');
+      // 既存ライセンスURL拡張子から MIME 推定 (PDF or 画像)
+      const url = store.licenseImageUrl ?? '';
+      if (url.toLowerCase().includes('.pdf')) setBizLicenseMime('application/pdf');
     }
   }, [store]);
+
+  // ── 店舗写真 ファイル選択ハンドラ ────────────────────────────────────
+  const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: 'ファイルが大きすぎます', description: '10MB 以下の画像を選んでください', variant: 'destructive' });
+      return;
+    }
+    try {
+      const compressed = await compressImage(file);
+      setNewImageBase64(compressed);
+      setImagePreview(compressed);
+    } catch (err: any) {
+      toast({ title: '画像を読み込めませんでした', description: err?.message ?? '別の画像でお試しください', variant: 'destructive' });
+    }
+  };
+
+  // ── 営業許可証 ファイル選択ハンドラ (画像 or PDF) ────────────────────
+  const handleBizLicenseFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setBizLicenseError(null);
+    try {
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error('ファイルサイズが大きすぎます (10MB 以下にしてください)。');
+      }
+      if (file.type === 'application/pdf') {
+        const raw: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target?.result as string);
+          reader.onerror = () => reject(new Error('PDFが読み込めませんでした'));
+          reader.readAsDataURL(file);
+        });
+        setBizLicenseMime('application/pdf');
+        setBizLicensePreview(raw);
+        setNewLicenseBase64(raw);
+      } else {
+        const compressed = await compressImage(file);
+        setBizLicenseMime('image/jpeg');
+        setBizLicensePreview(compressed);
+        setNewLicenseBase64(compressed);
+      }
+    } catch (err: any) {
+      setBizLicenseError(err?.message ?? 'ファイルを取り込めませんでした。 JPEG・PNG・PDF を選んでください。');
+    }
+  };
 
   const errors = validate(form);
   const hasErrors = Object.keys(errors).length > 0;
@@ -107,10 +206,16 @@ export default function StoreReapply() {
 
     setSubmitting(true);
     try {
+      const payload: Record<string, unknown> = { ...form };
+      if (newImageBase64) payload.imageUrl = newImageBase64;
+      if (newLicenseBase64) payload.licenseImageBase64 = newLicenseBase64;
+      if (bizLicenseNumber.trim() && bizLicenseNumber.trim() !== (store.licenseNumber ?? '')) {
+        payload.licenseNumber = bizLicenseNumber.trim();
+      }
       const res = await authedFetch(`${BASE}/api/stores/${store.id}/reapply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setSubmitted(true);
@@ -249,6 +354,115 @@ export default function StoreReapply() {
               上記の却下理由を参考に情報を修正・確認し、再申請してください。
               承認されるまで店舗は一般公開されません。
             </p>
+            <p className="text-xs text-amber-600 mt-2 leading-relaxed">
+              ※ 店舗写真・営業許可証は、変更が必要な場合のみ差し替えてください。
+            </p>
+          </div>
+
+          {/* 店舗写真 (差し替え可) */}
+          <div className="bg-white border border-border rounded-2xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Camera className="w-5 h-5 text-primary" />
+              <h3 className="font-black text-foreground">店舗写真</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              却下理由に「写真」が含まれる場合は新しい写真に差し替えてください。
+            </p>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleImageFile}
+            />
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              className="relative w-full aspect-video rounded-xl border-2 border-dashed border-border bg-secondary/30 flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-primary/40 transition-colors"
+            >
+              {imagePreview ? (
+                <>
+                  <img loading="lazy" decoding="async" src={imagePreview} alt="店舗写真" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
+                    <Camera className="w-7 h-7 text-white opacity-80" />
+                    <span className="text-sm text-white font-bold">タップして変更</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Camera className="w-6 h-6 text-primary/60" />
+                  </div>
+                  <p className="text-sm font-bold text-muted-foreground">タップして写真を追加</p>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* 営業許可証 (差し替え可 + 番号編集可) */}
+          <div className="bg-orange-50/60 border border-orange-200 rounded-2xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-orange-500" />
+              <h3 className="font-black text-foreground">営業許可証</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              却下理由に「許可証」が含まれる場合は新しい画像に差し替えてください。 番号も変更できます。
+            </p>
+            <input
+              ref={bizLicenseInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="hidden"
+              onChange={handleBizLicenseFile}
+            />
+            <button
+              type="button"
+              onClick={() => bizLicenseInputRef.current?.click()}
+              className="relative w-full aspect-video rounded-xl border-2 border-dashed border-orange-300 bg-orange-50/40 flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-orange-400 transition-colors"
+            >
+              {bizLicensePreview ? (
+                bizLicenseMime === 'application/pdf' ? (
+                  <>
+                    <FileText className="w-12 h-12 text-orange-500" />
+                    <span className="text-sm font-bold text-orange-700">PDF を読み込みました</span>
+                    <span className="text-xs text-muted-foreground">タップして変更</span>
+                  </>
+                ) : (
+                  <>
+                    <img loading="lazy" decoding="async" src={bizLicensePreview} alt="営業許可証プレビュー" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
+                      <Camera className="w-7 h-7 text-white opacity-80" />
+                      <span className="text-sm text-white font-bold">タップして変更</span>
+                    </div>
+                  </>
+                )
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-gray-600">タップして書類を追加</p>
+                    <p className="text-xs text-gray-400 mt-0.5">JPG・PNG・PDF 対応</p>
+                  </div>
+                </>
+              )}
+            </button>
+            {bizLicenseError && (
+              <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {bizLicenseError}
+              </p>
+            )}
+            <div>
+              <label className="block text-sm font-bold text-muted-foreground mb-1.5">営業許可証番号</label>
+              <input
+                type="text"
+                value={bizLicenseNumber}
+                onChange={e => setBizLicenseNumber(e.target.value)}
+                className="w-full bg-white border border-input rounded-xl px-4 py-3 text-base font-medium focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 outline-none transition-all"
+                placeholder="例: 第○○号"
+              />
+            </div>
           </div>
 
           {/* 店舗名 ★必須 */}
