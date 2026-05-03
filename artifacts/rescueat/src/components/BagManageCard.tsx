@@ -236,7 +236,11 @@ export function BagManageCard({
             </button>
 
             {/* ⋯ メニュー（編集 / 公開切替（モバイル代替） / 削除） */}
-            <DropdownMenu>
+            {/* ★ modal={false} 必須: Radix デフォルトの modal=true は body に pointer-events:none を
+                  かけてスクロールをロックする。 iOS WebView では稀に閉じた時に解除漏れが発生し、
+                  「画面が下スクロール途中で固まる」 バグの原因になる。 小さなコンテキストメニュー
+                  なのでフォーカストラップ不要 → modal=false で完全回避。 */}
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
