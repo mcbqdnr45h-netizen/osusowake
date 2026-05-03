@@ -150,18 +150,16 @@ function CompactCardBody({
           ★ 全情報を必ず表示。 1 行で詰めると 160px に溢れるため flex-wrap で折り返し許可。
           ★ min-h を確保 → 全カードが 2 行分の高さを必ず取り、 chip 数の差で高さが揃わない問題を防ぐ。
           ★ mt-auto で下端固定 → 短いタイトルでも下端に揃って整列。 */}
+      {/* ★ chip 表示順を 時間 → 距離 → 残り に固定。
+              理由: 残り badge を中間に置くと、 残り有り/無しで距離の位置がズレ
+                    「全カードで情報配置が同じ」 体験が崩れる。
+                    残り を末尾にすると、 ある時だけ末尾に追加される自然な拡張になる。 */}
       {hasMetaRow && (
         <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mt-auto pt-[4px] min-h-[40px]">
           {hasTime && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
               <Clock className="w-2.5 h-2.5 shrink-0 text-primary/70" strokeWidth={2.4} />
               {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
-            </span>
-          )}
-          {isLowStock && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-600 bg-rose-50
-              px-1.5 py-[3px] rounded-md ring-1 ring-rose-200/70 leading-none whitespace-nowrap">
-              🔥 残り{bag.stockCount}個
             </span>
           )}
           {distLabel ? (
@@ -172,6 +170,12 @@ function CompactCardBody({
           ) : gpsLoading ? (
             <span className="inline-block w-12 h-[18px] rounded-md bg-muted animate-pulse" />
           ) : null}
+          {isLowStock && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-600 bg-rose-50
+              px-1.5 py-[3px] rounded-md ring-1 ring-rose-200/70 leading-none whitespace-nowrap">
+              🔥 残り{bag.stockCount}個
+            </span>
+          )}
         </div>
       )}
 
