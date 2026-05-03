@@ -335,25 +335,11 @@ export default function StoreBagsPage() {
         )}
 
         {/* ── ヘッダー ── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-black text-foreground">出品・在庫管理</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              出品中 {trulyActive.length}件 / 全{allBags.length}件
-            </p>
-          </div>
-          <button
-            onClick={() => !kycPending && setShowForm(v => !v)}
-            disabled={!!kycPending}
-            className={`flex items-center gap-2 font-black text-sm px-4 py-2.5 rounded-xl transition-all ${
-              kycPending
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95'
-            }`}
-          >
-            {kycPending ? <Lock className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            新規出品
-          </button>
+        <div>
+          <h1 className="text-xl font-black text-foreground">出品・在庫管理</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            出品中 {trulyActive.length}件 / 全{allBags.length}件
+          </p>
         </div>
 
         {/* ── 新規出品フォーム ── */}
