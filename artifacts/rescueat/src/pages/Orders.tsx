@@ -382,43 +382,17 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                 <span>お支払い方法</span>
                 <span className="font-bold text-gray-800">{paymentMethodLabel}</span>
               </div>
-            </div>
-
-            {/* ── 発行元 + 電子印鑑 ────── */}
-            <div className="flex items-end justify-between mt-6 pt-4 border-t-2 border-gray-800">
-              <div className="font-sans text-xs text-gray-700 space-y-0.5">
-                <p className="font-bold text-sm text-gray-900">{storeName}</p>
-                {reservation.store?.address && (
-                  <p className="text-gray-500">{reservation.store.address}</p>
-                )}
-                {reservation.store?.phone && (
-                  <p className="text-gray-500">TEL: {reservation.store.phone}</p>
-                )}
-                {/* インボイス制度: 適格請求書発行事業者登録番号 (T + 13桁) があれば表示 */}
-                {(reservation.store as any)?.qualifiedInvoiceNumber ? (
-                  <p className="text-gray-700 font-bold pt-1">
-                    登録番号: <span className="font-mono tracking-wide">{(reservation.store as any).qualifiedInvoiceNumber}</span>
-                  </p>
-                ) : (
-                  <p className="text-[10px] text-gray-400 pt-1 leading-tight">
-                    ※ 当店は適格請求書発行事業者ではありません
-                  </p>
-                )}
-              </div>
-
-              {/* 電子印鑑（CSSで再現） */}
-              <div className="shrink-0 ml-4">
-                <div
-                  className="w-16 h-16 rounded-full border-[3px] border-red-600 flex flex-col items-center justify-center"
-                  style={{ color: '#dc2626' }}
-                >
-                  <span className="text-[8px] font-bold tracking-widest" style={{ fontFamily: 'serif' }}>電子</span>
-                  <span className="text-[9px] font-bold leading-tight text-center px-1" style={{ fontFamily: 'serif' }}>
-                    {storeName.slice(0, 4)}
+              {/* インボイス制度: 適格請求書発行事業者登録番号 (T + 13桁) を入力済み店舗のみ表示。
+                  発行元欄は廃止 (店舗名は上部「店舗」 行で既に表示済み)。 一般領収書として
+                  発行元名称の記載義務はなく、 国税庁 NTA 公表サイト Web-API 連携も不要。 */}
+              {(reservation.store as any)?.qualifiedInvoiceNumber && (
+                <div className="flex justify-between">
+                  <span>登録番号</span>
+                  <span className="font-mono tracking-wide font-bold text-gray-800">
+                    {(reservation.store as any).qualifiedInvoiceNumber}
                   </span>
-                  <span className="text-[8px] font-bold tracking-widest" style={{ fontFamily: 'serif' }}>之印</span>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* ── 環境貢献バッジ ────────── */}
