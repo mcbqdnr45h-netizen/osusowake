@@ -1137,9 +1137,14 @@ router.post("/stores/:storeId/reapply", requireAuth, requireStoreOwner, async (r
       return;
     }
 
-    // 更新可能なフィールドのみ受け取る（管理者審査不要：直接 applied へ）
+    // 更新可能なフィールドのみ受け取る
+    //   ★ status は 1店舗目 (Stripe未登録) なら "pending" (再度 bank-setup へ誘導)、
+    //     それ以外は "pending_review" (admin 再審査)。 旧コードの "applied" は誤りで、
+    //     本来 admin 承認を経るべき店舗が即時 公開される穴があった。
+    const reapplyStatus: "pending" | "pending_review" =
+      store.stripeAccountId ? "pending_review" : "pending";
     const updateData: Record<string, unknown> = {
-      status: "applied",
+      status: reapplyStatus,
       rejectionReason: null,
     };
     const editableFields = ["name", "description", "address", "city", "category", "phone",
@@ -1171,12 +1176,109 @@ router.post("/stores/:storeId/reapply", requireAuth, requireStoreOwner, async (r
       }
     }
 
+    // ── 営業許可証 画像差し替え (任意) ───────────────────────────────────
+    //   apply 経路と同じく Supabase Storage にアップロードして signedUrl を保存。
+    //   既存 stripeAccountId があれば Stripe Files API にも再アップロードして
+    //   metadata.license_file_id を更新する (admin 再審査時に最新書類が見えるよう)。
+    const LICENSE_DATA_URL_RE = /^data:(image\/(?:jpeg|jpg|png|webp|heic|heif)|application\/pdf);base64,(.+)$/s;
+    if (typeof body.licenseImageBase64 === "string" && body.licenseImageBase64) {
+      const match = body.licenseImageBase64.match(LICENSE_DATA_URL_RE);
+      if (!match) {
+        res.status(400).json({
+          error: "license_image_invalid",
+          message: "営業許可証の画像形式が不正です。 JPG/PNG/HEIC/PDF を選んでください。",
+        });
+        return;
+      }
+      try {
+        const contentType = match[1];
+        const ext =
+          contentType === "image/png" ? "png" :
+          contentType === "image/webp" ? "webp" :
+          contentType === "image/heic" ? "heic" :
+          contentType === "image/heif" ? "heif" :
+          contentType === "application/pdf" ? "pdf" :
+          "jpg";
+        const buffer = Buffer.from(match[2], "base64");
+        const filePath = `${store.ownerId}/${Date.now()}-license.${ext}`;
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from("store-documents")
+          .upload(filePath, buffer, { contentType, upsert: false });
+        if (!uploadError) {
+          const { data: signedData } = await supabaseAdmin.storage
+            .from("store-documents")
+            .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
+          if (signedData?.signedUrl) {
+            updateData.licenseImageUrl = signedData.signedUrl;
+            console.log(`[/reapply] ✅ 営業許可証 再アップロード完了: storeId=${storeId} path=${filePath}`);
+          }
+        } else {
+          console.warn(`[/reapply] 営業許可証 Supabase アップロード失敗: ${uploadError.message}`);
+        }
+
+        // Stripe Files API: 既存アカウントがあれば再アップロード + metadata 更新
+        const stripeKey = process.env["STRIPE_SECRET_KEY"];
+        if (store.stripeAccountId && stripeKey) {
+          try {
+            const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+            const fileExt = ext === "jpg" ? "jpg" : ext;
+            const stripeFile = await stripe.files.create(
+              {
+                file: { data: buffer, name: `license-${Date.now()}.${fileExt}`, type: contentType },
+                purpose: "additional_verification",
+              },
+              { stripeAccount: store.stripeAccountId }
+            );
+            updateData.stripeLicenseFileId = stripeFile.id;
+            try {
+              await stripe.accounts.update(store.stripeAccountId, {
+                metadata: {
+                  license_file_id: stripeFile.id,
+                  license_updated_at: new Date().toISOString(),
+                  reapply_store_id: String(storeId),
+                },
+              });
+            } catch (mdEx: any) {
+              console.warn(`[/reapply] Stripe metadata 更新失敗 (継続): ${mdEx?.message}`);
+            }
+            console.log(`[/reapply] ✅ Stripe Files 再アップロード完了: storeId=${storeId} fileId=${stripeFile.id}`);
+          } catch (stripeEx: any) {
+            console.warn(`[/reapply] Stripe Files 再アップロード失敗 (継続): ${stripeEx?.message}`);
+          }
+        }
+      } catch (uploadEx: any) {
+        console.warn(`[/reapply] 営業許可証アップロード例外: ${uploadEx?.message}`);
+      }
+    }
+
     const [updated] = await db
       .update(storesTable)
       .set(updateData as any)
       .where(eq(storesTable.id, storeId))
       .returning();
 
+    // 管理者全員に in-app 通知 (再申請を見落とさないため)
+    //   pending_review (= 2店舗目以降の再審査待ち) の場合のみ通知。
+    //   pending (= 1店舗目で bank-setup 未完了) は ユーザ側の作業中なので通知不要。
+    if (reapplyStatus === "pending_review") {
+      try {
+        const { getAllAdminUserIds } = await import("../lib/admin.js");
+        const adminIds = await getAllAdminUserIds();
+        if (adminIds.length > 0) {
+          await db.insert(notificationsTable).values(
+            adminIds.map((adminId) => ({
+              userId: adminId,
+              type:   "store_reapply",
+              title:  "🔄 却下店舗が再申請しました",
+              body:   `${updated.name}（再審査待ち）`,
+              read:   false,
+            })),
+          );
+        }
+      } catch (notifyEx: any) {
+        console.warn(`[/reapply] admin 通知失敗 (申請は成功): ${notifyEx?.message}`);
+      }
+    }
 
     res.json({ ...updated, totalBagsAvailable: 0 });
   } catch (err) {
