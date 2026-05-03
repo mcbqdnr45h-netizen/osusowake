@@ -52,8 +52,8 @@ const USER_STEPS: Step[] = [
     color: 'bg-emerald-100 text-emerald-700',
     ring: 'ring-emerald-200',
     title: 'アプリ内でお支払い',
-    body: 'クレジットカード決済で完結。お店での現金やりとりは一切不要です。決済後すぐに6桁の受取コードが発行されます。',
-    example: 'Visa / Mastercard / AMEX / JCB に対応。',
+    body: 'クレジットカード・Apple Pay・Google Pay に対応。お店での現金やりとりは一切不要。決済後すぐに6桁の受取コードが発行されます。',
+    example: 'Visa / Mastercard / AMEX / JCB / Apple Pay / Google Pay に対応。',
     tip: '表示価格 = 請求金額。手数料・送料の追加なし。',
   },
   {
