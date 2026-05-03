@@ -1119,7 +1119,7 @@ export default function MyPage() {
                 )}
                 {store?.status === 'rejected' && (
                   <Link
-                    href="/store/bank-setup"
+                    href="/store/reapply"
                     className="flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
                   >
                     <div className="w-9 h-9 bg-red-100 text-red-500 rounded-full flex items-center justify-center shrink-0">
@@ -1130,7 +1130,7 @@ export default function MyPage() {
                       <div className="text-xs text-muted-foreground">
                         {store.rejectionReason
                           ? `理由：${store.rejectionReason.slice(0, 30)}${store.rejectionReason.length > 30 ? '…' : ''}`
-                          : '決済口座を再設定して再申請する'}
+                          : '店舗情報を修正して再申請する'}
                       </div>
                     </div>
                     <span className="text-[10px] font-black bg-red-100 text-red-500 px-2 py-0.5 rounded-full">再申請</span>
