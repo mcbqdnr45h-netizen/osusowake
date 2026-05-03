@@ -2276,6 +2276,9 @@ export default function AdminDashboard() {
                                     body:    JSON.stringify({ status: newStatus }),
                                   });
                                   setSalesLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: newStatus } : l));
+                                  // ★ トップの「要対応 N件」 (newSalesLeadsCount = status='new' の数) を再集計させる。
+                                  //    これを呼ばないとリードを「連絡済み」 等に変更しても要対応カウンタが減らないバグになる。
+                                  await fetchAll();
                                 }}
                                 className="w-full text-sm font-bold border border-border rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
                               >
