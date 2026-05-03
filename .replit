@@ -36,3 +36,6 @@ VITE_MAPS_API_KEY = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U"
 VAPID_SUBJECT = "mailto:support@osusowakejapan.org"
 APP_URL = "https://osusowakejapan.org"
 VITE_GOOGLE_MAP_ID = "6e0130660ca9e4014cd00116"
+
+[userenv.production]
+APP_REVIEW_BYPASS_EMAILS = "review-user@osusowakejapan.org,review-store@osusowakejapan.org"
