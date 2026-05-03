@@ -335,6 +335,11 @@ HelpPage で「2店舗目以降は営業許可証の提出のみで完了」 と
   - **sql.raw 二重防御 (bags.ts L89 `REVIEW_OWNER_IDS_SQL`)** — `getReviewDemoOwnerIds()` (env 由来 = admin 制御下) を sql.raw で配列リテラル化していた。 シングルクォート escape は既にあったが、 二重防御として UUID v4 形式の正規表現フィルタを追加し、 不正値は完全に除外。 これで env が万一誤設定されても injection 経路がゼロに。
   - その他 SAST 警告 (61 件) は内訳調査済 → ① console.log の template literal を SQL と誤検知 (8 件), ② "BEGIN PRIVATE KEY" 文字列の誤検知 (push.ts、 値は env), ③ Supabase ANON KEY のコードフォールバック (公開鍵、 本番は env), ④ `.replit` の旧 Maps key (ローテ予定で運用タスク化済), ⑤ mockup-sandbox の dynamic import (dev only) — いずれも実害なし。
 - **神モード Cartesian product バグ修正** (admin.ts L477 `/admin/stores` + L521 `/admin/stores/:id/detail`) — `LEFT JOIN surprise_bags + LEFT JOIN reservations` を 1 クエリで併用すると bag×reservation の行数膨張が起き、 `SUM(r.total_price)` が**バッグ数倍**に重複加算されていた (例: バッグ 6 個 × picked_up 1 件 ¥110 → ¥660 と誤表示)。 bag 集計と reservation 集計を別サブクエリで先に GROUP BY してから JOIN するよう書き換え、 全店舗の累計売上が正しい値 (タップス ¥660 → ¥110、 梅田パン工房 ¥2,016 → ¥1,008、 天王寺カフェ ¥1,470 → ¥735) になることを DB 側で再現確認済。
+- **神モードグレードアップ (4 大改善)**:
+  - **① 異常検知の可視性 (要対応サマリーバナー)** — AdminDashboard.tsx ヒーロー直下に「要対応 N 件」 統合パネルを新設。 申請待ち / 口座未登録 / 要確認 / 通報 / 許可証問題 / 公開中だが入金不可 / 24h+ pending / お店通報 / キャンセル多発を 1 画面でグリッド表示。 タップで該当セクションへ smooth scroll + フィルタ自動切替 (例: 「口座未登録」 タップ → setStoreFilter('pending') + #stores-section へジャンプ)。 ゼロ件時は「✨ 全て対応済み」 表示。
+  - **② iPhone 操作性** — 要対応タイル `min-h-[56px]`、 CSV ボタン `min-h-[44px]` で Apple HIG 準拠のタップ領域確保。
+  - **③ CSV エクスポート 3 種** — admin.ts に `/admin/export/{stores,reservations,sales-summary}.csv` 追加 (UTF-8 BOM 付き、 Excel 対応)。 reservations は `?from=YYYY-MM-DD&to=YYYY-MM-DD` で期間絞込可能。 共通 `toCsvCell` で RFC4180 エスケープ + **CSV インジェクション対策** (先頭が `= + - @ TAB CR` で始まる値は `'` を前置して Excel/Sheets での式評価を阻止) — architect レビューで指摘された Excel 式注入リスクを修正済。 フロント側は `authedFetch + blob` で Bearer 付きダウンロード。
+  - **④ /admin/metrics anomalies 拡張** — `openReportsCount` (通報総数) / `noStripeApprovedCount` (公開中だが Stripe 未連携) / `pendingApprovalsCount` / `newSalesLeadsCount` を追加。
 
 ### 残運用タスク (本番設定)
 

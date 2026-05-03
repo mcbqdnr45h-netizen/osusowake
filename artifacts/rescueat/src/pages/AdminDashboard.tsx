@@ -8,7 +8,7 @@ import {
   Pause, Send, Megaphone, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   BadgeDollarSign, BarChart2, Bell, Settings, ToggleLeft, ToggleRight, Type, Wrench, CreditCard,
   LogOut, ExternalLink, Package, Receipt, Flag, MapPin, Trash2, FileWarning, Link2 as LinkIcon,
-  Activity, Award, Calendar, Filter, Flame, TrendingDown, Zap,
+  Activity, Award, Calendar, Filter, Flame, TrendingDown, Zap, AlertCircle,
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -89,6 +89,10 @@ interface Metrics {
     stalePendingCount: number;
     highCancelStores: Array<{ id: number; name: string; total: number; cancelled: number; rate: number }>;
     licenseIssueCount: number;
+    openReportsCount?: number;
+    noStripeApprovedCount?: number;
+    pendingApprovalsCount?: number;
+    newSalesLeadsCount?: number;
   };
 }
 
@@ -884,7 +888,123 @@ export default function AdminDashboard() {
           </div>
         </motion.div>
 
+        {/* ── 🚨 要対応サマリー (タップで該当箇所へジャンプ + CSV エクスポート) ── */}
+        {(() => {
+          const a = metrics?.anomalies;
+          const appliedCount = stores.filter(s => s.status === 'applied').length;
+          const pendingCount = stores.filter(s => s.status === 'pending').length;
+          const reviewCount  = stores.filter(s => s.status === 'pending_review').length;
+          const items = [
+            { key: 'apply',    label: '新規申請 (KYC審査中)', n: appliedCount,                      color: 'blue',   icon: Clock,       anchor: '#stores-section', filter: 'applied' as const },
+            { key: 'pending',  label: '口座未登録',           n: pendingCount,                      color: 'orange', icon: AlertCircle, anchor: '#stores-section', filter: 'pending' as const },
+            { key: 'review',   label: '要確認 (審査待ち)',    n: reviewCount,                       color: 'amber',  icon: ShieldCheck, anchor: '#stores-section', filter: 'pending_review' as const },
+            { key: 'reports',  label: 'ユーザ通報',           n: a?.openReportsCount ?? 0,          color: 'red',    icon: AlertTriangle, anchor: '#stores-section' },
+            { key: 'license',  label: '営業許可証 問題',      n: a?.licenseIssueCount ?? 0,         color: 'red',    icon: FileWarning, anchor: '#license-section' },
+            { key: 'noStripe', label: '公開中だが入金不可',   n: a?.noStripeApprovedCount ?? 0,     color: 'rose',   icon: AlertTriangle, anchor: '#stores-section', filter: 'approved' as const },
+            { key: 'stale',    label: '24h+ pending',          n: a?.stalePendingCount ?? 0,         color: 'amber',  icon: Clock,       anchor: '#anomalies-section' },
+            { key: 'leads',    label: '新規お店通報',         n: a?.newSalesLeadsCount ?? 0,        color: 'sky',    icon: AlertCircle, anchor: '#leads-section' },
+            { key: 'cancel',   label: 'キャンセル多発店',     n: a?.highCancelStores.length ?? 0,   color: 'red',    icon: TrendingDown, anchor: '#anomalies-section' },
+          ];
+          const visible = items.filter(i => i.n > 0);
+          const totalAlerts = visible.reduce((sum, i) => sum + i.n, 0);
+          const colorMap: Record<string, string> = {
+            blue:   'bg-blue-50 border-blue-200 text-blue-700 active:bg-blue-100',
+            orange: 'bg-orange-50 border-orange-200 text-orange-700 active:bg-orange-100',
+            amber:  'bg-amber-50 border-amber-200 text-amber-700 active:bg-amber-100',
+            red:    'bg-red-50 border-red-300 text-red-700 active:bg-red-100',
+            rose:   'bg-rose-50 border-rose-300 text-rose-700 active:bg-rose-100',
+            sky:    'bg-sky-50 border-sky-200 text-sky-700 active:bg-sky-100',
+          };
+          const handleJump = (it: typeof items[number]) => {
+            if (it.filter) setStoreFilter(it.filter);
+            setTimeout(() => {
+              const el = document.querySelector(it.anchor);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+          };
+          const downloadCsv = async (path: string, defaultName: string) => {
+            if (!token) return;
+            try {
+              const r = await authedFetch(`${BASE}${path}`, { headers: {} });
+              if (!r.ok) { toast({ title: 'ダウンロード失敗', description: `HTTP ${r.status}`, variant: 'destructive' }); return; }
+              const blob = await r.blob();
+              const url  = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = defaultName;
+              document.body.appendChild(a); a.click();
+              document.body.removeChild(a); URL.revokeObjectURL(url);
+            } catch (err: any) {
+              toast({ title: 'ダウンロード失敗', description: err?.message ?? '不明なエラー', variant: 'destructive' });
+            }
+          };
+          return (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
+              <div className="rounded-2xl border-2 bg-white p-3 shadow-sm"
+                style={{ borderColor: totalAlerts > 0 ? '#fecaca' : '#e5e7eb' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center ${totalAlerts > 0 ? 'bg-red-100' : 'bg-emerald-100'}`}>
+                      {totalAlerts > 0 ? <AlertTriangle className="w-4 h-4 text-red-600" /> : <ShieldCheck className="w-4 h-4 text-emerald-600" />}
+                    </div>
+                    <h2 className="text-sm font-black text-gray-900">
+                      要対応 <span className={totalAlerts > 0 ? 'text-red-600' : 'text-emerald-600'}>{totalAlerts}</span> 件
+                    </h2>
+                  </div>
+                  <button
+                    onClick={fetchAll}
+                    className="text-[11px] font-bold text-gray-500 active:text-gray-900 px-3 py-2 -mr-2"
+                    aria-label="再読み込み"
+                  >🔄 更新</button>
+                </div>
+                {visible.length === 0 ? (
+                  <p className="text-xs text-emerald-700 font-bold py-2 text-center bg-emerald-50 rounded-lg">
+                    ✨ 全て対応済み・異常なし
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {visible.map(it => {
+                      const Icon = it.icon;
+                      return (
+                        <button
+                          key={it.key}
+                          onClick={() => handleJump(it)}
+                          className={`min-h-[56px] rounded-xl border-2 px-3 py-2 text-left transition-colors flex items-center gap-2 ${colorMap[it.color]}`}
+                        >
+                          <Icon className="w-4 h-4 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold leading-tight truncate">{it.label}</p>
+                            <p className="text-lg font-black leading-tight">{it.n}件</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* CSV エクスポート */}
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">📥 CSV エクスポート (Excel 対応)</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      onClick={() => downloadCsv('/api/admin/export/stores.csv', `osusowake_stores_${new Date().toISOString().slice(0,10)}.csv`)}
+                      className="min-h-[44px] rounded-lg bg-gray-100 active:bg-gray-200 text-[11px] font-bold text-gray-700 px-2 py-1.5"
+                    >店舗一覧</button>
+                    <button
+                      onClick={() => downloadCsv('/api/admin/export/reservations.csv', `osusowake_reservations_${new Date().toISOString().slice(0,10)}.csv`)}
+                      className="min-h-[44px] rounded-lg bg-gray-100 active:bg-gray-200 text-[11px] font-bold text-gray-700 px-2 py-1.5"
+                    >予約全件</button>
+                    <button
+                      onClick={() => downloadCsv('/api/admin/export/sales-summary.csv', `osusowake_sales_summary_${new Date().toISOString().slice(0,10)}.csv`)}
+                      className="min-h-[44px] rounded-lg bg-gray-100 active:bg-gray-200 text-[11px] font-bold text-gray-700 px-2 py-1.5"
+                    >月次売上</button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })()}
+
         {/* ── 🚨 営業許可証 問題バナー ── */}
+        <div id="license-section" />
         {licenseIssues.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="rounded-2xl border-2 border-red-300 bg-gradient-to-br from-red-50 to-rose-50 p-4 shadow-sm">
@@ -1196,6 +1316,7 @@ export default function AdminDashboard() {
         )}
 
         {/* ── 異常検知 ── */}
+        <div id="anomalies-section" />
         {metrics?.anomalies && (
           metrics.anomalies.stalePendingCount > 0 ||
           metrics.anomalies.highCancelStores.length > 0 ||
@@ -1251,6 +1372,7 @@ export default function AdminDashboard() {
         )}
 
         {/* ── 店舗審査パネル ── */}
+        <div id="stores-section" />
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
@@ -2060,6 +2182,7 @@ export default function AdminDashboard() {
         </motion.div>
 
         {/* ── 営業リード（食品ロスのお店情報）── */}
+        <div id="leads-section" />
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <div className="bg-card rounded-3xl"
             style={{ boxShadow: '0 4px 16px -4px rgba(10,8,6,0.1)' }}>

@@ -302,6 +302,22 @@ router.get("/admin/metrics", requireAdmin, async (req, res) => {
         AND s.stripe_account_id IS NOT NULL
         AND s.stripe_payouts_enabled IS NOT TRUE
     `);
+    // (d) 通報未対応 (reports)
+    const openReportsResult = await db.execute(sql`SELECT COUNT(*)::int AS n FROM reports`);
+    // (e) approved だが Stripe 未連携 (販売不可状態)
+    const noStripeApprovedResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM stores
+      WHERE status = 'approved' AND (stripe_account_id IS NULL OR stripe_payouts_enabled IS NOT TRUE)
+    `);
+    // (f) 申請待ち合計 (applied + pending + pending_review) — トップで気付くべき件数
+    const pendingApprovalsResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM stores
+      WHERE status IN ('applied','pending','pending_review')
+    `);
+    // (g) sales_leads 新規 (お店通報)
+    const newSalesLeadsResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM sales_leads WHERE status = 'new'
+    `);
 
     // ── 7. ユーザー基本指標 ──
     const userBasicsResult = await db.execute(sql`
@@ -354,6 +370,10 @@ router.get("/admin/metrics", requireAdmin, async (req, res) => {
           cancelled: Number(r.cancelled), rate: Number(r.rate),
         })),
         licenseIssueCount: Number((licenseIssuesResult.rows[0] as any)?.n ?? 0),
+        openReportsCount:    Number((openReportsResult.rows[0] as any)?.n ?? 0),
+        noStripeApprovedCount: Number((noStripeApprovedResult.rows[0] as any)?.n ?? 0),
+        pendingApprovalsCount: Number((pendingApprovalsResult.rows[0] as any)?.n ?? 0),
+        newSalesLeadsCount:    Number((newSalesLeadsResult.rows[0] as any)?.n ?? 0),
       },
     });
   } catch (err: any) {
@@ -1626,6 +1646,131 @@ router.delete("/admin/admins/:userId", requireAdmin, async (req: Request, res: R
     res.json({ ok: true, userId: targetId });
   } catch (err: any) {
     console.error("[admin/admins DELETE]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// ── CSV エクスポート ──────────────────────────────────────────────────────────
+// 神モード会計用。 UTF-8 BOM 付きで Excel が文字化けしないようにする。
+function toCsvCell(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  let s = String(v);
+  // Excel/Sheets CSV インジェクション対策: 先頭が = + - @ TAB CR で始まる場合は ' を前置して
+  // 式評価を防ぐ (店舗名・住所などユーザ入力由来の値が CSV を開いた瞬間に式実行されるのを阻止)
+  if (/^[=+\-@\t\r]/.test(s)) {
+    s = "'" + s;
+  }
+  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+function rowsToCsv(headers: string[], rows: any[][]): string {
+  const lines = [headers.join(","), ...rows.map(r => r.map(toCsvCell).join(","))];
+  return "\uFEFF" + lines.join("\r\n") + "\r\n";
+}
+function sendCsv(res: Response, filename: string, csv: string) {
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  res.send(csv);
+}
+
+// GET /admin/export/stores.csv — 店舗一覧 (売上・予約・通報を含む)
+router.get("/admin/export/stores.csv", requireAdmin, async (_req, res) => {
+  try {
+    const r = await db.execute(sql`
+      SELECT
+        s.id, s.name, s.status, s.is_active, s.category, s.city, s.address, s.phone,
+        s.stripe_account_id, s.stripe_charges_enabled, s.stripe_payouts_enabled,
+        s.license_number, s.created_at,
+        (SELECT COUNT(*) FROM surprise_bags WHERE store_id = s.id)::int AS bag_count,
+        (SELECT COUNT(*) FROM reservations  WHERE store_id = s.id)::int AS reservation_count,
+        (SELECT COUNT(*) FROM reservations  WHERE store_id = s.id AND status='picked_up')::int AS picked_up_count,
+        (SELECT COALESCE(SUM(total_price) FILTER (WHERE status IN ('confirmed','picked_up')),0)
+           FROM reservations WHERE store_id = s.id)::numeric AS revenue,
+        (SELECT COUNT(*) FROM reports WHERE store_id = s.id)::int AS report_count
+      FROM stores s ORDER BY s.id
+    `);
+    const headers = ["店舗ID","店舗名","ステータス","公開","カテゴリ","市区町村","住所","電話",
+      "Stripe アカウントID","売上可","入金可","営業許可番号","登録日","バッグ数","予約数","受取数","累計売上(円)","通報数"];
+    const rows = r.rows.map((x: any) => [
+      x.id, x.name, x.status, x.is_active ? "ON" : "OFF", x.category, x.city, x.address, x.phone,
+      x.stripe_account_id, x.stripe_charges_enabled ? "✓" : "", x.stripe_payouts_enabled ? "✓" : "",
+      x.license_number, x.created_at, x.bag_count, x.reservation_count, x.picked_up_count,
+      Number(x.revenue ?? 0), x.report_count,
+    ]);
+    const date = new Date().toISOString().slice(0, 10);
+    sendCsv(res, `osusowake_stores_${date}.csv`, rowsToCsv(headers, rows));
+  } catch (err: any) {
+    console.error("[admin/export/stores.csv]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// GET /admin/export/reservations.csv — 予約全件 (期間絞り可: ?from=YYYY-MM-DD&to=YYYY-MM-DD)
+router.get("/admin/export/reservations.csv", requireAdmin, async (req, res) => {
+  try {
+    const from = typeof req.query.from === "string" ? req.query.from : null;
+    const to   = typeof req.query.to   === "string" ? req.query.to   : null;
+    const isYmd = (s: string | null) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+    const fromSql = isYmd(from) ? sql`AND r.created_at >= ${from}::date` : sql``;
+    const toSql   = isYmd(to)   ? sql`AND r.created_at <  (${to}::date + INTERVAL '1 day')` : sql``;
+    const result = await db.execute(sql`
+      SELECT r.id, r.created_at, r.status, r.pickup_code,
+             r.total_price, r.merchandise_amount,
+             s.id AS store_id, s.name AS store_name, s.category,
+             b.id AS bag_id, b.title AS bag_title, b.discounted_price,
+             r.user_id
+      FROM reservations r
+      JOIN stores s ON s.id = r.store_id
+      LEFT JOIN surprise_bags b ON b.id = r.bag_id
+      WHERE 1=1 ${fromSql} ${toSql}
+      ORDER BY r.created_at DESC
+    `);
+    const headers = ["予約ID","作成日時","ステータス","受取コード","合計(円)","商品代(円)",
+      "店舗ID","店舗名","カテゴリ","バッグID","バッグ名","バッグ販売価格(円)","ユーザID"];
+    const rows = result.rows.map((x: any) => [
+      x.id, x.created_at, x.status, x.pickup_code,
+      Number(x.total_price ?? 0), Number(x.merchandise_amount ?? 0),
+      x.store_id, x.store_name, x.category,
+      x.bag_id ?? "", x.bag_title ?? "", x.discounted_price ? Number(x.discounted_price) : "",
+      x.user_id,
+    ]);
+    const date = new Date().toISOString().slice(0, 10);
+    const range = from || to ? `_${from ?? ""}_${to ?? ""}` : "";
+    sendCsv(res, `osusowake_reservations${range}_${date}.csv`, rowsToCsv(headers, rows));
+  } catch (err: any) {
+    console.error("[admin/export/reservations.csv]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
+// GET /admin/export/sales-summary.csv — 月次×店舗の売上集計
+router.get("/admin/export/sales-summary.csv", requireAdmin, async (_req, res) => {
+  try {
+    const result = await db.execute(sql`
+      SELECT
+        TO_CHAR(date_trunc('month', r.created_at), 'YYYY-MM') AS month,
+        s.id AS store_id, s.name AS store_name,
+        COUNT(*)::int AS reservation_count,
+        COUNT(*) FILTER (WHERE r.status = 'picked_up')::int AS picked_up_count,
+        COUNT(*) FILTER (WHERE r.status = 'cancelled')::int AS cancelled_count,
+        COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')),0)::numeric AS gmv,
+        ROUND(COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')),0) * 0.25)::numeric AS platform_fee
+      FROM reservations r JOIN stores s ON s.id = r.store_id
+      GROUP BY 1, s.id, s.name
+      ORDER BY 1 DESC, gmv DESC
+    `);
+    const headers = ["月","店舗ID","店舗名","予約数","受取数","キャンセル数","GMV(円)","手数料収益25%(円)"];
+    const rows = result.rows.map((x: any) => [
+      x.month, x.store_id, x.store_name,
+      x.reservation_count, x.picked_up_count, x.cancelled_count,
+      Number(x.gmv ?? 0), Number(x.platform_fee ?? 0),
+    ]);
+    const date = new Date().toISOString().slice(0, 10);
+    sendCsv(res, `osusowake_sales_summary_${date}.csv`, rowsToCsv(headers, rows));
+  } catch (err: any) {
+    console.error("[admin/export/sales-summary.csv]", err);
     res.status(500).json({ error: "internal_error", message: err?.message });
   }
 });
