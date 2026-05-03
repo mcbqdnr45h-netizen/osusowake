@@ -154,10 +154,13 @@ function CompactCardBody({
           ★ 万一 2 段になっても全情報フル表示を優先 (旧版の truncate よりマシ)。
           ★ 表示順は「時間 → 残数 → 距離」 が左から、 折返した場合は距離が下段に来る。 */}
       {hasMetaRow && (
-        // ★ メタ chip 行: 1 段ぴったりに収める (overflow-hidden + flex-nowrap で折り返し禁止)。
-        //   タイトル truncate 化に合わせ、 メタ行も常に 1 行固定で全カード高さを完全一致させる。
-        //   distLabel が長すぎても truncate しつつ全 chip を表示する。
-        <div className="flex items-center gap-x-2 mt-[2px] overflow-hidden flex-nowrap">
+        // ★ メタ chip 行: 全情報を必ず表示する方針。 160px カード幅に「時間 + 残数 + 距離」 を
+        //   1 行で詰めると溢れることがあるため flex-wrap で 2 段折り返しを許容。
+        //   ただし「片方は1行、 片方は2行」 でカード高さがガタつくのを防ぐため min-h-[40px] で
+        //   2 段分の高さを常時予約 (chip ~18px × 2 + gap 4px ≒ 40px)。
+        //   content-start で 1 行収まる場合は上寄せ → 全カード底辺が完全一致。
+        //   ★ flex-nowrap で「残数表示時に距離が消える」 バグの根本原因を解消。
+        <div className="flex flex-wrap items-start content-start gap-x-2 gap-y-1 mt-[2px] min-h-[40px]">
           {hasTime && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
               <Clock className="w-2.5 h-2.5 shrink-0 text-primary/70" strokeWidth={2.4} />
