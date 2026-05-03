@@ -305,9 +305,9 @@ export function GuestRoute({
 
     // profile が確定してからロールで振り分け
     if (profile) {
-      const dest = profile.role === 'store_owner' ? '/store/dashboard' : '/';
-      logNav('GuestRoute(logged-in)', dest, { role: profile.role });
-      navigate(dest, { replace: true });
+      // オーナー・一般とも /mypage へ (発見ページに飛ばさない)
+      logNav('GuestRoute(logged-in)', '/mypage', { role: profile.role });
+      navigate('/mypage', { replace: true });
     }
   }, [isLoading, user, profile, navigate]);
 

@@ -57,7 +57,7 @@ export default function AuthCallback() {
           console.warn('[auth-callback] create-profile network error', e);
         }
 
-        navigate('/');
+        navigate('/mypage');
       } catch (e: unknown) {
         if (cancelled) return;
         setError((e as { message?: string })?.message ?? '予期しないエラーが発生しました');
