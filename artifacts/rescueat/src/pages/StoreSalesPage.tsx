@@ -1,6 +1,7 @@
 import React from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
+import { useMyStoresContext } from '@/contexts/MyStoresContext';
 import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
 import { BarChart2, TrendingUp, Package2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { StoreBalanceCard } from '@/components/StoreBalanceCard';
@@ -44,7 +45,18 @@ function groupByDay(reservations: Reservation[]) {
 
 export default function StoreSalesPage() {
   const { store, loading: storeLoading } = useMyStore();
+  const { stores } = useMyStoresContext();
   const storeId = store?.id ?? null;
+  // ★ 売上残高を表示してよいのは「承認済み」 店舗だけ。
+  //   再申請中・審査中・却下中の店舗で残高を見せると、
+  //   同じ Stripe アカウントを共有している別店舗 (承認済み) の残高が表示されてしまい
+  //   「他店舗のやつになってる」 と誤解を与える。
+  const canShowBalance = store?.status === 'approved' && !!store?.stripeAccountId;
+  // ★ 同じ Stripe アカウントを共有している承認済み店舗が複数あるかどうか。
+  //   その場合、 表示残高は「全店舗合算」 である旨を明示する必要がある。
+  const isAggregatedBalance =
+    !!store?.stripeAccountId &&
+    stores.filter(s => s.status === 'approved' && s.stripeAccountId === store.stripeAccountId).length > 1;
 
   const { data: reservations = [], isLoading } = useListReservations(
     { storeId: storeId ?? 0 },
@@ -125,8 +137,30 @@ export default function StoreSalesPage() {
         </div>
 
         {/* ── 売上残高（保留中/振込可能/Stripe ステータス） ── */}
-        {storeId && (
-          <StoreBalanceCard storeId={storeId} stripeAccountId={store.stripeAccountId} />
+        {/*    承認済み店舗のみ表示。 審査中の店舗で残高を見せると、 */}
+        {/*    同じ Stripe アカウントを共有する他の承認済み店舗の残高が */}
+        {/*    紛らわしく表示されてしまうため。 */}
+        {storeId && canShowBalance && (
+          <StoreBalanceCard
+            storeId={storeId}
+            stripeAccountId={store.stripeAccountId}
+            aggregated={isAggregatedBalance}
+          />
+        )}
+        {storeId && !canShowBalance && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-black text-amber-800">売上残高は審査完了後に表示されます</p>
+              <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
+                この店舗は現在
+                {store?.status === 'rejected' ? '却下中' :
+                 store?.status === 'pending' ? '銀行口座登録待ち' :
+                 store?.status === 'pending_review' ? '再審査待ち' : '審査中'}
+                のため、 売上残高は表示できません。 承認後にご確認ください。
+              </p>
+            </div>
+          </div>
         )}
 
         {/* ── 直近7日間の売上グラフ ── */}
