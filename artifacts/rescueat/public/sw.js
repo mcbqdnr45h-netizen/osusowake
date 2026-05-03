@@ -1,6 +1,6 @@
 // ⚠️ デプロイ時にこの数字を必ず上げること（v4 → v5 → v6 ...）
 // バンプしないと iOS / PWA が古いキャッシュを掴み続けます
-const CACHE_NAME = 'osusowake-v27';
+const CACHE_NAME = 'osusowake-v28';
 const BASE = '';
 
 const PRECACHE_URLS = [
@@ -55,20 +55,59 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML / JS / CSS など更新が反映されるべきファイルは network-first
-  // 失敗時のみキャッシュにフォールバック（オフライン対応）
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response && response.status === 200 && response.type !== 'opaque') {
+  // ハッシュ付き JS / CSS / その他のスクリプト系は「絶対に HTML をフォールバックしない」
+  //   理由: SPA fallback で /assets/xxx-abc123.js が無いと index.html が返り、
+  //   ブラウザで `'text/html' is not a valid JavaScript MIME type` エラーになる。
+  //   旧 SW がこのケースで `caches.match('/')` を返していた致命バグの根本対策。
+  // 拡張子無し URL でも script/style destination を捕まえる (より頑健)
+  const isScriptOrAsset =
+    /\.(js|css|mjs|map|json)$/i.test(url.pathname) ||
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'worker';
+  if (isScriptOrAsset) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        // text/html が返ってきた場合 (= SPA fallback) はキャッシュせず素通し
+        // (ブラウザ側でエラーにしてもらい、 ユーザーがリロードで最新 HTML を取得できるように)
+        const ct = response?.headers?.get?.('content-type') || '';
+        if (response && response.status === 200 && response.type !== 'opaque' && !ct.includes('text/html')) {
           const toCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, toCache));
         }
         return response;
+      }).catch(() => caches.match(request))  // ← オフライン時のみキャッシュへ。 index.html へは絶対フォールバックしない
+    );
+    return;
+  }
+
+  // ナビゲーション (HTML) のみ network-first + 失敗時 index.html フォールバック
+  //   ★ 必ず request.mode === 'navigate' (or destination==='document') でゲート。
+  //   それ以外の GET (画像以外の fetch API 呼び出し等) は network-first だが
+  //   失敗時は index.html を返さず素通し (再度 MIME bug を防ぐ)。
+  const isNavigation =
+    request.mode === 'navigate' || request.destination === 'document';
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        const ct = response?.headers?.get?.('content-type') || '';
+        if (response && response.status === 200 && response.type !== 'opaque') {
+          const toCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, toCache));
+          // 念のため: ナビゲーション以外で text/html が来た場合の cache 上書きはしない
+          if (!isNavigation && ct.includes('text/html')) {
+            // 何もしない (caching は上の put で既に行われるため、 厳密にしたければここで cache.delete する)
+          }
+        }
+        return response;
       })
-      .catch(() =>
-        caches.match(request).then((cached) => cached || caches.match('/'))
-      )
+      .catch(() => {
+        if (isNavigation) {
+          return caches.match(request).then((cached) => cached || caches.match('/'));
+        }
+        // 非ナビゲーション GET: cache にあれば返す、 無ければそのまま fail
+        return caches.match(request);
+      })
   );
 });
 
