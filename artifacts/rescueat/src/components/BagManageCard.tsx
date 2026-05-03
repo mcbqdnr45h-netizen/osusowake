@@ -252,38 +252,46 @@ export function BagManageCard({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem
-                  onSelect={(e) => { e.preventDefault(); onEdit(bag); }}
-                  className="text-sm font-bold cursor-pointer"
-                >
-                  <Pencil className="w-4 h-4 mr-2" />
-                  編集
-                </DropdownMenuItem>
+                {/* ★ 受付終了 / 完売の過去バッグは「編集」「公開切替」 を非表示
+                      理由: 既に終わった出品の受取時間を変えても意味がなく、
+                      公開トグルも実質無効。 削除だけ残してメニューをシンプル化。 */}
+                {!isExpired && status !== 'soldout' && (
+                  <>
+                    <DropdownMenuItem
+                      onSelect={(e) => { e.preventDefault(); onEdit(bag); }}
+                      className="text-sm font-bold cursor-pointer"
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      編集
+                    </DropdownMenuItem>
 
-                {/* ★ 公開/非公開 切替 (受取時間を過ぎている非公開バッグは編集導線に切替) */}
-                {wouldExpireIfActivated ? (
-                  <DropdownMenuItem
-                    onSelect={(e) => { e.preventDefault(); onEdit(bag); }}
-                    className="text-sm font-bold cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50"
-                  >
-                    <Pencil className="w-4 h-4 mr-2" />
-                    受取時間を編集して公開
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem
-                    onSelect={(e) => { e.preventDefault(); if (!isExpired) onToggle(bag); }}
-                    disabled={isToggling || isDeleting || isExpired}
-                    className="text-sm font-bold cursor-pointer"
-                  >
-                    {bag.isActive
-                      ? <ToggleLeft className="w-4 h-4 mr-2" />
-                      : <ToggleRight className="w-4 h-4 mr-2" />}
-                    {bag.isActive ? '非公開にする' : '公開する'}
-                  </DropdownMenuItem>
+                    {/* ★ 公開/非公開 切替 (受取時間を過ぎている非公開バッグは編集導線に切替) */}
+                    {wouldExpireIfActivated ? (
+                      <DropdownMenuItem
+                        onSelect={(e) => { e.preventDefault(); onEdit(bag); }}
+                        className="text-sm font-bold cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                      >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        受取時間を編集して公開
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        onSelect={(e) => { e.preventDefault(); onToggle(bag); }}
+                        disabled={isToggling || isDeleting}
+                        className="text-sm font-bold cursor-pointer"
+                      >
+                        {bag.isActive
+                          ? <ToggleLeft className="w-4 h-4 mr-2" />
+                          : <ToggleRight className="w-4 h-4 mr-2" />}
+                        {bag.isActive ? '非公開にする' : '公開する'}
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuSeparator />
+                  </>
                 )}
 
-                {/* ★ 削除は公開/非公開に関係なく常に表示 (UX 一貫性、 確認ダイアログで誤操作防止) */}
-                <DropdownMenuSeparator />
+                {/* ★ 削除は受付終了/完売 でも表示 (過去出品を整理するため) */}
                 <DropdownMenuItem
                   onSelect={(e) => { e.preventDefault(); onConfirmChange(bag.id); }}
                   className="text-sm font-bold cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
