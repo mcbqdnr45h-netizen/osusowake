@@ -34,39 +34,12 @@ function isInPickupWindow(start?: string | null, end?: string | null): boolean {
   }
 }
 
-// ── 鮮やかカラーマップスタイル (水=空色, 公園=ミントグリーン) ─────────────
-//   旧 Silver 配色は淡すぎてユーザの体験が単調になっていたため、 IMG_1825 で
-//   見られた「水色の川 + 緑の公園」 系の鮮やかさを復活させる。
-//   road / 地名ラベル は visibility: off にしないこと (iOS で道路ラベル消失バグの再発防止)。
-const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry',          stylers: [{ color: '#f5f3ee' }] },
-  { elementType: 'labels.text.fill',  stylers: [{ color: '#7a7268' }] },
-  { elementType: 'labels.text.stroke',stylers: [{ color: '#ffffff' }] },
-  { featureType: 'poi',     stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  // 道路は明確に白で、 大通りは淡いベージュ。 ラベルは視認性高めのグレーに。
-  { featureType: 'road',                elementType: 'geometry',          stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road',                elementType: 'geometry.stroke',   stylers: [{ color: '#e1ddd5' }] },
-  { featureType: 'road',                elementType: 'labels.text.fill',  stylers: [{ color: '#8a827a' }] },
-  { featureType: 'road',                elementType: 'labels.text.stroke',stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road.highway',        elementType: 'geometry',          stylers: [{ color: '#ffe9b0' }] },
-  { featureType: 'road.highway',        elementType: 'geometry.stroke',   stylers: [{ color: '#e8c878' }] },
-  { featureType: 'road.arterial',       elementType: 'labels',            stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.local',          elementType: 'labels',            stylers: [{ visibility: 'off' }] },
-  // ★ 水: 鮮やかな空色 (IMG_1825 風)
-  { featureType: 'water', elementType: 'geometry',stylers: [{ color: '#a5d8e8' }] },
-  { featureType: 'water', elementType: 'labels',  stylers: [{ visibility: 'off' }] },
-  // ★ 公園・自然: 鮮やかなミントグリーン
-  { featureType: 'landscape',          elementType: 'geometry',stylers: [{ color: '#f5f3ee' }] },
-  { featureType: 'landscape.natural',  elementType: 'geometry',stylers: [{ color: '#cfe9c9' }] },
-  { featureType: 'poi.park',           elementType: 'geometry',stylers: [{ color: '#c8e6c9' }] },
-  { featureType: 'poi.park',           elementType: 'labels',  stylers: [{ visibility: 'off' }] },
-  // 行政: 都市名は表示、 細かい町名は省略
-  { featureType: 'administrative',             elementType: 'labels',            stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'administrative',             elementType: 'labels.text.fill',  stylers: [{ color: '#7a7268' }] },
-  { featureType: 'administrative.locality',    elementType: 'labels.text.fill',  stylers: [{ color: '#5a5248' }] },
-  { featureType: 'administrative.neighborhood',elementType: 'labels',            stylers: [{ visibility: 'off' }] },
-];
+// ── Google マップ「標準スタイル」 をそのまま使う ─────────────────────────
+//   ユーザ要望 (IMG_1824): 寺院アイコン / 駅名 / 高速道路シールド (171, 170 等) /
+//   JR・阪急など鉄道路線、 店舗 POI まで全部出る Google デフォルトの賑やかな見た目。
+//   カスタムスタイルを一切当てない (= 空配列) ことで Google 標準スタイルが復活する。
+//   ★ mapId は使わない方針は維持 (iOS で道路ラベル消失バグの再発防止)。
+const MAP_STYLES: google.maps.MapTypeStyle[] = [];
 
 // ── カスタムアイコン用フレームピン (店舗 iconUrl をピンの「滴」内にはめ込む) ──
 //   オレンジ枠 (active) / グレー枠 (inactive) の2バリアント。
