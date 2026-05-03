@@ -2,7 +2,7 @@ import React from 'react';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useListReservations, getListReservationsQueryKey } from '@workspace/api-client-react';
-import { BarChart2, TrendingUp, Package2, CheckCircle2, Loader2, AlertCircle, Leaf } from 'lucide-react';
+import { BarChart2, TrendingUp, Package2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { StoreBalanceCard } from '@/components/StoreBalanceCard';
 import { isToday, parseISO, format, startOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -91,10 +91,6 @@ export default function StoreSalesPage() {
   const monthRevenue   = monthPickedUp.reduce((sum, r) => sum + getMerchandise(r), 0);
   const totalBags        = pickedUp.reduce((sum, r) => sum + r.quantity, 0);
 
-  // 食品ロス削減量 (1 食あたり 0.5kg・CO₂ 2.5kg を救済とみなす — MyPage と同基準)
-  const foodSavedKg = +(totalBags * 0.5).toFixed(1);
-  const co2SavedKg  = +(totalBags * 2.5).toFixed(1);
-
   const chartData = groupByDay(all);
 
   return (
@@ -126,35 +122,6 @@ export default function StoreSalesPage() {
               </div>
             );
           })}
-        </div>
-
-        {/* ── 食品ロス削減量カード ── */}
-        <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-4 text-white shadow-[0_2px_12px_rgba(16,185,129,0.18)]">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center">
-              <Leaf className="w-4 h-4 text-white" />
-            </div>
-            <p className="text-sm font-black">食品ロス削減量</p>
-          </div>
-          <div className="flex items-end gap-3">
-            <div>
-              <div className="flex items-end gap-1">
-                <span className="text-3xl font-black leading-none">{foodSavedKg}</span>
-                <span className="text-sm font-bold mb-0.5">kg</span>
-              </div>
-              <p className="text-[10px] text-white/80 mt-1 font-bold">累計の食品ロス削減</p>
-            </div>
-            <div className="flex-1 border-l border-white/30 pl-3 ml-1">
-              <div className="flex items-end gap-1">
-                <span className="text-2xl font-black leading-none">{co2SavedKg}</span>
-                <span className="text-xs font-bold mb-0.5">kg</span>
-              </div>
-              <p className="text-[10px] text-white/80 mt-1 font-bold">CO₂ 排出削減</p>
-            </div>
-          </div>
-          <p className="text-[10px] text-white/80 mt-2 leading-relaxed">
-            ※ 1 食あたり食品 0.5kg・CO₂ 2.5kg を救済とみなした概算値です。
-          </p>
         </div>
 
         {/* ── 売上残高（保留中/振込可能/Stripe ステータス） ── */}
