@@ -122,16 +122,13 @@ function CompactCardBody({
         {bag.store.name}
       </p>
 
-      {/* ② 商品タイトル ＋ 大価格 (同じ行で対比、 タイトル flex-1 / 価格 shrink-0 右寄せ)
-          ★ 高さ統一の方針: line-clamp-2 + min-h で「常に 2 行分の高さを確保」 する。
-            こうすれば 1 行タイトルは下側に空白が残るが全カードの高さは完全一致し、
-            2 行に渡る長いタイトルも極力フル表示される (旧 line-clamp-1 truncate で
-            「タップスバーガーショップ」 等が「タップス…」 と省略されていたのを解消)。
-          ★ 価格はタイトル先頭行に揃えるため items-start。
-          ★ font-size 15px × leading 1.15 = ~17.25px/行 → 2 行 ~34.5px を min-h-[35px] で確保。 */}
+      {/* ② 商品タイトル ＋ 大価格 (同じ行、 タイトル flex-1 truncate / 価格 shrink-0 右寄せ)
+          ★ 昨日のコンパクト版に復帰: line-clamp-1 truncate で 1 行固定 → 全カード高さ一致。
+            長いタイトルは「タップスバ…」 と省略されるが、 横スクロール内のリズム優先。
+            (2行表示版は items-start で縦に伸びすぎ、 ユーザ NG) */}
       {!isSoldOut ? (
-        <div className="flex items-start justify-between gap-2 min-w-0 min-h-[35px]">
-          <p className="font-black text-[15px] leading-[1.15] line-clamp-2 break-words tracking-[-0.018em] text-foreground flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <p className="font-black text-[15px] leading-[1.15] truncate tracking-[-0.018em] text-foreground flex-1 min-w-0">
             {normalizeBrand(bag.title)}
           </p>
           <div className="flex flex-col items-end shrink-0">
@@ -146,7 +143,7 @@ function CompactCardBody({
           </div>
         </div>
       ) : (
-        <p className="font-black text-[15px] leading-[1.15] line-clamp-2 break-words tracking-[-0.018em] text-muted-foreground min-h-[35px]">
+        <p className="font-black text-[15px] leading-[1.15] truncate tracking-[-0.018em] text-muted-foreground">
           {normalizeBrand(bag.title)}
         </p>
       )}
@@ -157,11 +154,10 @@ function CompactCardBody({
           ★ 万一 2 段になっても全情報フル表示を優先 (旧版の truncate よりマシ)。
           ★ 表示順は「時間 → 残数 → 距離」 が左から、 折返した場合は距離が下段に来る。 */}
       {hasMetaRow && (
-        // ★ メタ chip 行も高さ統一: chip 1段 ~18px + gap-y-1 (4px) → 2段 = ~40px。
-        //   時間 + 残数 + 距離 が 1 行に収まる場合も 2 行に折り返す場合も同じ min-h を確保し、
-        //   隣接カード間で「片方は1行、 片方は2行」 で高さがガタつくのを根絶する。
-        //   content-start で 1 行時は上寄せ (下に空白) → 全カードの底辺が完全一致。
-        <div className="flex flex-wrap items-start content-start gap-x-2 gap-y-1 mt-[2px] min-h-[40px]">
+        // ★ メタ chip 行: 1 段ぴったりに収める (overflow-hidden + flex-nowrap で折り返し禁止)。
+        //   タイトル truncate 化に合わせ、 メタ行も常に 1 行固定で全カード高さを完全一致させる。
+        //   distLabel が長すぎても truncate しつつ全 chip を表示する。
+        <div className="flex items-center gap-x-2 mt-[2px] overflow-hidden flex-nowrap">
           {hasTime && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground/85 leading-none whitespace-nowrap tabular-nums">
               <Clock className="w-2.5 h-2.5 shrink-0 text-primary/70" strokeWidth={2.4} />
