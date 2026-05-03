@@ -9,15 +9,18 @@ type Props = {
 
 const APP_URL = 'https://osusowakejapan.org/';
 
-function buildShareText(pickedUpCount: number, foodSavedKg: number, co2Saved: number): string {
+// ★ URL を含めない本文 (Web Share API 用)
+//   text + url を両方渡すと iOS Safari など多くの実装が末尾に url を自動追加し、
+//   text 内に URL を入れると URL が 2 回出てしまう。 そのため text には URL を含めず
+//   url パラメータでのみ渡す設計に統一する。
+function buildShareBody(pickedUpCount: number, foodSavedKg: number, co2Saved: number): string {
   if (pickedUpCount === 0) {
-    return `「おすそわけ」 で食品ロス削減に参加してみよう🍱✨\n${APP_URL}`;
+    return `「おすそわけ」 で食品ロス削減に参加してみよう🍱✨`;
   }
   return [
     `🌱 私は「おすそわけ」 で ${pickedUpCount} 食 救済しました！`,
     `食品ロス ${foodSavedKg}kg・CO₂ ${co2Saved}kg を削減 🌍`,
     `あなたもお得に食品ロス削減しませんか？`,
-    APP_URL,
   ].join('\n');
 }
 
@@ -25,7 +28,9 @@ export function ImpactShareButton({ pickedUpCount, foodSavedKg, co2Saved }: Prop
   const [copied, setCopied] = useState(false);
 
   async function onShare() {
-    const text = buildShareText(pickedUpCount, foodSavedKg, co2Saved);
+    const body = buildShareBody(pickedUpCount, foodSavedKg, co2Saved);
+    // クリップボード/プロンプト用は本文末尾に URL を結合
+    const fullText = `${body}\n${APP_URL}`;
     const navAny = navigator as Navigator & {
       share?: (data: { title?: string; text?: string; url?: string }) => Promise<void>;
     };
@@ -34,7 +39,7 @@ export function ImpactShareButton({ pickedUpCount, foodSavedKg, co2Saved }: Prop
       try {
         await navAny.share({
           title: 'おすそわけ - 食品ロス削減',
-          text,
+          text: body,
           url: APP_URL,
         });
         return;
@@ -44,11 +49,11 @@ export function ImpactShareButton({ pickedUpCount, foodSavedKg, co2Saved }: Prop
       }
     }
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(fullText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('コピーしてシェアしてください:', text);
+      window.prompt('コピーしてシェアしてください:', fullText);
     }
   }
 
