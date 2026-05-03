@@ -11,7 +11,7 @@ import {
 import {
   Search, Store, MapPin, Zap, Flame, Moon, Navigation2,
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
-  Globe, Clock, ArrowLeft, ShoppingBag, Megaphone, Star,
+  Globe, Clock, ArrowLeft, ShoppingBag, Megaphone, Star, Percent, Sparkles,
 } from 'lucide-react';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -529,7 +529,32 @@ export default function Home() {
     [sortedVisibleBags, applySortKey]
   );
 
-  // ── ⑤⑥⑦ カテゴリー別 ──
+  // ── ⑤ 半額以上のお得（discount >= 50%） ──
+  const halfOffSectionBags = useMemo(() => {
+    const filtered = sortedVisibleBags.filter(b =>
+      b.stockCount > 0 &&
+      b.originalPrice > 0 &&
+      (b.originalPrice - b.discountedPrice) / b.originalPrice >= 0.5
+    );
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 4).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
+
+  // ── ⑥ 新着店舗（過去7日以内に作成された店舗のバッグ） ──
+  const newStoreBags = useMemo(() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const filtered = sortedVisibleBags.filter(b => {
+      if (b.stockCount <= 0) return false;
+      const createdAt = (b.store as { createdAt?: string | Date }).createdAt;
+      if (!createdAt) return false;
+      const ts = typeof createdAt === 'string' ? Date.parse(createdAt) : createdAt.getTime();
+      return Number.isFinite(ts) && ts >= sevenDaysAgo;
+    });
+    if (sortKey === 'default') return seededShuffle(filtered, dailySeed + 5).slice(0, 10);
+    return filtered.slice(0, 10);
+  }, [sortedVisibleBags, sortKey, dailySeed]);
+
+  // ── ⑦⑧⑨ カテゴリー別 ──
   // sortKey が 'default' (おすすめ順) のときは日次シードでシャッフル、それ以外は applySortKey の順を尊重
   const mealsBags = useMemo(() => {
     const filtered = sortedVisibleBags.filter(b => normalizeCategory(b.category) === 'meals');
@@ -923,7 +948,31 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ⑤ 料理・お惣菜 */}
+                {/* ⑤ 半額以上のお得 */}
+                {halfOffSectionBags.length > 0 && (
+                  <div className="pt-1 pb-2">
+                    <SectionHeader
+                      icon={<Percent className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
+                      title="半額以上のお得"
+                      count={halfOffSectionBags.length}
+                    />
+                    <HorizScrollRow bags={halfOffSectionBags.slice(0, 6)} loading={false} />
+                  </div>
+                )}
+
+                {/* ⑥ 新着店舗 */}
+                {newStoreBags.length > 0 && (
+                  <div className="pt-1 pb-2">
+                    <SectionHeader
+                      icon={<Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                      title="新着店舗"
+                      count={newStoreBags.length}
+                    />
+                    <HorizScrollRow bags={newStoreBags.slice(0, 6)} loading={false} />
+                  </div>
+                )}
+
+                {/* ⑦ 料理・お惣菜 */}
                 {mealsBags.length > 0 && (
                   <div className="pt-1 pb-2">
                     <SectionHeader
