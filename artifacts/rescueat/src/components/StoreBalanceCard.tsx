@@ -7,6 +7,11 @@ import { authedFetch } from '@/lib/authed-fetch';
 type Props = {
   storeId: number;
   stripeAccountId: string | null | undefined;
+  /**
+   * true の場合、 表示残高は同一 Stripe アカウントを共有する複数の承認済み店舗の
+   * 合算であることを UI 上で明示する (ラベル + 注意書き)。
+   */
+  aggregated?: boolean;
 };
 
 function translateStripeRequirement(key: string): string {
@@ -77,7 +82,7 @@ function translateStripeErrorCode(code: string): string {
   return map[code] ?? code;
 }
 
-export function StoreBalanceCard({ storeId, stripeAccountId }: Props) {
+export function StoreBalanceCard({ storeId, stripeAccountId, aggregated = false }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [syncingStripe, setSyncingStripe] = useState(false);
@@ -163,10 +168,20 @@ export function StoreBalanceCard({ storeId, stripeAccountId }: Props) {
           <div className="w-7 h-7 bg-orange-50 rounded-lg flex items-center justify-center">
             <CreditCard className="w-4 h-4 text-primary" />
           </div>
-          <p className="text-sm font-black text-foreground">売上残高</p>
+          <p className="text-sm font-black text-foreground">
+            売上残高{aggregated && <span className="ml-1 text-[10px] font-bold text-orange-600">（全店舗合算）</span>}
+          </p>
         </div>
         {(balanceLoading || stripeStatusLoading) && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
       </div>
+      {aggregated && (
+        <div className="mb-3 bg-orange-50/60 border border-orange-100 rounded-xl px-3 py-2 flex items-start gap-2">
+          <AlertCircle className="w-3.5 h-3.5 text-orange-500 mt-0.5 shrink-0" />
+          <p className="text-[11px] text-orange-700 leading-relaxed">
+            複数の店舗を運営しているため、 表示中の残高は <span className="font-bold">全店舗の売上を合算</span> した金額です。 振込先は登録口座 1つに統合されます。
+          </p>
+        </div>
+      )}
 
       {stripeStatus?.requirements && (
         <div className="mb-3 rounded-xl border border-border/60 bg-secondary/20 p-3 space-y-1.5">
