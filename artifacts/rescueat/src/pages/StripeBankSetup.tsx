@@ -87,6 +87,7 @@ const STRIPE_ERR_CODE_LABELS: Record<string, string> = {
   verification_document_dob_mismatch:        '書類の生年月日が登録情報と一致しません',
   verification_document_name_mismatch:       '書類の氏名が登録情報と一致しません',
   verification_document_address_mismatch:    '書類の住所が登録情報と一致しません',
+  verification_document_id_number_mismatch:  '書類の番号が登録情報と一致しません',
   verification_document_expired:             '書類の有効期限が切れています',
   verification_document_not_readable:        '書類が読み取れません（再撮影してください）',
   verification_document_not_uploaded:        '書類がアップロードされていません',
@@ -95,12 +96,88 @@ const STRIPE_ERR_CODE_LABELS: Record<string, string> = {
   verification_document_corrupt:             '書類ファイルが破損しています',
   verification_failed_keyed_identity:        '本人確認情報の照合に失敗しました',
   verification_failed_name_match:            '氏名の照合に失敗しました',
+  verification_failed_address_match:         '住所の照合に失敗しました',
+  verification_failed_business_iec_number:   '事業者番号の照合に失敗しました',
+  verification_failed_other:                 '本人確認に失敗しました（書類の再提出が必要です）',
+  verification_failed_tax_id_match:          '法人番号の照合に失敗しました',
+  verification_failed_tax_id_not_issued:     '指定された法人番号が確認できません',
+  verification_failed_id_number_match:       'マイナンバーの照合に失敗しました',
+  verification_failed_keyed_match:           '入力情報の照合に失敗しました',
+  verification_failed_document_match:        '書類記載の情報と入力情報が一致しません',
+  verification_missing_owners:               '株主・受益者情報が不足しています',
+  verification_missing_executives:           '役員情報が不足しています',
+  verification_requires_additional_memorandum_of_associations:
+                                             '追加で定款の提出が必要です',
+  invalid_address_city_state_postal_code:    '住所（市区町村・都道府県・郵便番号）が無効です',
+  invalid_address_highway_contract_box:      '私書箱は登録できません',
+  invalid_address_private_mailbox:           '私書箱は登録できません',
+  invalid_business_profile_name:             '事業名（屋号）が無効です',
+  invalid_business_profile_name_denylisted:  '指定された事業名は登録できません',
+  invalid_company_name_denylisted:           '指定された法人名は登録できません',
   invalid_dob_age_under_18:                  '代表者が18歳未満のため登録できません',
+  invalid_dob_age_over_maximum:              '代表者の年齢が登録上限を超えています',
   invalid_phone_number:                      '電話番号が無効です',
+  invalid_street_address:                    '住所（番地）が無効です',
+  invalid_tax_id:                            '法人番号が無効です',
+  invalid_tax_id_format:                     '法人番号の形式が正しくありません',
+  invalid_url_format:                        'ウェブサイトURLの形式が正しくありません',
+  invalid_url_web_presence_detected:         'ウェブサイトの実在が確認できません',
+  invalid_value_other:                       '入力値が無効です',
   bank_account_unusable:                     '銀行口座が使用できません',
+  bank_account_verification_failed:          '銀行口座の確認に失敗しました',
+  routing_number_invalid:                    '銀行コード・支店コードが無効です',
+  account_number_invalid:                    '口座番号が無効です',
+  // Stripe からの「Business name and address... doesn't match government records」 系
+  verification_directors_mismatch:           '取締役情報が登記情報と一致しません',
+  verification_extraneous_directors:         '登録された取締役情報に余分な項目があります',
+  verification_missing_directors:            '取締役情報が不足しています',
+  verification_failed_representative_authority:
+                                             '代表者の権限を確認できませんでした',
+  verification_legal_entity_structure_mismatch:
+                                             '法人形態が登記情報と一致しません',
 };
 function stripeErrCodeLabel(code: string): string {
   return STRIPE_ERR_CODE_LABELS[code] ?? '';
+}
+
+// ── Stripe からの英語 reason テキスト → 日本語 ──────────────────────────────
+//   stripeErrCodeLabel(e.code) で拾えなかった場合の最終フォールバック。
+//   既知パターンに部分一致したら日本語化、 完全に未知なら「LINEサポートへ」 と案内。
+function stripeReasonLabel(reason: string): string {
+  if (!reason) return '';
+  const r = reason.toLowerCase();
+  // 銀行関連
+  if (r.includes("couldn't find the bank") || r.includes('could not find the bank') || r.includes('bank not found')) {
+    return '指定された銀行コード・支店コードが見つかりません。 入力内容を再度ご確認ください。';
+  }
+  if (r.includes('routing_number') || r.includes('routing number')) {
+    return '銀行コード・支店コードが正しくありません。';
+  }
+  if (r.includes('account_number') || r.includes('account number')) {
+    return '口座番号が正しくありません。';
+  }
+  if (r.includes('account holder') || r.includes('holder name')) {
+    return '口座名義（カナ）が正しくありません。';
+  }
+  // 本人確認・登記情報関連
+  if (r.includes("doesn't match government records") || r.includes('does not match government records') ||
+      r.includes('match government records')) {
+    return '登録された情報が公的記録と一致しません。 アカウント情報を更新し、 一致する本人確認書類を再アップロードしてください。';
+  }
+  if (r.includes('not match') && r.includes('records')) {
+    return '入力情報と公的記録が一致しません。 入力内容と提出書類をご確認ください。';
+  }
+  if (r.includes('document') && (r.includes('upload') || r.includes('verification'))) {
+    return '本人確認書類の再アップロードが必要です。';
+  }
+  if (r.includes('address')) {
+    return '住所情報に問題があります。 入力内容をご確認ください。';
+  }
+  if (r.includes('name')) {
+    return '氏名・法人名に問題があります。 入力内容をご確認ください。';
+  }
+  // 完全に未知 → 一般的な案内
+  return '入力情報に問題があるため再送信が必要です。 詳細はLINEサポートにお問い合わせください。';
 }
 
 const DRAFT_KEY_PREFIX = 'bank-setup-draft-v2-';
@@ -512,7 +589,7 @@ export default function StripeBankSetup() {
       e => STRIPE_FIELD_TO_GROUP[e.requirement] === group
     );
     if (errorsForGroup.length > 0) {
-      return { type: 'error', reasons: errorsForGroup.map(e => stripeErrCodeLabel(e.code) || e.reason).filter(Boolean) };
+      return { type: 'error', reasons: errorsForGroup.map(e => stripeErrCodeLabel(e.code) || stripeReasonLabel(e.reason)).filter(Boolean) };
     }
     const requiredForGroup = stripeReqs.currentlyDue.some(
       f => STRIPE_FIELD_TO_GROUP[f] === group
@@ -719,7 +796,14 @@ export default function StripeBankSetup() {
         });
 
         if (result.error) {
-          setError(result.error.message ?? '口座情報が正しくありません。入力内容をご確認ください。');
+          // ★ Stripe.js の英語エラーメッセージを日本語化してから表示
+          const rawMsg = result.error.message ?? '';
+          const rawCode = (result.error as any).code ?? '';
+          const localized =
+            stripeErrCodeLabel(rawCode) ||
+            stripeReasonLabel(rawMsg) ||
+            '口座情報が正しくありません。 入力内容をご確認ください。';
+          setError(localized);
           return;
         }
         bankTokenId = result.token.id;
@@ -949,7 +1033,7 @@ export default function StripeBankSetup() {
           {stripeReqs.errors.map((e, i) => (
             <div key={i}>
               <p className="text-[11px] font-bold text-red-700">・{stripeReqLabel(e.requirement)}</p>
-              <p className="text-[11px] text-red-600 ml-3">{stripeErrCodeLabel(e.code) || e.code}</p>
+              <p className="text-[11px] text-red-600 ml-3">{stripeErrCodeLabel(e.code) || stripeReasonLabel(e.reason) || '入力情報を再確認してください'}</p>
             </div>
           ))}
         </div>
