@@ -5,6 +5,9 @@ import {
   ShoppingBag, CreditCard, AlertTriangle, MessageCircle,
   Store, Banknote, Receipt, BadgePercent,
   Leaf, Smartphone, Package,
+  MapPin, QrCode, Sparkles, Clock, Star, Search,
+  Camera, FileCheck, Bell, ScanLine, TrendingUp,
+  Lightbulb, BookOpen, PartyPopper, CheckCircle2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
@@ -362,25 +365,326 @@ const STORE_FAQ_SECTIONS: FaqSection[] = [
   },
 ];
 
+/* ─────────────────────────────────────────────
+   使い方ステップガイド データ
+───────────────────────────────────────────── */
+interface GuideStep {
+  num: number;
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  tips?: string[];
+  accent: string; // tailwind gradient classes
+}
+
+const USER_GUIDE_STEPS: GuideStep[] = [
+  {
+    num: 1,
+    icon: <MapPin className="w-6 h-6" />,
+    title: '近くのお店を探す',
+    desc: 'ホーム画面で現在地周辺のお店が地図とリストに自動表示されます。検索バーから地名・お店の名前でも探せます。',
+    tips: [
+      '位置情報を許可すると徒歩◯分が表示されます',
+      'お気に入り登録で次回からすぐアクセス',
+    ],
+    accent: 'from-orange-400 to-amber-400',
+  },
+  {
+    num: 2,
+    icon: <ShoppingBag className="w-6 h-6" />,
+    title: 'おすそわけバッグを選ぶ',
+    desc: '気になるバッグをタップして、価格・受取時間・残り個数をチェック。「✨ 半額以上のお得」「🌅 朝の受取」などのおすすめセクションも便利です。',
+    tips: [
+      '受取時間に必ず行ける枠を選びましょう',
+      '残り個数が少ない商品は早めに!',
+    ],
+    accent: 'from-pink-400 to-rose-400',
+  },
+  {
+    num: 3,
+    icon: <CreditCard className="w-6 h-6" />,
+    title: 'カードでお会計',
+    desc: 'クレジット/デビットカード(Visa/Master/Amex/JCB)で一瞬で決済。表示価格がそのままお支払い金額です(追加手数料なし)。',
+    tips: [
+      'カード情報はアプリに保存されません',
+      '次回からはワンタップで購入可能',
+    ],
+    accent: 'from-blue-400 to-indigo-400',
+  },
+  {
+    num: 4,
+    icon: <QrCode className="w-6 h-6" />,
+    title: '電子チケット(QR)を保存',
+    desc: '購入完了と同時に専用の QR チケットが発行されます。「購入履歴」からいつでも表示可能。',
+    tips: [
+      'スクリーンショット保存でオフラインでも安心',
+      '紛失しても何度でも再表示できます',
+    ],
+    accent: 'from-violet-400 to-purple-400',
+  },
+  {
+    num: 5,
+    icon: <Clock className="w-6 h-6" />,
+    title: '受取時間にお店へ',
+    desc: '指定の受取時間内にお店へ直接お越しください。時間枠に間に合わない時は早めにお店へ電話を。',
+    tips: [
+      '枠の前半に行くと商品の選択肢が多め',
+      '深夜またぎ(例: 22:00〜翌1:00)も対応',
+    ],
+    accent: 'from-emerald-400 to-teal-400',
+  },
+  {
+    num: 6,
+    icon: <ScanLine className="w-6 h-6" />,
+    title: 'QR をスタッフに提示',
+    desc: 'スタッフが QR をスキャンするだけで受取完了。お会計や追加の手続きは一切ありません。',
+    accent: 'from-cyan-400 to-sky-400',
+  },
+  {
+    num: 7,
+    icon: <PartyPopper className="w-6 h-6" />,
+    title: 'お持ち帰りして実食!',
+    desc: '惣菜・お弁当は当日中、パンや野菜は1〜2日以内が目安。冷蔵保存(10℃以下)で安心です。',
+    tips: [
+      '揚げ物・煮物は再加熱でより美味しく',
+      '中身おまかせバッグはサプライズを楽しんで!',
+    ],
+    accent: 'from-yellow-400 to-orange-400',
+  },
+  {
+    num: 8,
+    icon: <Star className="w-6 h-6" />,
+    title: 'レビュー・お気に入り',
+    desc: 'お店ページからレビュー投稿で他のユーザーの参考に。ハートマークでお気に入り登録すれば次回からすぐアクセスできます。',
+    tips: [
+      'マイタウンが育つ! 街がにぎやかに🏘️',
+      '月間ランキングにもチャレンジ',
+    ],
+    accent: 'from-fuchsia-400 to-pink-400',
+  },
+];
+
+const STORE_GUIDE_STEPS: GuideStep[] = [
+  {
+    num: 1,
+    icon: <FileCheck className="w-6 h-6" />,
+    title: '店舗情報を登録',
+    desc: '店舗名・住所・営業許可証の写真をアップロードして申請。完全無料で初期費用¥0です。',
+    tips: [
+      '営業許可証は鮮明に撮影を',
+      '審査は通常 1〜3 営業日',
+    ],
+    accent: 'from-orange-400 to-amber-400',
+  },
+  {
+    num: 2,
+    icon: <CheckCircle2 className="w-6 h-6" />,
+    title: '事務局の審査を待つ',
+    desc: 'おすそわけ事務局が内容を確認します。承認結果はメールでお知らせします。',
+    accent: 'from-amber-400 to-yellow-400',
+  },
+  {
+    num: 3,
+    icon: <Banknote className="w-6 h-6" />,
+    title: '振込口座を登録',
+    desc: 'ダッシュボードから売上振込先の銀行口座を登録。口座審査(1〜3営業日)が完了すると出品機能が解放されます。',
+    tips: [
+      '個人事業主/法人は登録時のみ選択可',
+      '2店舗目以降は口座情報を自動引継ぎ',
+    ],
+    accent: 'from-green-400 to-emerald-400',
+  },
+  {
+    num: 4,
+    icon: <Camera className="w-6 h-6" />,
+    title: '商品を出品',
+    desc: '写真・タイトル・通常価格・割引価格・受取時間・残り個数を入力するだけ。ものの数分で完成します。',
+    tips: [
+      '通常価格の50〜70%オフが反応が高い',
+      '明るい場所で俯瞰アングル撮影が◎',
+      '受取時間は閉店30分〜1時間前が目安',
+    ],
+    accent: 'from-rose-400 to-pink-400',
+  },
+  {
+    num: 5,
+    icon: <Bell className="w-6 h-6" />,
+    title: '予約通知を受け取る',
+    desc: 'お客様が予約するとリアルタイムでプッシュ通知。在庫数も自動で減るので管理いらず。',
+    tips: [
+      'ダッシュボードで予約状況を一覧確認',
+      '在庫の +/− はワンタップで調整可能',
+    ],
+    accent: 'from-blue-400 to-cyan-400',
+  },
+  {
+    num: 6,
+    icon: <ScanLine className="w-6 h-6" />,
+    title: '来店客の QR をスキャン',
+    desc: 'お客様の電子チケット(QR)をダッシュボードのスキャナーで読み取り、商品をお渡しするだけ。',
+    tips: [
+      '受取済みは自動でステータス更新',
+      'ノーショー(無断キャンセル)も売上は確定済み',
+    ],
+    accent: 'from-indigo-400 to-violet-400',
+  },
+  {
+    num: 7,
+    icon: <Package className="w-6 h-6" />,
+    title: '商品をお渡し',
+    desc: 'お会計や追加手続きは一切不要。お客様にお礼を伝えて気持ちよくお見送りを。',
+    accent: 'from-violet-400 to-purple-400',
+  },
+  {
+    num: 8,
+    icon: <TrendingUp className="w-6 h-6" />,
+    title: '売上は自動で振込',
+    desc: '決済確定から7日後に「振込可能」、毎月25日にまとめて登録口座へ自動振込。月額・初期費用¥0、売れた時のみ手数料が発生する完全成果報酬制です。',
+    tips: [
+      '売上残高はダッシュボードでリアルタイム確認',
+      '通帳には「ストライプ ジャパン」と表示',
+      '月別売上はエクスポート可能(LINE依頼)',
+    ],
+    accent: 'from-emerald-400 to-teal-400',
+  },
+];
+
 /* ─────────────────── コンポーネント ─────────────────── */
+
+function GuideStepCard({ step, isLast }: { step: GuideStep; isLast: boolean }) {
+  return (
+    <div className="flex gap-4">
+      {/* 左カラム: アイコン + 接続線 (高さに合わせて伸縮) */}
+      <div className="shrink-0 flex flex-col items-center">
+        <div className="relative">
+          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${step.accent} text-white flex items-center justify-center shadow-lg shadow-black/10`} aria-hidden>
+            {step.icon}
+          </div>
+          <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white border-2 border-foreground/10 flex items-center justify-center text-[11px] font-black text-foreground shadow-sm" aria-label={`ステップ ${step.num}`}>
+            {step.num}
+          </div>
+        </div>
+        {!isLast && (
+          <div className="flex-1 w-[2px] my-2 bg-gradient-to-b from-border via-border to-transparent min-h-[20px]" aria-hidden />
+        )}
+      </div>
+      <div className="flex-1 min-w-0 pb-4 last:pb-0">
+        <h3 className="font-black text-foreground text-base leading-tight pt-1">{step.title}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed mt-1.5">{step.desc}</p>
+        {step.tips && step.tips.length > 0 && (
+          <div className="mt-3 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-700 shrink-0" aria-hidden />
+              <span className="text-[11px] font-black text-amber-900 tracking-wide">コツ</span>
+            </div>
+            <ul className="space-y-1">
+              {step.tips.map((t, i) => (
+                <li key={i} className="text-[12px] text-amber-950 leading-snug flex gap-1.5">
+                  <span className="text-amber-700 shrink-0" aria-hidden>•</span>
+                  <span className="flex-1">{t}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GuideHero({ isStoreMode }: { isStoreMode: boolean }) {
+  if (isStoreMode) {
+    return (
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 p-6 text-white shadow-xl shadow-orange-500/20">
+        <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" aria-hidden />
+        <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-white/10 rounded-full blur-3xl" aria-hidden />
+        <div className="relative">
+          <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur px-3 py-1 rounded-full text-[11px] font-black mb-3">
+            <Store className="w-3.5 h-3.5" aria-hidden />
+            店舗オーナー向け
+          </div>
+          <h2 className="text-2xl font-black leading-tight mb-2">8 ステップで<br/>始められます</h2>
+          <p className="text-sm text-white/90 leading-relaxed">
+            初期費用・月額費用は<span className="font-black">¥0</span>。<br/>
+            売れた時だけ手数料をいただく完全成果報酬制。<br/>
+            食品ロスを減らしながら、新しい売上を作りましょう。
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 p-6 text-white shadow-xl shadow-pink-500/20">
+      <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" aria-hidden />
+      <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-white/10 rounded-full blur-3xl" aria-hidden />
+      <div className="relative">
+        <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur px-3 py-1 rounded-full text-[11px] font-black mb-3">
+          <Sparkles className="w-3.5 h-3.5" aria-hidden />
+          ユーザー向け
+        </div>
+        <h2 className="text-2xl font-black leading-tight mb-2">8 ステップで<br/>お得におすそわけ</h2>
+        <p className="text-sm text-white/90 leading-relaxed">
+          まだ美味しい食品を<span className="font-black">最大70%オフ</span>でおすそわけ。<br/>
+          地球にやさしくて、お財布にもうれしい。<br/>
+          初めての方もこのガイドだけで OK!
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function GuideFooterCTA({ isStoreMode }: { isStoreMode: boolean }) {
+  return (
+    <div className="mt-2 grid grid-cols-2 gap-3">
+      {isStoreMode ? (
+        <>
+          <Link href="/store-onboarding" className="rounded-2xl bg-primary text-primary-foreground p-4 text-center shadow-md tap-opacity">
+            <Store className="w-5 h-5 mx-auto mb-1.5" />
+            <p className="text-xs font-black">店舗を登録する</p>
+          </Link>
+          <Link href="/store-dashboard" className="rounded-2xl bg-card border border-border p-4 text-center tap-opacity">
+            <Package className="w-5 h-5 mx-auto mb-1.5 text-foreground" />
+            <p className="text-xs font-black text-foreground">ダッシュボードへ</p>
+          </Link>
+        </>
+      ) : (
+        <>
+          <Link href="/" className="rounded-2xl bg-primary text-primary-foreground p-4 text-center shadow-md tap-opacity">
+            <Search className="w-5 h-5 mx-auto mb-1.5" />
+            <p className="text-xs font-black">お店を探す</p>
+          </Link>
+          <Link href="/orders" className="rounded-2xl bg-card border border-border p-4 text-center tap-opacity">
+            <Receipt className="w-5 h-5 mx-auto mb-1.5 text-foreground" />
+            <p className="text-xs font-black text-foreground">購入履歴を見る</p>
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
 
 function FaqAccordion({ item }: { item: FaqItem }) {
   const [open, setOpen] = useState(false);
+  const panelId = React.useId();
   return (
     <div className="border-b border-border/60 last:border-0">
       <button
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-controls={panelId}
         className="w-full flex items-start gap-3 py-4 px-4 text-left tap-opacity"
       >
-        <span className="mt-0.5 text-primary font-black text-xs shrink-0 bg-primary/10 rounded px-1.5 py-0.5 leading-5">Q</span>
+        <span className="mt-0.5 text-primary font-black text-xs shrink-0 bg-primary/10 rounded px-1.5 py-0.5 leading-5" aria-hidden>Q</span>
         <span className="flex-1 text-sm font-semibold text-foreground leading-snug">{item.q}</span>
         {open
-          ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-          : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
+          ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden />
+          : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden />}
       </button>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
+            id={panelId}
+            role="region"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -418,14 +722,27 @@ function FaqSectionBlock({ section }: { section: FaqSection }) {
   );
 }
 
+type ContentTab = 'guide' | 'faq';
+type RoleTab = 'user' | 'store';
+
 export default function HelpPage() {
   const { profile } = useAuth();
 
-  // URL パラメータ ?mode=store で強制的に店舗向けを表示（店舗ダッシュボードからのリンク用）
-  const urlMode = new URLSearchParams(window.location.search).get('mode');
+  // URL パラメータ
+  const params = new URLSearchParams(window.location.search);
+  const urlMode = params.get('mode');
+  const urlTab = params.get('tab');
 
-  // ロール判定: store_owner または ?mode=store → 店舗向けのみ表示
-  const isStoreMode = urlMode === 'store' || profile?.role === 'store_owner';
+  // ロール判定: store_owner または ?mode=store → 店舗向けに初期化
+  const initialRole: RoleTab = (urlMode === 'store' || profile?.role === 'store_owner') ? 'store' : 'user';
+  const initialContent: ContentTab = urlTab === 'faq' ? 'faq' : 'guide';
+
+  const [roleTab, setRoleTab] = useState<RoleTab>(initialRole);
+  const [contentTab, setContentTab] = useState<ContentTab>(initialContent);
+
+  const isStoreMode = roleTab === 'store';
+  const guideSteps = isStoreMode ? STORE_GUIDE_STEPS : USER_GUIDE_STEPS;
+  const faqSections = isStoreMode ? STORE_FAQ_SECTIONS : USER_FAQ_SECTIONS;
 
   return (
     <Layout showBottomNav>
@@ -442,42 +759,103 @@ export default function HelpPage() {
         </button>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
             <HelpCircle className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-foreground">ヘルプ・お問い合わせ</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">よくあるご質問をまとめました</p>
+            <h1 className="text-xl font-black text-foreground">使い方ガイド & ヘルプ</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">8 ステップで全部わかる</p>
           </div>
         </div>
 
-        {/* ロール別ラベル（タブなし）*/}
-        <div className="flex items-center gap-2 mb-5">
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black ${
-            isStoreMode
-              ? 'bg-primary/10 text-primary'
-              : 'bg-sky-100 text-sky-700'
-          }`}>
-            {isStoreMode ? '🏪 店舗オーナー向け' : '👤 ユーザー向け'}
-          </div>
+        {/* ロール切替ピル */}
+        <div className="grid grid-cols-2 gap-2 mb-3 p-1 bg-muted/60 rounded-2xl">
+          <button
+            onClick={() => setRoleTab('user')}
+            className={`py-2.5 rounded-xl text-xs font-black transition-all ${
+              !isStoreMode
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            👤 ユーザー向け
+          </button>
+          <button
+            onClick={() => setRoleTab('store')}
+            className={`py-2.5 rounded-xl text-xs font-black transition-all ${
+              isStoreMode
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            🏪 店舗オーナー向け
+          </button>
         </div>
 
-        {/* FAQ コンテンツ */}
+        {/* コンテンツ切替タブ (使い方ガイド / よくある質問) */}
+        <div className="grid grid-cols-2 gap-2 mb-5">
+          <button
+            onClick={() => setContentTab('guide')}
+            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border-2 transition-all ${
+              contentTab === 'guide'
+                ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                : 'bg-card text-muted-foreground border-border hover:border-primary/40'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            使い方ガイド
+          </button>
+          <button
+            onClick={() => setContentTab('faq')}
+            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border-2 transition-all ${
+              contentTab === 'faq'
+                ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                : 'bg-card text-muted-foreground border-border hover:border-primary/40'
+            }`}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            よくある質問
+          </button>
+        </div>
+
+        {/* メインコンテンツ */}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={isStoreMode ? 'store' : 'user'}
+            key={`${roleTab}-${contentTab}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
-            className="space-y-4"
           >
-            {!isStoreMode
-              ? USER_FAQ_SECTIONS.map(s => <FaqSectionBlock key={s.id} section={s} />)
-              : (
-                <>
-                  {/* 店舗向けヒーローバナー */}
+            {contentTab === 'guide' ? (
+              <div className="space-y-5">
+                <GuideHero isStoreMode={isStoreMode} />
+                <div className="space-y-4 px-1">
+                  {guideSteps.map((step, i) => (
+                    <GuideStepCard key={step.num} step={step} isLast={i === guideSteps.length - 1} />
+                  ))}
+                </div>
+                <GuideFooterCTA isStoreMode={isStoreMode} />
+                <button
+                  onClick={() => setContentTab('faq')}
+                  className="w-full mt-2 rounded-2xl bg-card border border-border p-4 flex items-center justify-between tap-opacity"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <HelpCircle className="w-4.5 h-4.5 text-primary" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-black text-foreground">もっと詳しく知りたい?</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">よくある質問はこちら</p>
+                    </div>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90" />
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {isStoreMode && (
                   <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
                     <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
                       <Store className="w-5 h-5 text-primary" />
@@ -489,10 +867,10 @@ export default function HelpPage() {
                       </p>
                     </div>
                   </div>
-                  {STORE_FAQ_SECTIONS.map(s => <FaqSectionBlock key={s.id} section={s} />)}
-                </>
-              )
-            }
+                )}
+                {faqSections.map(s => <FaqSectionBlock key={s.id} section={s} />)}
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
 
