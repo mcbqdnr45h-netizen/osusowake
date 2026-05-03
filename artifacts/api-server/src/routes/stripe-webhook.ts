@@ -5,10 +5,9 @@ import { eq, sql, and, ne } from "drizzle-orm";
 import { Resend } from "resend";
 import { sendStoreApprovalEmail } from "../utils/emails";
 import { sendPushToUser } from "../lib/push.js";
+import { getAllAdminUsers } from "../lib/admin.js";
 
 const router = Router();
-
-const ADMIN_EMAIL = "hello@osusowakejapan.org";
 
 // ── Stripe インスタンスを返すヘルパー（ESM 対応 dynamic import）────────────────
 async function getStripe() {
@@ -124,6 +123,14 @@ async function sendAdminKycEmail(store: {
     return false;
   }
 
+  // #6 フェーズ B: ハードコード ADMIN_EMAIL を廃止し、 全 admin (DB role='admin') に通知。
+  const admins = await getAllAdminUsers();
+  const adminEmails = admins.map((a) => a.email).filter((e): e is string => !!e);
+  if (adminEmails.length === 0) {
+    console.warn("[stripe-webhook] 管理者が 1 名もいない (DB role='admin' 0 件) → KYC 完了通知メールをスキップ");
+    return false;
+  }
+
   const resend = new Resend(resendApiKey);
   const fromDomain = process.env.RESEND_FROM_DOMAIN ?? "onboarding@resend.dev";
   const appUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? 'localhost'}`;
@@ -156,7 +163,7 @@ async function sendAdminKycEmail(store: {
 
   const { error } = await resend.emails.send({
     from: `おすそわけ <${fromDomain}>`,
-    to: ADMIN_EMAIL,
+    to: adminEmails,
     subject: `【おすそわけ】🎉 Stripe KYC完了 — 承認依頼: ${store.name}`,
     html: `
 <!DOCTYPE html>

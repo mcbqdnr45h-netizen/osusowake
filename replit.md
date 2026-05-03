@@ -329,6 +329,7 @@ HelpPage で「2店舗目以降は営業許可証の提出のみで完了」 と
   - **C1 (revoke TOCTOU)** — `lib/admin.ts::revokeAdminRole(userId, requesterId)` を 1 ステートメント条件付き UPDATE (CTE で current_admins COUNT > 1 + `id <> requesterId` + `role = 'admin'`) に書き換え、 並走で全 admin が同時剥奪 → lockout する経路を排除。 失敗理由は事後 SELECT で判定し `RevokeResult = {ok:true} | {ok:false, reason:"self_revoke_forbidden"|"last_admin"|"not_admin"|"error"}` を返す。 `routes/admin.ts DELETE /admin/admins/:userId` も result.reason を 400/404/500 にマップして返す形に簡素化。
   - **C2 (env による revoke 巻き戻し)** — `index.ts` migration の admin seed を 「`public.users` に admin が 0 名のときのみ `INITIAL_ADMIN_EMAILS` を実行」 に変更。 これで一度 revoke した admin が次回再起動で env 経由で自動復活する隠れた privilege escalation を排除。 ログは `SKIPPED (existing admins=N, env ignored to prevent revoke rollback)` か `bootstrap (admin=0 → N email(s))`。
   - **H1 (findUserIdByEmail case 依存)** — supabase REST `eq("email", lower)` から drizzle 経由 `db.execute(sql\`SELECT id FROM users WHERE LOWER(email) = ${target} ORDER BY created_at LIMIT 1\`)` に変更。 大文字混入 email でもヒットし、 重複時は最古行を採用。
+- **追加修正: `routes/stripe-webhook.ts::sendAdminKycEmail` のハードコード `ADMIN_EMAIL = "hello@..."` を完全削除** — 全 admin 走査 (`getAllAdminUsers()`) で `to: adminEmails[]` に変更。 admin が 0 名のときは fail-safe で送信スキップ + warn ログ。 これで Stripe KYC 完了通知の単一 email 集中も解消し、 #6 フェーズ B のハードコード ADMIN_EMAIL 廃止が真に完結。
 
 ### 残運用タスク (本番設定)
 
