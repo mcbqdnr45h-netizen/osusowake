@@ -79,6 +79,15 @@ export const storesTable = pgTable("stores", {
   // 入力されている店舗の電子領収書には自動で T 番号を表示し適格請求書として機能。
   // 未入力時は領収書に「※当店は適格請求書発行事業者ではありません」 を表示。
   qualifiedInvoiceNumber: text("qualified_invoice_number"),
+  // ★ 国税庁適格請求書発行事業者公表サイト Web-API で検証した公表名 (法人/屋号)。
+  //   PUT /stores/:id/profile で qualifiedInvoiceNumber を保存する際、
+  //   NTA_INVOICE_APP_ID が設定されていれば NTA API を呼び出し、
+  //   - 取得成功 → 本カラムに公表名 + verifiedAt を保存し領収書発行元として表示
+  //   - 取得失敗 (登録なし/取消等) → 400 で拒否
+  //   - SECRET 未設定時 → 形式チェックのみで通し、 本カラムは null のまま
+  //   未検証 (null) の場合は領収書発行元に T 番号のみ表示し、 公表名は出さない。
+  qualifiedInvoiceName: text("qualified_invoice_name"),
+  qualifiedInvoiceVerifiedAt: timestamp("qualified_invoice_verified_at", { withTimezone: true }),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });
