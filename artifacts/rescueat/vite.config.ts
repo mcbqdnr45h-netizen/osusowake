@@ -33,10 +33,21 @@ if (isServeMode && !process.env.BASE_PATH) {
   );
 }
 
+// Maps API key: Replit Secret 名は VITE_MAPS_API_KEY。 旧コードが Maps_API_KEY という
+// 存在しない名前を見ていたため、 web 側でもキーが空 → 「For development purposes only」 が出ていた。
+// Mac ローカルや env 不在環境のために fallback キーも保持 (Bundle ID / Referrer 制限で保護前提)。
+const MAPS_API_KEY_FALLBACK = "AIzaSyAd7THuZ2Dutmu_w2sXe6IqeCA8XoNOf3U";
+const RESOLVED_MAPS_API_KEY =
+  process.env.VITE_MAPS_API_KEY ??
+  process.env.Maps_API_KEY ??
+  process.env.MAPS_API_KEY ??
+  MAPS_API_KEY_FALLBACK;
+
 export default defineConfig({
   base: basePath,
   define: {
-    'import.meta.env.VITE_MAPS_API_KEY': JSON.stringify(process.env.Maps_API_KEY ?? ''),
+    'import.meta.env.VITE_MAPS_API_KEY': JSON.stringify(RESOLVED_MAPS_API_KEY),
+    'import.meta.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(RESOLVED_MAPS_API_KEY),
     'import.meta.env.VITE_STRIPE_PK': JSON.stringify(process.env.STRIPE_PUBLISHABLE_KEY ?? ''),
   },
   plugins: [
