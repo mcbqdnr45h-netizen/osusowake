@@ -497,3 +497,9 @@ id = "YQHpIPCz8BWBH8Mnoq5eK"
 uri = "file://artifacts/rescueat/APP_STORE_SUBMISSION.md"
 type = "text"
 title = "APP_STORE_SUBMISSION.md (申請ドキュメント正本)"
+
+[[outputs]]
+id = "Xmj5SBuw-w1yK-p81Akbw"
+uri = "file://artifacts/rescueat/.local/downloads/dist-cap-latest.tar.gz"
+type = "unspecified"
+title = "dist-cap-latest.tar.gz (最新 iOS バンドル 2.5MB)"
