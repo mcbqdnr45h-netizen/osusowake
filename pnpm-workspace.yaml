@@ -43,9 +43,9 @@ overrides:
   # ★ セキュリティ脆弱性の transitive 修正 (上流が patch 取り込むまでの暫定):
   #   - path-to-regexp 8.0.0-8.3.x → ReDoS (GHSA-j3q9-mxjg-w52f, GHSA-27v5-c462-wpq7)。
   #     express@5.2.1 の router@2.2.0 がまだ 8.3.0 を引くため直接固定。
-  #   - svix>uuid v10 → v3/v5/v6 のみ影響だが念のため v14 系へ固定 (GHSA-w5hq-g745-h8pq)。
+  #   ※ svix>uuid v10 残存 (GHSA-w5hq-g745-h8pq) はリスク受容: svix は uuid v4 のみ使用、
+  #      脆弱性は v3/v5/v6 with buf 引数のみに影響するため実害なし。 svix 上流の uuid 更新待ち。
   path-to-regexp: ^8.4.0
-  svix>uuid: ^14.0.0
   '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'

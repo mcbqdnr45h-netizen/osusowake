@@ -488,9 +488,14 @@ export default function Checkout() {
   //   旧実装は `isLoading || !reservation` で永続スピナーになっていたため
   //   Apple 審査員が遭遇すると 2.1/4.0 違反で reject される致命バグだった。
   if (isError || !reservation) {
-    const errMsg = (reservationError as any)?.message
-      || (isError ? '予約情報を取得できませんでした。 通信状態を確認して再度お試しください。'
-                  : 'この予約は見つかりませんでした。 すでにキャンセル済みか、 受取期限を過ぎている可能性があります。');
+    // ★ サーバ生エラー文 (英語/技術文言混入) は審査時のブレ防止のため出さず、
+    //   状況に応じた日本語メッセージのみ表示。 詳細はコンソールに残す。
+    if (isError && reservationError) {
+      console.error('[checkout] reservation fetch failed:', reservationError);
+    }
+    const errMsg = isError
+      ? '予約情報を取得できませんでした。 通信状態を確認して再度お試しください。'
+      : 'この予約は見つかりませんでした。 すでにキャンセル済みか、 受取期限を過ぎている可能性があります。';
     return (
       <Layout showBottomNav={false}>
         <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-6 text-center">

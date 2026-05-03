@@ -12,7 +12,25 @@ cd "${REPO_ROOT}"
 pnpm install --no-frozen-lockfile
 pnpm --filter @workspace/api-client-react run build 2>/dev/null || true
 cd "${REPO_ROOT}/artifacts/rescueat"
-VITE_MAPS_API_KEY="${VITE_MAPS_API_KEY:-${MAPS_API_KEY:-}}" STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-}" VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.osusowake.app}" pnpm run build:cap
+
+# ★ Supabase 必須 env チェック (vite.config.cap.ts は未設定で throw する)。
+#   Xcode Cloud Settings -> Environment Variables に SUPABASE_URL / SUPABASE_ANON_KEY を必ず登録。
+SUPABASE_URL_RESOLVED="${VITE_SUPABASE_URL:-${SUPABASE_URL:-}}"
+SUPABASE_ANON_RESOLVED="${VITE_SUPABASE_ANON_KEY:-${SUPABASE_ANON_KEY:-}}"
+if [ -z "${SUPABASE_URL_RESOLVED}" ] || [ -z "${SUPABASE_ANON_RESOLVED}" ]; then
+  echo "❌ FATAL: SUPABASE_URL / SUPABASE_ANON_KEY が Xcode Cloud secrets に未設定です。" >&2
+  echo "   Xcode Cloud > Workflow > Environment Variables から両方追加してください。" >&2
+  exit 1
+fi
+
+VITE_MAPS_API_KEY="${VITE_MAPS_API_KEY:-${MAPS_API_KEY:-}}" \
+STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-}" \
+VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.osusowake.app}" \
+SUPABASE_URL="${SUPABASE_URL_RESOLVED}" \
+SUPABASE_ANON_KEY="${SUPABASE_ANON_RESOLVED}" \
+VITE_SUPABASE_URL="${SUPABASE_URL_RESOLVED}" \
+VITE_SUPABASE_ANON_KEY="${SUPABASE_ANON_RESOLVED}" \
+pnpm run build:cap
 # resources/icon.png から AppIcon.appiconset の全サイズを生成（cap sync の前に必須）
 pnpm run cap:gen-assets
 npx cap sync ios

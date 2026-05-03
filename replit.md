@@ -9,7 +9,7 @@
 - **Monorepo tool**: pnpm workspaces
 - **Node.js version**: 24
 - **Frontend**: React + Vite (artifacts/rescueat) - メインカラー #2D5A51
-- **API framework**: Express 5 (artifacts/api-server)
+- **API framework**: Express 5.1+ (artifacts/api-server) ※ path-to-regexp 8.4.2 override で ReDoS GHSA-j3q9-mxjg-w52f / GHSA-27v5-c462-wpq7 対応済
 - **Database**: Supabase PostgreSQL + Drizzle ORM（全テーブル Supabase に統一）
 - **Map**: Google Maps JS API（`VITE_MAPS_API_KEY`）+ Google Places Autocomplete（店舗登録）
 - **Payments**: Stripe（STRIPE_SECRET_KEY設定時）、未設定時はモック決済
