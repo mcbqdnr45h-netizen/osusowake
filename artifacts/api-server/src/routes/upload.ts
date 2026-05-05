@@ -95,6 +95,8 @@ router.post("/upload/bag-image", requireAuth, uploadSingleImage, async (req, res
       .upload(fileName, req.file.buffer, {
         contentType: detectedMime,
         upsert: false,
+        // ★ Egress 削減: 1年キャッシュ + immutable (ファイル名にタイムスタンプ含むため安全)
+        cacheControl: "31536000, immutable",
       });
 
     if (error) {

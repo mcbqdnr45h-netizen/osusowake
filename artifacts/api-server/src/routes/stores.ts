@@ -206,8 +206,10 @@ const publicStoreSelectFields = {
   category: storesTable.category,
   lat: storesTable.lat,
   lng: storesTable.lng,
-  imageUrl: storesTable.imageUrl,
-  iconUrl: storesTable.iconUrl,
+  // ★ Egress 削減: data: URL (base64 埋め込み) は SQL レベルで NULL に潰す。
+  //   一覧 API のレスポンスサイズと初期表示速度の悪化を防ぐ。
+  imageUrl: sql<string | null>`CASE WHEN ${storesTable.imageUrl} LIKE 'data:%' THEN NULL ELSE ${storesTable.imageUrl} END`.as('image_url'),
+  iconUrl:  sql<string | null>`CASE WHEN ${storesTable.iconUrl}  LIKE 'data:%' THEN NULL ELSE ${storesTable.iconUrl}  END`.as('icon_url'),
   phone: storesTable.phone,
   openTime: storesTable.openTime,
   closeTime: storesTable.closeTime,
@@ -464,7 +466,7 @@ router.post("/stores/apply", requireAuth, async (req, res) => {
           const filePath = `${ownerId}/${Date.now()}-license.${ext}`;
           const { error: uploadError } = await supabaseAdmin.storage
             .from("store-documents")
-            .upload(filePath, buffer, { contentType, upsert: false });
+            .upload(filePath, buffer, { contentType, upsert: false, cacheControl: "31536000, immutable" });
           if (!uploadError) {
             const { data: signedData } = await supabaseAdmin.storage
               .from("store-documents")
@@ -737,7 +739,7 @@ router.post("/stores/upload-document", requireAuth, async (req, res) => {
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from("store-documents")
-      .upload(filePath, buffer, { contentType, upsert: false });
+      .upload(filePath, buffer, { contentType, upsert: false, cacheControl: "31536000, immutable" });
 
     if (uploadError) {
       console.error("[upload-document] Storage upload error:", uploadError);
@@ -1203,7 +1205,7 @@ router.post("/stores/:storeId/reapply", requireAuth, requireStoreOwner, async (r
         const filePath = `${store.ownerId}/${Date.now()}-license.${ext}`;
         const { error: uploadError } = await supabaseAdmin.storage
           .from("store-documents")
-          .upload(filePath, buffer, { contentType, upsert: false });
+          .upload(filePath, buffer, { contentType, upsert: false, cacheControl: "31536000, immutable" });
         if (!uploadError) {
           const { data: signedData } = await supabaseAdmin.storage
             .from("store-documents")
@@ -3163,7 +3165,7 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
             const licPath = `${store.ownerId}/${Date.now()}-license.${licExt}`;
             const { error: licUpErr } = await supabaseAdmin.storage
               .from("store-documents")
-              .upload(licPath, licBuffer, { contentType: licContentType, upsert: false });
+              .upload(licPath, licBuffer, { contentType: licContentType, upsert: false, cacheControl: "31536000, immutable" });
             if (licUpErr) {
               licenseUploadFailed = true;
               licenseUploadError = `storage_upload: ${licUpErr.message}`;
