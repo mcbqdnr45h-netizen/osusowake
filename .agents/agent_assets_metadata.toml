@@ -587,3 +587,9 @@ id = "yiJhtgAy9-VoCLFQpGf2r"
 uri = "file://artifacts/rescueat/store-assets/screenshots/02_map_fixed.png"
 type = "image"
 title = "02_map (オレンジ統一済)"
+
+[[outputs]]
+id = "NUBg56kNt1DUJN5DM0OD0"
+uri = "file://attached_assets/01_home_marketing_updated.png"
+type = "image"
+title = "更新したマーケティング画像"
