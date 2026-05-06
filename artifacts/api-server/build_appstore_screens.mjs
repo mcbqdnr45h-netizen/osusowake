@@ -3,8 +3,8 @@ import fs from 'fs';
 import path from 'path';
 
 const W = 1320, H = 2868;
-const ORANGE = '#E85F2C';
-const CREAM = '#F5EFE6';
+const ORANGE = '#D24A25';
+const CREAM = '#FBFAF9';
 const ORANGE_END_Y = Math.round(H * 0.42);
 
 const FONT = 'Noto Sans JP';
@@ -53,8 +53,8 @@ async function build({ src, out, title, subtitle }) {
     <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="og" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#EC6A39"/>
-          <stop offset="100%" stop-color="#E2552A"/>
+          <stop offset="0%" stop-color="#D24A25"/>
+          <stop offset="100%" stop-color="#DF5D39"/>
         </linearGradient>
       </defs>
       <rect width="${W}" height="${H}" fill="${CREAM}"/>
