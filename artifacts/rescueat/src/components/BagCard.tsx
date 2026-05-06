@@ -325,7 +325,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
     }
   }
 
-  const fallbackImg = getImageFromName(bag.title) || getCategoryImage(bag.store.category);
+  const fallbackImg = getImageFromName(bag.title, bag.id) || getCategoryImage(bag.store.category, bag.id);
   const imgSrc = imgError
     ? fallbackImg
     : (bag.imageUrl || bag.store.imageUrl || fallbackImg);

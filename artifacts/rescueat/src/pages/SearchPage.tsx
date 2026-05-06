@@ -190,7 +190,7 @@ function StoreBottomSheet({
           {/* 店舗画像バナー */}
           <div className="relative mx-4 mt-1 mb-3 rounded-2xl overflow-hidden bg-muted shrink-0 shadow-md shadow-black/10" style={{ height: store.description ? 192 : 148 }}>
             <img
-              src={store.imageUrl || getCategoryImage(store.category)}
+              src={store.imageUrl || getCategoryImage(store.category, store.id)}
               alt={store.name}
               className="w-full h-full object-cover"
             />
@@ -308,7 +308,7 @@ function StoreBottomSheet({
                                 同じ店の複数バッグが全部同じ画像で表示されるバグになる (本番ユーザ報告)。 */}
                           <img
                             key={bag.imageUrl || bag.store.imageUrl || bag.id}
-                            src={bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category)}
+                            src={bag.imageUrl || bag.store.imageUrl || getCategoryImage(bag.store.category, bag.id)}
                             alt={bag.title}
                             loading="lazy"
                             decoding="async"

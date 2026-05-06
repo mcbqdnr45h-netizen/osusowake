@@ -490,8 +490,8 @@ export default function BagDetail() {
             <img
               src={
                 heroImgError
-                  ? (getImageFromName(bag.title) || getCategoryImage(bag.store.category))
-                  : (bag.imageUrl || bag.store.imageUrl || getImageFromName(bag.title) || getCategoryImage(bag.store.category))
+                  ? (getImageFromName(bag.title, bag.id) || getCategoryImage(bag.store.category, bag.id))
+                  : (bag.imageUrl || bag.store.imageUrl || getImageFromName(bag.title, bag.id) || getCategoryImage(bag.store.category, bag.id))
               }
               alt={bag.store.name}
               loading="eager"
