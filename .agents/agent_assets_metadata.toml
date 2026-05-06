@@ -592,10 +592,10 @@ title = "02_map (オレンジ統一済)"
 id = "NUBg56kNt1DUJN5DM0OD0"
 uri = "file://attached_assets/01_home_marketing_updated.png"
 type = "image"
-title = "更新したマーケティング画像"
+title = "ホーム画像 (影なし)"
 
 [[outputs]]
 id = "icjUCwPQdPdponosa6Xru"
 uri = "file://attached_assets/02_map_marketing_updated.png"
 type = "image"
-title = "マップ画像"
+title = "マップ画像 (影なし)"
