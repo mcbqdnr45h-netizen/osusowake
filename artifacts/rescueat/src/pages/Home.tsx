@@ -301,6 +301,16 @@ export default function Home() {
   const { settings: appSettings } = useAppSettings();
   const { toast } = useToast();
 
+  // ── グローバルインパクトカウンター ──
+  const [globalImpact, setGlobalImpact] = useState<{ totalPickedUp: number; totalFoodSavedKg: number } | null>(null);
+  useEffect(() => {
+    const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+    fetch(`${BASE}/api/global-impact`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setGlobalImpact(d); })
+      .catch(() => {});
+  }, []);
+
   // ── お知らせバナー ──
   const [announcement, setAnnouncement]         = useState<{ id: number; title: string; body: string } | null>(null);
   const [annDismissed, setAnnDismissed]         = useState(false);
@@ -793,6 +803,24 @@ export default function Home() {
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >
+          {/* ── グローバルインパクトライブカウンター ── */}
+          {globalImpact && globalImpact.totalPickedUp > 0 && (
+            <div className="mx-3 mt-3 rounded-2xl overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #1a9e5c 0%, #16803a 100%)' }}>
+              <div className="flex items-center gap-3 px-4 py-2.5">
+                <span className="text-xl shrink-0">🌱</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-xs font-black leading-tight">
+                    みんなで <span className="text-lg">{globalImpact.totalPickedUp.toLocaleString()}</span> 食 救済達成！
+                  </p>
+                  <p className="text-white/75 text-[10px] font-bold mt-0.5">
+                    食品ロス {globalImpact.totalFoodSavedKg.toLocaleString()}kg を削減
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── お知らせバナー ── */}
           <AnimatePresence>
             {announcement && !annDismissed && (
