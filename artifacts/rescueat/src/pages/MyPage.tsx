@@ -62,43 +62,6 @@ export default function MyPage() {
     },
   );
 
-  // ── 招待コード ──
-  const [inviteCode, setInviteCode]     = useState<string | null>(null);
-  const [inviteAccepted, setInviteAccepted] = useState(0);
-  const [inviteUrl, setInviteUrl]       = useState('');
-  const [inviteCopied, setInviteCopied] = useState(false);
-  const [badges, setBadges] = useState<{ id: string; label: string; emoji: string; achieved: boolean }[]>([]);
-
-  useEffect(() => {
-    if (!session?.access_token || profile?.role === 'store_owner') return;
-    authedFetch(`${BASE_URL}/api/me/invites/code`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (!d) return;
-        setInviteCode(d.code);
-        setInviteAccepted(d.acceptedCount ?? 0);
-        setInviteUrl(d.inviteUrl ?? '');
-      })
-      .catch(() => {});
-    authedFetch(`${BASE_URL}/api/me/badges`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.badges) setBadges(d.badges); })
-      .catch(() => {});
-  }, [session?.access_token, profile?.role]);
-
-  async function handleInviteShare() {
-    const text = `「おすそわけ」で食品ロス削減しよう🌱 招待コード: ${inviteCode}\n${inviteUrl}`;
-    const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string; url?: string }) => Promise<void> };
-    if (typeof nav.share === 'function') {
-      try { await nav.share({ title: 'おすそわけ招待', text, url: inviteUrl }); return; } catch {}
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      setInviteCopied(true);
-      setTimeout(() => setInviteCopied(false), 2000);
-    } catch { window.prompt('コピーしてシェア:', text); }
-  }
-
   // ── Stripe ライブステータス（payouts_enabled を DB 固定値ではなく API から取得）──
   // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
   const BASE_URL = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
@@ -768,53 +731,6 @@ export default function MyPage() {
                 </button>
               </div>
             </div>
-
-            {/* 友達を招待 */}
-            {inviteCode && (
-              <div>
-                <p className="text-[11px] font-black text-muted-foreground uppercase tracking-wider mb-1.5 px-1">友達を招待</p>
-                <div className="bg-card rounded-2xl overflow-hidden"
-                  style={{ boxShadow: '0 2px 8px -1px rgba(10,8,6,0.07)', border: '1px solid rgba(242,100,25,0.12)' }}>
-                  <div className="px-4 pt-3.5 pb-2">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">🎁</span>
-                      <div>
-                        <p className="text-sm font-black text-foreground leading-tight">招待コードをシェアしよう</p>
-                        <p className="text-[11px] text-muted-foreground">{inviteAccepted} 人が承諾済み</p>
-                      </div>
-                    </div>
-                    {/* コード表示 */}
-                    <div className="flex items-center gap-2 bg-secondary/60 rounded-xl px-3 py-2 mb-2">
-                      <span className="flex-1 text-sm font-black tracking-widest text-foreground font-mono">{inviteCode}</span>
-                      <button
-                        onClick={handleInviteShare}
-                        className="text-[11px] font-black text-primary shrink-0 tap-scale"
-                        aria-label="招待コードをシェア"
-                      >
-                        {inviteCopied ? 'コピー済み ✓' : 'シェア / コピー'}
-                      </button>
-                    </div>
-                    {/* バッジ行 */}
-                    {badges.length > 0 && (
-                      <div className="flex items-center gap-2 pt-1 pb-0.5">
-                        {badges.map(b => (
-                          <div key={b.id}
-                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border transition-colors ${
-                              b.achieved
-                                ? 'bg-primary/10 text-primary border-primary/30'
-                                : 'bg-muted/40 text-muted-foreground/50 border-border/30'
-                            }`}
-                          >
-                            <span>{b.emoji}</span>
-                            <span>{b.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* おすそわけを広める */}
             <div>
