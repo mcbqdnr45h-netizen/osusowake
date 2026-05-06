@@ -599,3 +599,15 @@ id = "icjUCwPQdPdponosa6Xru"
 uri = "file://attached_assets/02_map_marketing_updated.png"
 type = "image"
 title = "マップ画像"
+
+[[outputs]]
+id = "0Pp4-d_4vw59wepvgIk-v"
+uri = "file://attached_assets/01_home_marketing_ipad.png"
+type = "image"
+title = "ホーム (iPad)"
+
+[[outputs]]
+id = "0PKrrPNtPbScLEe2Dd2OO"
+uri = "file://attached_assets/02_map_marketing_ipad.png"
+type = "image"
+title = "マップ (iPad)"
