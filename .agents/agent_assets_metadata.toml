@@ -509,3 +509,33 @@ id = "soYtpTfKW2XfbKX5-gN_Y"
 uri = "file://artifacts/rescueat/.local/downloads/setup-env.tar.gz"
 type = "unspecified"
 title = "setup-env.tar.gz (Macで展開して実行するだけ)"
+
+[[outputs]]
+id = "V9RKU-HGsoHrXN1usB0tD"
+uri = "file://attached_assets/fixed_screenshots/01_home_fixed.png"
+type = "image"
+title = "01_home — フードロス削減で、地域のお店を応援 (修正済)"
+
+[[outputs]]
+id = "bENGAtF_FsAgGzIN0CUaM"
+uri = "file://attached_assets/fixed_screenshots/02_detail_fixed.png"
+type = "image"
+title = "02_detail — そのまま (キャッチコピー価格なし)"
+
+[[outputs]]
+id = "GYLgflN8omevQ8nHOt0GR"
+uri = "file://attached_assets/fixed_screenshots/03_detail_fixed.png"
+type = "image"
+title = "03_detail — 捨てられるはずだった、お宝バッグ (修正済)"
+
+[[outputs]]
+id = "yKxLZ3t6wTkqsuQIMxijZ"
+uri = "file://attached_assets/fixed_screenshots/04_mypage_fixed.png"
+type = "image"
+title = "04_mypage — そのまま (価格なし)"
+
+[[outputs]]
+id = "IuisJNEFlqA2R6LfBqnmX"
+uri = "file://attached_assets/fixed_screenshots/05_qr_fixed.png"
+type = "image"
+title = "05_qr — そのまま (取引額は許容範囲)"
