@@ -967,15 +967,15 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ⑤ 新着店舗 (※ App Store 審査用に「半額以上のお得」と一時的に位置入れ替え) */}
-                {newStoreBags.length > 0 && (
+                {/* ⑤ 半額以上のお得 */}
+                {halfOffSectionBags.length > 0 && (
                   <div className="pt-1 pb-2">
                     <SectionHeader
-                      icon={<Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
-                      title="新着店舗"
-                      count={newStoreBags.length}
+                      icon={<Percent className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
+                      title="半額以上のお得"
+                      count={halfOffSectionBags.length}
                     />
-                    <HorizScrollRow bags={newStoreBags.slice(0, 6)} loading={false} />
+                    <HorizScrollRow bags={halfOffSectionBags.slice(0, 6)} loading={false} />
                   </div>
                 )}
 
@@ -991,15 +991,15 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ⑦ 半額以上のお得 (※ App Store 審査用に「新着店舗」と一時的に位置入れ替え。 スクショ撮影時にも `data-sshide` で非表示) */}
-                {halfOffSectionBags.length > 0 && (
-                  <div className="pt-1 pb-2" data-sshide>
+                {/* ⑦ 新着店舗 */}
+                {newStoreBags.length > 0 && (
+                  <div className="pt-1 pb-2">
                     <SectionHeader
-                      icon={<Percent className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
-                      title="半額以上のお得"
-                      count={halfOffSectionBags.length}
+                      icon={<Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                      title="新着店舗"
+                      count={newStoreBags.length}
                     />
-                    <HorizScrollRow bags={halfOffSectionBags.slice(0, 6)} loading={false} />
+                    <HorizScrollRow bags={newStoreBags.slice(0, 6)} loading={false} />
                   </div>
                 )}
 
