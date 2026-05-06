@@ -969,7 +969,7 @@ export default function Home() {
 
                 {/* ⑤ 半額以上のお得 */}
                 {halfOffSectionBags.length > 0 && (
-                  <div className="pt-1 pb-2">
+                  <div className="pt-1 pb-2" data-sshide>
                     <SectionHeader
                       icon={<Percent className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
                       title="半額以上のお得"
