@@ -388,7 +388,7 @@ title = "5枚目 QR受取 ｜ QRで、受け取り完了"
 id = "tLM3f04_HO_2LpwNJTfkb"
 uri = "file://attached_assets/appstore_resized/01_home.png"
 type = "image"
-title = "1. 発見"
+title = "1. 発見 (1284×2778)"
 
 [[outputs]]
 id = "rqSBqiA-xzvaLvW4hmQHq"
@@ -400,7 +400,7 @@ title = "2枚目 マップ (RGB 1284×2778)"
 id = "roRlVtcaFZqNSrTgRtGZG"
 uri = "file://attached_assets/appstore_resized/03_detail.png"
 type = "image"
-title = "3. 商品詳細"
+title = "3. 商品詳細 (1284×2778)"
 
 [[outputs]]
 id = "5RcN7KZBt0szgUqCrDznL"
@@ -412,7 +412,7 @@ title = "4枚目 マイページ (RGB 1284×2778)"
 id = "lW8fsFOu2u5hR6eVlEcbU"
 uri = "file://attached_assets/appstore_resized/05_qr.png"
 type = "image"
-title = "5. 電子チケット"
+title = "5. 電子チケット (1284×2778)"
 
 [[outputs]]
 id = "NIEfRfXVfW9J-fGurVxQp"
@@ -544,10 +544,10 @@ title = "05_qr — そのまま (取引額は許容範囲)"
 id = "4xRw17FV4M-pIiwnRfIbE"
 uri = "file://attached_assets/02_map_1778098241640.png"
 type = "image"
-title = "2. マップ"
+title = "2. マップ (1284×2778)"
 
 [[outputs]]
 id = "lYeS8UQzz3ydJNOdvyrAW"
 uri = "file://attached_assets/04_mypage_1778098241638.png"
 type = "image"
-title = "4. マイページ"
+title = "4. マイページ (1284×2778)"

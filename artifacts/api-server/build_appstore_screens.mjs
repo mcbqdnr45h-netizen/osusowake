@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
-const W = 1320, H = 2868;
+const W = 1284, H = 2778;
 const ORANGE = '#D24A25';
 const CREAM = '#FBFAF9';
 const ORANGE_END_Y = Math.round(H * 0.42);
@@ -43,7 +43,7 @@ async function build({ src, out, title, subtitle }) {
   const titleFontSize = Math.min(112, Math.floor(maxWidth / charCount));
   const phoneScale = 0.82;
   const phoneW = Math.round(W * phoneScale);
-  const phoneH = Math.round(2868 * phoneScale);
+  const phoneH = Math.round(H * phoneScale);
   const phoneX = Math.round((W - phoneW) / 2);
   const phoneY = Math.round(H * 0.20);
   const radius = 64;
