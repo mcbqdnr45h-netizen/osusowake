@@ -454,7 +454,7 @@ export default function OrderTicket() {
               <div className="flex-1 min-w-0">
                 <p className="font-black text-foreground">{reservation.store?.name}</p>
                 <p className="text-sm text-muted-foreground truncate">{normalizeBrand(reservation.bag?.title)} × {reservation.quantity}</p>
-                <p className="text-xs font-bold text-primary mt-0.5">¥{reservation.totalPrice.toLocaleString()}</p>
+                <p className="text-xs font-bold text-primary mt-0.5" data-sshide>¥{reservation.totalPrice.toLocaleString()}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -537,7 +537,7 @@ export default function OrderTicket() {
                 >
                   <span>#{String(reservationId).padStart(8, '0')}</span>
                   <span className="font-black tracking-wide">おすそわけ</span>
-                  <span>¥{reservation.totalPrice.toLocaleString()}</span>
+                  <span data-sshide>¥{reservation.totalPrice.toLocaleString()}</span>
                 </div>
               </>
             )}

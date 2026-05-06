@@ -384,3 +384,11 @@
   background-image: radial-gradient(circle, rgba(232, 120, 108, 0.08) 1.2px, transparent 1.2px);
   background-size: 22px 22px;
 }
+
+/* ─── スクリーンショット撮影モード ──────────────────────────
+   App Store 提出用スクショから価格・%OFF などを全消しするための隠しモード。
+   main.tsx で `?screenshot=1` を検知して html に `screenshot-mode` を付与する。
+   各価格要素に `data-sshide` を付けるだけで撮影時に消える。 */
+html.screenshot-mode [data-sshide] {
+  display: none !important;
+}

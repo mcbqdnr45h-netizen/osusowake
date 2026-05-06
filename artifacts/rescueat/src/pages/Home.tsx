@@ -754,6 +754,7 @@ export default function Home() {
             {/* 💰 半額以上 OFF */}
             <button
               onClick={() => setHalfOff(v => !v)}
+              data-sshide
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border tap-scale transition-colors shrink-0 ${
                 halfOff ? 'bg-rose-500/10 text-rose-600 border-rose-500/30' : 'bg-card text-muted-foreground border-border'
               }`}
@@ -764,6 +765,7 @@ export default function Home() {
             {/* 💵 ¥500 以下 */}
             <button
               onClick={() => setUnder500(v => !v)}
+              data-sshide
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border tap-scale transition-colors shrink-0 ${
                 under500 ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : 'bg-card text-muted-foreground border-border'
               }`}

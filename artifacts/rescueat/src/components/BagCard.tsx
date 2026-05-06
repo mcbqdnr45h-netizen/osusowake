@@ -145,7 +145,7 @@ function CompactCardBody({
             ) : null}
           </div>
           {/* 右: 元値 + 販売価格 (税込・サービス手数料込み) */}
-          <div className="flex flex-col items-end shrink-0">
+          <div className="flex flex-col items-end shrink-0" data-sshide>
             {bag.originalPrice > bag.discountedPrice && (
               <span className="text-[10px] text-muted-foreground/40 line-through font-medium leading-none mb-[1px]">
                 ¥{getDisplayPrice(bag.originalPrice).toLocaleString()}
@@ -252,7 +252,7 @@ function FullCardBody({
             </div>
           </div>
           {/* 価格エリア */}
-          <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid rgba(10,8,6,0.07)' }}>
+          <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid rgba(10,8,6,0.07)' }} data-sshide>
             <div className="flex flex-col">
               {bag.originalPrice > bag.discountedPrice ? (
                 <>
@@ -411,7 +411,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
           <>
             {/* 左上: 割引バッジ */}
             {!isSoldOut && discountPercent > 0 && (
-              <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-[3px] rounded-lg shadow-sm">
+              <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-[3px] rounded-lg shadow-sm" data-sshide>
                 {discountPercent}% OFF
               </span>
             )}
@@ -489,7 +489,7 @@ export function BagCard({ bag, compact = false }: BagCardProps) {
               ) : (
                 <>
                   {discountPercent > 0 && (
-                    <div className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
+                    <div data-sshide className={`flex items-center gap-0.5 text-white font-black px-2.5 py-0.5 rounded-full text-[11px] rotate-1
                       ${discountPercent >= 20
                         ? 'bg-gradient-to-r from-[#F07826] to-[#E85A0C] shadow-[0_2px_10px_rgba(240,120,38,0.45)]'
                         : 'bg-primary shadow-[0_2px_8px_rgba(255,140,0,0.30)]'

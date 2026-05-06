@@ -5,6 +5,40 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/lib/supabase";
 import "./index.css";
 
+// ── スクリーンショット撮影モード ──
+//   App Store 提出用スクショから価格・%OFF を全消しするための切替フラグ。
+//   ▼ 有効化方法 (どれでも OK):
+//     1. ブラウザ: URL に `?screenshot=1` を付ける (`?screenshot=0` で解除)
+//     2. 実機 (Capacitor): Safari Web Inspector → Console で
+//        `toggleScreenshotMode()` を実行 (再読み込み込みで切替)
+//   localStorage に保持するので一度設定すれば次回起動以降も継続。
+//   価格要素には `data-sshide` を付け、 index.css の
+//   `html.screenshot-mode [data-sshide]{display:none}` で隠す。
+function applyScreenshotMode() {
+  try {
+    if (localStorage.getItem('__screenshot_mode') === '1') {
+      document.documentElement.classList.add('screenshot-mode');
+    } else {
+      document.documentElement.classList.remove('screenshot-mode');
+    }
+  } catch { /* ignore */ }
+}
+try {
+  const params = new URLSearchParams(window.location.search);
+  const sp = params.get('screenshot');
+  if (sp === '1') localStorage.setItem('__screenshot_mode', '1');
+  else if (sp === '0') localStorage.removeItem('__screenshot_mode');
+  applyScreenshotMode();
+  // 実機 Web Inspector から呼び出せるグローバルヘルパ
+  (window as unknown as { toggleScreenshotMode?: () => string }).toggleScreenshotMode = () => {
+    const next = localStorage.getItem('__screenshot_mode') === '1' ? null : '1';
+    if (next) localStorage.setItem('__screenshot_mode', '1');
+    else localStorage.removeItem('__screenshot_mode');
+    applyScreenshotMode();
+    return next ? 'screenshot mode: ON (再読込で完全反映)' : 'screenshot mode: OFF (再読込で完全反映)';
+  };
+} catch { /* SSR/プライベートモード無視 */ }
+
 // 生成 API クライアント (customFetch) に Supabase access_token を自動付与する。
 // これにより `requireAuth` が必要な全エンドポイントが、 個々の Hook で
 // 手動 Bearer 設定不要になり、 401 の取りこぼし・回帰を防げる。

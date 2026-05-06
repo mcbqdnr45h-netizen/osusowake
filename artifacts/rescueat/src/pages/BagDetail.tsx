@@ -600,7 +600,7 @@ export default function BagDetail() {
                 {/* 装飾用 円 */}
                 <div aria-hidden className="absolute -top-12 -right-10 w-40 h-40 rounded-full bg-gradient-to-br from-[#FFD3A8]/40 to-transparent blur-2xl pointer-events-none" />
 
-                <div className="relative flex items-end justify-between gap-4 flex-wrap">
+                <div className="relative flex items-end justify-between gap-4 flex-wrap" data-sshide>
                   {/* 左: メイン価格 */}
                   <div>
                     {discountPercent > 0 && (
@@ -1134,7 +1134,7 @@ export default function BagDetail() {
                 ) : (
                   <span className="relative flex items-center gap-2">
                     <span>購入する</span>
-                    <span className="text-white/95 font-black tabular-nums" style={{ fontFeatureSettings: '"tnum"' }}>
+                    <span className="text-white/95 font-black tabular-nums" style={{ fontFeatureSettings: '"tnum"' }} data-sshide>
                       ¥{getDisplayPrice(bag.discountedPrice * quantity).toLocaleString()}
                     </span>
                   </span>
