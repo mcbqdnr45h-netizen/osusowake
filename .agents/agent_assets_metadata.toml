@@ -580,4 +580,10 @@ title = "iPad 05 受取コード"
 id = "uIa8A2tc994hO1rTjdE_3"
 uri = "file://artifacts/rescueat/store-assets/screenshots/01_home_fixed.png"
 type = "image"
-title = "01_home (修正版)"
+title = "01_home (提出用 修正版)"
+
+[[outputs]]
+id = "yiJhtgAy9-VoCLFQpGf2r"
+uri = "file://artifacts/rescueat/store-assets/screenshots/02_map_fixed.png"
+type = "image"
+title = "02_map (提出用 修正版)"
