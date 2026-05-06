@@ -418,7 +418,7 @@ title = "5. 電子チケット (1284×2778)"
 id = "NIEfRfXVfW9J-fGurVxQp"
 uri = "file://attached_assets/appstore_ipad/01_home.png"
 type = "image"
-title = "01 ホーム画面 (iPad 13\" 2064×2752)"
+title = "iPad 01 ホーム"
 
 [[outputs]]
 id = "TsGfoAw5Q8706-YDjyiVw"
@@ -551,3 +551,27 @@ id = "lYeS8UQzz3ydJNOdvyrAW"
 uri = "file://attached_assets/04_mypage_1778098241638.png"
 type = "image"
 title = "4. マイページ (1284×2778)"
+
+[[outputs]]
+id = "sIlgwhRW5D5LcGGGqAq-6"
+uri = "file://attached_assets/appstore_ipad/02_map.png"
+type = "image"
+title = "iPad 02 マップ"
+
+[[outputs]]
+id = "agHF8_MOBMXMvhGpLussw"
+uri = "file://attached_assets/appstore_ipad/03_detail.png"
+type = "image"
+title = "iPad 03 バッグ詳細"
+
+[[outputs]]
+id = "HrFmYXFnY67K1nq7ulKaW"
+uri = "file://attached_assets/appstore_ipad/04_mypage.png"
+type = "image"
+title = "iPad 04 マイページ"
+
+[[outputs]]
+id = "BBtJJ18Q39gIO8CMp4J0G"
+uri = "file://attached_assets/appstore_ipad/05_qr.png"
+type = "image"
+title = "iPad 05 受取コード"
