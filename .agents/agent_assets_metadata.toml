@@ -611,3 +611,9 @@ id = "0PKrrPNtPbScLEe2Dd2OO"
 uri = "file://attached_assets/02_map_marketing_ipad.png"
 type = "image"
 title = "マップ (iPad)"
+
+[[outputs]]
+id = "MTesNpq8KPn4m2lXxIeZL"
+uri = "file://artifacts/rescueat/store-assets/screenshots/01_home_fixed_ipad.png"
+type = "image"
+title = "01_home_fixed_ipad.png（iPad 2048×2732）"
