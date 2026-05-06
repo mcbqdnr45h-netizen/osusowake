@@ -51,4 +51,53 @@ pool.on("error", (err) => {
 
 export const db = drizzle(pool, { schema });
 
+/**
+ * DB クエリのリトライ実行ヘルパー。
+ * Supabase のアイドル切断 / TCP リセット等で発生する一時的な接続エラーを
+ * 検知して、最大 retries 回まで指数バックオフで再試行する。
+ *
+ * - "Connection terminated" / ECONNRESET / 57P01 (admin shutdown) /
+ *   08006 (connection_failure) / 08003 (connection_does_not_exist) を再試行対象とする
+ * - 業務エラー（unique 違反など）は即時 throw（リトライしない）
+ */
+export async function withDbRetry<T>(
+  fn: () => Promise<T>,
+  opts: { retries?: number; baseDelayMs?: number; label?: string } = {},
+): Promise<T> {
+  const retries     = opts.retries ?? 3;
+  const baseDelayMs = opts.baseDelayMs ?? 200;
+  const label       = opts.label ?? "db";
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      const msg  = String(err?.message ?? "");
+      const code = String(err?.code ?? "");
+      const transient =
+        msg.includes("Connection terminated") ||
+        msg.includes("Client has encountered a connection error") ||
+        msg.includes("connection terminated") ||
+        code === "ECONNRESET" ||
+        code === "ETIMEDOUT" ||
+        code === "EPIPE" ||
+        code === "57P01" ||
+        code === "08006" ||
+        code === "08003";
+
+      if (!transient || attempt === retries) throw err;
+
+      const delay = baseDelayMs * Math.pow(2, attempt);
+      console.warn(
+        `[${label}] transient DB error (attempt ${attempt + 1}/${retries + 1}) — retrying in ${delay}ms:`,
+        msg || code,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
 export * from "./schema";

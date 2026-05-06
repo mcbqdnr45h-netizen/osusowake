@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
+import { db, withDbRetry } from "@workspace/db";
 import {
   reservationsTable,
   surpriseBagsTable,
@@ -180,16 +180,21 @@ async function notifyAdminRefundFailed(opts: {
 export async function releaseExpiredCartReservations(): Promise<void> {
   try {
     // ① 期限切れレコードを active → expired に一括変更し、変更行を返す
-    const expired = await db
-      .update(cartReservationsTable)
-      .set({ status: "expired" })
-      .where(
-        and(
-          eq(cartReservationsTable.status, "active"),
-          lt(cartReservationsTable.expiresAt, new Date())
-        )
-      )
-      .returning();
+    //   接続切断系の一時障害は withDbRetry で自動リトライ
+    const expired = await withDbRetry(
+      () =>
+        db
+          .update(cartReservationsTable)
+          .set({ status: "expired" })
+          .where(
+            and(
+              eq(cartReservationsTable.status, "active"),
+              lt(cartReservationsTable.expiresAt, new Date())
+            )
+          )
+          .returning(),
+      { label: "cart-reservations.cleanup" },
+    );
 
     if (expired.length === 0) return;
 
