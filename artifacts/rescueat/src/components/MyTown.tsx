@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   getTownStage,
   TOWN_STAGES,
@@ -18,7 +19,27 @@ interface MyTownProps {
   stretch?: boolean;
 }
 
-const LS_KEY = 'rescueat_mytownStage';
+const LS_KEY_BASE = 'rescueat_mytownStage';
+
+// LocalStorage は iPad WKWebView 等でアクセス時に例外を投げる事があるので
+// try/catch で必ず保護する。 失敗時は -1 (未設定相当) を返し、 書き込みは無視。
+function readStoredStage(key: string): number {
+  try {
+    const v = localStorage.getItem(key);
+    if (v == null) return -1;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : -1;
+  } catch {
+    return -1;
+  }
+}
+function writeStoredStage(key: string, stage: number): void {
+  try {
+    localStorage.setItem(key, String(stage));
+  } catch {
+    /* ignore */
+  }
+}
 
 const TITLES: Record<number, string> = {
   0:  '見習い市民',
@@ -232,11 +253,16 @@ const EvolutionPopup = memo(function EvolutionPopup({ stage, onClose }: { stage:
   const info  = TOWN_STAGES[stage];
   const title = getTitle(stage);
 
+  // ★ onClose は親で毎レンダー新規生成される事があるので ref に固定し、
+  //   useEffect の再実行による confetti 連発 / setTimeout 多重登録を防ぐ。
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   useEffect(() => {
     fireConfetti();
-    const t = setTimeout(onClose, 7000);
+    const t = setTimeout(() => onCloseRef.current(), 7000);
     return () => clearTimeout(t);
-  }, [onClose]);
+  }, []);
 
   return (
     <motion.div
@@ -1037,6 +1063,7 @@ const TownScene = memo(function TownScene({
 //  MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, stretch = false }: MyTownProps) {
+  const { user } = useAuth();
   const stage     = getTownStage(purchaseCount);
   const stageInfo = TOWN_STAGES[stage];
   const nextStage = stage < TOWN_STAGES.length - 1 ? TOWN_STAGES[stage + 1] : null;
@@ -1058,24 +1085,47 @@ export const MyTown = memo(function MyTown({ purchaseCount, fullPage = false, st
   const [popupStage,   setPopupStage]   = useState(stage);
   const [showParticles, setShowParticles] = useState(false);
   const prevStageRef = useRef<number | null>(null);
+  // ★ 同セッション内で既に表示済みの最大ステージ。 LS 書き込みが失敗しても
+  //   再マウントや再フェッチで二度同じステージのポップアップが出るのを防ぐ。
+  const sessionShownRef = useRef<number>(-1);
+
+  // ★ アカウント切り替え時はセッション抑制をリセット (別ユーザーが同セッションで
+  //   別ステージに到達した場合にポップアップが出るように)。
+  useEffect(() => {
+    sessionShownRef.current = -1;
+  }, [user?.id]);
+
+  // ★ レベルアップ検出はフルページ (/my-town) のみで動かす。
+  //   MyPage の縮小サムネイル (stretch && !fullPage) は <button> の中にあるため、
+  //   ポップアップを出すと OK タップが下のボタンへ抜けて /my-town へ遷移し
+  //   再マウント → ポップアップ多重表示の原因になっていた。
+  //   詳細ページに入った時に一度だけ祝う形に統一する。
+  // ★ LS_KEY はユーザー毎にスコープ。 未ログイン時は発火させない。
+  const lsKey = user?.id ? `${LS_KEY_BASE}_${user.id}` : null;
+  const enablePopup = fullPage && !!lsKey;
 
   useEffect(() => {
-    const stored = parseInt(localStorage.getItem(LS_KEY) ?? '-1', 10);
+    if (!enablePopup || !lsKey) return;
+    const stored = readStoredStage(lsKey);
     if (stored === -1) {
-      localStorage.setItem(LS_KEY, String(stage));
+      writeStoredStage(lsKey, stage);
       prevStageRef.current = stage;
       return;
     }
     prevStageRef.current = stored;
     if (stage > stored) {
+      // ★ LS への永続化を setShowPopup より前に実行。 例外で書けなくても
+      //   ポップアップ自体は出るが、 同セッション内の再発火は下記 sessionShownRef で防ぐ。
+      writeStoredStage(lsKey, stage);
+      if (sessionShownRef.current >= stage) return;
+      sessionShownRef.current = stage;
       setPopupStage(stage);
       setShowPopup(true);
       setShowParticles(true);
-      localStorage.setItem(LS_KEY, String(stage));
       setTimeout(() => setShowParticles(false), 2500);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage]);
+  }, [stage, enablePopup, lsKey]);
 
   const gameFont = { fontFamily: "'Outfit', 'Noto Sans JP', sans-serif" };
 
