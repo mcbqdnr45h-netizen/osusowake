@@ -454,6 +454,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: translateError(error.message), role: null };
 
+    // ★ iPad (iPadOS 26 WKWebView) バグ対策:
+    //   onAuthStateChange リスナー経由の setUser/setSession に依存していたが、
+    //   iPadOS の WebView では localStorage 書き込み完了イベントが遅延し、
+    //   signIn 完了 → navigate('/mypage') 時点でまだ user が null のままになる
+    //   ケースが発生 (GuestWallRoute がゲスト画面に落ちて、 Apple 審査員からは
+    //   「ログインボタンを押しても元のログイン画面に戻る」 ように見える) 。
+    //   ここで同期的に user/session を確定させて、 リスナーへの依存を排除する。
+    if (data.session) setSession(data.session);
+    if (data.user)    setUser(data.user);
+
     // onAuthStateChange が並走して fetchProfile を呼ばないよう制御
     fetchingRef.current = true;
 

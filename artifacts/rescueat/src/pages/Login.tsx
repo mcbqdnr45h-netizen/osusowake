@@ -88,7 +88,7 @@ export default function Login() {
       if (redirect) {
         const decoded = decodeURIComponent(redirect);
         if (decoded.startsWith('/store/') || decoded.startsWith('/register-store') || decoded.startsWith('/store-onboarding') || decoded === '/mypage') {
-          navigate(decoded);
+          navigate(decoded, { replace: true });
           return;
         }
       }
@@ -96,7 +96,8 @@ export default function Login() {
       // (StoreLayout のボトムナビから「出品管理 / 売上確認 / マイページ」を行き来できるが、
       //  プロフィール編集 / 銀行登録 / 特商法 等の「アカウント系操作」は /mypage 起点なので、
       //  /mypage を着地点にした方がオンボーディング/再設定動線が圧倒的に短い)
-      navigate('/mypage');
+      // ★ replace: true で履歴に /login を残さない (戻るボタンでログイン画面に戻る挙動防止)
+      navigate('/mypage', { replace: true });
     } else {
       const { error: err, role, isAdmin: adminFlag, requiresMfa } = await signIn(email, password);
       setIsLoading(false);
@@ -118,11 +119,12 @@ export default function Login() {
       if (redirect) {
         const decoded = decodeURIComponent(redirect);
         if (decoded.startsWith('/') && !decoded.startsWith('//')) {
-          navigate(decoded);
+          navigate(decoded, { replace: true });
           return;
         }
       }
-      navigate('/mypage');
+      // ★ replace: true で履歴に /login を残さない
+      navigate('/mypage', { replace: true });
     }
   }
 
