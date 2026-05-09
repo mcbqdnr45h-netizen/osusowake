@@ -28,7 +28,7 @@ export default function Slide5Pricing() {
             </div>
             <div style={{ flex: 1, background: 'rgba(232,120,108,0.15)', borderRadius: '1.2vw', padding: '3.5vh 3vw', border: '1px solid rgba(232,120,108,0.3)' }}>
               <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '4.5vw', fontWeight: 900, color: '#E8786C', lineHeight: 1, marginBottom: '1.2vh' }}>
-                26<span style={{ fontSize: '2.2vw' }}>%</span>
+                25<span style={{ fontSize: '2.2vw' }}>%</span>
               </p>
               <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: 'rgba(251,248,244,0.7)', marginBottom: '2.5vh' }}>
                 店舗様の手数料（販売額より）
