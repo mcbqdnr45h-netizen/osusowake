@@ -623,3 +623,9 @@ id = "MTesNpq8KPn4m2lXxIeZL"
 uri = "file://artifacts/rescueat/store-assets/screenshots/01_home_fixed_ipad.png"
 type = "image"
 title = "01_home_fixed_ipad.png（iPad 2048×2732 グラデーション版）"
+
+[[outputs]]
+id = "vmzH8CRHhZ5CzC0F68jx4"
+uri = "file://.local/outputs/--------------.pptx"
+type = "slides"
+title = "おすそわけ 店舗向け営業資料 (PPTX)"
