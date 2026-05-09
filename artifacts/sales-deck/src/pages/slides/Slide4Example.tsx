@@ -43,21 +43,21 @@ export default function Slide4Example() {
                   <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.5vw', color: 'rgba(251,248,244,0.6)', marginBottom: '0.3vh' }}>月間売上（手数料前）</p>
                   <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.4vw', color: 'rgba(251,248,244,0.4)' }}>10袋 × ¥500 × 25日</p>
                 </div>
-                <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>¥125,000</p>
+                <p style={{ fontFamily: "'MS Mincho', 'MS 明朝', serif", fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>¥125,000</p>
               </div>
               <div style={{ background: '#E8786C', borderRadius: '1vw', padding: '2.2vh 2.5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.5vw', color: 'rgba(251,248,244,0.85)', marginBottom: '0.3vh' }}>手数料（25%）</p>
                   <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.4vw', color: 'rgba(251,248,244,0.65)' }}>おすそわけへの成果報酬</p>
                 </div>
-                <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>−¥31,250</p>
+                <p style={{ fontFamily: "'MS Mincho', 'MS 明朝', serif", fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>−¥31,250</p>
               </div>
               <div style={{ background: '#44A836', borderRadius: '1vw', padding: '2.2vh 2.5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.5vw', color: 'rgba(251,248,244,0.9)', marginBottom: '0.3vh' }}>店舗の純収益</p>
                   <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.4vw', color: 'rgba(251,248,244,0.7)' }}>廃棄していた分がそのまま利益に</p>
                 </div>
-                <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>¥93,750</p>
+                <p style={{ fontFamily: "'MS Mincho', 'MS 明朝', serif", fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>¥93,750</p>
               </div>
             </div>
 

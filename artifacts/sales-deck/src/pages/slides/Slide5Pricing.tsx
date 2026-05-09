@@ -12,7 +12,7 @@ export default function Slide5Pricing() {
           </h2>
           <div style={{ display: 'flex', gap: '2.5vw', maxWidth: '80vw' }}>
             <div style={{ flex: 1, background: 'rgba(232,120,108,0.07)', borderRadius: '1.2vw', padding: '3.5vh 3vw', border: '1px solid rgba(232,120,108,0.2)' }}>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '4.5vw', fontWeight: 900, color: '#2A2623', lineHeight: 1, marginBottom: '1.2vh' }}>
+              <p style={{ fontFamily: "'MS Mincho', 'MS 明朝', serif", fontSize: '4.5vw', fontWeight: 900, color: '#2A2623', lineHeight: 1, marginBottom: '1.2vh' }}>
                 無料
               </p>
               <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', marginBottom: '2.5vh' }}>
@@ -23,7 +23,7 @@ export default function Slide5Pricing() {
               </p>
             </div>
             <div style={{ flex: 1, background: 'rgba(232,120,108,0.1)', borderRadius: '1.2vw', padding: '3.5vh 3vw', border: '1px solid rgba(232,120,108,0.3)' }}>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '4.5vw', fontWeight: 900, color: '#E8786C', lineHeight: 1, marginBottom: '1.2vh' }}>
+              <p style={{ fontFamily: "'MS Mincho', 'MS 明朝', serif", fontSize: '4.5vw', fontWeight: 900, color: '#E8786C', lineHeight: 1, marginBottom: '1.2vh' }}>
                 25<span style={{ fontSize: '2.2vw' }}>%</span>
               </p>
               <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', marginBottom: '2.5vh' }}>
