@@ -49,7 +49,7 @@ export default function Slide6Closing() {
             <div>
               <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4vw', fontWeight: 700, color: 'rgba(251,248,244,0.5)', letterSpacing: '0.1em', marginBottom: '1vh' }}>CONTACT</p>
               <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2vw', fontWeight: 900, color: '#FBF8F4', marginBottom: '0.5vh' }}>おすそわけ 店舗担当</p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.7vw', color: 'rgba(251,248,244,0.65)' }}>store@osusowakejapan.org</p>
+              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.7vw', color: 'rgba(251,248,244,0.65)' }}>hello@osusowakejapan.org</p>
             </div>
             <div style={{ width: '0.1vw', background: 'rgba(251,248,244,0.15)', alignSelf: 'stretch' }} />
             <div>
