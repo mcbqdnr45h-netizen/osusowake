@@ -1,1 +1,50 @@
-[]
+[
+  {
+    "id": "a1b2c3d4-0001-4000-8000-000000000001",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide1Title.tsx",
+    "title": "食品廃棄を、売上に変える",
+    "description": "タイトルスライド",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-0002-4000-8000-000000000002",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide2Problem.tsx",
+    "title": "飲食店の食品廃棄、年間コストはいくら？",
+    "description": "課題提示スライド",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-0003-4000-8000-000000000003",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide3HowItWorks.tsx",
+    "title": "おすそわけの仕組み",
+    "description": "3ステップで解説",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-0004-4000-8000-000000000004",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide4Benefits.tsx",
+    "title": "店舗のメリット",
+    "description": "4つのメリット",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-0005-4000-8000-000000000005",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide5Pricing.tsx",
+    "title": "料金・手数料",
+    "description": "コスト説明スライド",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-0006-4000-8000-000000000006",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide6Closing.tsx",
+    "title": "まずはお気軽にご相談ください",
+    "description": "クロージング・連絡先",
+    "speakerNotes": ""
+  }
+]
