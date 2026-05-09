@@ -1,0 +1,31 @@
+kind = "slides"
+previewPath = "/sales-deck/"
+title = "おすそわけ 店舗向け営業資料"
+version = "1.0.0"
+id = "artifacts/sales-deck"
+router = "path"
+
+[[integratedSkills]]
+name = "slides"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/sales-deck/" ]
+localPort = 25223
+
+[services.development]
+run = "pnpm --filter @workspace/sales-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sales-deck", "run", "build" ]
+publicDir = "artifacts/sales-deck/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25223"
+BASE_PATH = "/sales-deck/"
