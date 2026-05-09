@@ -24,8 +24,16 @@
     "speakerNotes": ""
   },
   {
-    "id": "a1b2c3d4-0004-4000-8000-000000000004",
+    "id": "a1b2c3d4-0004-4000-8000-000000000007",
     "position": 4,
+    "filepath": "src/pages/slides/Slide4Example.tsx",
+    "title": "売上シミュレーション",
+    "description": "具体的な収益例",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-0004-4000-8000-000000000004",
+    "position": 5,
     "filepath": "src/pages/slides/Slide4Benefits.tsx",
     "title": "店舗のメリット",
     "description": "4つのメリット",
@@ -33,7 +41,7 @@
   },
   {
     "id": "a1b2c3d4-0005-4000-8000-000000000005",
-    "position": 5,
+    "position": 6,
     "filepath": "src/pages/slides/Slide5Pricing.tsx",
     "title": "料金・手数料",
     "description": "コスト説明スライド",
@@ -41,7 +49,7 @@
   },
   {
     "id": "a1b2c3d4-0006-4000-8000-000000000006",
-    "position": 6,
+    "position": 7,
     "filepath": "src/pages/slides/Slide6Closing.tsx",
     "title": "まずはお気軽にご相談ください",
     "description": "クロージング・連絡先",
