@@ -1,3 +1,5 @@
+const base = import.meta.env.BASE_URL;
+
 export default function Slide6Closing() {
   return (
     <div className="relative w-screen h-screen overflow-hidden" style={{ background: '#FBF8F4' }}>

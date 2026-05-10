@@ -26,5 +26,8 @@
     "vite": "catalog:",
     "wouter": "catalog:",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
   }
 }
