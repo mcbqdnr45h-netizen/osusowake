@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "id": "b1c2d3e4-0001-4000-9000-000000000001",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide1Cover.tsx",
+    "title": "おすそわけ 店舗登録マニュアル",
+    "description": "表紙",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b1c2d3e4-0002-4000-9000-000000000002",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide2Overview.tsx",
+    "title": "登録の流れ（全4ステップ）",
+    "description": "全体概要",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b1c2d3e4-0003-4000-9000-000000000003",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide3Step1Account.tsx",
+    "title": "STEP 1 — アカウント作成",
+    "description": "アカウント登録手順",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b1c2d3e4-0004-4000-9000-000000000004",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide4Step2StoreInfo.tsx",
+    "title": "STEP 2 — 店舗情報の入力",
+    "description": "店舗情報登録手順",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b1c2d3e4-0005-4000-9000-000000000005",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide5Step3Review.tsx",
+    "title": "STEP 3 — 審査・承認待ち",
+    "description": "審査プロセス説明",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b1c2d3e4-0006-4000-9000-000000000006",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide6Step4Listing.tsx",
+    "title": "STEP 4 — 袋を出品する",
+    "description": "出品手順",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b1c2d3e4-0007-4000-9000-000000000007",
+    "position": 7,
+    "filepath": "src/pages/slides/Slide7Pickup.tsx",
+    "title": "受け取り当日の流れ",
+    "description": "受け渡しフロー",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b1c2d3e4-0008-4000-9000-000000000008",
+    "position": 8,
+    "filepath": "src/pages/slides/Slide8FAQ.tsx",
+    "title": "よくある質問",
+    "description": "FAQ",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b1c2d3e4-0009-4000-9000-000000000009",
+    "position": 9,
+    "filepath": "src/pages/slides/Slide9Contact.tsx",
+    "title": "今日から始めましょう",
+    "description": "連絡先・QRコード",
+    "speakerNotes": ""
+  }
+]

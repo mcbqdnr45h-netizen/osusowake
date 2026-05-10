@@ -635,3 +635,9 @@ id = "FxH7cPukoNXDgJ5tbnWc3"
 uri = "file://artifacts/sales-deck/public/store-qr.png"
 type = "image"
 title = "店舗登録QRコード (osusowakejapan.org/store/signup)"
+
+[[outputs]]
+id = "U24LTwBowggnq9_QoJW1D"
+uri = "file://.local/outputs/store-manual.pptx"
+type = "slides"
+title = "おすそわけ 店舗登録マニュアル (PPTX)"
