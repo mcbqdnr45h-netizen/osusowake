@@ -1,0 +1,31 @@
+kind = "slides"
+previewPath = "/store-manual/"
+title = "おすそわけ 店舗登録マニュアル"
+version = "1.0.0"
+id = "artifacts/store-manual"
+router = "path"
+
+[[integratedSkills]]
+name = "slides"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/store-manual/" ]
+localPort = 19236
+
+[services.development]
+run = "pnpm --filter @workspace/store-manual run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/store-manual", "run", "build" ]
+publicDir = "artifacts/store-manual/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19236"
+BASE_PATH = "/store-manual/"
