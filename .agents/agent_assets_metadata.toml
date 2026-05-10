@@ -641,3 +641,9 @@ id = "U24LTwBowggnq9_QoJW1D"
 uri = "file://.local/outputs/store-manual.pptx"
 type = "slides"
 title = "おすそわけ 店舗登録マニュアル (PPTX)"
+
+[[outputs]]
+id = "G6HKskDMJ5e5Twy2HSFBP"
+uri = "file://.local/outputs/store-manual.pdf"
+type = "pdf"
+title = "おすそわけ 店舗登録マニュアル (PDF)"
