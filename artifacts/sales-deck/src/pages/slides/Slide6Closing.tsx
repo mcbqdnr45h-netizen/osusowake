@@ -47,16 +47,22 @@ export default function Slide6Closing() {
               </div>
             </div>
           </div>
-          <div style={{ background: '#2A2623', borderRadius: '1.2vw', padding: '3vh 3.5vw', display: 'flex', gap: '5vw', alignItems: 'center', maxWidth: '70vw' }}>
-            <div>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4vw', fontWeight: 700, color: 'rgba(251,248,244,0.5)', letterSpacing: '0.1em', marginBottom: '1vh' }}>CONTACT</p>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2vw', fontWeight: 900, color: '#FBF8F4', marginBottom: '0.5vh' }}>おすそわけ 店舗担当</p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.7vw', color: 'rgba(251,248,244,0.65)' }}>hello@osusowakejapan.org</p>
+          <div style={{ display: 'flex', gap: '3vw', alignItems: 'stretch' }}>
+            <div style={{ background: '#2A2623', borderRadius: '1.2vw', padding: '3vh 3.5vw', display: 'flex', gap: '4vw', alignItems: 'center', flex: 1 }}>
+              <div>
+                <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4vw', fontWeight: 700, color: 'rgba(251,248,244,0.5)', letterSpacing: '0.1em', marginBottom: '1vh' }}>CONTACT</p>
+                <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2vw', fontWeight: 900, color: '#FBF8F4', marginBottom: '0.5vh' }}>おすそわけ 店舗担当</p>
+                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.7vw', color: 'rgba(251,248,244,0.65)' }}>hello@osusowakejapan.org</p>
+              </div>
+              <div style={{ width: '0.1vw', background: 'rgba(251,248,244,0.15)', alignSelf: 'stretch' }} />
+              <div>
+                <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4vw', fontWeight: 700, color: 'rgba(251,248,244,0.5)', letterSpacing: '0.1em', marginBottom: '1vh' }}>WEB</p>
+                <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2vw', fontWeight: 700, color: '#E8786C' }}>osusowakejapan.org</p>
+              </div>
             </div>
-            <div style={{ width: '0.1vw', background: 'rgba(251,248,244,0.15)', alignSelf: 'stretch' }} />
-            <div>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.4vw', fontWeight: 700, color: 'rgba(251,248,244,0.5)', letterSpacing: '0.1em', marginBottom: '1vh' }}>WEB</p>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2vw', fontWeight: 700, color: '#E8786C' }}>osusowakejapan.org</p>
+            <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 2vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
+              <img src={`${base}store-qr.png`} crossOrigin="anonymous" alt="店舗登録QRコード" style={{ width: '10vw', height: '10vw', objectFit: 'contain' }} />
+              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.3vw', color: '#44A836', fontWeight: 700, textAlign: 'center' }}>店舗登録はこちら</p>
             </div>
           </div>
         </div>
