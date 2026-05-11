@@ -2,7 +2,7 @@ const base = import.meta.env.BASE_URL;
 
 export default function Slide1Title() {
   return (
-    <div style={{ width: "100vw", height: "100vh", overflow: "hidden", backgroundColor: "#FFFFFF", fontFamily: "'Inter', 'Noto Sans JP', sans-serif", position: "relative", boxSizing: "border-box", padding: "5vh 5vw" }}>
+    <div style={{ width: "100vw", height: "100vh", overflow: "hidden", backgroundColor: "#FFFFFF", fontFamily: "'Inter', 'Noto Sans JP', sans-serif", position: "relative", boxSizing: "border-box", padding: "5vh 5vw", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div style={{ fontSize: "1.6vw", fontWeight: 800, color: "#0A1628", letterSpacing: "-0.02em" }}>おすそわけ</div>
@@ -20,18 +20,18 @@ export default function Slide1Title() {
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, #FFFFFF 0%, transparent 40%)" }} />
       </div>
 
-      {/* Title block */}
-      <div style={{ position: "absolute", bottom: "14vh", left: "5vw", width: "62vw" }}>
+      {/* Title block — pushed to bottom via margin-top auto */}
+      <div style={{ marginTop: "auto", width: "62vw" }}>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "1.1vw", color: "#A0AEC0", letterSpacing: "0.1em", marginBottom: "2.5vh" }}>PARTNERSHIP PROPOSAL — 自治体連携提案</div>
         <div style={{ position: "relative" }}>
           <div style={{ position: "absolute", left: "-2vw", top: "2.5vh", width: "28vw", height: "6vh", backgroundColor: "#0A1628", opacity: 0.07, zIndex: 0 }} />
           <h1 style={{ fontSize: "5.5vw", fontWeight: 900, color: "#0A1628", margin: 0, lineHeight: 1.05, letterSpacing: "-0.03em", position: "relative", zIndex: 1 }}>
-            食品ロス削減と<br />地域活性化を<br />同時に実現する
+            食品ロス削減と地域活性化を同時に実現する
           </h1>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "5vh" }}>
-          <p style={{ fontSize: "1.8vw", fontWeight: 500, color: "#4A5568", margin: 0, maxWidth: "45vw", lineHeight: 1.5 }}>
-            スマートフォンアプリ「おすそわけ」を活用した<br />自治体・地域事業者との連携モデルのご提案
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "4vh" }}>
+          <p style={{ fontSize: "1.7vw", fontWeight: 500, color: "#4A5568", margin: 0, maxWidth: "45vw", lineHeight: 1.5 }}>
+            スマートフォンアプリ「おすそわけ」を活用した自治体・地域事業者との連携モデルのご提案
           </p>
           <div style={{ width: "20vw", height: "1px", backgroundColor: "#E2E8F0" }} />
         </div>

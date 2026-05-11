@@ -676,10 +676,10 @@ title = "おすそわけ 営業資料 (PDF)"
 id = "4bsww_RBb8A2VQpb2wUG2"
 uri = "file://.local/outputs/gov-deck.pptx"
 type = "slides"
-title = "おすそわけ 自治体連携提案資料 (PPTX)"
+title = "おすそわけ 自治体連携提案資料 — 修正版 (PPTX)"
 
 [[outputs]]
 id = "cHRw43vilib8K-CrMvSYO"
 uri = "file://.local/outputs/gov-deck.pdf"
 type = "pdf"
-title = "おすそわけ 自治体連携提案資料 (PDF)"
+title = "おすそわけ 自治体連携提案資料 — 修正版 (PDF)"

@@ -2,7 +2,7 @@ export default function Slide9FAQ() {
   return (
     <div style={{ width: "100vw", height: "100vh", overflow: "hidden", backgroundColor: "#FFFFFF", fontFamily: "'Inter', 'Noto Sans JP', sans-serif", position: "relative", boxSizing: "border-box", padding: "5vh 5vw", display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5vh" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4vh" }}>
         <div style={{ position: "relative" }}>
           <div style={{ position: "absolute", left: "-1vw", top: "1.5vh", width: "10vw", height: "3vh", backgroundColor: "#0A1628", opacity: 0.08, zIndex: 0 }} />
           <h2 style={{ fontSize: "3.5vw", fontWeight: 900, color: "#0A1628", margin: 0, lineHeight: 1, letterSpacing: "-0.03em", position: "relative", zIndex: 1 }}>よくある質問</h2>
@@ -10,8 +10,8 @@ export default function Slide9FAQ() {
         <div style={{ fontSize: "1.2vw", fontWeight: 800, color: "#0A1628", letterSpacing: "-0.02em" }}>おすそわけ</div>
       </div>
 
-      <div style={{ display: "flex", gap: "4vw", flex: 1 }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2.8vh" }}>
+      <div style={{ display: "flex", gap: "4vw", flex: 1, minHeight: 0 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2.5vh", overflow: "hidden" }}>
           <div style={{ borderLeft: "3px solid #0A1628", paddingLeft: "1.5vw" }}>
             <div style={{ fontSize: "1.4vw", fontWeight: 700, color: "#0A1628", marginBottom: "0.5vh" }}>予算措置は必要ですか？</div>
             <p style={{ fontSize: "1.2vw", color: "#4A5568", lineHeight: 1.5, margin: 0 }}>不要です。自治体から当社への支払いは一切発生しません。広報・周知への協力のみでご連携いただけます。</p>
@@ -25,7 +25,7 @@ export default function Slide9FAQ() {
             <p style={{ fontSize: "1.2vw", color: "#4A5568", lineHeight: 1.5, margin: 0 }}>現在は大阪府・兵庫県を中心に展開中。連携自治体エリアへの優先展開が可能です。詳細はお問い合わせください。</p>
           </div>
         </div>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2.8vh" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2.5vh", overflow: "hidden" }}>
           <div style={{ borderLeft: "3px solid #E2E8F0", paddingLeft: "1.5vw" }}>
             <div style={{ fontSize: "1.4vw", fontWeight: 700, color: "#0A1628", marginBottom: "0.5vh" }}>削減量データはどの形式で提供されますか？</div>
             <p style={{ fontSize: "1.2vw", color: "#4A5568", lineHeight: 1.5, margin: 0 }}>月次・四半期のPDFレポートおよびCSVデータで提供。削減kg・件数・CO2換算値・参加店舗数を記載します。</p>
@@ -42,7 +42,7 @@ export default function Slide9FAQ() {
       </div>
 
       {/* Footer */}
-      <div style={{ position: "absolute", bottom: "5vh", left: "5vw", right: "5vw", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #E2E8F0", paddingTop: "2vh" }}>
+      <div style={{ marginTop: "2vh", paddingTop: "2vh", borderTop: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "0.9vw", color: "#A0AEC0" }}>よくある質問 / おすそわけ 自治体連携提案資料</div>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "0.9vw", color: "#0A1628", fontWeight: 600 }}>09</div>
       </div>
