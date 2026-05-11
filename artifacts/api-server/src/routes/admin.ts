@@ -927,6 +927,27 @@ router.post("/admin/stores/:storeId/approve", requireAdmin, async (req, res) => 
   }
 });
 
+// ── POST /admin/stores/:storeId/show-on-map ───────────────────────────────────
+// 口座設定未完了でもマップに表示させる管理者フラグのトグル
+router.post("/admin/stores/:storeId/show-on-map", requireAdmin, async (req, res) => {
+  const storeId = Number(req.params.storeId);
+  if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  const { showOnMap } = req.body as { showOnMap: boolean };
+  if (typeof showOnMap !== "boolean") { res.status(400).json({ error: "bad_request", message: "showOnMap must be boolean" }); return; }
+  try {
+    const [updated] = await db
+      .update(storesTable)
+      .set({ showOnMap })
+      .where(eq(storesTable.id, storeId))
+      .returning();
+    if (!updated) { res.status(404).json({ error: "not_found" }); return; }
+    res.json({ ok: true, store: updated });
+  } catch (err: any) {
+    console.error("[admin/show-on-map]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 // ── POST /admin/stores/:storeId/suspend ───────────────────────────────────────
 router.post("/admin/stores/:storeId/suspend", requireAdmin, async (req, res) => {
   const storeId = Number(req.params.storeId);

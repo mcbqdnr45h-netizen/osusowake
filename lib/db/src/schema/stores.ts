@@ -79,6 +79,9 @@ export const storesTable = pgTable("stores", {
   // 入力されている店舗の電子領収書には自動で T 番号を表示し適格請求書として機能。
   // 未入力時は領収書に「※当店は適格請求書発行事業者ではありません」 を表示。
   qualifiedInvoiceNumber: text("qualified_invoice_number"),
+  // 口座設定（stripe_charges_enabled）が完了していなくてもマップに表示するための管理者フラグ。
+  // 出品・購入は stripe_charges_enabled が true になるまで引き続きブロックされる。
+  showOnMap: boolean("show_on_map").notNull().default(false),
 });
 
 export const insertStoreSchema = createInsertSchema(storesTable).omit({ id: true, createdAt: true });

@@ -217,6 +217,7 @@ const publicStoreSelectFields = {
   isActive: storesTable.isActive,
   status: storesTable.status,
   stripeChargesEnabled: storesTable.stripeChargesEnabled,
+  showOnMap: storesTable.showOnMap,
   holiday: storesTable.holiday,
   pickupHours: storesTable.pickupHours,
   createdAt: storesTable.createdAt,
@@ -248,11 +249,12 @@ router.get("/stores", async (req, res) => {
     ListStoresQueryParams.parse(req.query);
 
     // ★ 公開エンドポイント: PII を含まない publicStoreSelectFields を使用 (#3)
+    // show_on_map = true の店舗は口座設定（stripe_charges_enabled）が未完了でもマップに表示する
     const stores = await db
       .select(publicStoreSelectFields)
       .from(storesTable)
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
-      .where(sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true AND ${storesTable.stripeChargesEnabled} = true`)
+      .where(sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true AND (coalesce(${storesTable.stripeChargesEnabled}, false) = true OR coalesce(${storesTable.showOnMap}, false) = true)`)
       .groupBy(storesTable.id);
 
     res.json(stores);

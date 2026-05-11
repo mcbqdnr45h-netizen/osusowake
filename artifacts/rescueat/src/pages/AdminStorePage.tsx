@@ -38,6 +38,7 @@ interface AdminStoreDetail {
   stripe_payouts_enabled: boolean | null;
   stripe_license_file_id: string | null;
   stripe_requirements: StripeRequirements | null;
+  show_on_map: boolean | null;
   bag_count: number;
   reservation_count: number;
   revenue: number | string;
@@ -188,6 +189,26 @@ export default function AdminStorePage() {
       });
       if (res.ok) {
         toast({ title: '✅ 承認しました' });
+        fetchDetail();
+      } else {
+        const d = await res.json();
+        toast({ title: 'エラー', description: d.error, variant: 'destructive' });
+      }
+    } finally { setActionLoading(false); }
+  }
+
+  async function toggleShowOnMap() {
+    if (!store) return;
+    setActionLoading(true);
+    const next = !store.show_on_map;
+    try {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${store.id}/show-on-map`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showOnMap: next }),
+      });
+      if (res.ok) {
+        toast({ title: next ? '🗺️ マップに表示しました' : '🗺️ マップ表示を解除しました' });
         fetchDetail();
       } else {
         const d = await res.json();
@@ -717,6 +738,23 @@ export default function AdminStorePage() {
                   </button>
                 </div>
               )}
+              {/* マップ表示オーバーライド（口座未設定でもマップに出す） */}
+              <button
+                onClick={toggleShowOnMap}
+                disabled={actionLoading}
+                className={`w-full flex items-center justify-center gap-1.5 font-bold text-xs py-2.5 rounded-xl transition-colors border disabled:opacity-50 ${
+                  store.show_on_map
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white border-blue-500'
+                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+                  <line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>
+                </svg>
+                {store.show_on_map ? 'マップ表示中（クリックで解除）' : 'マップに強制表示する（口座未設定でも）'}
+              </button>
+
               {!store.stripe_account_id && (
                 <button
                   onClick={() => { setLinkStripeDialog(true); setLinkStripeInput(''); }}
