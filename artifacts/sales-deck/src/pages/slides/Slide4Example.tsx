@@ -38,19 +38,27 @@ export default function Slide4Example() {
               →
             </div>
 
-            <div style={{ flex: 1.3, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '1.5vh' }}>
-              <div style={{ background: '#2A2623', borderRadius: '1vw', padding: '2.5vh 2.5vw' }}>
-                <p style={{ fontFamily: font, fontSize: '1.4vw', color: 'rgba(251,248,244,0.5)', marginBottom: '1vh' }}>計算式</p>
-                <p style={{ fontFamily: font, fontSize: '2.2vw', fontWeight: 800, color: '#FBF8F4' }}>
-                  3袋 × ¥500 × 20日
-                </p>
-              </div>
-              <div style={{ background: '#44A836', borderRadius: '1vw', padding: '3vh 2.5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ flex: 1.3, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '1.2vh' }}>
+              <div style={{ background: '#2A2623', borderRadius: '1vw', padding: '2.2vh 2.5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <p style={{ fontFamily: font, fontSize: '1.6vw', fontWeight: 700, color: 'rgba(251,248,244,0.9)', marginBottom: '0.4vh' }}>月間の純収益</p>
-                  <p style={{ fontFamily: font, fontSize: '1.3vw', color: 'rgba(251,248,244,0.7)' }}>廃棄品は原価ゼロ → 売上がそのまま利益に</p>
+                  <p style={{ fontFamily: font, fontSize: '1.4vw', color: 'rgba(251,248,244,0.55)', marginBottom: '0.3vh' }}>月間売上</p>
+                  <p style={{ fontFamily: font, fontSize: '1.4vw', color: 'rgba(251,248,244,0.4)' }}>3袋 × ¥500 × 20日</p>
                 </div>
-                <p style={{ fontFamily: font, fontSize: '4vw', fontWeight: 900, color: '#FBF8F4' }}>¥30,000</p>
+                <p style={{ fontFamily: font, fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>¥30,000</p>
+              </div>
+              <div style={{ background: '#E8786C', borderRadius: '1vw', padding: '2.2vh 2.5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontFamily: font, fontSize: '1.4vw', color: 'rgba(251,248,244,0.85)', marginBottom: '0.3vh', fontWeight: 700 }}>手数料（25%）</p>
+                  <p style={{ fontFamily: font, fontSize: '1.3vw', color: 'rgba(251,248,244,0.65)' }}>売上ゼロ月は手数料もゼロ</p>
+                </div>
+                <p style={{ fontFamily: font, fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>−¥7,500</p>
+              </div>
+              <div style={{ background: '#44A836', borderRadius: '1vw', padding: '2.2vh 2.5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontFamily: font, fontSize: '1.4vw', color: 'rgba(251,248,244,0.9)', marginBottom: '0.3vh', fontWeight: 700 }}>純収益</p>
+                  <p style={{ fontFamily: font, fontSize: '1.3vw', color: 'rgba(251,248,244,0.7)' }}>廃棄していた分がそのまま利益に</p>
+                </div>
+                <p style={{ fontFamily: font, fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>¥22,500</p>
               </div>
             </div>
 
