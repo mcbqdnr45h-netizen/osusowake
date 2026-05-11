@@ -550,6 +550,7 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
         s.license_number, s.license_image_url, s.stripe_license_file_id, s.id_image_url, s.pledge_signed,
         s.legal_name, s.legal_representative, s.legal_address,
         s.legal_phone, s.legal_email, s.legal_other,
+        s.show_on_map,
         (SELECT COUNT(*)::int FROM surprise_bags WHERE store_id = s.id) AS bag_count,
         (SELECT COUNT(*)::int FROM reservations  WHERE store_id = s.id) AS reservation_count,
         (SELECT COALESCE(SUM(total_price) FILTER (WHERE status IN ('confirmed','picked_up')), 0)::numeric
