@@ -25,8 +25,8 @@ export default function Slide1Title() {
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "1.1vw", color: "#A0AEC0", letterSpacing: "0.1em", marginBottom: "2.5vh" }}>PARTNERSHIP PROPOSAL — 自治体連携提案</div>
         <div style={{ position: "relative" }}>
           <div style={{ position: "absolute", left: "-2vw", top: "2.5vh", width: "28vw", height: "6vh", backgroundColor: "#0A1628", opacity: 0.07, zIndex: 0 }} />
-          <h1 style={{ fontSize: "5.5vw", fontWeight: 900, color: "#0A1628", margin: 0, lineHeight: 1.05, letterSpacing: "-0.03em", position: "relative", zIndex: 1 }}>
-            食品ロス削減と地域活性化を同時に実現する
+          <h1 style={{ fontSize: "5.5vw", fontWeight: 900, color: "#0A1628", margin: 0, lineHeight: 1.1, letterSpacing: "-0.03em", position: "relative", zIndex: 1, wordBreak: "keep-all" }}>
+            食品ロス削減と<br />地域活性化を同時に実現する
           </h1>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "4vh" }}>
