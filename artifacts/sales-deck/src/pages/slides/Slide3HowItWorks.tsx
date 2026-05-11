@@ -19,7 +19,7 @@ export default function Slide3HowItWorks() {
                 出品
               </p>
               <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', lineHeight: 1.7 }}>
-                売れ残りそうな商品を「袋」として出品
+                売れ残りそうな商品を「おすそわけ」として出品
               </p>
               <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.6vw', color: '#8A7F7A', marginTop: '0.8vh' }}>
                 スマホで1分

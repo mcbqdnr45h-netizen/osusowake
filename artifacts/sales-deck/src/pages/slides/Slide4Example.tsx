@@ -21,10 +21,10 @@ export default function Slide4Example() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(68,168,54,0.15)', paddingBottom: '1.2vh' }}>
                   <span style={{ fontFamily: font, fontSize: '1.6vw', color: '#2A2623' }}>1日の出品数</span>
-                  <span style={{ fontFamily: font, fontSize: '2vw', fontWeight: 800, color: '#2A2623' }}>3袋</span>
+                  <span style={{ fontFamily: font, fontSize: '2vw', fontWeight: 800, color: '#2A2623' }}>3個</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(68,168,54,0.15)', paddingBottom: '1.2vh' }}>
-                  <span style={{ fontFamily: font, fontSize: '1.6vw', color: '#2A2623' }}>1袋あたりの価格</span>
+                  <span style={{ fontFamily: font, fontSize: '1.6vw', color: '#2A2623' }}>1個あたりの価格</span>
                   <span style={{ fontFamily: font, fontSize: '2vw', fontWeight: 800, color: '#2A2623' }}>¥500</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -42,7 +42,7 @@ export default function Slide4Example() {
               <div style={{ background: '#2A2623', borderRadius: '1vw', padding: '2.2vh 2.5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <p style={{ fontFamily: font, fontSize: '1.4vw', color: 'rgba(251,248,244,0.55)', marginBottom: '0.3vh' }}>月間売上</p>
-                  <p style={{ fontFamily: font, fontSize: '1.4vw', color: 'rgba(251,248,244,0.4)' }}>3袋 × ¥500 × 20日</p>
+                  <p style={{ fontFamily: font, fontSize: '1.4vw', color: 'rgba(251,248,244,0.4)' }}>3個 × ¥500 × 20日</p>
                 </div>
                 <p style={{ fontFamily: font, fontSize: '3vw', fontWeight: 900, color: '#FBF8F4' }}>¥30,000</p>
               </div>
