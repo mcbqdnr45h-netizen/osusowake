@@ -426,6 +426,20 @@ async function runMigrations() {
     `);
     console.log('[migration] stores.stripe_charges_enabled ✅');
 
+    // ── stores.show_on_map 列 ─────────────────────────────────────────────────
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='stores'
+            AND column_name='show_on_map'
+        ) THEN
+          ALTER TABLE stores ADD COLUMN show_on_map BOOLEAN NOT NULL DEFAULT false;
+        END IF;
+      END $$;
+    `);
+    console.log('[migration] stores.show_on_map ✅');
+
     // ── sales_leads テーブル ─────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS sales_leads (
