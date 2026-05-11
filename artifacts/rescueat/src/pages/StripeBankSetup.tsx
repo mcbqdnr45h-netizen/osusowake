@@ -1126,6 +1126,23 @@ export default function StripeBankSetup() {
           </div>
         </div>
 
+        {/* 「あとで設定する」ボタン — 入金有効でない & 却下中でない場合のみ表示 */}
+        {store.status !== 'rejected' && store.stripePayoutsEnabled !== true && (
+          <button
+            onClick={() => navigate('/mypage')}
+            className="w-full mb-4 px-4 py-3 bg-white border border-amber-200 rounded-2xl flex items-center justify-between gap-3 active:scale-[0.99] transition-transform shadow-sm"
+          >
+            <div className="text-left">
+              <p className="text-sm font-black text-gray-800">あとで設定する</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">マイページからいつでも続きができます</p>
+            </div>
+            <div className="flex items-center gap-1 text-amber-600 shrink-0">
+              <span className="text-xs font-bold">マイページへ</span>
+              <ChevronLeft className="w-4 h-4 rotate-180" />
+            </div>
+          </button>
+        )}
+
         {/* トップバナー：却下→赤 / Stripe入金有効→お祝い / それ以外→次のステップ案内 */}
         {store.status === 'rejected' ? (
           <motion.div
