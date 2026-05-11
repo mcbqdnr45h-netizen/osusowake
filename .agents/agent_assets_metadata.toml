@@ -234,6 +234,18 @@ uri = "file://artifacts/rescueat/public/images/slide-hero.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "LejElog8WdjO-HFBLEfRr"
+uri = "file://artifacts/gov-deck/public/hero-city.png"
+type = "image"
+title = "japanese city aerial dusk"
+
+[[generated]]
+id = "CaQgMN6c6yKU0eGv47qYV"
+uri = "file://artifacts/gov-deck/public/food-hero.png"
+type = "image"
+title = "food waste reduction hero"
+
 [[outputs]]
 id = "XN11RfSgppjHcJSklu5R2"
 uri = "file://attached_assets/generated_images/logo_1_bag.png"
@@ -659,3 +671,15 @@ id = "wVSyeHnXZFHxZgh6VUfNO"
 uri = "file://.local/outputs/sales-deck.pdf"
 type = "pdf"
 title = "おすそわけ 営業資料 (PDF)"
+
+[[outputs]]
+id = "4bsww_RBb8A2VQpb2wUG2"
+uri = "file://.local/outputs/gov-deck.pptx"
+type = "slides"
+title = "おすそわけ 自治体連携提案資料 (PPTX)"
+
+[[outputs]]
+id = "cHRw43vilib8K-CrMvSYO"
+uri = "file://.local/outputs/gov-deck.pdf"
+type = "pdf"
+title = "おすそわけ 自治体連携提案資料 (PDF)"

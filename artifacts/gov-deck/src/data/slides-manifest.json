@@ -1,1 +1,82 @@
-[]
+[
+  {
+    "id": "gov-0001-4000-8000-000000000001",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide1Title.tsx",
+    "title": "食品ロス削減と地域活性化を同時に実現する",
+    "description": "タイトルスライド",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0002-4000-8000-000000000002",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide2Problem.tsx",
+    "title": "日本の食品ロス問題",
+    "description": "年間472万トンの現状と法的背景",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0003-4000-8000-000000000003",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide3App.tsx",
+    "title": "おすそわけとは",
+    "description": "サービス概要と仕組み",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0004-4000-8000-000000000004",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide4SDGs.tsx",
+    "title": "法的根拠とSDGs",
+    "description": "食品ロス削減推進法・SDGsゴール",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0005-4000-8000-000000000005",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide5Partnership.tsx",
+    "title": "自治体との連携モデル",
+    "description": "4つの連携モデル・負担ゼロ",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0006-4000-8000-000000000006",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide6Impact.tsx",
+    "title": "自治体のメリット",
+    "description": "5つのメリット",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0007-4000-8000-000000000007",
+    "position": 7,
+    "filepath": "src/pages/slides/Slide7Privacy.tsx",
+    "title": "安全性・信頼性",
+    "description": "セキュリティ・法令遵守・リスク管理",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0008-4000-8000-000000000008",
+    "position": 8,
+    "filepath": "src/pages/slides/Slide8Roadmap.tsx",
+    "title": "導入ロードマップ",
+    "description": "3フェーズの導入ステップ",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0009-4000-8000-000000000009",
+    "position": 9,
+    "filepath": "src/pages/slides/Slide9FAQ.tsx",
+    "title": "よくある質問",
+    "description": "自治体担当者向けQ&A",
+    "speakerNotes": ""
+  },
+  {
+    "id": "gov-0010-4000-8000-000000000010",
+    "position": 10,
+    "filepath": "src/pages/slides/Slide10Contact.tsx",
+    "title": "お問い合わせ",
+    "description": "クロージング・連絡先",
+    "speakerNotes": ""
+  }
+]
