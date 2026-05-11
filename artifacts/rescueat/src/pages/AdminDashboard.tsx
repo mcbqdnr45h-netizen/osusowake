@@ -566,8 +566,10 @@ export default function AdminDashboard() {
           description: cascadeMsg ? `関連データも削除: ${cascadeMsg}` : undefined,
         });
         await fetchAll();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: 'エラー', description: d.message || d.error || '削除に失敗しました', variant: 'destructive' });
       }
-      else toast({ title: 'エラー', description: '削除に失敗しました', variant: 'destructive' });
     } finally { setActionLoading(null); }
   }
 

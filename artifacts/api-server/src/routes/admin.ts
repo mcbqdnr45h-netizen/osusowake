@@ -1063,81 +1063,103 @@ router.post("/admin/stores/:storeId/reject", requireAdmin, async (req, res) => {
 router.delete("/admin/stores/:storeId", requireAdmin, async (req, res) => {
   const storeId = Number(req.params.storeId);
   if (isNaN(storeId)) { res.status(400).json({ error: "bad_request" }); return; }
+  console.log(`[admin/stores/delete] start storeId=${storeId}`);
   try {
-    const summary = await db.transaction(async (tx) => {
-      // 削除対象の存在確認
-      const [target] = await tx.select().from(storesTable).where(eq(storesTable.id, storeId));
-      if (!target) return null;
+    // 存在確認 (Drizzle / read は RLS の影響を受けない)
+    const [target] = await db.select({ id: storesTable.id, name: storesTable.name, status: storesTable.status })
+      .from(storesTable).where(eq(storesTable.id, storeId));
+    if (!target) { res.status(404).json({ error: "not_found" }); return; }
+    console.log(`[admin/stores/delete] target found: ${target.name}`);
 
-      // この店舗の bag id / reservation id を先に取得（cart_reservations の片付け用）
-      const bagRows = await tx.select({ id: surpriseBagsTable.id })
-        .from(surpriseBagsTable).where(eq(surpriseBagsTable.storeId, storeId));
-      const bagIds = bagRows.map((b) => b.id);
-      const resvRows = await tx.select({ id: reservationsTable.id })
-        .from(reservationsTable).where(eq(reservationsTable.storeId, storeId));
-      const resvIds = resvRows.map((r) => r.id);
+    // bag_id / reservation_id を取得（cart_reservations 削除のため）
+    const bagRows  = await db.select({ id: surpriseBagsTable.id }).from(surpriseBagsTable).where(eq(surpriseBagsTable.storeId, storeId));
+    const resvRows = await db.select({ id: reservationsTable.id }).from(reservationsTable).where(eq(reservationsTable.storeId, storeId));
+    const bagIds  = bagRows.map((b) => b.id);
+    const resvIds = resvRows.map((r) => r.id);
+    console.log(`[admin/stores/delete] bagIds=${JSON.stringify(bagIds)} resvIds=${JSON.stringify(resvIds)}`);
 
-      // 1) cart_reservations: bag_id か reservation_id 経由で削除
-      let cartDeleted = 0;
-      if (bagIds.length > 0) {
-        const r = await tx.delete(cartReservationsTable)
-          .where(inArray(cartReservationsTable.bagId, bagIds)).returning({ id: cartReservationsTable.id });
-        cartDeleted += r.length;
-      }
-      if (resvIds.length > 0) {
-        const r = await tx.delete(cartReservationsTable)
-          .where(inArray(cartReservationsTable.reservationId, resvIds)).returning({ id: cartReservationsTable.id });
-        cartDeleted += r.length;
-      }
+    // ── supabaseAdmin (service_role) で削除 — RLS を完全バイパス ─────────────
+    // service_role は Supabase の RLS deny ポリシーを回避できる唯一の確実な方法。
+    // トランザクションはないが FK 順に削除するため整合性は保たれる。
 
-      // 2) reviews
-      const reviewsDel = await tx.delete(reviewsTable)
-        .where(eq(reviewsTable.storeId, storeId)).returning({ id: reviewsTable.id });
-      // 3) reports
-      const reportsDel = await tx.delete(reportsTable)
-        .where(eq(reportsTable.storeId, storeId)).returning({ id: reportsTable.id });
-      // 4) favorites
-      const favoritesDel = await tx.delete(favoritesTable)
-        .where(eq(favoritesTable.storeId, storeId)).returning({ id: favoritesTable.id });
-      // 5) notifications
-      const notificationsDel = await tx.delete(notificationsTable)
-        .where(eq(notificationsTable.storeId, storeId)).returning({ id: notificationsTable.id });
-      // 6) reservations
-      const reservationsDel = await tx.delete(reservationsTable)
-        .where(eq(reservationsTable.storeId, storeId)).returning({ id: reservationsTable.id });
-      // 7) surprise_bags
-      const bagsDel = await tx.delete(surpriseBagsTable)
-        .where(eq(surpriseBagsTable.storeId, storeId)).returning({ id: surpriseBagsTable.id });
-      // 8) stores 本体
-      const [deleted] = await tx.delete(storesTable)
-        .where(eq(storesTable.id, storeId)).returning();
+    // 1) cart_reservations (bag_id 経由)
+    let cartDeleted = 0;
+    if (bagIds.length > 0) {
+      const { data: cd1, error: e1 } = await supabaseAdmin.from("cart_reservations").delete().in("bag_id", bagIds).select("id");
+      if (e1) throw Object.assign(new Error(e1.message), { step: "cart_resv/bag", detail: e1.details });
+      cartDeleted += (cd1?.length ?? 0);
+      console.log(`[admin/stores/delete] step1a cart_reservations by bag_id: ${cd1?.length}`);
+    }
+    // 2) cart_reservations (reservation_id 経由)
+    if (resvIds.length > 0) {
+      const { data: cd2, error: e2 } = await supabaseAdmin.from("cart_reservations").delete().in("reservation_id", resvIds).select("id");
+      if (e2) throw Object.assign(new Error(e2.message), { step: "cart_resv/resv", detail: e2.details });
+      cartDeleted += (cd2?.length ?? 0);
+      console.log(`[admin/stores/delete] step1b cart_reservations by resv_id: ${cd2?.length}`);
+    }
+    // 3) reviews
+    console.log(`[admin/stores/delete] step2 deleting reviews...`);
+    const { data: revDel, error: eRev } = await supabaseAdmin.from("reviews").delete().eq("store_id", storeId).select("id");
+    if (eRev) throw Object.assign(new Error(eRev.message), { step: "reviews", detail: eRev.details });
+    console.log(`[admin/stores/delete] step2 reviews: ${revDel?.length}`);
 
-      return {
-        store: deleted,
-        cascade: {
-          cart_reservations: cartDeleted,
-          reviews: reviewsDel.length,
-          reports: reportsDel.length,
-          favorites: favoritesDel.length,
-          notifications: notificationsDel.length,
-          reservations: reservationsDel.length,
-          surprise_bags: bagsDel.length,
-        },
-      };
-    });
+    // 4) reports
+    console.log(`[admin/stores/delete] step3 deleting reports...`);
+    const { data: repDel, error: eRep } = await supabaseAdmin.from("reports").delete().eq("store_id", storeId).select("id");
+    if (eRep) throw Object.assign(new Error(eRep.message), { step: "reports", detail: eRep.details });
+    console.log(`[admin/stores/delete] step3 reports: ${repDel?.length}`);
 
-    if (!summary) { res.status(404).json({ error: "not_found" }); return; }
+    // 5) favorites (ON DELETE CASCADE で自動削除される場合もあるが念のため)
+    console.log(`[admin/stores/delete] step4 deleting favorites...`);
+    const { data: favDel, error: eFav } = await supabaseAdmin.from("favorites").delete().eq("store_id", storeId).select("id");
+    if (eFav) throw Object.assign(new Error(eFav.message), { step: "favorites", detail: eFav.details });
+    console.log(`[admin/stores/delete] step4 favorites: ${favDel?.length}`);
+
+    // 6) notifications
+    console.log(`[admin/stores/delete] step5 deleting notifications...`);
+    const { data: notifDel, error: eNotif } = await supabaseAdmin.from("notifications").delete().eq("store_id", storeId).select("id");
+    if (eNotif) throw Object.assign(new Error(eNotif.message), { step: "notifications", detail: eNotif.details });
+    console.log(`[admin/stores/delete] step5 notifications: ${notifDel?.length}`);
+
+    // 7) reservations
+    console.log(`[admin/stores/delete] step6 deleting reservations...`);
+    const { data: resvDel, error: eResv } = await supabaseAdmin.from("reservations").delete().eq("store_id", storeId).select("id");
+    if (eResv) throw Object.assign(new Error(eResv.message), { step: "reservations", detail: eResv.details });
+    console.log(`[admin/stores/delete] step6 reservations: ${resvDel?.length}`);
+
+    // 8) surprise_bags
+    console.log(`[admin/stores/delete] step7 deleting surprise_bags...`);
+    const { data: bagsDel, error: eBags } = await supabaseAdmin.from("surprise_bags").delete().eq("store_id", storeId).select("id");
+    if (eBags) throw Object.assign(new Error(eBags.message), { step: "surprise_bags", detail: eBags.details });
+    console.log(`[admin/stores/delete] step7 surprise_bags: ${bagsDel?.length}`);
+
+    // 9) stores 本体
+    console.log(`[admin/stores/delete] step8 deleting store...`);
+    const { data: storeDel, error: eStore } = await supabaseAdmin.from("stores").delete().eq("id", storeId).select("id,name,status");
+    if (eStore) throw Object.assign(new Error(eStore.message), { step: "store", detail: eStore.details });
+    console.log(`[admin/stores/delete] step8 store deleted: ${storeDel?.[0]?.id}`);
+
+    const cascade = {
+      cart_reservations: cartDeleted,
+      reviews:       revDel?.length  ?? 0,
+      reports:       repDel?.length  ?? 0,
+      favorites:     favDel?.length  ?? 0,
+      notifications: notifDel?.length ?? 0,
+      reservations:  resvDel?.length  ?? 0,
+      surprise_bags: bagsDel?.length  ?? 0,
+    };
 
     await writeAuditLog(req, "store_delete", storeId, {
-      name: summary.store?.name,
-      status: summary.store?.status,
-      cascade: summary.cascade,
+      name:    target.name,
+      status:  target.status,
+      cascade,
     });
 
-    res.json({ ok: true, ...summary });
+    console.log(`[admin/stores/delete] success storeId=${storeId}`);
+    res.json({ ok: true, store: storeDel?.[0], cascade });
   } catch (err: any) {
-    console.error("[admin/stores/delete]", err);
-    res.status(500).json({ error: "internal_error", message: err?.message });
+    console.error("[admin/stores/delete] FAILED:", err?.message, err?.step, err?.detail);
+    res.status(500).json({ error: "internal_error", message: err?.message, step: err?.step, detail: err?.detail });
   }
 });
 
