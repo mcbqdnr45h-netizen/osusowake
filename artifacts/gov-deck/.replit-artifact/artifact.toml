@@ -1,0 +1,31 @@
+kind = "slides"
+previewPath = "/gov-deck/"
+title = "おすそわけ 自治体連携提案資料"
+version = "1.0.0"
+id = "artifacts/gov-deck"
+router = "path"
+
+[[integratedSkills]]
+name = "slides"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/gov-deck/" ]
+localPort = 25670
+
+[services.development]
+run = "pnpm --filter @workspace/gov-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/gov-deck", "run", "build" ]
+publicDir = "artifacts/gov-deck/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25670"
+BASE_PATH = "/gov-deck/"
