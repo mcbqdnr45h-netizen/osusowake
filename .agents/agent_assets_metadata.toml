@@ -647,3 +647,15 @@ id = "G6HKskDMJ5e5Twy2HSFBP"
 uri = "file://.local/outputs/store-manual.pdf"
 type = "pdf"
 title = "おすそわけ 店舗登録マニュアル (PDF)"
+
+[[outputs]]
+id = "h-gD28vu35d5a3GO_GPm3"
+uri = "file://.local/outputs/sales-deck.pptx"
+type = "slides"
+title = "おすそわけ 営業資料 (PPTX)"
+
+[[outputs]]
+id = "wVSyeHnXZFHxZgh6VUfNO"
+uri = "file://.local/outputs/sales-deck.pdf"
+type = "pdf"
+title = "おすそわけ 営業資料 (PDF)"
