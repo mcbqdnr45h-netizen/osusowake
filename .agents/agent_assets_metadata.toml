@@ -689,3 +689,9 @@ id = "cdtgLs6oxgc5mEgVwvO2J"
 uri = "file://.local/outputs/Food-Rescue-Map.pdf"
 type = "pdf"
 title = "Food Rescue Map.pdf"
+
+[[outputs]]
+id = "WaPg4dPPUYADo6elxvdl6"
+uri = "file://attached_assets/qr/osusowake-appstore-qr.png"
+type = "image"
+title = "おすそわけ App Store QRコード"
