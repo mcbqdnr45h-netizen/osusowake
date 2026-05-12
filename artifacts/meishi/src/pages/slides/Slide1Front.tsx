@@ -52,73 +52,76 @@ export default function Slide1Front() {
         <div style={{ width: '0.7vw', background: 'linear-gradient(180deg, #E8786C 0%, #D4655A 100%)', flexShrink: 0 }} />
 
         {/* メインエリア */}
-        <div style={{ flex: 1, position: 'relative', padding: '3vw 3.8vw 3vw 3.2vw' }}>
-
-          {/* 上部: ロゴ + ブランド名 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.2vw' }}>
-            <div
-              style={{
-                width: '4.8vw',
-                height: '4.8vw',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                flexShrink: 0,
-                boxShadow: '0 0.2vw 0.6vw rgba(232,120,108,0.2)',
-              }}
-            >
-              <img
-                src={`${base}logo.jpg`}
-                crossOrigin="anonymous"
-                alt="おすそわけ"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            </div>
-            <div>
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            padding: '3vw 3.8vw 3vw 3.2vw',
+            position: 'relative',
+          }}
+        >
+          {/* 上部: ロゴ + ブランド名 + 仕切り + 名前 まとめて */}
+          <div>
+            {/* ロゴ + ブランド名 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.2vw', marginBottom: '1.2vw' }}>
               <div
                 style={{
-                  fontFamily: 'Noto Sans JP, sans-serif',
-                  fontSize: '1.9vw',
-                  fontWeight: 700,
-                  color: '#E8786C',
-                  letterSpacing: '0.12em',
-                  lineHeight: 1,
+                  width: '4.8vw',
+                  height: '4.8vw',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  boxShadow: '0 0.2vw 0.6vw rgba(232,120,108,0.2)',
                 }}
               >
-                おすそわけ
+                <img
+                  src={`${base}logo.jpg`}
+                  crossOrigin="anonymous"
+                  alt="おすそわけ"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
               </div>
-              <div
-                style={{
-                  fontFamily: 'Outfit, sans-serif',
-                  fontSize: '0.65vw',
-                  fontWeight: 400,
-                  color: '#C0B8B5',
-                  letterSpacing: '0.18em',
-                  marginTop: '0.4vw',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Food Rescue App
+              <div>
+                <div
+                  style={{
+                    fontFamily: 'Noto Sans JP, sans-serif',
+                    fontSize: '1.9vw',
+                    fontWeight: 700,
+                    color: '#E8786C',
+                    letterSpacing: '0.12em',
+                    lineHeight: 1,
+                  }}
+                >
+                  おすそわけ
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'Outfit, sans-serif',
+                    fontSize: '0.65vw',
+                    fontWeight: 400,
+                    color: '#C0B8B5',
+                    letterSpacing: '0.18em',
+                    marginTop: '0.4vw',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Food Rescue App
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* 中央: 名前（縦中央） */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '3.2vw',
-              transform: 'translateY(-55%)',
-            }}
-          >
+            {/* 仕切り線 */}
             <div
               style={{
                 height: '0.06vw',
-                width: '30vw',
                 background: 'linear-gradient(90deg, #E8C8C5 0%, transparent 80%)',
-                marginBottom: '2vw',
+                marginBottom: '1.4vw',
               }}
             />
+
+            {/* 名前 */}
             <div
               style={{
                 fontFamily: 'Noto Sans JP, sans-serif',
@@ -136,7 +139,7 @@ export default function Slide1Front() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.8vw',
-                marginTop: '1.2vw',
+                marginTop: '1.1vw',
               }}
             >
               <div style={{ width: '2vw', height: '0.06vw', background: '#E8786C' }} />
@@ -154,17 +157,8 @@ export default function Slide1Front() {
             </div>
           </div>
 
-          {/* 下部: 連絡先（絶対配置で底に固定） */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '3vw',
-              left: '3.2vw',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.55vw',
-            }}
-          >
+          {/* 下部: 連絡先 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55vw', marginTop: '2vw' }}>
             {[
               { label: 'TEL', value: '080-9579-0336' },
               { label: 'MAIL', value: 'hello@osusowakejapan.org' },
