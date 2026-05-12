@@ -58,7 +58,7 @@ export default function Slide1Front() {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
             padding: '3vw 3.8vw 3vw 3.2vw',
             position: 'relative',
           }}
@@ -112,12 +112,12 @@ export default function Slide1Front() {
           </div>
 
           {/* 中部: 名前エリア */}
-          <div>
+          <div style={{ marginTop: '2vw' }}>
             <div
               style={{
                 height: '0.06vw',
                 background: 'linear-gradient(90deg, #E8C8C5 0%, transparent 80%)',
-                marginBottom: '2.4vw',
+                marginBottom: '2vw',
               }}
             />
             <div
@@ -149,21 +149,20 @@ export default function Slide1Front() {
               />
               <div
                 style={{
-                  fontFamily: 'Outfit, sans-serif',
+                  fontFamily: 'Noto Sans JP, sans-serif',
                   fontSize: '0.9vw',
                   fontWeight: 400,
                   color: '#9A9290',
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
                 }}
               >
-                Representative
+                代表&nbsp;/&nbsp;Representative
               </div>
             </div>
           </div>
 
           {/* 下部: 連絡先 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5vw' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5vw', marginTop: '2.2vw' }}>
             {[
               { label: 'TEL', value: '080-9579-0336' },
               { label: 'MAIL', value: 'hello@osusowakejapan.org' },
