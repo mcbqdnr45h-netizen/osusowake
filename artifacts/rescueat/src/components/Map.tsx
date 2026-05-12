@@ -109,30 +109,32 @@ function fetchIconAsDataUrl(rawUrl: string): Promise<string | null> {
 function makeIconPinUrl(iconUrl: string, isActive: boolean): string | null {
   const safeHref = safeIconHref(iconUrl);
   if (!safeHref) return null;
-  // ★ iOS WebView 対策: <defs>+filter(feDropShadow)+clipPath は Capacitor WKWebView 上で
-  //   描画失敗するため使わない。 xlink:href も併記して古い WebView 互換を担保。
-  // ★ 「フキダシ型」 (大きめ円 + 下向き三角) でフレーム視認性を最大化:
-  //   太め枠 (4px) ＋ 影楕円。 画像は円より小さく内側に余白を残す。
+  // ★ iOS WebView 対策: <defs>+filter(feDropShadow)+clipPath は Capacitor WKWebView で
+  //   path 描画が消えるバグがあるため使わない。 影は半透明楕円で代用。
+  //   画像クリップは「枠path → 白円 → 画像 → 上に細い縁」 の重ね順で実現
+  //   (画像は四角いまま白円の上に置き、 はみ出し部分を上から円縁で隠す)。
+  //   xlink:href 併記で古い WebView 互換を担保。
+  // ★ 形状は元のティアドロップ型 (水滴) を踏襲。
   if (isActive) {
-    // 64x80, anchor (32, 78)
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="64" height="80" viewBox="0 0 64 80">
-      <ellipse cx="32" cy="76" rx="11" ry="3.2" fill="rgba(0,0,0,0.25)"/>
-      <path d="M32 70 L24 54 H40 Z" fill="#E8511A"/>
-      <circle cx="32" cy="30" r="26" fill="#E8511A"/>
-      <circle cx="32" cy="30" r="22" fill="#ffffff"/>
-      <image href="${safeHref}" xlink:href="${safeHref}" x="10" y="8" width="44" height="44" preserveAspectRatio="xMidYMid slice"/>
-      <circle cx="32" cy="30" r="22" fill="none" stroke="#E8511A" stroke-width="4"/>
+    // 56x70, anchor (28, 63)
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="56" height="70" viewBox="0 0 56 70">
+      <ellipse cx="28" cy="67" rx="9" ry="3" fill="rgba(0,0,0,0.20)"/>
+      <path d="M28 63 Q11 45, 7 26 A21 21 0 1 1 49 26 Q45 45, 28 63 Z"
+        fill="#E8511A" stroke="rgba(255,255,255,0.7)" stroke-width="1.8"/>
+      <circle cx="28" cy="26" r="16" fill="#ffffff"/>
+      <image href="${safeHref}" xlink:href="${safeHref}" x="14" y="12" width="28" height="28" preserveAspectRatio="xMidYMid slice"/>
+      <circle cx="28" cy="26" r="16" fill="none" stroke="#E8511A" stroke-width="3"/>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   } else {
-    // 56x70, anchor (28, 68)
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="56" height="70" viewBox="0 0 56 70">
-      <ellipse cx="28" cy="66" rx="9" ry="2.8" fill="rgba(0,0,0,0.18)"/>
-      <path d="M28 60 L21 47 H35 Z" fill="#8a93a0"/>
-      <circle cx="28" cy="26" r="22" fill="#8a93a0"/>
-      <circle cx="28" cy="26" r="18.5" fill="#ffffff"/>
-      <image href="${safeHref}" xlink:href="${safeHref}" x="10" y="8" width="36" height="36" preserveAspectRatio="xMidYMid slice" opacity="0.88"/>
-      <circle cx="28" cy="26" r="18.5" fill="none" stroke="#8a93a0" stroke-width="3.5"/>
+    // 48x60, anchor (24, 54)
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="48" height="60" viewBox="0 0 48 60">
+      <ellipse cx="24" cy="57" rx="7" ry="2.5" fill="rgba(0,0,0,0.16)"/>
+      <path d="M24 54 Q9 38, 6 22 A18 18 0 1 1 42 22 Q39 38, 24 54 Z"
+        fill="#9aa3b0" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+      <circle cx="24" cy="22" r="13" fill="#ffffff"/>
+      <image href="${safeHref}" xlink:href="${safeHref}" x="11" y="9" width="26" height="26" preserveAspectRatio="xMidYMid slice" opacity="0.85"/>
+      <circle cx="24" cy="22" r="13" fill="none" stroke="#9aa3b0" stroke-width="2.5"/>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   }
@@ -666,7 +668,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           if (!dataUrl) return;
           const customPinUrl = makeIconPinUrl(dataUrl, isActive);
           if (!customPinUrl) return;
-          const [cw, ch, cax, cay] = isActive ? [64, 80, 32, 78] : [56, 70, 28, 68];
+          const [cw, ch, cax, cay] = isActive ? [56, 70, 28, 63] : [48, 60, 24, 54];
           marker.setIcon({
             url:        customPinUrl,
             scaledSize: new gMaps.Size(cw, ch),
