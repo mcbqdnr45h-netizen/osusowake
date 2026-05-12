@@ -55,11 +55,6 @@ export default function Post5Story() {
         </div>
       </div>
 
-      <div style={{ position: "absolute", bottom: "60px", right: "100px", textAlign: "right" }}>
-        <p style={{ fontSize: "22px", color: "rgba(251,248,244,0.35)", marginBottom: "6px" }}>代表</p>
-        <p style={{ fontSize: "32px", fontWeight: 700, color: "rgba(251,248,244,0.65)" }}>佐藤 勇飛</p>
-      </div>
-
       <p style={{ position: "absolute", bottom: "32px", left: "100px", fontSize: "19px", color: "rgba(251,248,244,0.2)", letterSpacing: "0.1em" }}>
         @osusowake_japan
       </p>
