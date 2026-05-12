@@ -761,3 +761,9 @@ id = "d3Hchd_P2jTnDubRvz-Jg"
 uri = "file://screenshots/insta-post9.jpg"
 type = "image"
 title = "投稿⑨ アプリDL案内"
+
+[[outputs]]
+id = "UhnSPlrU0thVuChN2Vl1P"
+uri = "file://screenshots/line-banner.jpg"
+type = "image"
+title = "LINE公式アカウント ヘッダーバナー (2500×843px)"
