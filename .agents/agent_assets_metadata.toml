@@ -701,3 +701,9 @@ id = "PxVq4SbtLhjAMvKMVYmd0"
 uri = "file://.local/outputs/-----_--_----.pdf"
 type = "pdf"
 title = "おすそわけ 名刺 佐藤勇飛 (PDF)"
+
+[[outputs]]
+id = "MKjPLtJFa3frv0_kzLYKm"
+uri = "file://.local/outputs/meishi.pdf"
+type = "pdf"
+title = "おすそわけ 名刺（表・裏）PDF"
