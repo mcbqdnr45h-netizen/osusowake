@@ -209,6 +209,26 @@ export default function AdminStorePage() {
     } finally { setActionLoading(false); }
   }
 
+  async function toggleShowOnMap() {
+    if (!store) return;
+    const next = !store.show_on_map;
+    setActionLoading(true);
+    try {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${store.id}/show-on-map`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showOnMap: next }),
+      });
+      if (res.ok) {
+        toast({ title: next ? '🗺 地図に表示しました' : '🚫 地図から非表示にしました' });
+        fetchDetail();
+      } else {
+        const d = await res.json();
+        toast({ title: 'エラー', description: d.error, variant: 'destructive' });
+      }
+    } finally { setActionLoading(false); }
+  }
+
   async function rejectStore() {
     if (!store || !rejectReason.trim()) return;
     setActionLoading(true);
@@ -727,6 +747,26 @@ export default function AdminStorePage() {
                   Stripe IDを手動リンク（孤立アカウント修復）
                 </button>
               )}
+
+              {/* 地図に表示トグル — 口座未設定でもマップに出せる */}
+              <button
+                onClick={toggleShowOnMap}
+                disabled={actionLoading}
+                className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors border disabled:opacity-50 ${
+                  store.show_on_map
+                    ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                    : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  🗺 地図に表示
+                  {store.show_on_map ? <span className="text-[10px] px-1.5 py-0.5 bg-emerald-200 rounded">ON</span>
+                                      : <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 rounded">OFF</span>}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {store.show_on_map ? 'タップで非表示に' : 'タップで表示する'}
+                </span>
+              </button>
 
               {/* 主アクションボタン */}
               <div className="flex gap-2 flex-wrap">
