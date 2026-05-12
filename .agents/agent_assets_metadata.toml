@@ -707,3 +707,57 @@ id = "MKjPLtJFa3frv0_kzLYKm"
 uri = "file://.local/outputs/meishi.pdf"
 type = "pdf"
 title = "おすそわけ 名刺（表・裏）PDF"
+
+[[outputs]]
+id = "uSaK3PKoJkSYdAtvPOl_e"
+uri = "file://screenshots/insta-post1.jpg"
+type = "image"
+title = "投稿① ロゴ＆ミッション"
+
+[[outputs]]
+id = "KtSwRO76j22gsDim0kFyP"
+uri = "file://screenshots/insta-post2.jpg"
+type = "image"
+title = "投稿② 高槻から変える"
+
+[[outputs]]
+id = "OexxwztJRzWUGKGr4vlx_"
+uri = "file://screenshots/insta-post3.jpg"
+type = "image"
+title = "投稿③ 食品ロスデータ"
+
+[[outputs]]
+id = "6L6sgF5E6TmHsvgQ05-YQ"
+uri = "file://screenshots/insta-post4.jpg"
+type = "image"
+title = "投稿④ 使い方3ステップ"
+
+[[outputs]]
+id = "yx4KfRxieDQOKcSWq5Fng"
+uri = "file://screenshots/insta-post5.jpg"
+type = "image"
+title = "投稿⑤ 開発ストーリー"
+
+[[outputs]]
+id = "JMd_62i-tiyllQwhF9aRr"
+uri = "file://screenshots/insta-post6.jpg"
+type = "image"
+title = "投稿⑥ 加盟店紹介"
+
+[[outputs]]
+id = "nGO_khh6mdeZpUG4GVh-x"
+uri = "file://screenshots/insta-post7.jpg"
+type = "image"
+title = "投稿⑦ 3つのメリット"
+
+[[outputs]]
+id = "7bY0OY9xOIn1Vg86002GG"
+uri = "file://screenshots/insta-post8.jpg"
+type = "image"
+title = "投稿⑧ 高槻エリア宣言"
+
+[[outputs]]
+id = "d3Hchd_P2jTnDubRvz-Jg"
+uri = "file://screenshots/insta-post9.jpg"
+type = "image"
+title = "投稿⑨ アプリDL案内"
