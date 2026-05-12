@@ -11,6 +11,7 @@ import {
   ShieldCheck, Camera, MapPinned, X as XIcon, FileText, AlertCircle,
 } from 'lucide-react';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
+import { ImageCropper } from '@/components/ImageCropper';
 
 // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
 const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
@@ -242,11 +243,10 @@ export default function StoreOnboarding() {
     if (place.lat && place.lng) setPinPos({ lat: place.lat, lng: place.lng });
   };
 
-  const handleImageFile = async (f: File) => {
-    const compressed = await compressImage(f);
-    setForm(prev => ({ ...prev, imageUrl: compressed }));
-    setImagePreview(compressed);
-    // ★ 同じファイルを再選択できるよう input 値をリセット
+  // クロッパーで位置調整 → 確定後に form へ反映
+  const [cropperFile, setCropperFile] = useState<File | null>(null);
+  const handleImageFile = (f: File) => {
+    setCropperFile(f);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -985,6 +985,18 @@ export default function StoreOnboarding() {
           </p>
         </motion.form>
       </div>
+      {cropperFile && (
+        <ImageCropper
+          file={cropperFile}
+          aspect={16 / 9}
+          onCancel={() => setCropperFile(null)}
+          onConfirm={(dataUrl) => {
+            setForm(prev => ({ ...prev, imageUrl: dataUrl }));
+            setImagePreview(dataUrl);
+            setCropperFile(null);
+          }}
+        />
+      )}
     </Layout>
   );
 }

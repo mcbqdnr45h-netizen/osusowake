@@ -6,6 +6,7 @@ import { useMyStore } from '@/hooks/use-my-store';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { StoreLayout } from '@/components/StoreLayout';
+import { ImageCropper } from '@/components/ImageCropper';
 import { authedFetch } from '@/lib/authed-fetch';
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
@@ -134,8 +135,9 @@ export default function StoreReapply() {
     }
   }, [store]);
 
-  // ── 店舗写真 ファイル選択ハンドラ ────────────────────────────────────
-  const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── 店舗写真 ファイル選択ハンドラ (クロッパー経由で位置調整) ─────────
+  const [cropperFile, setCropperFile] = useState<File | null>(null);
+  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
@@ -143,13 +145,7 @@ export default function StoreReapply() {
       toast({ title: 'ファイルが大きすぎます', description: '10MB 以下の画像を選んでください', variant: 'destructive' });
       return;
     }
-    try {
-      const compressed = await compressImage(file);
-      setNewImageBase64(compressed);
-      setImagePreview(compressed);
-    } catch (err: any) {
-      toast({ title: '画像を読み込めませんでした', description: err?.message ?? '別の画像でお試しください', variant: 'destructive' });
-    }
+    setCropperFile(file);
   };
 
   // ── 営業許可証 ファイル選択ハンドラ (画像 or PDF) ────────────────────
@@ -671,6 +667,18 @@ export default function StoreReapply() {
           </div>
         </form>
       </div>
+      {cropperFile && (
+        <ImageCropper
+          file={cropperFile}
+          aspect={16 / 9}
+          onCancel={() => setCropperFile(null)}
+          onConfirm={(dataUrl) => {
+            setNewImageBase64(dataUrl);
+            setImagePreview(dataUrl);
+            setCropperFile(null);
+          }}
+        />
+      )}
     </StoreLayout>
   );
 }

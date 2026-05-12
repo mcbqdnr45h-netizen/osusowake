@@ -9,6 +9,16 @@ import { motion } from 'framer-motion';
 import { authedFetch } from '@/lib/authed-fetch';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { ImageCropper } from '@/components/ImageCropper';
+
+function dataUrlToFile(dataUrl: string, filename: string): File {
+  const [meta, b64] = dataUrl.split(',');
+  const mime = /data:(.*?);base64/.exec(meta)?.[1] ?? 'image/jpeg';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], filename, { type: mime });
+}
 
 // ★ iOS Capacitor では VITE_API_BASE (https://osusowakejapan.org) が必須。Web では BASE_URL を使う
 const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
@@ -140,12 +150,18 @@ export default function StoreProfileEdit() {
   //    入力ハンドラ側で dirty を立てる方針にする (各 onChange 経路で dirtyRef.current = true)。
   function markDirty() { dirtyRef.current = true; }
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [cropperFile, setCropperFile] = useState<File | null>(null);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    e.target.value = ''; // ★ 同じファイルを再選択できるよう即リセット
+    e.target.value = '';
     if (!file) return;
+    setCropperFile(file);
+  };
+
+  const uploadCroppedImage = async (dataUrl: string) => {
     setUploading(true);
     try {
+      const file = dataUrlToFile(dataUrl, 'store-photo.jpg');
       const fd = new FormData();
       fd.append('image', file);
       const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
@@ -156,6 +172,7 @@ export default function StoreProfileEdit() {
       const { url } = await res.json();
       setPreviewUrl(url);
       setForm(f => ({ ...f, imageUrl: url }));
+      markDirty();
     } catch (err) {
       toast({
         title: 'アップロードエラー',
@@ -784,6 +801,17 @@ export default function StoreProfileEdit() {
           </button>
         </div>
       </div>
+      {cropperFile && (
+        <ImageCropper
+          file={cropperFile}
+          aspect={16 / 9}
+          onCancel={() => setCropperFile(null)}
+          onConfirm={(dataUrl) => {
+            setCropperFile(null);
+            void uploadCroppedImage(dataUrl);
+          }}
+        />
+      )}
     </StoreLayout>
   );
 }
