@@ -1,0 +1,18 @@
+[
+  {
+    "id": "meishi-0001-4000-8000-000000000001",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide1Front.tsx",
+    "title": "表面",
+    "description": "名刺 表面 - 佐藤勇飛 代表",
+    "speakerNotes": ""
+  },
+  {
+    "id": "meishi-0002-4000-8000-000000000002",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide2Back.tsx",
+    "title": "裏面",
+    "description": "名刺 裏面 - App Store / Web QRコード",
+    "speakerNotes": ""
+  }
+]
