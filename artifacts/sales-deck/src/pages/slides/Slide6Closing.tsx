@@ -66,8 +66,8 @@ export default function Slide6Closing() {
                 <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.1vw', color: '#44A836', fontWeight: 700, textAlign: 'center' }}>店舗登録はこちら</p>
               </div>
               <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 1.8vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
-                <img src={`${base}qr-line.png`} crossOrigin="anonymous" alt="LINE QRコード" style={{ width: '8vw', height: '8vw', objectFit: 'contain' }} />
-                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.1vw', color: '#44A836', fontWeight: 700, textAlign: 'center' }}>LINEで問い合わせ</p>
+                <img src={`${base}qr-line.png`} crossOrigin="anonymous" alt="App Store QRコード" style={{ width: '8vw', height: '8vw', objectFit: 'contain' }} />
+                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.1vw', color: '#44A836', fontWeight: 700, textAlign: 'center' }}>App Storeで無料DL</p>
               </div>
             </div>
           </div>
