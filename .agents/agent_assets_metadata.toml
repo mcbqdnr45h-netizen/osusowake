@@ -695,3 +695,9 @@ id = "WaPg4dPPUYADo6elxvdl6"
 uri = "file://attached_assets/qr/osusowake-appstore-qr.png"
 type = "image"
 title = "おすそわけ App Store QRコード"
+
+[[outputs]]
+id = "PxVq4SbtLhjAMvKMVYmd0"
+uri = "file://.local/outputs/-----_--_----.pdf"
+type = "pdf"
+title = "おすそわけ 名刺 佐藤勇飛 (PDF)"
