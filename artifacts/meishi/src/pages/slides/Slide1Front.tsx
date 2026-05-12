@@ -1,3 +1,5 @@
+const base = import.meta.env.BASE_URL;
+
 export default function Slide1Front() {
   return (
     <div
@@ -62,15 +64,37 @@ export default function Slide1Front() {
             position: 'relative',
           }}
         >
-          {/* ブランド名 */}
-          <div style={{ marginBottom: '2.8vw' }}>
+          {/* ロゴ + ブランド名 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.4vw', marginBottom: '2.4vw' }}>
+            {/* アプリアイコン風コンテナ */}
+            <div
+              style={{
+                width: '5.8vw',
+                height: '5.8vw',
+                borderRadius: '1.2vw',
+                background: '#E8786C',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                overflow: 'hidden',
+                boxShadow: '0 0.3vw 0.8vw rgba(232,120,108,0.35)',
+              }}
+            >
+              <img
+                src={`${base}logo-nobg.png`}
+                crossOrigin="anonymous"
+                alt="おすそわけ"
+                style={{ width: '4.8vw', height: '4.8vw', objectFit: 'contain' }}
+              />
+            </div>
             <div
               style={{
                 fontFamily: 'Noto Sans JP, sans-serif',
-                fontSize: '1.5vw',
+                fontSize: '2.6vw',
                 fontWeight: 700,
                 color: '#E8786C',
-                letterSpacing: '0.12em',
+                letterSpacing: '0.1em',
                 lineHeight: 1,
               }}
             >
