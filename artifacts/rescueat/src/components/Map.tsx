@@ -109,38 +109,29 @@ function fetchIconAsDataUrl(rawUrl: string): Promise<string | null> {
 function makeIconPinUrl(iconUrl: string, isActive: boolean): string | null {
   const safeHref = safeIconHref(iconUrl);
   if (!safeHref) return null;
+  // ★ iOS WebView 対策: <defs> + filter(feDropShadow) + clipPath を使うと
+  //   Capacitor WKWebView 上で path が描画されないことがある (フレームが消えてアイコンだけ浮く)。
+  //   → defs/filter/clipPath を全部排除し、 影は半透明楕円で代用、
+  //     画像のクリップは circle で覆い隠す方式 (画像→白円縁→上に画像 配置順) に変更。
+  //   xlink:href も併記して古い WebView 互換を担保。
   if (isActive) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="70" viewBox="0 0 56 70">
-      <defs>
-        <radialGradient id="ig1" cx="38%" cy="28%" r="72%">
-          <stop offset="0%" stop-color="#FA9455"/>
-          <stop offset="100%" stop-color="#D44A00"/>
-        </radialGradient>
-        <filter id="ids1" x="-25%" y="-10%" width="150%" height="135%">
-          <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="rgba(160,50,0,0.42)"/>
-        </filter>
-        <clipPath id="clip1"><circle cx="28" cy="26" r="16"/></clipPath>
-      </defs>
-      <ellipse cx="28" cy="67" rx="9" ry="3" fill="rgba(0,0,0,0.16)"/>
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="56" height="70" viewBox="0 0 56 70">
+      <ellipse cx="28" cy="67" rx="10" ry="3.2" fill="rgba(0,0,0,0.22)"/>
       <path d="M28 63 Q11 45, 7 26 A21 21 0 1 1 49 26 Q45 45, 28 63 Z"
-        fill="url(#ig1)" stroke="rgba(255,255,255,0.65)" stroke-width="1.8" filter="url(#ids1)"/>
-      <circle cx="28" cy="26" r="17" fill="white"/>
-      <image href="${safeHref}" x="12" y="10" width="32" height="32" clip-path="url(#clip1)" preserveAspectRatio="xMidYMid slice"/>
+        fill="#E8511A" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>
+      <circle cx="28" cy="26" r="17" fill="#ffffff"/>
+      <image href="${safeHref}" xlink:href="${safeHref}" x="12" y="10" width="32" height="32" preserveAspectRatio="xMidYMid slice"/>
+      <circle cx="28" cy="26" r="16" fill="none" stroke="#E8511A" stroke-width="2"/>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   } else {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
-      <defs>
-        <filter id="ids2" x="-25%" y="-10%" width="150%" height="135%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.18)"/>
-        </filter>
-        <clipPath id="clip2"><circle cx="24" cy="22" r="13"/></clipPath>
-      </defs>
-      <ellipse cx="24" cy="57" rx="7" ry="2.5" fill="rgba(0,0,0,0.10)"/>
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="48" height="60" viewBox="0 0 48 60">
+      <ellipse cx="24" cy="57" rx="8" ry="2.6" fill="rgba(0,0,0,0.18)"/>
       <path d="M24 54 Q9 38, 6 22 A18 18 0 1 1 42 22 Q39 38, 24 54 Z"
-        fill="#b8c0cc" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" filter="url(#ids2)"/>
-      <circle cx="24" cy="22" r="14" fill="white" opacity="0.9"/>
-      <image href="${safeHref}" x="11" y="9" width="26" height="26" clip-path="url(#clip2)" preserveAspectRatio="xMidYMid slice" opacity="0.78"/>
+        fill="#9aa3b0" stroke="rgba(255,255,255,0.85)" stroke-width="1.8"/>
+      <circle cx="24" cy="22" r="14" fill="#ffffff"/>
+      <image href="${safeHref}" xlink:href="${safeHref}" x="10" y="8" width="28" height="28" preserveAspectRatio="xMidYMid slice" opacity="0.85"/>
+      <circle cx="24" cy="22" r="13" fill="none" stroke="#9aa3b0" stroke-width="1.8"/>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   }
