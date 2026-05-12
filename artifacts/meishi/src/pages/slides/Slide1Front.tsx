@@ -66,28 +66,19 @@ export default function Slide1Front() {
         >
           {/* ロゴ + ブランド名 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.4vw', marginBottom: '2.4vw' }}>
-            {/* アプリアイコン風コンテナ */}
-            <div
+            <img
+              src={`${base}logo.jpg`}
+              crossOrigin="anonymous"
+              alt="おすそわけ"
               style={{
                 width: '5.8vw',
                 height: '5.8vw',
+                objectFit: 'cover',
                 borderRadius: '1.2vw',
-                background: '#E8786C',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 flexShrink: 0,
-                overflow: 'hidden',
-                boxShadow: '0 0.3vw 0.8vw rgba(232,120,108,0.35)',
+                boxShadow: '0 0.3vw 0.8vw rgba(232,120,108,0.3)',
               }}
-            >
-              <img
-                src={`${base}logo-nobg.png`}
-                crossOrigin="anonymous"
-                alt="おすそわけ"
-                style={{ width: '4.8vw', height: '4.8vw', objectFit: 'contain' }}
-              />
-            </div>
+            />
             <div
               style={{
                 fontFamily: 'Noto Sans JP, sans-serif',
