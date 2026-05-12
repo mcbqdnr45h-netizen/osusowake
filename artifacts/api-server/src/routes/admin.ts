@@ -937,9 +937,11 @@ router.post("/admin/stores/:storeId/show-on-map", requireAdmin, async (req, res)
   const { showOnMap } = req.body as { showOnMap: boolean };
   if (typeof showOnMap !== "boolean") { res.status(400).json({ error: "bad_request", message: "showOnMap must be boolean" }); return; }
   try {
+    // showOnMap=true は管理者の強制表示フラグ → 同時に is_active=true にして
+    // SQL の `isActive=true` 必須条件を満たす
     const [updated] = await db
       .update(storesTable)
-      .set({ showOnMap })
+      .set(showOnMap ? { showOnMap: true, isActive: true } : { showOnMap: false })
       .where(eq(storesTable.id, storeId))
       .returning();
     if (!updated) { res.status(404).json({ error: "not_found" }); return; }
