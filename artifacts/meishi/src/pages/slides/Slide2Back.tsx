@@ -16,7 +16,6 @@ export default function Slide2Back() {
           backgroundSize: '4vw 4vw',
         }}
       />
-
       <div
         style={{
           position: 'absolute',
@@ -48,10 +47,8 @@ export default function Slide2Back() {
           borderRadius: '0.8vw',
           boxShadow: '0 3vw 8vw rgba(0,0,0,0.6), 0 0.5vw 1.5vw rgba(0,0,0,0.4)',
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
+          flexDirection: 'row',
           overflow: 'hidden',
-          padding: '3.2vw 4.5vw 3.2vw 4.5vw',
         }}
       >
         {/* 装飾円 右上 */}
@@ -64,6 +61,7 @@ export default function Slide2Back() {
             height: '18vw',
             borderRadius: '50%',
             background: 'rgba(255,255,255,0.07)',
+            pointerEvents: 'none',
           }}
         />
         {/* 装飾円 左下 */}
@@ -76,20 +74,29 @@ export default function Slide2Back() {
             height: '14vw',
             borderRadius: '50%',
             background: 'rgba(255,255,255,0.05)',
+            pointerEvents: 'none',
           }}
         />
 
-        {/* 上部: ブランド + キャッチ + 説明 */}
-        <div>
+        {/* 左カラム: テキスト */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            padding: '3.5vw 3vw 3.5vw 4vw',
+          }}
+        >
           <div
             style={{
               fontFamily: 'Outfit, sans-serif',
-              fontSize: '0.75vw',
+              fontSize: '0.7vw',
               fontWeight: 600,
               color: 'rgba(255,255,255,0.5)',
               letterSpacing: '0.3em',
               textTransform: 'uppercase',
-              marginBottom: '1vw',
+              marginBottom: '1.2vw',
             }}
           >
             Osusowake Japan
@@ -97,15 +104,15 @@ export default function Slide2Back() {
           <div
             style={{
               fontFamily: 'Noto Sans JP, sans-serif',
-              fontSize: '2.6vw',
+              fontSize: '2.5vw',
               fontWeight: 900,
               color: '#ffffff',
-              letterSpacing: '0.04em',
-              lineHeight: 1.2,
-              marginBottom: '1.4vw',
+              letterSpacing: '0.03em',
+              lineHeight: 1.25,
+              marginBottom: '1.6vw',
             }}
           >
-            食品廃棄を、おトクに救おう。
+            食品廃棄を、<br />おトクに救おう。
           </div>
           <div
             style={{
@@ -117,30 +124,51 @@ export default function Slide2Back() {
           <div
             style={{
               fontFamily: 'Noto Sans JP, sans-serif',
-              fontSize: '0.95vw',
+              fontSize: '0.9vw',
               fontWeight: 400,
               color: 'rgba(255,255,255,0.78)',
-              letterSpacing: '0.04em',
-              lineHeight: 1.85,
+              letterSpacing: '0.03em',
+              lineHeight: 1.9,
             }}
           >
             飲食店の余剰フードを、閉店前に特別価格でご提供。<br />
-            お店も、お客様も、地球も嬉しいフードロス削減アプリです。
+            お店も、お客様も、地球も嬉しい<br />フードロス削減アプリです。
           </div>
         </div>
 
-        {/* 下部: QR コード 2枚 */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '3vw' }}>
+        {/* 縦の仕切り線 */}
+        <div
+          style={{
+            width: '0.06vw',
+            background: 'rgba(255,255,255,0.15)',
+            flexShrink: 0,
+            margin: '3vw 0',
+          }}
+        />
+
+        {/* 右カラム: QRコード 2枚 縦並び */}
+        <div
+          style={{
+            width: '22vw',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '2vw',
+            padding: '3vw 3.5vw 3vw 3vw',
+            flexShrink: 0,
+          }}
+        >
           {/* App Store QR */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8vw' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.7vw' }}>
             <div
               style={{
                 background: '#ffffff',
                 padding: '0.7vw',
                 borderRadius: '0.6vw',
                 boxShadow: '0 0.4vw 1.2vw rgba(0,0,0,0.25)',
-                width: '9vw',
-                height: '9vw',
+                width: '8.5vw',
+                height: '8.5vw',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -150,13 +178,13 @@ export default function Slide2Back() {
                 src={`${base}qr-appstore.jpeg`}
                 crossOrigin="anonymous"
                 alt="App Store QR"
-                style={{ width: '7.6vw', height: '7.6vw', display: 'block', objectFit: 'contain' }}
+                style={{ width: '7.1vw', height: '7.1vw', display: 'block', objectFit: 'contain' }}
               />
             </div>
             <div
               style={{
                 fontFamily: 'Outfit, sans-serif',
-                fontSize: '0.78vw',
+                fontSize: '0.72vw',
                 fontWeight: 700,
                 color: '#ffffff',
                 letterSpacing: '0.1em',
@@ -168,10 +196,9 @@ export default function Slide2Back() {
             <div
               style={{
                 fontFamily: 'Noto Sans JP, sans-serif',
-                fontSize: '0.68vw',
+                fontSize: '0.62vw',
                 fontWeight: 300,
-                color: 'rgba(255,255,255,0.55)',
-                letterSpacing: '0.04em',
+                color: 'rgba(255,255,255,0.5)',
               }}
             >
               iPhoneアプリ 無料
@@ -179,15 +206,15 @@ export default function Slide2Back() {
           </div>
 
           {/* Web QR */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8vw' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.7vw' }}>
             <div
               style={{
                 background: '#ffffff',
                 padding: '0.7vw',
                 borderRadius: '0.6vw',
                 boxShadow: '0 0.4vw 1.2vw rgba(0,0,0,0.25)',
-                width: '9vw',
-                height: '9vw',
+                width: '8.5vw',
+                height: '8.5vw',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -196,7 +223,7 @@ export default function Slide2Back() {
               <QRCodeSVG
                 value="https://osusowakejapan.org/"
                 size={999}
-                style={{ width: '7.6vw', height: '7.6vw', display: 'block' }}
+                style={{ width: '7.1vw', height: '7.1vw', display: 'block' }}
                 bgColor="#ffffff"
                 fgColor="#1A1512"
                 level="M"
@@ -205,7 +232,7 @@ export default function Slide2Back() {
             <div
               style={{
                 fontFamily: 'Outfit, sans-serif',
-                fontSize: '0.78vw',
+                fontSize: '0.72vw',
                 fontWeight: 700,
                 color: '#ffffff',
                 letterSpacing: '0.1em',
@@ -217,10 +244,10 @@ export default function Slide2Back() {
             <div
               style={{
                 fontFamily: 'Outfit, sans-serif',
-                fontSize: '0.68vw',
+                fontSize: '0.62vw',
                 fontWeight: 300,
-                color: 'rgba(255,255,255,0.55)',
-                letterSpacing: '0.03em',
+                color: 'rgba(255,255,255,0.5)',
+                letterSpacing: '0.02em',
               }}
             >
               osusowakejapan.org

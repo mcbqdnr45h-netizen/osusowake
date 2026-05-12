@@ -14,7 +14,6 @@ export default function Slide1Front() {
           backgroundSize: '4vw 4vw',
         }}
       />
-
       <div
         style={{
           position: 'absolute',
@@ -33,7 +32,7 @@ export default function Slide1Front() {
         Business Card &nbsp;/&nbsp; 名刺
       </div>
 
-      {/* 名刺本体 - 表面 */}
+      {/* 名刺本体 */}
       <div
         style={{
           position: 'absolute',
@@ -53,26 +52,18 @@ export default function Slide1Front() {
         <div style={{ width: '0.7vw', background: 'linear-gradient(180deg, #E8786C 0%, #D4655A 100%)', flexShrink: 0 }} />
 
         {/* メインエリア */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'flex-start',
-            padding: '3vw 3.8vw 3vw 3.2vw',
-            position: 'relative',
-          }}
-        >
+        <div style={{ flex: 1, position: 'relative', padding: '3vw 3.8vw 3vw 3.2vw' }}>
+
           {/* 上部: ロゴ + ブランド名 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.2vw' }}>
             <div
               style={{
-                width: '5vw',
-                height: '5vw',
+                width: '4.8vw',
+                height: '4.8vw',
                 borderRadius: '50%',
                 overflow: 'hidden',
                 flexShrink: 0,
-                boxShadow: '0 0.2vw 0.6vw rgba(232,120,108,0.25)',
+                boxShadow: '0 0.2vw 0.6vw rgba(232,120,108,0.2)',
               }}
             >
               <img
@@ -86,7 +77,7 @@ export default function Slide1Front() {
               <div
                 style={{
                   fontFamily: 'Noto Sans JP, sans-serif',
-                  fontSize: '2vw',
+                  fontSize: '1.9vw',
                   fontWeight: 700,
                   color: '#E8786C',
                   letterSpacing: '0.12em',
@@ -98,7 +89,7 @@ export default function Slide1Front() {
               <div
                 style={{
                   fontFamily: 'Outfit, sans-serif',
-                  fontSize: '0.7vw',
+                  fontSize: '0.65vw',
                   fontWeight: 400,
                   color: '#C0B8B5',
                   letterSpacing: '0.18em',
@@ -111,11 +102,19 @@ export default function Slide1Front() {
             </div>
           </div>
 
-          {/* 中部: 名前エリア */}
-          <div style={{ marginTop: '2vw' }}>
+          {/* 中央: 名前（縦中央） */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '3.2vw',
+              transform: 'translateY(-55%)',
+            }}
+          >
             <div
               style={{
                 height: '0.06vw',
+                width: '30vw',
                 background: 'linear-gradient(90deg, #E8C8C5 0%, transparent 80%)',
                 marginBottom: '2vw',
               }}
@@ -123,10 +122,10 @@ export default function Slide1Front() {
             <div
               style={{
                 fontFamily: 'Noto Sans JP, sans-serif',
-                fontSize: '4.4vw',
+                fontSize: '5vw',
                 fontWeight: 900,
                 color: '#1A1512',
-                letterSpacing: '0.14em',
+                letterSpacing: '0.16em',
                 lineHeight: 1,
               }}
             >
@@ -137,16 +136,10 @@ export default function Slide1Front() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.8vw',
-                marginTop: '1.1vw',
+                marginTop: '1.2vw',
               }}
             >
-              <div
-                style={{
-                  width: '2vw',
-                  height: '0.06vw',
-                  background: '#E8786C',
-                }}
-              />
+              <div style={{ width: '2vw', height: '0.06vw', background: '#E8786C' }} />
               <div
                 style={{
                   fontFamily: 'Noto Sans JP, sans-serif',
@@ -161,8 +154,17 @@ export default function Slide1Front() {
             </div>
           </div>
 
-          {/* 下部: 連絡先 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5vw', marginTop: '2.2vw' }}>
+          {/* 下部: 連絡先（絶対配置で底に固定） */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '3vw',
+              left: '3.2vw',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.55vw',
+            }}
+          >
             {[
               { label: 'TEL', value: '080-9579-0336' },
               { label: 'MAIL', value: 'hello@osusowakejapan.org' },
