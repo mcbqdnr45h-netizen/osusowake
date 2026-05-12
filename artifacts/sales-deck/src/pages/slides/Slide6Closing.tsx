@@ -60,9 +60,15 @@ export default function Slide6Closing() {
                 <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2vw', fontWeight: 700, color: '#E8786C' }}>osusowakejapan.org</p>
               </div>
             </div>
-            <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 2vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
-              <img src={`${base}store-qr.png`} crossOrigin="anonymous" alt="店舗登録QRコード" style={{ width: '10vw', height: '10vw', objectFit: 'contain' }} />
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.3vw', color: '#44A836', fontWeight: 700, textAlign: 'center' }}>店舗登録はこちら</p>
+            <div style={{ display: 'flex', gap: '1.5vw' }}>
+              <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 1.8vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
+                <img src={`${base}store-qr.png`} crossOrigin="anonymous" alt="店舗登録QRコード" style={{ width: '8vw', height: '8vw', objectFit: 'contain' }} />
+                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.1vw', color: '#44A836', fontWeight: 700, textAlign: 'center' }}>店舗登録はこちら</p>
+              </div>
+              <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 1.8vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
+                <img src={`${base}qr-line.png`} crossOrigin="anonymous" alt="LINE QRコード" style={{ width: '8vw', height: '8vw', objectFit: 'contain' }} />
+                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.1vw', color: '#44A836', fontWeight: 700, textAlign: 'center' }}>LINEで問い合わせ</p>
+              </div>
             </div>
           </div>
         </div>
