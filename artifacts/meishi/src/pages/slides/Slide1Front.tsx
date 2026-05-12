@@ -71,12 +71,10 @@ export default function Slide1Front() {
               crossOrigin="anonymous"
               alt="おすそわけ"
               style={{
-                width: '5.8vw',
-                height: '5.8vw',
-                objectFit: 'cover',
-                borderRadius: '1.2vw',
+                width: '5.5vw',
+                height: '5.5vw',
+                objectFit: 'contain',
                 flexShrink: 0,
-                boxShadow: '0 0.3vw 0.8vw rgba(232,120,108,0.3)',
               }}
             />
             <div
