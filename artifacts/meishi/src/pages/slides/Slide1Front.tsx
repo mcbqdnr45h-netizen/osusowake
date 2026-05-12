@@ -1,7 +1,3 @@
-import { QRCodeSVG } from 'qrcode.react';
-
-const base = import.meta.env.BASE_URL;
-
 export default function Slide1Front() {
   return (
     <div
@@ -37,15 +33,15 @@ export default function Slide1Front() {
         Business Card &nbsp;/&nbsp; 名刺
       </div>
 
-      {/* 名刺本体 */}
+      {/* 名刺本体 - 表面 */}
       <div
         style={{
           position: 'absolute',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '72vw',
-          height: '43.5vw',
+          width: '66vw',
+          height: '40vw',
           background: '#FEFCFA',
           borderRadius: '0.8vw',
           boxShadow: '0 3vw 8vw rgba(0,0,0,0.6), 0 0.5vw 1.5vw rgba(0,0,0,0.4), inset 0 0 0 0.06vw rgba(0,0,0,0.08)',
@@ -56,18 +52,18 @@ export default function Slide1Front() {
         {/* 左アクセントバー */}
         <div style={{ width: '0.7vw', background: '#E8786C', flexShrink: 0 }} />
 
-        {/* 左エリア - 情報 */}
+        {/* メインエリア */}
         <div
           style={{
-            flex: '0 0 56%',
+            flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            padding: '3.2vw 3vw 2.8vw 3vw',
+            padding: '3.5vw 4vw 3vw 3.5vw',
             position: 'relative',
           }}
         >
           {/* ブランド名 */}
-          <div style={{ marginBottom: '2.4vw' }}>
+          <div style={{ marginBottom: '2.8vw' }}>
             <div
               style={{
                 fontFamily: 'Noto Sans JP, sans-serif',
@@ -87,7 +83,7 @@ export default function Slide1Front() {
             style={{
               height: '0.06vw',
               background: 'linear-gradient(90deg, #E8C8C5 0%, transparent 100%)',
-              marginBottom: '2.4vw',
+              marginBottom: '2.8vw',
             }}
           />
 
@@ -96,7 +92,7 @@ export default function Slide1Front() {
             <div
               style={{
                 fontFamily: 'Noto Sans JP, sans-serif',
-                fontSize: '3.8vw',
+                fontSize: '4.2vw',
                 fontWeight: 700,
                 color: '#1A1512',
                 letterSpacing: '0.12em',
@@ -108,11 +104,11 @@ export default function Slide1Front() {
             <div
               style={{
                 fontFamily: 'Outfit, sans-serif',
-                fontSize: '0.95vw',
+                fontSize: '1vw',
                 fontWeight: 400,
                 color: '#9A9290',
                 letterSpacing: '0.15em',
-                marginTop: '0.9vw',
+                marginTop: '1vw',
               }}
             >
               代表&nbsp;&nbsp;/&nbsp;&nbsp;Representative
@@ -125,7 +121,7 @@ export default function Slide1Front() {
               <span
                 style={{
                   fontFamily: 'Outfit, sans-serif',
-                  fontSize: '0.65vw',
+                  fontSize: '0.7vw',
                   fontWeight: 700,
                   color: '#E8786C',
                   letterSpacing: '0.1em',
@@ -138,7 +134,7 @@ export default function Slide1Front() {
               <span
                 style={{
                   fontFamily: 'Outfit, sans-serif',
-                  fontSize: '1.1vw',
+                  fontSize: '1.15vw',
                   fontWeight: 400,
                   color: '#2A2522',
                   letterSpacing: '0.06em',
@@ -151,7 +147,7 @@ export default function Slide1Front() {
               <span
                 style={{
                   fontFamily: 'Outfit, sans-serif',
-                  fontSize: '0.65vw',
+                  fontSize: '0.7vw',
                   fontWeight: 700,
                   color: '#E8786C',
                   letterSpacing: '0.1em',
@@ -164,10 +160,10 @@ export default function Slide1Front() {
               <span
                 style={{
                   fontFamily: 'Outfit, sans-serif',
-                  fontSize: '1.1vw',
+                  fontSize: '1.15vw',
                   fontWeight: 400,
                   color: '#2A2522',
-                  letterSpacing: '0.02em',
+                  letterSpacing: '0.03em',
                 }}
               >
                 hello@osusowakejapan.org
@@ -181,119 +177,11 @@ export default function Slide1Front() {
               position: 'absolute',
               bottom: 0,
               right: 0,
-              width: '5vw',
-              height: '5vw',
+              width: '7vw',
+              height: '7vw',
               background: 'linear-gradient(135deg, transparent 50%, #FDF0EE 50%)',
             }}
           />
-        </div>
-
-        {/* 縦の仕切り */}
-        <div
-          style={{
-            width: '0.06vw',
-            background: 'linear-gradient(180deg, transparent 8%, #EDE8E4 30%, #EDE8E4 70%, transparent 92%)',
-            flexShrink: 0,
-            alignSelf: 'stretch',
-          }}
-        />
-
-        {/* 右エリア - QRコード */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '2vw',
-            padding: '2.5vw 2vw',
-          }}
-        >
-          {/* App Store QR */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6vw' }}>
-            <div
-              style={{
-                background: '#fff',
-                border: '0.08vw solid #EDE8E4',
-                borderRadius: '0.5vw',
-                padding: '0.6vw',
-                width: '8.5vw',
-                height: '8.5vw',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <img
-                src={`${base}qr-appstore.jpeg`}
-                crossOrigin="anonymous"
-                alt="App Store QR"
-                style={{ width: '7.3vw', height: '7.3vw', display: 'block' }}
-              />
-            </div>
-            <div
-              style={{
-                fontFamily: 'Outfit, sans-serif',
-                fontSize: '0.7vw',
-                fontWeight: 600,
-                color: '#6A6360',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                textAlign: 'center',
-              }}
-            >
-              App Store
-            </div>
-          </div>
-
-          {/* 点線 */}
-          <div
-            style={{
-              width: '2vw',
-              height: '0.06vw',
-              background: '#DDD8D4',
-            }}
-          />
-
-          {/* Web QR */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6vw' }}>
-            <div
-              style={{
-                background: '#fff',
-                border: '0.08vw solid #EDE8E4',
-                borderRadius: '0.5vw',
-                padding: '0.6vw',
-                width: '8.5vw',
-                height: '8.5vw',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <QRCodeSVG
-                value="https://osusowakejapan.org/"
-                size={999}
-                style={{ width: '7.3vw', height: '7.3vw', display: 'block' }}
-                bgColor="#ffffff"
-                fgColor="#1A1512"
-                level="M"
-              />
-            </div>
-            <div
-              style={{
-                fontFamily: 'Outfit, sans-serif',
-                fontSize: '0.7vw',
-                fontWeight: 600,
-                color: '#6A6360',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                textAlign: 'center',
-              }}
-            >
-              Website
-            </div>
-          </div>
         </div>
       </div>
 
