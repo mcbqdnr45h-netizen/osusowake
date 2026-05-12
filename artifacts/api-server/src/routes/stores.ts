@@ -123,6 +123,97 @@ function toE164Japan(phone: string): string {
   return '+81' + digits;
 }
 
+/**
+ * 半角カナ → 全角カナに変換 + 全角数字/英字 → 半角に変換。
+ * Stripe JP の address_kana は全角カタカナのみ受け付けるため正規化が必須。
+ * 例: "ｶﾐﾊﾑﾛ" → "カミハムロ", "１-２-３" → "1-2-3"
+ */
+function toFullWidthKana(input: string): string {
+  if (!input) return input;
+  // 1. 半角カナ → 全角カナ（濁点・半濁点も合成）
+  const kanaMap: Record<string, string> = {
+    'ｶﾞ':'ガ','ｷﾞ':'ギ','ｸﾞ':'グ','ｹﾞ':'ゲ','ｺﾞ':'ゴ','ｻﾞ':'ザ','ｼﾞ':'ジ','ｽﾞ':'ズ','ｾﾞ':'ゼ','ｿﾞ':'ゾ',
+    'ﾀﾞ':'ダ','ﾁﾞ':'ヂ','ﾂﾞ':'ヅ','ﾃﾞ':'デ','ﾄﾞ':'ド','ﾊﾞ':'バ','ﾋﾞ':'ビ','ﾌﾞ':'ブ','ﾍﾞ':'ベ','ﾎﾞ':'ボ',
+    'ﾊﾟ':'パ','ﾋﾟ':'ピ','ﾌﾟ':'プ','ﾍﾟ':'ペ','ﾎﾟ':'ポ','ｳﾞ':'ヴ',
+    'ｱ':'ア','ｲ':'イ','ｳ':'ウ','ｴ':'エ','ｵ':'オ','ｶ':'カ','ｷ':'キ','ｸ':'ク','ｹ':'ケ','ｺ':'コ',
+    'ｻ':'サ','ｼ':'シ','ｽ':'ス','ｾ':'セ','ｿ':'ソ','ﾀ':'タ','ﾁ':'チ','ﾂ':'ツ','ﾃ':'テ','ﾄ':'ト',
+    'ﾅ':'ナ','ﾆ':'ニ','ﾇ':'ヌ','ﾈ':'ネ','ﾉ':'ノ','ﾊ':'ハ','ﾋ':'ヒ','ﾌ':'フ','ﾍ':'ヘ','ﾎ':'ホ',
+    'ﾏ':'マ','ﾐ':'ミ','ﾑ':'ム','ﾒ':'メ','ﾓ':'モ','ﾔ':'ヤ','ﾕ':'ユ','ﾖ':'ヨ',
+    'ﾗ':'ラ','ﾘ':'リ','ﾙ':'ル','ﾚ':'レ','ﾛ':'ロ','ﾜ':'ワ','ｦ':'ヲ','ﾝ':'ン',
+    'ｧ':'ァ','ｨ':'ィ','ｩ':'ゥ','ｪ':'ェ','ｫ':'ォ','ｬ':'ャ','ｭ':'ュ','ｮ':'ョ','ｯ':'ッ',
+    'ｰ':'ー','｡':'。','｢':'「','｣':'」','､':'、','･':'・',
+  };
+  let out = '';
+  for (let i = 0; i < input.length; i++) {
+    const two = input.slice(i, i + 2);
+    if (kanaMap[two]) { out += kanaMap[two]; i++; continue; }
+    const one = input[i];
+    if (kanaMap[one]) { out += kanaMap[one]; continue; }
+    out += one;
+  }
+  // 2. ひらがな → カタカナ（IMEで誤入力したケース対応）
+  out = out.replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+  // 3. 全角数字/英字 → 半角（番地等）
+  out = out.replace(/[０-９Ａ-Ｚａ-ｚ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+  return out;
+}
+
+/**
+ * 町名（town）と番地（line1）を再分離する。
+ * 「ｶﾐﾊﾑﾛ1-2-22」「神内1-2-22」のように町名欄に番地まで入ってる場合、
+ * 最初の半角/全角数字以降を line1 に移動する。
+ * Stripe JP の住所バリデータは郵便番号と町名の照合をするため、town に番地が混入すると弾かれる。
+ */
+function splitTownLine1(town: string, line1: string): { town: string; line1: string } {
+  const t = (town ?? '').trim();
+  const l = (line1 ?? '').trim();
+  if (!t) return { town: t, line1: l };
+  // 最初の数字（半角/全角）の位置を探す
+  const m = t.match(/[0-9０-９]/);
+  if (!m || m.index === undefined) return { town: t, line1: l };
+  const cleanTown = t.slice(0, m.index).trim();
+  const moved     = t.slice(m.index).trim();
+  if (!cleanTown) return { town: t, line1: l }; // 全部数字なら触らない
+  // 既存 line1 がある場合は前に町名残りを足す
+  const newLine1 = l ? `${moved} ${l}` : moved;
+  return { town: cleanTown, line1: newLine1 };
+}
+
+/**
+ * Stripe JP に送る address_kanji / address_kana をまとめて正規化。
+ * - kana側: 半角カナ→全角カナ + 数字を半角化
+ * - 両方: townに数字混入してたら line1 に分離
+ */
+function buildJpAddress(k: {
+  postalCode: string;
+  stateKanji: string; cityKanji: string; townKanji: string; line1Kanji: string;
+  stateKana:  string; cityKana:  string; townKana:  string; line1Kana:  string;
+}) {
+  const postal = (k.postalCode ?? '').replace(/[^0-9]/g, '');
+  const kanjiSplit = splitTownLine1(k.townKanji ?? '', k.line1Kanji ?? '');
+  const kanaRaw    = splitTownLine1(k.townKana  ?? '', k.line1Kana  ?? '');
+  const kanaSplit = {
+    town:  toFullWidthKana(kanaRaw.town),
+    line1: toFullWidthKana(kanaRaw.line1),
+  };
+  return {
+    address_kanji: {
+      postal_code: postal,
+      state:       (k.stateKanji ?? '').trim(),
+      city:        (k.cityKanji  ?? '').trim(),
+      town:        kanjiSplit.town,
+      line1:       kanjiSplit.line1,
+    },
+    address_kana: {
+      postal_code: postal,
+      state:       toFullWidthKana((k.stateKana ?? '').trim()),
+      city:        toFullWidthKana((k.cityKana  ?? '').trim()),
+      town:        kanaSplit.town,
+      line1:       kanaSplit.line1,
+    },
+  };
+}
+
 const router: IRouter = Router();
 
 // ─── GET /api/stripe/public-config ───────────────────────────────────────────
@@ -2269,42 +2360,24 @@ router.put("/stores/:storeId/connect/kyc", requireAuth, requireStoreOwner, async
       // 取得失敗時はフォームの値をそのまま使用
     }
 
-    // ── address_kanji.line1 = 「市区町村 + 町名・番地 [+ 建物名]」
-    //    Stripe Japan は line1 を必須要求するため、常に値を設定する
-    const kanjiLine1Parts = [representative.cityKanji, representative.townKanji];
-    if (representative.line1Kanji) kanjiLine1Parts.push(representative.line1Kanji);
-    const kanjiLine1 = kanjiLine1Parts.filter(Boolean).join(" ");
-
-    // ── address_kana.line1 = 「市区町村カナ + 町名カナ [+ 建物カナ]」
-    const kanaLine1Parts = [representative.cityKana, representative.townKana];
-    if (representative.line1Kana) kanaLine1Parts.push(representative.line1Kana);
-    const kanaLine1 = kanaLine1Parts.filter(Boolean).join(" ");
-
-    // ── 住所オブジェクト（漢字）──
-    const addressKanji: Record<string, string> = {
-      postal_code: representative.postalCode,
-      state:       representative.stateKanji,
-      city:        representative.cityKanji,
-      town:        representative.townKanji,
-      line1:       kanjiLine1,               // 必須: 市区町村+番地の完全形式
-    };
-
-    // ── 住所オブジェクト（カナ）──
-    const addressKana: Record<string, string> = {
-      postal_code: representative.postalCode,
-      state:       representative.stateKana,
-      city:        representative.cityKana,
-      town:        representative.townKana,
-      line1:       kanaLine1,                // 必須: 市区町村カナ+番地カナの完全形式
-    };
+    // ── 住所を Stripe JP 仕様に正規化（半角カナ→全角カナ、町名から番地を分離）──
+    const jpAddrKyc = buildJpAddress({
+      postalCode: representative.postalCode,
+      stateKanji: representative.stateKanji, cityKanji: representative.cityKanji,
+      townKanji:  representative.townKanji,  line1Kanji: representative.line1Kanji ?? '',
+      stateKana:  representative.stateKana,  cityKana:  representative.cityKana,
+      townKana:   representative.townKana,   line1Kana:  representative.line1Kana  ?? '',
+    });
+    const addressKanji = jpAddrKyc.address_kanji;
+    const addressKana  = jpAddrKyc.address_kana;
 
     // ── 標準住所（kanji/kana と並列で送信） ──
     const addressStandard: Record<string, string> = {
-      postal_code: representative.postalCode,
+      postal_code: addressKanji.postal_code,
       country:     "JP",
-      state:       representative.stateKanji,
-      city:        representative.cityKanji,
-      line1:       kanjiLine1,
+      state:       addressKanji.state,
+      city:        addressKanji.city,
+      line1:       addressKanji.line1,
     };
 
     // ── 事業内容 ──
@@ -2332,8 +2405,8 @@ router.put("/stores/:storeId/connect/kyc", requireAuth, requireStoreOwner, async
     if (resolvedBusinessType === "individual") {
       const indiv: Record<string, any> = {};
       // JP では first_name/last_name（Latin）は不要。kana/kanji のみ送る
-      if (representative.firstNameKana?.trim())  indiv.first_name_kana  = representative.firstNameKana;
-      if (representative.lastNameKana?.trim())   indiv.last_name_kana   = representative.lastNameKana;
+      if (representative.firstNameKana?.trim())  indiv.first_name_kana  = toFullWidthKana(representative.firstNameKana);
+      if (representative.lastNameKana?.trim())   indiv.last_name_kana   = toFullWidthKana(representative.lastNameKana);
       if (representative.firstNameKanji?.trim()) indiv.first_name_kanji = representative.firstNameKanji;
       if (representative.lastNameKanji?.trim())  indiv.last_name_kanji  = representative.lastNameKanji;
       // 生年月日（全フィールド揃っている場合のみ）
@@ -2363,7 +2436,7 @@ router.put("/stores/:storeId/connect/kyc", requireAuth, requireStoreOwner, async
       // 法人名マッピング（JP Stripe）:
       //   name_kanji = 漢字法人名（必須）  /  name_kana = カナ（必須）  /  name = ローマ字（任意）
       if (companyNameKanji?.trim()) companyObj.name_kanji = companyNameKanji.trim();
-      if (companyNameKana?.trim())  companyObj.name_kana  = companyNameKana.trim();
+      if (companyNameKana?.trim())  companyObj.name_kana  = toFullWidthKana(companyNameKana.trim());
       // ⚠️ JP では company.structure を送ると全値エラーになるため送らない
       // JP では address（標準）は送らず address_kana / address_kanji のみ
       if (representative.postalCode?.trim()) {
@@ -2376,8 +2449,8 @@ router.put("/stores/:storeId/connect/kyc", requireAuth, requireStoreOwner, async
       // 代表者データを repPersonPayload に構築（スコープを外に出す）
       const repData: Record<string, any> = {};
       // JP では rep.first_name/last_name（Latin）は不要。kana/kanji のみ
-      if (representative.firstNameKana?.trim())  repData.first_name_kana  = representative.firstNameKana;
-      if (representative.lastNameKana?.trim())   repData.last_name_kana   = representative.lastNameKana;
+      if (representative.firstNameKana?.trim())  repData.first_name_kana  = toFullWidthKana(representative.firstNameKana);
+      if (representative.lastNameKana?.trim())   repData.last_name_kana   = toFullWidthKana(representative.lastNameKana);
       if (representative.firstNameKanji?.trim()) repData.first_name_kanji = representative.firstNameKanji;
       if (representative.lastNameKanji?.trim())  repData.last_name_kanji  = representative.lastNameKanji;
       if (representative.dobDay && representative.dobMonth && representative.dobYear) {
@@ -2889,20 +2962,25 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
 
     // ── STEP 4: KYC 更新（同期 — 代表者データを確実に Stripe に届けるため BG から移動）──
     const k = kycData;
-    const kanjiLine1 = [k.cityKanji, k.townKanji, k.line1Kanji].filter(Boolean).join(" ");
-    const kanaLine1  = [k.cityKana,  k.townKana,  k.line1Kana ].filter(Boolean).join(" ");
+    // 住所を Stripe JP 仕様に正規化（半角カナ→全角カナ、町名から番地を分離）
+    const jpAddr = buildJpAddress({
+      postalCode: k.postalCode ?? '',
+      stateKanji: k.stateKanji ?? '', cityKanji: k.cityKanji ?? '', townKanji: k.townKanji ?? '', line1Kanji: k.line1Kanji ?? '',
+      stateKana:  k.stateKana  ?? '', cityKana:  k.cityKana  ?? '', townKana:  k.townKana  ?? '', line1Kana:  k.line1Kana  ?? '',
+    });
+    console.log(`[bank-setup] 住所正規化結果 — kanji.town="${jpAddr.address_kanji.town}" line1="${jpAddr.address_kanji.line1}" / kana.town="${jpAddr.address_kana.town}" line1="${jpAddr.address_kana.line1}"`);
 
     const indiv: Record<string, any> = {};
-    if (k.firstNameKana?.trim())  indiv.first_name_kana  = k.firstNameKana.trim();
-    if (k.lastNameKana?.trim())   indiv.last_name_kana   = k.lastNameKana.trim();
+    if (k.firstNameKana?.trim())  indiv.first_name_kana  = toFullWidthKana(k.firstNameKana.trim());
+    if (k.lastNameKana?.trim())   indiv.last_name_kana   = toFullWidthKana(k.lastNameKana.trim());
     if (k.firstNameKanji?.trim()) indiv.first_name_kanji = k.firstNameKanji.trim();
     if (k.lastNameKanji?.trim())  indiv.last_name_kanji  = k.lastNameKanji.trim();
     if (k.dobDay && k.dobMonth && k.dobYear && !isNaN(Number(k.dobDay))) {
       indiv.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
     }
     if (k.postalCode?.trim()) {
-      indiv.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
-      indiv.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+      indiv.address_kanji = jpAddr.address_kanji;
+      indiv.address_kana  = jpAddr.address_kana;
     }
     if (k.phone?.trim()) indiv.phone = toE164Japan(k.phone);
     if (ownerEmail)      indiv.email = ownerEmail;
@@ -2930,13 +3008,13 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
       const companyObj: Record<string, any> = {
         // 本番では必ずフォーム入力値を使う。テストモードのみ偽値フォールバックを許可
         name_kanji: k.companyNameKanji?.trim() || store.name || (isTestKeyStep4 ? "株式会社テスト" : undefined),
-        name_kana:  k.companyNameKana?.trim()  || (isTestKeyStep4 ? "カブシキガイシャテスト" : undefined),
+        name_kana:  toFullWidthKana(k.companyNameKana?.trim() || '') || (isTestKeyStep4 ? "カブシキガイシャテスト" : undefined),
       };
       // company.name（ラテン文字社名）は Stripe JP で必須。未入力時はテストモードのみフォールバック
       companyObj.name = k.companyNameLatin?.trim() || (isTestKeyStep4 ? "Kabushiki Gaisha Test" : undefined);
       if (k.postalCode?.trim()) {
-        companyObj.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
-        companyObj.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+        companyObj.address_kanji = jpAddr.address_kanji;
+        companyObj.address_kana  = jpAddr.address_kana;
       }
       if (k.phone?.trim()) companyObj.phone = toE164Japan(k.phone);
       step4Payload.company = companyObj;
@@ -2993,16 +3071,16 @@ router.post("/stores/:storeId/connect/bank-setup", requireAuth, requireStoreOwne
       console.log(`[bank-setup] STEP4b (sync) — kycData: firstName="${k.firstNameKanji}" lastName="${k.lastNameKanji}" phone="${k.phone}" dob=${k.dobYear}/${k.dobMonth}/${k.dobDay} postal="${k.postalCode}"`);
 
       const repPayload: Record<string, any> = {};
-      if (k.firstNameKana?.trim())  repPayload.first_name_kana  = k.firstNameKana.trim();
-      if (k.lastNameKana?.trim())   repPayload.last_name_kana   = k.lastNameKana.trim();
+      if (k.firstNameKana?.trim())  repPayload.first_name_kana  = toFullWidthKana(k.firstNameKana.trim());
+      if (k.lastNameKana?.trim())   repPayload.last_name_kana   = toFullWidthKana(k.lastNameKana.trim());
       if (k.firstNameKanji?.trim()) repPayload.first_name_kanji = k.firstNameKanji.trim();
       if (k.lastNameKanji?.trim())  repPayload.last_name_kanji  = k.lastNameKanji.trim();
       if (k.dobDay && k.dobMonth && k.dobYear && !isNaN(Number(k.dobDay))) {
         repPayload.dob = { day: Number(k.dobDay), month: Number(k.dobMonth), year: Number(k.dobYear) };
       }
       if (k.postalCode?.trim()) {
-        repPayload.address_kanji = { postal_code: k.postalCode, state: k.stateKanji, city: k.cityKanji, town: k.townKanji, line1: kanjiLine1 };
-        repPayload.address_kana  = { postal_code: k.postalCode, state: k.stateKana,  city: k.cityKana,  town: k.townKana,  line1: kanaLine1  };
+        repPayload.address_kanji = jpAddr.address_kanji;
+        repPayload.address_kana  = jpAddr.address_kana;
       }
       if (k.phone?.trim())  repPayload.phone = toE164Japan(k.phone);
       if (ownerEmail)       repPayload.email = ownerEmail;

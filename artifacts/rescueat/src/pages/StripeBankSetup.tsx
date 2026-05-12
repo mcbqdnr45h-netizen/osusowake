@@ -736,7 +736,9 @@ export default function StripeBankSetup() {
   if (postalCode.length !== 7)                          missingFields.push('郵便番号（7桁）');
   if (!stateKanji)                                      missingFields.push('都道府県');
   if (!cityKanji.trim() || !townKanji.trim())           missingFields.push('住所（市区町村・町名）漢字');
+  if (!line1Kanji.trim())                                missingFields.push('住所（番地・建物名）漢字');
   if (!cityKana.trim()  || !townKana.trim())            missingFields.push('住所（市区町村・町名）カナ');
+  if (!line1Kana.trim())                                 missingFields.push('住所（番地・建物名）カナ');
   if (productDescription.trim().length < 10)            missingFields.push(`事業内容の説明（現在${productDescription.trim().length}文字 / 10文字以上必要）`);
   // 口座登録済み && Stripeから「external_account再登録が必要」フラグが立っていない場合のみスキップ
   const bankAlreadyRegistered = !!store?.stripeAccountId && !store?.stripeNeedsBankReregister;
@@ -1405,15 +1407,15 @@ export default function StripeBankSetup() {
                 <input type="text" value={cityKanji} onChange={e => setCityKanji(e.target.value)}
                   placeholder="大阪市北区" required className={inputClass} />
               </Field>
-              <Field label="町名・番地（漢字）" required>
+              <Field label="町名（漢字）" required hint="番地は次の欄に入力してください">
                 <input type="text" value={townKanji} onChange={e => setTownKanji(e.target.value)}
-                  placeholder="梅田1-1" required className={inputClass} />
+                  placeholder="梅田" required className={inputClass} />
               </Field>
             </div>
 
-            <Field label="建物名・部屋番号（任意）">
+            <Field label="番地・建物名（漢字）" required hint="例：1-2-22 ○○ビル101号室">
               <input type="text" value={line1Kanji} onChange={e => setLine1Kanji(e.target.value)}
-                placeholder="○○ビル 101号室" className={inputClass} />
+                placeholder="1-2-22 ○○ビル101号室" required className={inputClass} />
             </Field>
 
             {/* カナ住所 */}
@@ -1424,14 +1426,14 @@ export default function StripeBankSetup() {
                   <input type="text" value={cityKana} onChange={e => setCityKana(e.target.value)}
                     placeholder="オオサカシキタク" required className={inputClass} />
                 </Field>
-                <Field label="町名・番地（カナ）" required>
+                <Field label="町名（カナ）" required hint="全角カタカナ・番地は次の欄へ">
                   <input type="text" value={townKana} onChange={e => setTownKana(e.target.value)}
-                    placeholder="ウメダ1-1" required className={inputClass} />
+                    placeholder="ウメダ" required className={inputClass} />
                 </Field>
               </div>
-              <Field label="建物名（カナ・任意）">
+              <Field label="番地・建物名（カナ）" required hint="例：1-2-22 ○○ビル101">
                 <input type="text" value={line1Kana} onChange={e => setLine1Kana(e.target.value)}
-                  placeholder="○○ビル101" className={inputClass} />
+                  placeholder="1-2-22 ○○ビル101" required className={inputClass} />
               </Field>
             </div>
           </FormSection>
