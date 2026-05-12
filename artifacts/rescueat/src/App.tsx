@@ -52,6 +52,7 @@ function RegisterStoreRedirect() {
   return null;
 }
 const Terms              = React.lazy(() => import("./pages/Terms"));
+const MerchantTerms      = React.lazy(() => import("./pages/MerchantTerms"));
 const Privacy            = React.lazy(() => import("./pages/Privacy"));
 const SignUp             = React.lazy(() => import("./pages/SignUp"));
 const Login              = React.lazy(() => import("./pages/Login"));
@@ -306,6 +307,7 @@ function AnimatedRoutes() {
               <Route path="/map"    component={SearchPage} />
               <Route path="/bags/:id" component={BagDetail} />
               <Route path="/terms" component={Terms} />
+              <Route path="/merchant-terms" component={MerchantTerms} />
               <Route path="/privacy" component={Privacy} />
               <Route path="/legal" component={TokushoPage} />
               <Route path="/help" component={HelpPage} />

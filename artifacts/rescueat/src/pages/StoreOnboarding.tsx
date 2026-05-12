@@ -922,14 +922,29 @@ export default function StoreOnboarding() {
               >
                 {pledgeSigned && <CheckCircle2 className="w-4 h-4 text-primary-foreground" />}
               </div>
-              <p
+              <div
                 className="text-sm leading-relaxed text-foreground cursor-pointer"
                 onClick={() => setPledgeSigned(v => !v)}
               >
-                <span className="font-black block mb-1">利用規約への同意 <span className="text-destructive">*</span></span>
+                <span className="font-black block mb-1">出店者規約・利用規約への同意 <span className="text-destructive">*</span></span>
                 食品衛生法を遵守し、営業許可証に基づいて営業していることを誓約します。また、おすそわけの
-                <span className="text-primary font-bold">利用規約</span>に同意の上、申請します。
-              </p>
+                <a
+                  href="/merchant-terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-primary font-bold underline underline-offset-2 mx-0.5"
+                >出店者規約</a>
+                および
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-primary font-bold underline underline-offset-2 mx-0.5"
+                >利用規約</a>
+                に同意の上、申請します。
+              </div>
             </div>
           </div>
 

@@ -237,9 +237,10 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                         </div>
                         <div className="pb-2">
                           {[
-                            { href: '/terms',   icon: FileText, label: '利用規約' },
-                            { href: '/privacy', icon: Shield,   label: 'プライバシーポリシー' },
-                            { href: '/legal',   icon: Store,    label: '特定商取引に基づく表記' },
+                            { href: '/terms',          icon: FileText, label: '利用規約' },
+                            { href: '/merchant-terms', icon: FileText, label: '出店者規約' },
+                            { href: '/privacy',        icon: Shield,   label: 'プライバシーポリシー' },
+                            { href: '/legal',          icon: Store,    label: '特定商取引に基づく表記' },
                           ].map((item) => {
                             const Icon = item.icon;
                             return (
@@ -334,9 +335,10 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                 <h4 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4">法的情報</h4>
                 <ul className="space-y-2.5">
                   {[
-                    { href: '/terms',   label: '利用規約',              icon: FileText },
-                    { href: '/privacy', label: 'プライバシーポリシー',  icon: Shield },
-                    { href: '/legal',   label: '特定商取引法に基づく表記', icon: Store },
+                    { href: '/terms',          label: '利用規約',              icon: FileText },
+                    { href: '/merchant-terms', label: '出店者規約',            icon: FileText },
+                    { href: '/privacy',        label: 'プライバシーポリシー',  icon: Shield },
+                    { href: '/legal',          label: '特定商取引法に基づく表記', icon: Store },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -405,10 +407,11 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
             {/* Legal Links */}
             <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 mb-4">
               {[
-                { href: '/terms',   label: '利用規約' },
-                { href: '/privacy', label: 'プライバシー' },
-                { href: '/legal',   label: '特定商取引法' },
-                { href: '/help',    label: 'ヘルプ' },
+                { href: '/terms',          label: '利用規約' },
+                { href: '/merchant-terms', label: '出店者規約' },
+                { href: '/privacy',        label: 'プライバシー' },
+                { href: '/legal',          label: '特定商取引法' },
+                { href: '/help',           label: 'ヘルプ' },
               ].map((item) => (
                 <Link
                   key={item.href}
