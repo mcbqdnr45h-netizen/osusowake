@@ -390,7 +390,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const seenId  = new Set<number | string>();
     const seenLoc = new Set<string>();
     return stores.filter(s => {
-      const ok = (s as any).status === 'approved' || !(s as any).status;
+      const ok = (s as any).status === 'approved' || !(s as any).status || (s as any).showOnMap === true || (s as any).show_on_map === true;
       if (!ok) return false;
       if (seenId.has(s.id)) return false;
       seenId.add(s.id);

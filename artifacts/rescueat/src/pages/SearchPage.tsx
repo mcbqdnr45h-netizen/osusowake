@@ -648,7 +648,7 @@ export default function SearchPage() {
     const seenLoc = new Set<string>(); // 丸め座標 で重複排除
 
     return sorted.filter(s => {
-      const ok = (s as any).status === 'approved' || !(s as any).status;
+      const ok = (s as any).status === 'approved' || !(s as any).status || (s as any).showOnMap === true || (s as any).show_on_map === true;
       if (!ok) return false;
       if (seenId.has(s.id)) return false;
       seenId.add(s.id);
