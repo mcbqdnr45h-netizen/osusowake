@@ -54,5 +54,13 @@
     "title": "まずはお気軽にご相談ください",
     "description": "クロージング・連絡先",
     "speakerNotes": ""
+  },
+  {
+    "id": "a1b2c3d4-0008-4000-8000-000000000008",
+    "position": 8,
+    "filepath": "src/pages/slides/SlideBusinessCard.tsx",
+    "title": "名刺 - 佐藤勇飛",
+    "description": "代表 名刺デザイン（表面・裏面）",
+    "speakerNotes": ""
   }
 ]
