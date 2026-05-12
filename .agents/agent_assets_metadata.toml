@@ -683,3 +683,9 @@ id = "cHRw43vilib8K-CrMvSYO"
 uri = "file://.local/outputs/gov-deck.pdf"
 type = "pdf"
 title = "おすそわけ 自治体連携提案資料 — 修正版 (PDF)"
+
+[[outputs]]
+id = "cdtgLs6oxgc5mEgVwvO2J"
+uri = "file://.local/outputs/Food-Rescue-Map.pdf"
+type = "pdf"
+title = "Food Rescue Map.pdf"
