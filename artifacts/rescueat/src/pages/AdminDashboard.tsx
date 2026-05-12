@@ -132,6 +132,7 @@ interface AdminStore {
   stripe_account_id: string | null;
   stripe_charges_enabled: boolean | null;
   stripe_payouts_enabled: boolean | null;
+  show_on_map: boolean | null;
   bag_count: number;
   reservation_count: number;
   revenue: number;
@@ -460,6 +461,25 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  async function toggleShowOnMap(storeId: number, current: boolean | null) {
+    const next = !current;
+    setActionLoading(storeId);
+    try {
+      const res = await authedFetch(`${BASE}/api/admin/stores/${storeId}/show-on-map`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showOnMap: next }),
+      });
+      if (res.ok) {
+        toast({ title: next ? '🗺 地図に表示しました' : '🚫 地図から非表示にしました' });
+        await fetchAll();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: 'エラー', description: d?.message ?? '更新に失敗しました', variant: 'destructive' });
+      }
+    } finally { setActionLoading(null); }
+  }
 
   async function approveStore(storeId: number) {
     setActionLoading(storeId);
@@ -1901,6 +1921,28 @@ export default function AdminDashboard() {
                                 </button>
                               </div>
                             )}
+                            {/* 地図に表示トグル — 口座未設定でもマップに出せる */}
+                            <button
+                              type="button"
+                              onClick={() => toggleShowOnMap(store.id, store.show_on_map)}
+                              disabled={isProcessing}
+                              className={`w-full mb-2 flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-colors border disabled:opacity-50 ${
+                                store.show_on_map
+                                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                                  : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'
+                              }`}
+                            >
+                              <span className="flex items-center gap-1.5">
+                                🗺 地図に表示
+                                {store.show_on_map
+                                  ? <span className="text-[10px] px-1.5 py-0.5 bg-emerald-200 rounded">ON</span>
+                                  : <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 rounded">OFF</span>}
+                              </span>
+                              <span className="text-[10px] opacity-70">
+                                {store.show_on_map ? 'タップで非表示' : 'タップで表示'}
+                              </span>
+                            </button>
+
                             <div className="flex gap-2 flex-wrap">
                               {isStorePending && (
                                 <>

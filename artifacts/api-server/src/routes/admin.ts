@@ -503,6 +503,7 @@ router.get("/admin/stores", requireAdmin, async (_req, res) => {
         s.image_url, s.owner_id, s.created_at, s.stripe_account_id,
         s.stripe_charges_enabled,
         s.stripe_payouts_enabled,
+        s.show_on_map,
         COALESCE(b.bag_count, 0)::int AS bag_count,
         COALESCE(r.reservation_count, 0)::int AS reservation_count,
         COALESCE(r.revenue, 0)::numeric AS revenue,
