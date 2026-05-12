@@ -340,12 +340,17 @@ router.get("/stores", async (req, res) => {
     ListStoresQueryParams.parse(req.query);
 
     // ★ 公開エンドポイント: PII を含まない publicStoreSelectFields を使用 (#3)
-    // show_on_map = true の店舗は口座設定（stripe_charges_enabled）が未完了でもマップに表示する
+    // show_on_map = true は管理者が手動で立てる強制表示フラグ。
+    //   → 承認・口座設定・出品の有無に関わらず、is_active のみを条件にマップに表示する
+    // それ以外は通常の「承認済み + 口座OK」ルール
     const stores = await db
       .select(publicStoreSelectFields)
       .from(storesTable)
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
-      .where(sql`${storesTable.status} = 'approved' AND ${storesTable.isActive} = true AND (coalesce(${storesTable.stripeChargesEnabled}, false) = true OR coalesce(${storesTable.showOnMap}, false) = true)`)
+      .where(sql`${storesTable.isActive} = true AND (
+        coalesce(${storesTable.showOnMap}, false) = true
+        OR (${storesTable.status} = 'approved' AND coalesce(${storesTable.stripeChargesEnabled}, false) = true)
+      )`)
       .groupBy(storesTable.id);
 
     res.json(stores);
