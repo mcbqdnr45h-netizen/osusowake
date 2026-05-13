@@ -211,10 +211,24 @@ function StoreBottomSheet({
               <p className="text-white/60 text-[11px] font-semibold tracking-wide mb-1">
                 {getCategoryIcon(store.category)}&nbsp;{getCategoryLabel(store.category)}
               </p>
-              {/* 店名 — 大きく太く */}
-              <h2 className="text-white font-black text-2xl leading-tight tracking-tight line-clamp-1 drop-shadow-sm">
-                {store.name}
-              </h2>
+              {/* 店名 + 店舗アイコン (iconUrl が imageUrl と異なる場合のみ表示)
+                  審査待ちでマップにピンが立たない店でも、店舗オーナーがアップしてくれた
+                  アイコン写真がここで活きる */}
+              <div className="flex items-end gap-2.5">
+                {store.iconUrl && store.iconUrl !== store.imageUrl && (
+                  <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-white/90 shrink-0 shadow-md shadow-black/30 bg-white">
+                    <img
+                      src={store.iconUrl}
+                      alt={`${store.name} アイコン`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+                <h2 className="text-white font-black text-2xl leading-tight tracking-tight line-clamp-1 drop-shadow-sm flex-1 min-w-0">
+                  {store.name}
+                </h2>
+              </div>
               {/* PR文 — 半透明ピル背景付きで確実に読めるように */}
               {store.description && (
                 <div className="mt-1.5 inline-block max-w-full">
