@@ -27,7 +27,6 @@ export default function SlideAboutUs() {
           <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.9vw', color: 'rgba(251,248,244,0.85)', lineHeight: 1.9, marginBottom: '4vh', maxWidth: '46vw' }}>
             私たちは、<strong style={{ color: '#FBF8F4' }}>高槻で育った学生チーム</strong>です。<br />
             大学はバラバラですが、地元高槻への思いは一緒。<br />
-            アルバイト先で目の当たりにした食品廃棄の現実に、<br />
             「大好きな地元から変えたい」と立ち上がりました。
           </p>
 
