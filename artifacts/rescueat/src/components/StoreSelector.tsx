@@ -89,9 +89,9 @@ export function StoreSelector({ className = '' }: StoreSelectorProps) {
                 onClick={() => { setSelectedStoreId(s.id); setOpen(false); }}
                 className={`flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-orange-50 transition-colors ${selected ? 'bg-orange-50' : ''}`}
               >
-                <div className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 ${s.imageUrl ? '' : 'bg-orange-100 flex items-center justify-center'}`}>
-                  {s.imageUrl
-                    ? <img loading="lazy" decoding="async" src={s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
+                <div className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 ${(s.iconUrl || s.imageUrl) ? '' : 'bg-orange-100 flex items-center justify-center'}`}>
+                  {(s.iconUrl || s.imageUrl)
+                    ? <img loading="lazy" decoding="async" src={s.iconUrl || s.imageUrl} alt={s.name} className="w-full h-full object-cover" />
                     : <Store size={16} className="text-orange-500" />
                   }
                 </div>

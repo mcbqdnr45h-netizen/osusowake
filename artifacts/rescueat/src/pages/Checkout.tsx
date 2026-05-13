@@ -549,7 +549,7 @@ export default function Checkout() {
             <div className="flex gap-4 mb-4">
               <div className="w-20 h-20 bg-muted rounded-xl overflow-hidden shrink-0">
                 <img
-                  src={reservation.store?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80'}
+                  src={reservation.store?.iconUrl || reservation.store?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80'}
                   alt="Bag"
                   className="w-full h-full object-cover"
                 />

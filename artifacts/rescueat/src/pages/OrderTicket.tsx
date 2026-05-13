@@ -446,7 +446,7 @@ export default function OrderTicket() {
             <div className="flex gap-3 items-center mb-3">
               <div className="w-12 h-12 bg-muted rounded-xl overflow-hidden shrink-0">
                 <img
-                  src={reservation.store?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&q=70'}
+                  src={reservation.store?.iconUrl || reservation.store?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&q=70'}
                   alt=""
                   className="w-full h-full object-cover"
                 />

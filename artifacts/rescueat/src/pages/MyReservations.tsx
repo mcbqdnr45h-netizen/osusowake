@@ -372,9 +372,9 @@ export default function MyReservations() {
 
                               {/* 店舗画像 */}
                               <Link href={`/stores/${storeId}`} className="shrink-0">
-                                {res.store?.imageUrl ? (
+                                {(res.store?.iconUrl || res.store?.imageUrl) ? (
                                   <img
-                                    src={res.store.imageUrl}
+                                    src={res.store.iconUrl || res.store.imageUrl}
                                     alt={res.store?.name ?? ''}
                                     loading="lazy"
                                     decoding="async"

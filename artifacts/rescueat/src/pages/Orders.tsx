@@ -561,7 +561,7 @@ export default function Orders() {
                       {/* Store image */}
                       <div className="w-12 h-12 bg-muted rounded-xl overflow-hidden shrink-0">
                         <img
-                          src={r.store?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&q=70'}
+                          src={r.store?.iconUrl || r.store?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&q=70'}
                           alt=""
                           className="w-full h-full object-cover"
                         />
