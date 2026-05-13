@@ -64,8 +64,16 @@
     "speakerNotes": "費用・操作・集客・運用頻度の4つの不安を先手で潰す。「他にご不安な点は何でもその場で」でオープンに"
   },
   {
-    "id": "a1b2c3d4-0005-4000-8000-000000000005",
+    "id": "a1b2c3d4-0013-4000-8000-000000000013",
     "position": 9,
+    "filepath": "src/pages/slides/SlideLegalTax.tsx",
+    "title": "契約・税務まわりのご質問",
+    "description": "キャンセル不可の法的根拠・売上計上・インボイス対応",
+    "speakerNotes": "法務と税務の不安を先回りで解消。「念のため税理士確認を」で誠実さを担保"
+  },
+  {
+    "id": "a1b2c3d4-0005-4000-8000-000000000005",
+    "position": 10,
     "filepath": "src/pages/slides/Slide5Pricing.tsx",
     "title": "料金・手数料",
     "description": "コスト説明スライド",
@@ -73,7 +81,7 @@
   },
   {
     "id": "a1b2c3d4-0006-4000-8000-000000000006",
-    "position": 10,
+    "position": 11,
     "filepath": "src/pages/slides/Slide6Closing.tsx",
     "title": "まずはお気軽にご相談ください",
     "description": "クロージング・連絡先",
