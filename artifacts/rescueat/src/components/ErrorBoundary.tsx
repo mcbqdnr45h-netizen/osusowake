@@ -20,16 +20,17 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return { hasError: true, errorMessage: error?.message ?? 'Unknown error' };
   }
 
+  private autoRecoverTimer: number | null = null;
+
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[ErrorBoundary]', error, info);
-    // ── ステイル チャンク自動回復 ──────────────────────────────────────
-    // デプロイ直後に古いタブ/キャッシュが残っていると、新バージョンの JS チャンク
-    // ハッシュが合わずサーバが index.html(404) を返すことがあり、
-    //   "'text/html' is not a valid JavaScript MIME type"
-    //   "Failed to fetch dynamically imported module"
-    //   "Loading chunk N failed"
-    // のいずれかが発生する。これらは キャッシュ無効化 = ハードリロードで100%治る。
-    // 無限ループ防止のため sessionStorage で 1セッション 1回のみ自動リロード。
+    // ── 全エラー自動回復ポリシー ──────────────────────────────────────
+    // ユーザーにオレンジ画面を見せない方針:
+    //   ① ステイルチャンク系 (デプロイ直後の古いキャッシュ) → 即時ハードリロード
+    //   ② その他エラー → セッションごとに最大1回だけ自動リロード、
+    //                    既にリロード済みなら 600ms 後に boundary を自己リセットして
+    //                    再レンダリング (一過性レンダリング競合の救済)。
+    // 無限ループ防止のため sessionStorage で回数管理。
     const msg = String(error?.message ?? '');
     const isStaleChunk =
       msg.includes('MIME type') ||
@@ -37,16 +38,29 @@ export class ErrorBoundary extends React.Component<Props, State> {
       msg.includes('Loading chunk') ||
       msg.includes('Loading CSS chunk') ||
       msg.includes('Importing a module script failed');
-    if (isStaleChunk) {
-      try {
-        const KEY = '__staleChunkReloaded';
-        if (!sessionStorage.getItem(KEY)) {
-          sessionStorage.setItem(KEY, '1');
-          // フォールバック画面が一瞬見えないよう即時リロード
-          window.location.reload();
-          return;
-        }
-      } catch { /* sessionStorage 不可環境は通常 fallback 表示へ */ }
+
+    try {
+      const RELOAD_KEY = isStaleChunk ? '__staleChunkReloaded' : '__errorReloaded';
+      if (!sessionStorage.getItem(RELOAD_KEY)) {
+        sessionStorage.setItem(RELOAD_KEY, '1');
+        window.location.reload();
+        return;
+      }
+    } catch { /* sessionStorage 不可環境は次の自己リセットへフォールバック */ }
+
+    // 自動リロード使用済み: 600ms 後にサイレントで boundary を解除し再描画を試みる
+    if (this.autoRecoverTimer == null) {
+      this.autoRecoverTimer = window.setTimeout(() => {
+        this.autoRecoverTimer = null;
+        this.setState({ hasError: false, errorMessage: '' });
+      }, 600);
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.autoRecoverTimer != null) {
+      window.clearTimeout(this.autoRecoverTimer);
+      this.autoRecoverTimer = null;
     }
   }
 
