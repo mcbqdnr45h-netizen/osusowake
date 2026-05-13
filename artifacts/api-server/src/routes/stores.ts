@@ -298,14 +298,13 @@ const publicStoreSelectFields = {
   lat: storesTable.lat,
   lng: storesTable.lng,
   // ★ Egress 削減: data: URL (base64 埋め込み) は SQL レベルで NULL に潰す。
-  //   imageUrl と iconUrl は別物として扱う。imageUrl が空でも iconUrl で代替しない。
-  //   （代替するとマップマーカー (icon) と詳細カバー (image) が同じ写真になってしまう）
-  //   さらに imageUrl が iconUrl と同一 URL の場合も NULL に潰す
-  //   （DB に同じ URL が両方に入っている店舗 例: うどん かごめ への防御）。
-  //   imageUrl が NULL の場合、フロント側でカテゴリ別デフォルト画像にフォールバックする。
+  //   imageUrl と iconUrl は別物として扱うが、imageUrl が空 (NULL or data:) の場合は
+  //   iconUrl を代替に返す。これにより「写真を1枚しか登録してない店」のバナーが
+  //   生成画像にならず、店主が登録した実物写真が必ずマップに表示される。
+  //   （結果ピンとバナーが同じ写真になるが、デフォルト画像より店主の意図に沿う）
   imageUrl: sql<string | null>`CASE
-    WHEN ${storesTable.imageUrl} LIKE 'data:%' THEN NULL
-    WHEN ${storesTable.imageUrl} = ${storesTable.iconUrl} THEN NULL
+    WHEN ${storesTable.imageUrl} LIKE 'data:%' OR ${storesTable.imageUrl} IS NULL THEN
+      CASE WHEN ${storesTable.iconUrl} LIKE 'data:%' THEN NULL ELSE ${storesTable.iconUrl} END
     ELSE ${storesTable.imageUrl}
   END`.as('image_url'),
   iconUrl:  sql<string | null>`CASE WHEN ${storesTable.iconUrl}  LIKE 'data:%' THEN NULL ELSE ${storesTable.iconUrl}  END`.as('icon_url'),

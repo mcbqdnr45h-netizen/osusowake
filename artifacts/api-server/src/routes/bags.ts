@@ -158,12 +158,11 @@ const publicStoreCols = {
   lng: storesTable.lng,
   // ★ data: URL (base64 埋め込み) は最大数百KB に膨らみ、 一覧 API のレスポンス
   //    サイズと初期表示速度を著しく悪化させるため、 SQL レベルで NULL に潰す。
-  //    フロント側で正規の Storage URL を再アップロードすれば自動的に復活する。
-  //    また imageUrl が iconUrl と同一 URL の場合も NULL に潰す
-  //    （DB に同じ URL が両方に入っている店舗 例: うどん かごめ への防御）。
+  //    また imageUrl が空 (NULL or data:) の場合は iconUrl を代替に返し、
+  //    店主が登録した実物写真がバナーに必ず表示されるようにする。
   imageUrl: sql<string | null>`CASE
-    WHEN ${storesTable.imageUrl} LIKE 'data:%' THEN NULL
-    WHEN ${storesTable.imageUrl} = ${storesTable.iconUrl} THEN NULL
+    WHEN ${storesTable.imageUrl} LIKE 'data:%' OR ${storesTable.imageUrl} IS NULL THEN
+      CASE WHEN ${storesTable.iconUrl} LIKE 'data:%' THEN NULL ELSE ${storesTable.iconUrl} END
     ELSE ${storesTable.imageUrl}
   END`.as('image_url'),
   iconUrl:  sql<string | null>`CASE WHEN ${storesTable.iconUrl}  LIKE 'data:%' THEN NULL ELSE ${storesTable.iconUrl}  END`.as('icon_url'),
