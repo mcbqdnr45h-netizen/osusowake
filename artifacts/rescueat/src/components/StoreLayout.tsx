@@ -78,9 +78,19 @@ export function StoreLayout({ children, showBottomNav = true, showHeader = true 
               </button>
             )}
 
-            {/* ブランドマーク */}
-            <div className="w-8 h-8 rounded-[10px] bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-              <span className="text-white font-black text-[11px] leading-none tracking-tight">Ow</span>
+            {/* 店舗アイコン (未設定時はブランドマーク) */}
+            <div className="w-8 h-8 rounded-[10px] overflow-hidden flex items-center justify-center shrink-0 shadow-sm shadow-primary/20 bg-primary">
+              {store?.iconUrl ? (
+                <img
+                  src={store.iconUrl}
+                  alt={store?.name ?? '店舗アイコン'}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <span className="text-white font-black text-[11px] leading-none tracking-tight">Ow</span>
+              )}
             </div>
 
             {/* タイトル＋店舗名 */}
