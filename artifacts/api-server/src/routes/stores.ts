@@ -298,14 +298,10 @@ const publicStoreSelectFields = {
   lat: storesTable.lat,
   lng: storesTable.lng,
   // ★ Egress 削減: data: URL (base64 埋め込み) は SQL レベルで NULL に潰す。
-  //   ただし imageUrl が data: または NULL の場合は iconUrl (Supabase URL) を代替に返して
-  //   店舗写真が空にならないようにする。
-  //   一覧 API のレスポンスサイズと初期表示速度の悪化を防ぎつつ、UX を維持する。
-  imageUrl: sql<string | null>`CASE
-    WHEN ${storesTable.imageUrl} LIKE 'data:%' OR ${storesTable.imageUrl} IS NULL THEN
-      CASE WHEN ${storesTable.iconUrl} LIKE 'data:%' THEN NULL ELSE ${storesTable.iconUrl} END
-    ELSE ${storesTable.imageUrl}
-  END`.as('image_url'),
+  //   imageUrl と iconUrl は別物として扱う。imageUrl が空でも iconUrl で代替しない。
+  //   （代替するとマップマーカー (icon) と詳細カバー (image) が同じ写真になってしまう）
+  //   imageUrl が NULL の場合、フロント側でカテゴリ別デフォルト画像にフォールバックする。
+  imageUrl: sql<string | null>`CASE WHEN ${storesTable.imageUrl} LIKE 'data:%' THEN NULL ELSE ${storesTable.imageUrl} END`.as('image_url'),
   iconUrl:  sql<string | null>`CASE WHEN ${storesTable.iconUrl}  LIKE 'data:%' THEN NULL ELSE ${storesTable.iconUrl}  END`.as('icon_url'),
   phone: storesTable.phone,
   openTime: storesTable.openTime,
