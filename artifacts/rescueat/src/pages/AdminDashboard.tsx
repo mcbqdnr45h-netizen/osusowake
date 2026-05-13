@@ -324,6 +324,7 @@ export default function AdminDashboard() {
   const [maintenanceMessage,    setMaintenanceMessage]    = useState('より良いサービスのために、現在システムメンテナンスを行っています。\nしばらくお待ちください🙏');
   const [autoApproveStripe,     setAutoApproveStripe]     = useState(false);
   const [settingsSaving,        setSettingsSaving]        = useState(false);
+  const [migratingImages,       setMigratingImages]       = useState(false);
 
   const [storeFilter, setStoreFilter] = useState<'all' | 'applied' | 'pending' | 'pending_review' | 'approved' | 'suspended'>('applied');
   const [showAllStores, setShowAllStores] = useState(false);
@@ -2209,6 +2210,46 @@ export default function AdminDashboard() {
               <p className="text-[11px] text-muted-foreground mt-2 px-1">
                 ※ OFFでも Stripe KYC完了時に管理者へ承認依頼メールが届きます。
               </p>
+            </div>
+
+            {/* ─ 壊れた画像の一括復旧 (data:URL → Supabase Storage) ─ */}
+            <div className="pt-4 border-t border-border/40">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-2">
+                <Wrench className="w-3.5 h-3.5" />壊れた画像の一括復旧
+              </h2>
+              <p className="text-[11px] text-muted-foreground mb-3 px-1 leading-relaxed">
+                過去のバグで <code className="text-[10px] bg-secondary px-1 py-0.5 rounded">data:image/...</code> 形式でDBに保存された店舗写真・アイコンを、Supabase Storage に正しくアップロードし直して URL を差し替えます。オーナーに再アップを依頼せずに既存データを復旧できます。
+              </p>
+              <button
+                type="button"
+                disabled={migratingImages}
+                onClick={async () => {
+                  if (migratingImages) return;
+                  if (!confirm('壊れた画像 (data:URL) を一括で Supabase Storage に移行します。実行しますか？')) return;
+                  setMigratingImages(true);
+                  try {
+                    const r = await authedFetch(`${BASE}/api/admin/stores/migrate-data-urls`, { method: 'POST', headers: {} });
+                    const data = await r.json();
+                    if (!r.ok) throw new Error(data?.message ?? 'failed');
+                    const s = data.summary ?? {};
+                    const fails = (data.results ?? []).filter((x: any) => x.image === 'fail' || x.icon === 'fail');
+                    const failDetail = fails.length
+                      ? '\n\n失敗詳細:\n' + fails.map((x: any) => `・${x.name} (id=${x.id}): ${x.error ?? ''}`).join('\n')
+                      : '';
+                    alert(`復旧完了\n\n対象: ${s.total ?? 0}店舗\n店舗写真: ${s.imageMigrated ?? 0}件\nアイコン: ${s.iconMigrated ?? 0}件\n失敗: ${s.failed ?? 0}件${failDetail}`);
+                    void fetchAll();
+                  } catch (e: any) {
+                    alert(`移行失敗: ${e?.message ?? '不明なエラー'}`);
+                  } finally {
+                    setMigratingImages(false);
+                  }
+                }}
+                className="w-full h-11 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm flex items-center justify-center gap-2 transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {migratingImages
+                  ? <><RefreshCw className="w-4 h-4 animate-spin" />復旧中…（しばらくお待ちください）</>
+                  : <><RefreshCw className="w-4 h-4" />壊れた画像を一括復旧する</>}
+              </button>
             </div>
 
             {/* 保存ボタン */}

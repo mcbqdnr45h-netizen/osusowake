@@ -952,6 +952,132 @@ router.post("/admin/stores/:storeId/show-on-map", requireAdmin, async (req, res)
   }
 });
 
+// ── POST /admin/stores/migrate-data-urls ─────────────────────────────────────
+// 過去のバグで image_url / icon_url が `data:image/...;base64,...` 形式で DB に
+// 保存されてしまった店舗のデータを、 Supabase Storage にアップロードして正規 URL に
+// 差し替える一発リカバリ。 オーナーに再アップを頼まずに既存データを修復できる。
+router.post("/admin/stores/migrate-data-urls", requireAdmin, async (_req, res) => {
+  // 画像実体の magic number 判定 (upload.ts と同等ロジックの最小実装)
+  const detectMime = (buf: Buffer): { mime: string; ext: string } | null => {
+    if (buf.length < 12) return null;
+    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return { mime: "image/jpeg", ext: "jpg" };
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return { mime: "image/png", ext: "png" };
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return { mime: "image/gif", ext: "gif" };
+    if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46
+     && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return { mime: "image/webp", ext: "webp" };
+    return null;
+  };
+
+  // 戻り値に storage path も含める → DB更新失敗時に補償削除可能にする
+  const uploadDataUrl = async (dataUrl: string, ownerId: string): Promise<{ url: string; path: string }> => {
+    const m = /^data:([^;,]+)?(?:;base64)?,(.+)$/.exec(dataUrl);
+    if (!m) throw new Error("Invalid data URL format");
+    const buf = Buffer.from(m[2], "base64");
+    if (buf.length < 12 || buf.length > 10 * 1024 * 1024) {
+      throw new Error(`Invalid size: ${buf.length} bytes`);
+    }
+    const detected = detectMime(buf);
+    if (!detected) throw new Error("Cannot detect image type from bytes");
+    const safeOwner = (ownerId || "unknown").replace(/[^a-z0-9-]/gi, "");
+    const fileName = `${safeOwner}/migrated-${Date.now()}-${Math.random().toString(36).slice(2)}.${detected.ext}`;
+    const { error } = await supabaseAdmin.storage.from("bag-images").upload(fileName, buf, {
+      contentType: detected.mime,
+      upsert: false,
+      cacheControl: "31536000, immutable",
+    });
+    if (error) throw new Error(`Storage upload failed: ${error.message}`);
+    const { data: { publicUrl } } = supabaseAdmin.storage.from("bag-images").getPublicUrl(fileName);
+    return { url: publicUrl, path: fileName };
+  };
+
+  // 補償削除 (DB更新失敗時に Storage から孤児ファイルを除去)
+  const removeUploaded = async (paths: string[]) => {
+    if (paths.length === 0) return;
+    try {
+      await supabaseAdmin.storage.from("bag-images").remove(paths);
+    } catch (e) {
+      console.warn("[admin/migrate-data-urls] failed to remove orphaned objects:", paths, e);
+    }
+  };
+
+  try {
+    // 対象店舗を取得 (image_url または icon_url が data: で始まるもの)
+    const targets = await db.execute(sql`
+      SELECT id, name, owner_id, image_url, icon_url
+      FROM stores
+      WHERE image_url LIKE 'data:%' OR icon_url LIKE 'data:%'
+    `);
+    const rows = (targets as any).rows ?? targets;
+
+    const results: Array<{ id: number; name: string; image: "ok" | "skip" | "fail"; icon: "ok" | "skip" | "fail"; error?: string }> = [];
+
+    for (const row of rows as Array<{ id: number; name: string; owner_id: string; image_url: string | null; icon_url: string | null }>) {
+      const result: { id: number; name: string; image: "ok" | "skip" | "fail"; icon: "ok" | "skip" | "fail"; error?: string } = {
+        id: row.id, name: row.name, image: "skip", icon: "skip",
+      };
+      // 行単位で完全に隔離: アップロード/DB更新の失敗はこの店舗の result に閉じ、
+      // バッチ全体の処理は継続させる。
+      try {
+        const patch: { imageUrl?: string; iconUrl?: string } = {};
+        const uploadedPaths: string[] = []; // DB更新失敗時の補償削除用
+
+        if (row.image_url && row.image_url.startsWith("data:")) {
+          try {
+            const { url, path } = await uploadDataUrl(row.image_url, row.owner_id);
+            patch.imageUrl = url;
+            uploadedPaths.push(path);
+            result.image = "ok";
+          } catch (e: any) {
+            result.image = "fail";
+            result.error = `image: ${e?.message ?? "unknown"}`;
+          }
+        }
+        if (row.icon_url && row.icon_url.startsWith("data:")) {
+          try {
+            const { url, path } = await uploadDataUrl(row.icon_url, row.owner_id);
+            patch.iconUrl = url;
+            uploadedPaths.push(path);
+            result.icon = "ok";
+          } catch (e: any) {
+            result.icon = "fail";
+            result.error = (result.error ? result.error + " | " : "") + `icon: ${e?.message ?? "unknown"}`;
+          }
+        }
+
+        if (Object.keys(patch).length > 0) {
+          try {
+            await db.update(storesTable).set(patch).where(eq(storesTable.id, row.id));
+          } catch (dbErr: any) {
+            // DB更新が落ちたら、直前にアップロードしたファイルは孤児になるので削除
+            await removeUploaded(uploadedPaths);
+            if (patch.imageUrl) result.image = "fail";
+            if (patch.iconUrl)  result.icon  = "fail";
+            result.error = (result.error ? result.error + " | " : "") + `db: ${dbErr?.message ?? "unknown"}`;
+          }
+        }
+      } catch (rowErr: any) {
+        // 想定外の例外も呑み込んでバッチ継続
+        result.image = result.image === "ok" ? "ok" : "fail";
+        result.icon  = result.icon  === "ok" ? "ok" : "fail";
+        result.error = (result.error ? result.error + " | " : "") + `unexpected: ${rowErr?.message ?? "unknown"}`;
+      }
+      results.push(result);
+    }
+
+    const summary = {
+      total: results.length,
+      imageMigrated: results.filter(r => r.image === "ok").length,
+      iconMigrated:  results.filter(r => r.icon === "ok").length,
+      failed:        results.filter(r => r.image === "fail" || r.icon === "fail").length,
+    };
+    console.log("[admin/migrate-data-urls]", summary);
+    res.json({ ok: true, summary, results });
+  } catch (err: any) {
+    console.error("[admin/migrate-data-urls]", err);
+    res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 // ── POST /admin/stores/:storeId/suspend ───────────────────────────────────────
 router.post("/admin/stores/:storeId/suspend", requireAdmin, async (req, res) => {
   const storeId = Number(req.params.storeId);
