@@ -8,8 +8,16 @@
     "speakerNotes": ""
   },
   {
-    "id": "a1b2c3d4-0002-4000-8000-000000000002",
+    "id": "a1b2c3d4-0010-4000-8000-000000000010",
     "position": 2,
+    "filepath": "src/pages/slides/SlideAboutUs.tsx",
+    "title": "高槻のフードロスをゼロに！地元発の学生プロジェクト",
+    "description": "チーム紹介・地元ストーリー",
+    "speakerNotes": "「大学はバラバラやけど、高槻で育った仲間が集まりました」というストーリーで地元のおっちゃん・おばちゃんの心をつかむ"
+  },
+  {
+    "id": "a1b2c3d4-0002-4000-8000-000000000002",
+    "position": 3,
     "filepath": "src/pages/slides/Slide2Problem.tsx",
     "title": "飲食店の食品廃棄、年間コストはいくら？",
     "description": "課題提示スライド",
@@ -17,15 +25,23 @@
   },
   {
     "id": "a1b2c3d4-0003-4000-8000-000000000003",
-    "position": 3,
+    "position": 4,
     "filepath": "src/pages/slides/Slide3HowItWorks.tsx",
     "title": "おすそわけの仕組み",
     "description": "3ステップで解説",
     "speakerNotes": ""
   },
   {
+    "id": "a1b2c3d4-0011-4000-8000-000000000011",
+    "position": 5,
+    "filepath": "src/pages/slides/SlideListingSteps.tsx",
+    "title": "超かんたん！3ステップ出品",
+    "description": "スクショ風モックアップで操作を可視化",
+    "speakerNotes": "「写真撮って、個数入れて、ボタン押すだけ」を視覚的に見せる。ITに慣れていない方への安心感を作るスライド"
+  },
+  {
     "id": "a1b2c3d4-0004-4000-8000-000000000007",
-    "position": 4,
+    "position": 6,
     "filepath": "src/pages/slides/Slide4Example.tsx",
     "title": "売上シミュレーション",
     "description": "具体的な収益例",
@@ -33,7 +49,7 @@
   },
   {
     "id": "a1b2c3d4-0004-4000-8000-000000000004",
-    "position": 5,
+    "position": 7,
     "filepath": "src/pages/slides/Slide4Benefits.tsx",
     "title": "店舗のメリット",
     "description": "4つのメリット",
@@ -41,7 +57,7 @@
   },
   {
     "id": "a1b2c3d4-0005-4000-8000-000000000005",
-    "position": 6,
+    "position": 8,
     "filepath": "src/pages/slides/Slide5Pricing.tsx",
     "title": "料金・手数料",
     "description": "コスト説明スライド",
@@ -49,7 +65,7 @@
   },
   {
     "id": "a1b2c3d4-0006-4000-8000-000000000006",
-    "position": 7,
+    "position": 9,
     "filepath": "src/pages/slides/Slide6Closing.tsx",
     "title": "まずはお気軽にご相談ください",
     "description": "クロージング・連絡先",
