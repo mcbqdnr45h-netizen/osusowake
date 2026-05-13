@@ -1005,10 +1005,38 @@ export default function StoreOnboarding() {
           file={cropperFile}
           aspect={2}
           onCancel={() => setCropperFile(null)}
-          onConfirm={(dataUrl) => {
-            setForm(prev => ({ ...prev, imageUrl: dataUrl }));
+          onConfirm={async (dataUrl) => {
+            // ★ 即仮プレビュー（アップロード中の体感を良くする）
             setImagePreview(dataUrl);
             setCropperFile(null);
+            // ★ data: URL のまま DB に保存すると API 側で NULL に潰されて iconUrl にフォールバック
+            //   されてしまい、アイコンと店舗写真が同じ URL になる不具合の原因になる。
+            //   アイコンと同様に Supabase Storage へアップロードして正規 URL を取得する。
+            try {
+              const blob = await (await fetch(dataUrl)).blob();
+              if (blob.size > 5 * 1024 * 1024) {
+                throw new Error('リサイズ後のサイズが想定外に大きいため中止しました。');
+              }
+              const fd = new FormData();
+              fd.append('image', blob, 'store-image.jpg');
+              const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({} as { message?: string }));
+                throw new Error(data.message || `送信失敗 (HTTP ${res.status})`);
+              }
+              const { url } = await res.json();
+              setForm(prev => ({ ...prev, imageUrl: url }));
+              setImagePreview(url);
+            } catch (err) {
+              toast({
+                title: '店舗写真のアップロードに失敗しました',
+                description: err instanceof Error ? err.message : '通信を確認して再度お試しください',
+                variant: 'destructive',
+              });
+              // 失敗時はプレビューと imageUrl をクリアして、ユーザに再アップを促す
+              setImagePreview('');
+              setForm(prev => ({ ...prev, imageUrl: '' }));
+            }
           }}
         />
       )}

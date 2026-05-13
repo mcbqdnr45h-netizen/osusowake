@@ -7,6 +7,9 @@ import { toUserErrorMessage } from '@/lib/error-message';
 import { Store, ChevronLeft, CheckCircle, Camera, RefreshCw, Info } from 'lucide-react';
 import { getDisplayPrice } from '@/lib/price-display';
 import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
+import { authedFetch } from '@/lib/authed-fetch';
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
 const CATEGORY_OPTIONS = [
   { value: 'meals',         label: '料理・お惣菜',  emoji: '🍱' },
@@ -88,11 +91,29 @@ export default function RegisterStore() {
     if (!file) return;
     try {
       const compressed = await compressImage(file);
-      setStoreForm(f => ({ ...f, imageUrl: compressed, imagePreview: compressed }));
-      const sizeKB = Math.round(compressed.length * 0.75 / 1024);
-      toast({ title: `画像を圧縮しました（${sizeKB} KB）` });
-    } catch {
-      toast({ title: '画像の読み込みに失敗しました', variant: 'destructive' });
+      // ★ 即仮プレビュー
+      setStoreForm(f => ({ ...f, imagePreview: compressed }));
+      // ★ data: URL のまま DB に保存すると API 側で NULL に潰されて iconUrl にフォールバック
+      //   されてしまい、アイコンと店舗写真が同じ URL になる不具合の原因になる。
+      //   Supabase Storage へアップロードして正規 URL を取得する。
+      const blob = await (await fetch(compressed)).blob();
+      const fd = new FormData();
+      fd.append('image', blob, 'store-image.jpg');
+      const res = await authedFetch(`${BASE}/api/upload/bag-image`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { message?: string }));
+        throw new Error(data.message || `送信失敗 (HTTP ${res.status})`);
+      }
+      const { url } = await res.json();
+      setStoreForm(f => ({ ...f, imageUrl: url, imagePreview: url }));
+      toast({ title: '画像をアップロードしました' });
+    } catch (err) {
+      toast({
+        title: '画像のアップロードに失敗しました',
+        description: err instanceof Error ? err.message : '通信を確認して再度お試しください',
+        variant: 'destructive',
+      });
+      setStoreForm(f => ({ ...f, imageUrl: '', imagePreview: '' }));
     }
   };
 
