@@ -104,6 +104,7 @@ interface LicenseIssue {
   category: string;
   city: string | null;
   image_url: string | null;
+  icon_url: string | null;
   created_at: string;
   owner_id: string | null;
   stripe_account_id: string | null;
@@ -127,6 +128,7 @@ interface AdminStore {
   address: string;
   city: string;
   image_url: string | null;
+  icon_url: string | null;
   owner_id: string;
   created_at: string;
   stripe_account_id: string | null;
@@ -1470,8 +1472,8 @@ export default function AdminDashboard() {
                     >
                       <div className="p-4">
                         <div className="flex items-start gap-3">
-                          {store.image_url ? (
-                            <img loading="lazy" decoding="async" src={store.image_url} alt={store.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                          {(store.icon_url || store.image_url) ? (
+                            <img loading="lazy" decoding="async" src={store.icon_url || store.image_url || ''} alt={store.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                           ) : (
                             <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center shrink-0 text-2xl">🏪</div>
                           )}

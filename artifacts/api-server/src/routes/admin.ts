@@ -389,7 +389,7 @@ router.get("/admin/license-issues", requireAdmin, async (_req, res) => {
     const result = await db.execute(sql`
       SELECT
         s.id, s.name, s.status, s.is_active, s.category, s.city,
-        s.image_url, s.created_at, s.owner_id,
+        s.image_url, s.icon_url, s.created_at, s.owner_id,
         s.stripe_account_id, s.stripe_charges_enabled,
         s.license_number,
         s.license_image_url IS NOT NULL AS has_license_url,
@@ -500,7 +500,7 @@ router.get("/admin/stores", requireAdmin, async (_req, res) => {
     const stores = await db.execute(sql`
       SELECT
         s.id, s.name, s.status, s.is_active, s.category, s.address, s.city,
-        s.image_url, s.owner_id, s.created_at, s.stripe_account_id,
+        s.image_url, s.icon_url, s.owner_id, s.created_at, s.stripe_account_id,
         s.stripe_charges_enabled,
         s.stripe_payouts_enabled,
         s.show_on_map,
@@ -544,7 +544,7 @@ router.get("/admin/stores/:storeId/detail", requireAdmin, async (req, res) => {
     const result = await db.execute(sql`
       SELECT
         s.id, s.name, s.description, s.status, s.is_active, s.category,
-        s.address, s.city, s.lat, s.lng, s.image_url, s.phone,
+        s.address, s.city, s.lat, s.lng, s.image_url, s.icon_url, s.phone,
         s.open_time, s.close_time, s.holiday, s.pickup_hours,
         s.owner_id, s.created_at, s.stripe_account_id,
         s.stripe_charges_enabled, s.stripe_payouts_enabled,
