@@ -675,9 +675,13 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
     // charges 無効 → 必ずDBの stripeChargesEnabled を false に更新してから詳細処理
     try {
       // stripeChargesEnabled = false に更新
+      // 同時に showOnMap も false に強制クリア
+      //   理由: 管理者が以前 show_on_map=true を立てていた店舗で Stripe が無効化されると、
+      //   マップ表示条件 (show_on_map=true バイパス) を抜けて決済不可の店舗が地図に残ってしまう。
+      //   Stripe が落ちた瞬間にマップからも消すのが安全。
       await db
         .update(storesTable)
-        .set({ stripeChargesEnabled: false })
+        .set({ stripeChargesEnabled: false, showOnMap: false })
         .where(eq(storesTable.stripeAccountId, account.id));
 
       // この店舗に紐づく出品中バッグを全て自動停止（客が注文しても決済できないため）

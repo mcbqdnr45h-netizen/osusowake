@@ -346,20 +346,19 @@ router.get("/stores", async (req, res) => {
     ListStoresQueryParams.parse(req.query);
 
     // ★ 公開エンドポイント: PII を含まない publicStoreSelectFields を使用 (#3)
-    // 安全ルール: Stripe charges_enabled = true は地図表示の必須条件。
-    //   → Stripeが止まった店舗（KYC失効・口座停止 等）は決済できないので絶対に出さない。
-    //   → show_on_map は「強制表示」ではなく「承認前でもStripeさえ通ってれば公開してよい」フラグに変更。
-    //   show_on_map=true なら status を問わず公開、false なら approved 必須。
+    // show_on_map = true は管理者が手動で立てる強制表示フラグ。
+    //   → 承認・口座設定・出品の有無に関わらず、is_active のみを条件にマップに表示する
+    // それ以外は通常の「承認済み + 口座OK」ルール
+    // 注: Stripe が無効化された場合は webhook で stripe_charges_enabled=false かつ
+    //     show_on_map=false を同時に設定するため、自動的にマップから消える。
     const stores = await db
       .select(publicStoreSelectFields)
       .from(storesTable)
       .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
-      .where(sql`${storesTable.isActive} = true
-        AND coalesce(${storesTable.stripeChargesEnabled}, false) = true
-        AND (
-          coalesce(${storesTable.showOnMap}, false) = true
-          OR ${storesTable.status} = 'approved'
-        )`)
+      .where(sql`${storesTable.isActive} = true AND (
+        coalesce(${storesTable.showOnMap}, false) = true
+        OR (${storesTable.status} = 'approved' AND coalesce(${storesTable.stripeChargesEnabled}, false) = true)
+      )`)
       .groupBy(storesTable.id);
 
     res.json(stores);
