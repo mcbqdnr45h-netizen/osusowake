@@ -1851,9 +1851,16 @@ export default function StoreDashboard() {
               {stripeBlocked && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                   <span className="text-amber-500 text-base mt-0.5">⚠️</span>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs font-black text-amber-800">{blockTitle}</p>
                     <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">{blockDetail}</p>
+                    {stripeApiBlocked && (
+                      <Link href="/store/kyc">
+                        <span className="inline-block mt-2 text-[11px] font-black text-amber-900 underline underline-offset-2">
+                          → 本人確認書類を再提出する
+                        </span>
+                      </Link>
+                    )}
                   </div>
                 </div>
               )}

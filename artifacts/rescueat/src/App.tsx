@@ -65,6 +65,7 @@ const importOrders = () => import("./pages/Orders");
 const Orders             = React.lazy(importOrders);
 const StoreOnboarding    = React.lazy(() => import("./pages/StoreOnboarding"));
 const StripeBankSetup    = React.lazy(() => import("./pages/StripeBankSetup"));
+const StripeKYCPage      = React.lazy(() => import("./pages/StripeKYCPage"));
 const AdminDashboard     = React.lazy(() => import("./pages/AdminDashboard"));
 const AdminStorePage     = React.lazy(() => import("./pages/AdminStorePage"));
 const CheckoutSuccess    = React.lazy(() => import("./pages/CheckoutSuccess"));
@@ -114,6 +115,7 @@ const GuardedStoreBags       = Protected(StoreBagsPage, 'store_owner');
 const GuardedStoreSales      = Protected(StoreSalesPage, 'store_owner');
 const GuardedStoreOnboarding = Protected(StoreOnboarding, 'store_owner');
 const GuardedStripeBankSetup = Protected(StripeBankSetup, 'store_owner');
+const GuardedStripeKYCPage   = Protected(StripeKYCPage, 'store_owner');
 const GuardedStoreProfileEdit = Protected(StoreProfileEdit, 'store_owner');
 const GuardedStoreReviews    = Protected(StoreReviews, 'store_owner');
 const GuardedStoreReapply    = Protected(StoreReapply, 'store_owner');
@@ -353,6 +355,7 @@ function AnimatedRoutes() {
               <Route path="/register-store"  component={RegisterStoreRedirect} />
               <Route path="/store-onboarding" component={GuardedStoreOnboarding} />
               <Route path="/store/bank-setup" component={GuardedStripeBankSetup} />
+              <Route path="/store/kyc"        component={GuardedStripeKYCPage} />
               <Route path="/store/profile-edit" component={GuardedStoreProfileEdit} />
               <Route path="/store/reviews"   component={GuardedStoreReviews} />
               <Route path="/store/reapply"   component={GuardedStoreReapply} />
