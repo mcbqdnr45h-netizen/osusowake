@@ -470,7 +470,7 @@ export default function StoreProfileEdit() {
         {/* ── カバー写真（全幅・ヒーロー表示） ── */}
         <div
           className="relative w-full cursor-pointer group overflow-hidden"
-          style={{ height: '200px' }}
+          style={{ aspectRatio: '2 / 1' }}
           onClick={() => fileRef.current?.click()}
         >
           {previewUrl ? (
@@ -804,7 +804,7 @@ export default function StoreProfileEdit() {
       {cropperFile && (
         <ImageCropper
           file={cropperFile}
-          aspect={16 / 9}
+          aspect={2}
           onCancel={() => setCropperFile(null)}
           onConfirm={(dataUrl) => {
             setCropperFile(null);

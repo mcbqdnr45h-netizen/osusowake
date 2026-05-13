@@ -1003,7 +1003,7 @@ export default function StoreOnboarding() {
       {cropperFile && (
         <ImageCropper
           file={cropperFile}
-          aspect={16 / 9}
+          aspect={2}
           onCancel={() => setCropperFile(null)}
           onConfirm={(dataUrl) => {
             setForm(prev => ({ ...prev, imageUrl: dataUrl }));

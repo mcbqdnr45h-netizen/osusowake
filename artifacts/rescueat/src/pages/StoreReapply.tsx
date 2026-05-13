@@ -670,7 +670,7 @@ export default function StoreReapply() {
       {cropperFile && (
         <ImageCropper
           file={cropperFile}
-          aspect={16 / 9}
+          aspect={2}
           onCancel={() => setCropperFile(null)}
           onConfirm={(dataUrl) => {
             setNewImageBase64(dataUrl);
