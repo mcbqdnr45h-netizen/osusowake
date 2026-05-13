@@ -443,8 +443,16 @@ router.put("/bags/:bagId", requireAuth, async (req, res) => {
     }
 
     // 認可: bag → store → ownerId が認証ユーザと一致するか確認
+    // 同時に Stripe 状態も取得（公開ON操作のチェック用）
     const [bagOwner] = await db
-      .select({ ownerId: storesTable.ownerId, storeId: surpriseBagsTable.storeId })
+      .select({
+        ownerId: storesTable.ownerId,
+        storeId: surpriseBagsTable.storeId,
+        status: storesTable.status,
+        stripeAccountId: storesTable.stripeAccountId,
+        stripeChargesEnabled: storesTable.stripeChargesEnabled,
+        stripePayoutsEnabled: storesTable.stripePayoutsEnabled,
+      })
       .from(surpriseBagsTable)
       .leftJoin(storesTable, eq(surpriseBagsTable.storeId, storesTable.id))
       .where(eq(surpriseBagsTable.id, bagId))
@@ -457,6 +465,27 @@ router.put("/bags/:bagId", requireAuth, async (req, res) => {
       console.warn(`[SECURITY] PUT /bags/${bagId}: store owner=${bagOwner.ownerId} requester=${req.authUser!.id}`);
       res.status(403).json({ error: "forbidden", message: "このバッグを編集する権限がありません" });
       return;
+    }
+
+    // ★ 公開ON操作の場合: PATCH /stores/:storeId/bags/:bagId と同じ Stripe ガードを適用
+    //    （PUT 経由で isActive=true にして公開バイパスする攻撃 / 旧クライアントを防ぐ）
+    if (body.isActive === true) {
+      if (bagOwner.status !== "approved") {
+        res.status(403).json({ error: "store_not_approved", message: "店舗が承認されていないためバッグを公開できません" });
+        return;
+      }
+      if (!bagOwner.stripeAccountId) {
+        res.status(403).json({ error: "stripe_not_connected", message: "Stripe決済が未連携のため公開できません。銀行口座の登録を完了してください。" });
+        return;
+      }
+      if (!bagOwner.stripeChargesEnabled) {
+        res.status(403).json({ error: "kyc_pending", message: "決済の本人確認が完了していないため公開できません。Stripe審査通過後に出品が開始できます。" });
+        return;
+      }
+      if (!bagOwner.stripePayoutsEnabled) {
+        res.status(403).json({ error: "payouts_disabled", message: "入金が一時停止中のため公開できません。本人確認書類を提出して審査を完了してください。" });
+        return;
+      }
     }
 
     const [updated] = await db

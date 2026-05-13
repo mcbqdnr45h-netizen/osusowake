@@ -1848,19 +1848,31 @@ export default function StoreDashboard() {
 
           return (
             <div className="space-y-3">
-              {stripeBlocked && (
+              {stripeApiBlocked ? (
+                // Stripe側の本人確認失効など → 強制的に再提出を促す目立つブロック
+                <div className="bg-rose-50 border-2 border-rose-400 rounded-2xl p-4 shadow-md">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center text-xl shrink-0">⚠</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-rose-900">{blockTitle}</p>
+                      <p className="text-xs text-rose-800 mt-1 leading-relaxed">{blockDetail}</p>
+                      <p className="text-[11px] text-rose-700 mt-2 leading-relaxed">
+                        ※ 本人確認が完了するまで新規出品・公開操作はすべてブロックされます。
+                      </p>
+                    </div>
+                  </div>
+                  <Link href="/store/kyc">
+                    <button className="w-full bg-rose-500 hover:bg-rose-600 text-white font-black py-3 rounded-xl text-sm transition-colors">
+                      本人確認書類を再提出する →
+                    </button>
+                  </Link>
+                </div>
+              ) : stripeBlocked && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                   <span className="text-amber-500 text-base mt-0.5">⚠️</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-black text-amber-800">{blockTitle}</p>
                     <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">{blockDetail}</p>
-                    {stripeApiBlocked && (
-                      <Link href="/store/kyc">
-                        <span className="inline-block mt-2 text-[11px] font-black text-amber-900 underline underline-offset-2">
-                          → 本人確認書類を再提出する
-                        </span>
-                      </Link>
-                    )}
                   </div>
                 </div>
               )}
