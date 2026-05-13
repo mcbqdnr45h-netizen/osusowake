@@ -715,44 +715,66 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
 
         if (storeRows.length > 0) {
           const store = storeRows[0];
-          // applied 状態で KYC エラーが来た → pending に戻して再入力を促す
+          // external_account が past_due に含まれている → 口座の再登録も必要
+          const needsBankReregister = pastDue.some(f => f === 'external_account' || f.startsWith('external_account'));
+
+          // applied 状態 → pending に戻して再入力フローへ誘導
+          // approved 状態 → status は触らずそのまま（営業継続不可だが履歴は残す）
+          //   どちらの場合も「再入力が必要」通知 + 警告UIを表示する
           if (store.status === 'applied') {
-            // external_account が past_due に含まれている → 口座の再登録も必要
-            const needsBankReregister = pastDue.some(f => f === 'external_account' || f.startsWith('external_account'));
             await db.update(storesTable).set({
               status: 'pending',
               stripeNeedsBankReregister: needsBankReregister || false,
             }).where(eq(storesTable.id, store.id));
-            console.log(`[stripe-webhook] ⚠️  KYC requirements error — store ${store.id} reverted to pending. past_due: ${pastDue.join(', ')}`);
-
-            // 店舗オーナーに通知
-            try {
-              const missingLabels = pastDue.slice(0, 5).map(f => {
-                if (f.includes('address')) return '住所';
-                if (f.includes('dob')) return '生年月日';
-                if (f.includes('first_name') || f.includes('last_name')) return '氏名';
-                if (f.includes('phone')) return '電話番号';
-                if (f.includes('email')) return 'メールアドレス';
-                if (f.includes('verification') || f.includes('document')) return '本人確認書類';
-                return f;
-              }).filter((v, i, a) => a.indexOf(v) === i);
-
-              if (store.ownerId) {
-                await db.insert(notificationsTable).values({
-                  userId: store.ownerId,
-                  type: 'store_action_required',
-                  title: '⚠️ 本人確認情報の再入力が必要です',
-                  body: `決済システムによる審査で確認が必要な項目があります（${missingLabels.join('・')}など）。店舗ダッシュボードから再登録してください。`,
-                  read: false,
-                });
-              }
-            } catch (notifErr) {
-              console.error('[stripe-webhook] notification insert error:', notifErr);
-            }
-
-            res.json({ received: true, action: 'reverted_to_pending', storeId: store.id, past_due: pastDue });
-            return;
+            console.log(`[stripe-webhook] ⚠️  KYC requirements error — store ${store.id} (applied) reverted to pending. past_due: ${pastDue.join(', ')}`);
+          } else if (needsBankReregister) {
+            // approved の場合も口座再登録フラグだけは立てる
+            await db.update(storesTable).set({
+              stripeNeedsBankReregister: true,
+            }).where(eq(storesTable.id, store.id));
+            console.log(`[stripe-webhook] ⚠️  KYC requirements error — store ${store.id} (${store.status}) needs bank re-register. past_due: ${pastDue.join(', ')}`);
+          } else {
+            console.log(`[stripe-webhook] ⚠️  KYC requirements error — store ${store.id} (${store.status}) needs re-submit. past_due: ${pastDue.join(', ')}`);
           }
+
+          // 店舗オーナーに通知（status 問わず常に送る）
+          try {
+            const missingLabels = pastDue.slice(0, 5).map(f => {
+              if (f.includes('address')) return '住所';
+              if (f.includes('dob')) return '生年月日';
+              if (f.includes('first_name') || f.includes('last_name')) return '氏名';
+              if (f.includes('phone')) return '電話番号';
+              if (f.includes('email')) return 'メールアドレス';
+              if (f.includes('verification') || f.includes('document')) return '本人確認書類';
+              return f;
+            }).filter((v, i, a) => a.indexOf(v) === i);
+
+            if (store.ownerId) {
+              const bodyMsg = store.status === 'approved'
+                ? `決済が一時停止されました。再開には本人確認の再提出が必要です（${missingLabels.join('・')}など）。店舗ダッシュボードから再登録してください。`
+                : `決済システムによる審査で確認が必要な項目があります（${missingLabels.join('・')}など）。店舗ダッシュボードから再登録してください。`;
+              await db.insert(notificationsTable).values({
+                userId: store.ownerId,
+                type: 'store_action_required',
+                title: store.status === 'approved'
+                  ? '⚠️ 決済が停止されました（本人確認の再提出が必要）'
+                  : '⚠️ 本人確認情報の再入力が必要です',
+                body: bodyMsg,
+                read: false,
+              });
+            }
+          } catch (notifErr) {
+            console.error('[stripe-webhook] notification insert error:', notifErr);
+          }
+
+          res.json({
+            received: true,
+            action: store.status === 'applied' ? 'reverted_to_pending' : 'notified_owner',
+            storeId: store.id,
+            status: store.status,
+            past_due: pastDue,
+          });
+          return;
         }
       } catch (err: any) {
         console.error('[stripe-webhook] requirements error handling failed:', err?.message);
