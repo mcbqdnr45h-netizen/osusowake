@@ -42,7 +42,75 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
+    <!--
+      ★ 起動時スプラッシュ (白画面対策)
+      JS/CSS バンドルが download → parse → React 初回描画する間、
+      何もないと真っ白な画面が長く見えてしまう。
+      HTML 内にインラインでロゴを置いておくことで、 サーバーから index.html が
+      返った瞬間に表示される。 React マウント (#root に子要素が入る) を検知して
+      自動で fade out → 完全消滅させる。
+    -->
+    <style>
+      #__splash {
+        position: fixed; inset: 0; z-index: 999999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: #FBF8F4;
+        transition: opacity .35s ease-out;
+        pointer-events: none;
+      }
+      #__splash.__hide { opacity: 0; }
+      #__splash img {
+        width: 96px; height: 96px; border-radius: 22px;
+        box-shadow: 0 12px 28px -10px rgba(232,120,108,.35);
+        animation: __splashPulse 1.6s ease-in-out infinite;
+      }
+      #__splash .__brand {
+        margin-top: 18px; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+        font-weight: 900; font-size: 15px; color: #2A2623; letter-spacing: .04em;
+      }
+      @keyframes __splashPulse {
+        0%, 100% { transform: scale(1);    opacity: 1;    }
+        50%      { transform: scale(1.05); opacity: .85;  }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #__splash img { animation: none; }
+      }
+    </style>
+    <div id="__splash" aria-hidden="true">
+      <img src="/images/logo.jpg" alt="" />
+      <div class="__brand">おすそわけ</div>
+    </div>
+
     <div id="root"></div>
+    <script>
+      // ★ #root が DOM に存在した後に必ず実行 (この script タグは <div id="root"> の直後)。
+      // React の createRoot が #root に最初の子を注入したら splash を消す。
+      // タイマーフォールバック (8s) + 異常系の保険 (root 取得失敗でも強制 remove) も置く。
+      (function () {
+        var splash = document.getElementById('__splash');
+        if (!splash) return;
+        var removed = false;
+        var hide = function () {
+          if (removed) return;
+          removed = true;
+          splash.classList.add('__hide');
+          setTimeout(function () {
+            if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+          }, 400);
+        };
+        var root = document.getElementById('root');
+        if (root) {
+          // 既にマウント済み (キャッシュ等) なら即 hide
+          if (root.firstElementChild) { hide(); return; }
+          var observer = new MutationObserver(function () {
+            if (root.firstElementChild) { observer.disconnect(); hide(); }
+          });
+          observer.observe(root, { childList: true });
+        }
+        // どんな異常系 (root 取得失敗 / observer 不発火) でも 8 秒で強制消去
+        setTimeout(hide, 8000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // SW is only registered in production (not Replit dev proxy)
