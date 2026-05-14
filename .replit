@@ -37,31 +37,3 @@ VITE_GOOGLE_MAP_ID = "6e0130660ca9e4014cd00116"
 
 [userenv.production]
 APP_REVIEW_BYPASS_EMAILS = "review-user@osusowakejapan.org,review-store@osusowakejapan.org"
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8081
-externalPort = 8081
-
-[[ports]]
-localPort = 19236
-externalPort = 80
-
-[[ports]]
-localPort = 23812
-externalPort = 3003
-
-[[ports]]
-localPort = 25223
-externalPort = 3001
-
-[[ports]]
-localPort = 25670
-externalPort = 3002
-
-[[ports]]
-localPort = 25834
-externalPort = 3000
