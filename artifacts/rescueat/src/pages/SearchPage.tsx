@@ -294,8 +294,9 @@ function StoreBottomSheet({
             </div>
           </div>
 
-          {/* 店主からのメッセージ — 写真オーバーレイから移動。出品の有無に関わらず常に表示。 */}
-          {store.description && (
+          {/* 店主からのメッセージ — 出品なしの店だけ「上」に表示
+              (出品ありの店ではバッグ一覧の下に表示される、下記参照) */}
+          {store.description && !hasBags && (
             <div className="px-4 mb-3">
               <div className="bg-secondary/60 border border-border/60 rounded-2xl px-3.5 py-2.5">
                 <p className="text-[10px] font-black text-muted-foreground tracking-wide mb-1">
@@ -403,6 +404,21 @@ function StoreBottomSheet({
               </div>
             )}
           </div>
+
+          {/* 店主からのメッセージ — 出品ありの店ではバッグ一覧の「下」に表示。
+              バッグが目立つようにメッセージを下に逃がす意図。 */}
+          {store.description && hasBags && (
+            <div className="px-4 pb-10 -mt-4">
+              <div className="bg-secondary/60 border border-border/60 rounded-2xl px-3.5 py-2.5">
+                <p className="text-[10px] font-black text-muted-foreground tracking-wide mb-1">
+                  💬 店主からのメッセージ
+                </p>
+                <p className="text-[13px] text-foreground leading-relaxed whitespace-pre-wrap">
+                  {store.description}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
     </>
