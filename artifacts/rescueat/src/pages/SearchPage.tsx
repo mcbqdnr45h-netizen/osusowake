@@ -130,11 +130,29 @@ function StoreBottomSheet({
   }, [userPos, store.lat, store.lng]);
 
   // Google Maps URL
+  // ★ 座標だけだと「34.84,135.61」という生数値ピンになって店名が出ない問題があった。
+  //   店名 + 住所をクエリにし、 座標は中心座標 (`center`) として渡すことで、
+  //   Google Maps 側が該当店舗 (Place) を解決して店名・口コミ付きのピンで開く。
+  //   旧 maps.google.com/?q= ではなく、 公式推奨の Maps URLs (api=1) を使用。
+  //   https://developers.google.com/maps/documentation/urls/get-started#search-action
   const mapsUrl = useMemo(() => {
     const lat = store.lat;
     const lng = store.lng;
-    if (lat && lng) return `https://maps.google.com/?q=${lat},${lng}`;
-    if (store.address) return `https://maps.google.com/?q=${encodeURIComponent(store.address)}`;
+    const name = (store.name ?? "").trim();
+    const addr = (store.address ?? "").trim();
+    const queryParts = [name, addr].filter(Boolean);
+    const query = queryParts.join(" ");
+
+    if (query) {
+      const params = new URLSearchParams({ api: "1", query });
+      const url = `https://www.google.com/maps/search/?${params.toString()}`;
+      // 座標があれば center で正しいエリアを優先表示 → 同名の別店舗誤マッチを防ぐ
+      return lat && lng
+        ? `${url}&center=${lat},${lng}`
+        : url;
+    }
+    // 名前も住所も無いフォールバック (実質ありえないが安全策)
+    if (lat && lng) return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
     return null;
   }, [store]);
 
