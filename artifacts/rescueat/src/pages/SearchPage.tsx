@@ -206,7 +206,7 @@ function StoreBottomSheet({
           style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
         >
           {/* 店舗画像バナー */}
-          <div className="relative mx-4 mt-1 mb-3 rounded-2xl overflow-hidden bg-muted shrink-0 shadow-md shadow-black/10" style={{ height: store.description ? 192 : 148 }}>
+          <div className="relative mx-4 mt-1 mb-3 rounded-2xl overflow-hidden bg-muted shrink-0 shadow-md shadow-black/10" style={{ height: 148 }}>
             <img
               src={store.imageUrl || getCategoryImage(store.category, store.id)}
               alt={store.name}
@@ -247,15 +247,6 @@ function StoreBottomSheet({
                   {store.name}
                 </h2>
               </div>
-              {/* PR文 — 半透明ピル背景付きで確実に読めるように */}
-              {store.description && (
-                <div className="mt-1.5 inline-block max-w-full">
-                  <p className="text-white text-[12px] font-medium leading-snug line-clamp-2
-                    bg-black/45 backdrop-blur-sm rounded-lg px-2.5 py-1">
-                    {store.description}
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -302,6 +293,20 @@ function StoreBottomSheet({
               )}
             </div>
           </div>
+
+          {/* 店主からのメッセージ — 写真オーバーレイから移動。出品の有無に関わらず常に表示。 */}
+          {store.description && (
+            <div className="px-4 mb-3">
+              <div className="bg-secondary/60 border border-border/60 rounded-2xl px-3.5 py-2.5">
+                <p className="text-[10px] font-black text-muted-foreground tracking-wide mb-1">
+                  💬 店主からのメッセージ
+                </p>
+                <p className="text-[13px] text-foreground leading-relaxed whitespace-pre-wrap">
+                  {store.description}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="px-4 mb-3">
             <div className="flex items-center gap-2">
