@@ -132,15 +132,15 @@ function makeIconPinUrl(iconUrl: string, isActive: boolean): string | null {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
       <defs>
         <filter id="ids2" x="-25%" y="-10%" width="150%" height="135%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.18)"/>
+          <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.28)"/>
         </filter>
         <clipPath id="clip2"><circle cx="24" cy="22" r="13"/></clipPath>
       </defs>
-      <ellipse cx="24" cy="57" rx="7" ry="2.5" fill="rgba(0,0,0,0.10)"/>
+      <ellipse cx="24" cy="57" rx="7" ry="2.5" fill="rgba(0,0,0,0.14)"/>
       <path d="M24 54 Q9 38, 6 22 A18 18 0 1 1 42 22 Q39 38, 24 54 Z"
-        fill="#b8c0cc" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" filter="url(#ids2)"/>
-      <circle cx="24" cy="22" r="14" fill="white" opacity="0.9"/>
-      <image href="${safeHref}" x="11" y="9" width="26" height="26" clip-path="url(#clip2)" preserveAspectRatio="xMidYMid slice" opacity="0.78"/>
+        fill="#8b95a3" stroke="#ffffff" stroke-width="2" filter="url(#ids2)"/>
+      <circle cx="24" cy="22" r="14" fill="white"/>
+      <image href="${safeHref}" x="11" y="9" width="26" height="26" clip-path="url(#clip2)" preserveAspectRatio="xMidYMid slice" opacity="0.82"/>
     </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   }
