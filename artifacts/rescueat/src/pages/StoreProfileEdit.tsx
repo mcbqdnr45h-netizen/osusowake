@@ -3,13 +3,14 @@ import { useLocation } from 'wouter';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useMyStore } from '@/hooks/use-my-store';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, MapPin, Loader2, MapPinned, X as XIcon } from 'lucide-react';
+import { ChevronLeft, Camera, Save, Clock, CalendarX2, Store, FileText, Phone, MapPin, Loader2, MapPinned, X as XIcon, ChevronDown } from 'lucide-react';
 import { TimePicker } from '@/components/TimePicker';
 import { motion } from 'framer-motion';
 import { authedFetch } from '@/lib/authed-fetch';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { ImageCropper } from '@/components/ImageCropper';
+import { PlaceSearchMap, PlaceResult } from '@/components/PlaceSearchMap';
 
 function dataUrlToFile(dataUrl: string, filename: string): File {
   const [meta, b64] = dataUrl.split(',');
@@ -44,6 +45,8 @@ type StoreProfile = {
   pickupHours: string;
   category: string;
   qualifiedInvoiceNumber: string;
+  lat: number | null;
+  lng: number | null;
 };
 
 export default function StoreProfileEdit() {
@@ -66,7 +69,10 @@ export default function StoreProfileEdit() {
     pickupHours: '',
     category: 'other',
     qualifiedInvoiceNumber: '',
+    lat: null,
+    lng: null,
   });
+  const [showMapEditor, setShowMapEditor] = useState(false);
   const [saving, setSaving]         = useState(false);
   const [uploading, setUploading]   = useState(false);
   const [iconUploading, setIconUploading] = useState(false);
@@ -103,6 +109,8 @@ export default function StoreProfileEdit() {
       pickupHours:  store.pickupHours  ?? '',
       category:     store.category     ?? 'meals',
       qualifiedInvoiceNumber: (store as any).qualifiedInvoiceNumber ?? '',
+      lat:          (store as any).lat  ?? null,
+      lng:          (store as any).lng  ?? null,
     }));
     setPreviewUrl(store.imageUrl ?? '');
     setIconPreviewUrl(store.iconUrl ?? '');
@@ -132,6 +140,8 @@ export default function StoreProfileEdit() {
           pickupHours:  data.pickupHours  ?? '',
           category:     data.category     ?? 'meals',
           qualifiedInvoiceNumber: data.qualifiedInvoiceNumber ?? '',
+          lat:          data.lat ?? null,
+          lng:          data.lng ?? null,
         });
         setPreviewUrl(data.imageUrl ?? '');
         setIconPreviewUrl(data.iconUrl ?? '');
@@ -647,6 +657,42 @@ export default function StoreProfileEdit() {
                   placeholder="例：東京都渋谷区神南1-2-3"
                   className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm font-medium border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
+                {/* ── 地図ピンの位置調整 (折りたたみ式) ── */}
+                <button
+                  type="button"
+                  onClick={() => setShowMapEditor(v => !v)}
+                  className="mt-2 w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-secondary/30 hover:bg-secondary/60 active:bg-secondary/80 rounded-xl text-xs font-bold text-muted-foreground border border-border/40 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <MapPinned className="w-3.5 h-3.5" />
+                    地図ピンの位置を調整
+                    {form.lat && form.lng && (
+                      <span className="ml-1 text-[10px] font-normal text-muted-foreground/60">
+                        ({form.lat.toFixed(5)}, {form.lng.toFixed(5)})
+                      </span>
+                    )}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showMapEditor ? 'rotate-180' : ''}`} />
+                </button>
+                {showMapEditor && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      地図のピンをドラッグするか、検索バーでお店を検索してピンを正しい位置に合わせてください。マップ上の表示位置がズレている場合に修正できます。
+                    </p>
+                    <PlaceSearchMap
+                      lat={form.lat ?? undefined}
+                      lng={form.lng ?? undefined}
+                      onPlace={(p: PlaceResult) => {
+                        markDirty();
+                        setForm(f => ({ ...f, lat: p.lat, lng: p.lng }));
+                      }}
+                      onPinMove={(lat, lng) => {
+                        markDirty();
+                        setForm(f => ({ ...f, lat, lng }));
+                      }}
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-2">カテゴリ</label>

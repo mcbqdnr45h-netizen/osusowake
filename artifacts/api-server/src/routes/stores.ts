@@ -3801,10 +3801,27 @@ router.put("/stores/:storeId/profile", requireAuth, requireStoreOwner, async (re
     }
 
     const allowed = ["name", "description", "imageUrl", "iconUrl", "phone", "address", "city", "openTime", "closeTime", "holiday", "pickupHours", "category", "qualifiedInvoiceNumber"] as const;
-    const body = req.body as Partial<Record<typeof allowed[number], string | null>>;
-    const patch: Record<string, string | null> = {};
+    const body = req.body as Partial<Record<typeof allowed[number], string | null>> & { lat?: number | string | null; lng?: number | string | null };
+    const patch: Record<string, string | number | null> = {};
     for (const key of allowed) {
-      if (key in body) patch[key] = body[key] ?? null;
+      if (key in body) patch[key] = (body[key] as string | null) ?? null;
+    }
+    // ── 位置情報 (lat/lng) は店舗オーナーが地図ピンで微調整できる ──
+    //    日本国内の妥当範囲チェックのみ実施 (lat 20-46, lng 122-154)。
+    //    片方だけの更新は受け付けない (整合性のためペアで更新)。
+    if ("lat" in body || "lng" in body) {
+      const latNum = body.lat == null || body.lat === "" ? NaN : Number(body.lat);
+      const lngNum = body.lng == null || body.lng === "" ? NaN : Number(body.lng);
+      if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+        res.status(400).json({ error: "invalid_coordinates", message: "緯度・経度は数値で指定してください。" });
+        return;
+      }
+      if (latNum < 20 || latNum > 46 || lngNum < 122 || lngNum > 154) {
+        res.status(400).json({ error: "invalid_coordinates", message: "緯度・経度が日本国内の範囲外です。" });
+        return;
+      }
+      patch.lat = latNum;
+      patch.lng = lngNum;
     }
     // 適格請求書発行事業者登録番号は T + 13桁数字 のみ許可。 空文字は null 扱い。
     if ("qualifiedInvoiceNumber" in patch) {
