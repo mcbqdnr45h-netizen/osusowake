@@ -640,7 +640,7 @@ title = "01_home_fixed_ipad.png（iPad 2048×2732 グラデーション版）"
 id = "vmzH8CRHhZ5CzC0F68jx4"
 uri = "file://.local/outputs/--------------.pptx"
 type = "slides"
-title = "おすそわけ 店舗向け営業資料（11枚）.pptx"
+title = "おすそわけ 店舗向け営業資料 (PowerPoint)"
 
 [[outputs]]
 id = "FxH7cPukoNXDgJ5tbnWc3"
@@ -767,3 +767,9 @@ id = "UhnSPlrU0thVuChN2Vl1P"
 uri = "file://screenshots/line-banner.jpg"
 type = "image"
 title = "LINE公式アカウント ヘッダーバナー (2500×843px)"
+
+[[outputs]]
+id = "5L0u01SDiZiKBJoU0WgKh"
+uri = "file://.local/outputs/--------------.pdf"
+type = "pdf"
+title = "おすそわけ 店舗向け営業資料 (PDF)"
