@@ -472,6 +472,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return { error: '登録中にエラーが発生しました。もう一度お試しください', needsConfirmation: false };
       }
+
+      // ★ 真因対策 (ユーザ報告「戻るボタンで顧客側になる」 バグ):
+      //   supabase.auth.signUp が SIGNED_IN イベントを即座に発火し、
+      //   onAuthStateChange → fetchProfile が走るが、 この時点では
+      //   /api/auth/create-profile の INSERT が完了していないため
+      //   users 行が存在せず result.data=null → profile が null のまま放置される。
+      //   そのまま /store-onboarding → 戻るボタンと進むと、 profile=null なので
+      //   Layout の isStoreOwner=false で下タブが顧客側に化ける。
+      //   ここで create-profile 完了直後に再度 fetchProfile を実行し、
+      //   profile を store_owner に確定させる。 同時に markStoreOwnerSession で
+      //   PENDING フラグも立て、 後続の transient な customer 読み出しを
+      //   クランプで防御する。
+      markStoreOwnerSession();
+      try { await fetchProfile(data.user.id); } catch (_) { /* ignore */ }
     }
 
     const needsConfirmation = !data.session;
