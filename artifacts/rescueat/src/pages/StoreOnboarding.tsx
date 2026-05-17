@@ -614,51 +614,37 @@ export default function StoreOnboarding() {
             onClick={() => {
               // ── 戻るボタン: 登録を「一旦中断」して戻る ──
               //
-              // ロールの扱いを 3 パターンに分ける:
+              // ★ ロールは絶対に変更しない (customer に降格しない)。
+              //   過去にここで customer 降格していたため、 戻るボタンを押すと
+              //   マイページで「メンバー」 表示になるバグの原因だった。
               //
-              // (A) Stripe 連携まで完成済の店舗あり / 追加モード:
-              //     → 既に正式な店舗オーナー。 ロール変更せず /store/dashboard へ。
+              //   旧コードで降格が必要だった理由: Home.tsx が store_owner を
+              //   問答無用で /store/dashboard に送り、 店舗ゼロだとそこから
+              //   /store-onboarding に再送される無限ループ対策。
+              //   → 今は Home.tsx 側で「店舗ゼロの store_owner はリダイレクト
+              //     しない」 修正を入れたので、 ここで降格する必要がなくなった。
               //
-              // (B) DB に店舗あるが未完成 (申請中・銀行未設定など):
-              //     → DB 上 role=store_owner なのでロールは絶対に降格しない。
-              //       /mypage へ戻し、 マイページのバナーから再開可能にする。
-              //     ※ 以前ここで customer に降格していたため、 戻るボタン押下後に
-              //       「メンバー」 表示になるバグの原因だった。
+              // 遷移先:
+              //   - 追加モード or Stripe 完成済店舗あり → /store/dashboard
+              //   - それ以外 (新規/未完成) → /mypage (バナーから再開可能)
               //
-              // (C) DB に店舗ゼロ (完全新規) を途中で中断:
-              //     → DB role=customer のはず。 楽観的に上げた store_owner ロールを
-              //       cache 含めて customer に戻す。
-              //       (戻さないとコールドスタートで stale store_owner キャッシュから
-              //        Home → /store/dashboard → /store-onboarding の無限ループ)
+              // sessionStorage の pending フラグはクリアして良い:
+              //   - 店舗あり: fetchProfile が DB から store_owner を取り直して
+              //     キャッシュに書き込むため、 フラグなしでも正しく維持される。
+              //   - 店舗なし: そもそも DB role=customer なのでフラグ不要。
               //
-              // いずれもドラフト (localStorage) は保持 → 後から再開可能。
-              // replace: true で履歴汚染を防止。
-              const hasAnyStore = !storeLoading && !!existingStore;
-              const isRealCompletedStore =
-                hasAnyStore && !!existingStore.stripeAccountId;
-
-              // (A)
-              if (isAddMode || isRealCompletedStore) {
-                navigate('/store/dashboard', { replace: true });
-                return;
-              }
-
-              // sessionStorage フラグは (B)(C) どちらでもクリア
-              // ((B) では fetchProfile が DB から store_owner を取り直して
-              //  キャッシュに書くので、 フラグなしでも正しく維持される)
+              // ドラフト (localStorage) は保持 → MyPage バナーから再開可能。
               try {
                 sessionStorage.removeItem('osusowake_pending_store_owner_v1');
               } catch (_) { /* ignore */ }
 
-              // (B) 未完成店舗あり: ロールは store_owner のまま維持
-              if (hasAnyStore) {
+              const isRealCompletedStore =
+                !storeLoading && !!existingStore && !!existingStore.stripeAccountId;
+              if (isAddMode || isRealCompletedStore) {
+                navigate('/store/dashboard', { replace: true });
+              } else {
                 navigate('/mypage', { replace: true });
-                return;
               }
-
-              // (C) 完全新規中断: customer にダウングレード (cache 含め)
-              setOptimisticRole('customer', true);
-              navigate('/mypage', { replace: true });
             }}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
           >

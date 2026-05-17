@@ -319,7 +319,7 @@ export default function Home() {
 
   const { user, profile, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
-  const { isApprovedOwner } = useMyStore();
+  const { isApprovedOwner, store: myStore, loading: myStoreLoading } = useMyStore();
   const userId = useUserId();
   const { data: bags, isLoading: isLoadingBags } = useListAllBags({
     query: { queryKey: getListAllBagsQueryKey(), refetchInterval: 60_000, staleTime: 30_000 },
@@ -372,13 +372,16 @@ export default function Home() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (user && profile?.role === 'store_owner') {
-      // 動的 import で循環依存回避
-      import('@/lib/nav-debug').then(({ logNav }) => logNav('Home(store_owner on /)', '/store/dashboard'));
-      navigate('/store/dashboard', { replace: true });
-      return;
-    }
-  }, [authLoading, user, profile, navigate]);
+    if (!user || profile?.role !== 'store_owner') return;
+    // ★ 店舗 0 件の store_owner は dashboard へ送らない (ループ防止)
+    //   Home → /store/dashboard → (店舗なし) → /store-onboarding → (戻る) → Home …
+    //   というループに陥っていた根本原因。 store 取得完了まで待ち、
+    //   実際に店舗を持つユーザだけダッシュボードへ誘導する。
+    if (myStoreLoading) return;
+    if (!myStore) return; // 店舗ゼロの「名ばかり store_owner」 → ホームに留める
+    import('@/lib/nav-debug').then(({ logNav }) => logNav('Home(store_owner on /)', '/store/dashboard'));
+    navigate('/store/dashboard', { replace: true });
+  }, [authLoading, user, profile, navigate, myStore, myStoreLoading]);
 
   useEffect(() => {
     if (showSearch) { setTimeout(() => searchRef.current?.focus(), 80); }
