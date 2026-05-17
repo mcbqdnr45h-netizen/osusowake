@@ -40,15 +40,30 @@ const ADMIN_SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
 // ★ profile を localStorage にキャッシュ → ネットワーク不調時でも即座に role 判定
 const PROFILE_CACHE_KEY = 'osusowake_profile_cache_v1';
-// ★ 店舗登録進行中フラグ (sessionStorage): setOptimisticRole('store_owner') で立つ。
-//   StoreOnboarding 中にトークンリフレッシュ等で fetchProfile が DB の customer を返し、
-//   楽観的 store_owner を上書きして MyPage が顧客側に戻るバグを防ぐ。
-//   実 role が store_owner になったら fetchProfile 内で自動クリア。
+// ★ 店舗オーナーセッションフラグ (sessionStorage):
+//   このタブで一度でも「ユーザは store_owner」 と確認できたら ON にする。
+//   ON の間、 fetchProfile が DB から一時的に customer を読んでも自動的に
+//   store_owner にクランプする (replication lag / 一過性 RLS タイミングの保険)。
+//   立つタイミング:
+//     1) setOptimisticRole('store_owner') (StoreOnboarding 開始時など)
+//     2) fetchProfile が DB から prof.role==='store_owner' を取得した瞬間
+//     3) 初期キャッシュ読み込み時に role==='store_owner' を確認した瞬間
+//   クリアされるタイミング:
+//     - sign-out (manual / auto)
+//     - StoreOnboarding 戻るボタンで新規登録中断
+//   ※ fetchProfile では自動クリアしない。
 const PENDING_STORE_OWNER_KEY = 'osusowake_pending_store_owner_v1';
+function markStoreOwnerSession() {
+  try { sessionStorage.setItem(PENDING_STORE_OWNER_KEY, '1'); } catch (_) {}
+}
 function readCachedProfile(): PublicUser | null {
   try {
     const raw = localStorage.getItem(PROFILE_CACHE_KEY);
-    return raw ? (JSON.parse(raw) as PublicUser) : null;
+    const parsed = raw ? (JSON.parse(raw) as PublicUser) : null;
+    // ★ 起動時にキャッシュが store_owner ならセッションフラグも立てる
+    //   (mount 直後から transient customer 読み取りを保護)
+    if (parsed?.role === 'store_owner') markStoreOwnerSession();
+    return parsed;
   } catch { return null; }
 }
 function writeCachedProfile(p: PublicUser | null) {
@@ -137,15 +152,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           finalProfile = { ...prof, role: 'store_owner' as const };
         } else {
           finalProfile = prof;
-          // ★ PENDING フラグは fetchProfile では自動クリアしない (重要)。
-          //   過去は prof.role==='store_owner' を見た時点でクリアしていたが、
-          //   その後 fetchProfile が再走して DB が一時的に customer を返した場合
-          //   (replication lag / 一過性の RLS タイミング等)、 クランプが効かず
-          //   in-memory が customer に化けて「アプリ閉じるまで ユーザー側のまま」
-          //   になるバグの原因だった。
-          //   セッション中は店舗オーナー判定を維持し、 sign-out 時と新規登録中断時
-          //   (StoreOnboarding 戻るボタン) のみクリアする。
         }
+        // ★ DB から store_owner が確認できた瞬間に セッションフラグを「立てる」。
+        //   これが今回の根本修正:
+        //   既存の店舗オーナーが onboarding を経由せずアプリを開いた場合でも、
+        //   一度確認できればセッション中ずっとクランプ保護が効く。
+        //   後続の fetchProfile が transient に customer を返しても in-memory
+        //   が customer に化けないので、 「アプリ閉じるまでユーザー側」 が解消する。
+        if (finalProfile.role === 'store_owner') markStoreOwnerSession();
         setProfile(finalProfile);
         writeCachedProfile(finalProfile); // ★ 成功時のみキャッシュ更新
       }
@@ -464,6 +478,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null, needsConfirmation };
   }
 
+  // ★ signIn のフォールバック分岐で「既存の store_owner を customer に降格しない」 ためのヘルパー。
+  //   /api/auth/profile が一時的に失敗しても、 以下のいずれかが「店舗オーナー」 を示している
+  //   ならフォールバック role も store_owner にする (キャッシュへの customer 上書きで
+  //   ユーザー側 UI に化けるバグを防止)。
+  //     1) forceRole === 'store_owner'
+  //     2) sessionStorage の PENDING_STORE_OWNER フラグ
+  //     3) localStorage のキャッシュ済み profile.role === 'store_owner'
+  function resolveFallbackRole(forceRole?: 'store_owner' | 'customer'): 'store_owner' | 'customer' {
+    if (forceRole === 'store_owner') return 'store_owner';
+    try {
+      if (sessionStorage.getItem(PENDING_STORE_OWNER_KEY) === '1') return 'store_owner';
+    } catch (_) { /* ignore */ }
+    const cached = readCachedProfile();
+    if (cached?.role === 'store_owner') return 'store_owner';
+    return forceRole ?? 'customer';
+  }
+
   async function signIn(email: string, password: string, forceRole?: 'store_owner' | 'customer') {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: translateError(error.message), role: null };
@@ -555,10 +586,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (profRes.ok) {
           const { profile: prof } = await profRes.json();
           if (prof) {
-            // 管理者が user タブでログインした場合はセッション内で customer として扱う
+            // ★ 権威ソース優先: /api/auth/profile (supabaseAdmin 経由・RLS バイパス) が
+            //   返した prof.role を信頼する。 管理者の user タブログインのみ customer 上書き。
+            //   従来は (role ?? prof.role) としていたため、 update-role が非 403 で失敗
+            //   (5xx / ネットワーク) した時に role='customer' のまま prof.role を無視し、
+            //   実際は店舗オーナーなのに customer をキャッシュへ書き込んでしまうバグがあった。
             const sessionRole = (!forceRole && adminVerified)
               ? 'customer'
-              : (role ?? prof.role);
+              : (prof.role ?? role ?? 'customer');
             role = sessionRole;
             const fp1: PublicUser = {
               id: data.user.id,
@@ -569,19 +604,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               display_name: prof.display_name ?? null,
               created_at: data.user.created_at,
             };
+            if (sessionRole === 'store_owner') markStoreOwnerSession();
             setProfile(fp1);
             writeCachedProfile(fp1); // ★ 即座にキャッシュ → 次回起動時もスケルトン無し
           } else {
-            // プロフィールが存在しない場合（まれ）
-            role = forceRole ?? 'customer';
+            // プロフィールが存在しない場合（まれ） → 安全側フォールバック
+            role = resolveFallbackRole(forceRole);
             const fp2: PublicUser = { id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at };
+            if (role === 'store_owner') markStoreOwnerSession();
             setProfile(fp2);
             writeCachedProfile(fp2);
           }
         } else {
-          // プロフィール取得失敗 → フォールバック
-          role = forceRole ?? 'customer';
+          // プロフィール取得失敗 → フォールバック (既存の store_owner を顧客に降格しないよう注意)
+          role = resolveFallbackRole(forceRole);
           const fp3: PublicUser = { id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at };
+          if (role === 'store_owner') markStoreOwnerSession();
           setProfile(fp3);
           writeCachedProfile(fp3);
           console.warn('[AuthContext] profile fetch failed — using fallback');
@@ -590,8 +628,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('[AuthContext] signIn profile error:', err);
       if (data.user) {
-        role = forceRole ?? 'customer';
+        role = resolveFallbackRole(forceRole);
         const fp4: PublicUser = { id: data.user.id, email: data.user.email!, role: role as import('@/lib/supabase').UserRole, full_name: null, phone_number: null, display_name: null, created_at: data.user.created_at };
+        if (role === 'store_owner') markStoreOwnerSession();
         setProfile(fp4);
         writeCachedProfile(fp4);
       }
