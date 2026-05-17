@@ -599,23 +599,42 @@ export default function StoreOnboarding() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => {
-              // ★ 何があっても先に楽観的ロールを立てる (race condition 完全封じ)
-              //    sessionStorage フラグは mount 時にも立てているが、 ここでも念のため
-              //    setOptimisticRole を呼び profile state も同期的に store_owner にする。
-              //    → 次のページ (MyPage / StoreDashboard) のレンダリングで必ず店舗扱い。
-              setOptimisticRole('store_owner');
+              // ── 戻るボタン: 登録を「一旦中断」して MyPage に戻る ──
+              //
+              // ★ 追加モード or 「本物の」 既存店舗あり: ただの中断 (店舗ダッシュボードへ)。
+              //    sessionStorage フラグや role は触らない (既に本物の店舗オーナー)。
+              //
+              //    ★ 重要: existingStore が「本物 (完成済) 」 か stale キャッシュかを
+              //      stripeAccountId の有無で判定する。 stale キャッシュでダッシュボードへ
+              //      飛ばすと StoreDashboard が /store-onboarding に再リダイレクトして
+              //      無限ループになるため、 必ず storeLoading=false かつ stripeAccountId
+              //      が付いている店舗のみ信頼する。
+              const isRealCompletedStore =
+                !storeLoading && !!existingStore && !!existingStore.stripeAccountId;
+              if (isAddMode || isRealCompletedStore) {
+                navigate('/store/dashboard', { replace: true });
+                return;
+              }
+              //
+              // ★ 新規登録途中で中断する場合 (実 store なし):
+              //   1) sessionStorage の pending フラグをクリア。
+              //      → 次回起動時に Home → /store/dashboard → /store-onboarding
+              //         チェーンで自動的に onboarding に再投獄されるのを防ぐ。
+              //   2) 楽観的ロールを customer に戻す。
+              //      → 「戻ったらメンバー / 再起動したら店舗オーナー」 の不整合を解消。
+              //   3) ドラフト (localStorage) は保持 → MyPage の
+              //      「店舗情報を登録して申請する」 バナーから再開可能。
+              //      (StoreOnboarding 再マウント時に setOptimisticRole で店舗オーナーに戻る)
+              //   4) replace: true で履歴汚染を防ぎ、 再度戻るボタンで onboarding に
+              //      飛ばされる事故も防止。
               try {
-                sessionStorage.setItem('osusowake_pending_store_owner_v1', '1');
+                sessionStorage.removeItem('osusowake_pending_store_owner_v1');
               } catch (_) { /* ignore */ }
-
-              // 1. 追加モード or 既存店舗あり → 店舗ダッシュボード
-              if (isAddMode || existingStore) { navigate('/store/dashboard'); return; }
-              // 2. それ以外 (新規登録途中) → マイページ
-              //    ★ 旧ロジックでは profile?.role === 'store_owner' のときも
-              //      /store/dashboard へ飛ばしていたが、 既存店舗が無いと
-              //      StoreDashboard が /store-onboarding に再リダイレクトして
-              //      無限ループになるため、 store が無い場合は MyPage に統一する。
-              navigate('/mypage');
+              // ★ persistToCache=true で profile キャッシュ (localStorage) も customer に更新。
+              //    これがないと再起動時に stale な store_owner キャッシュからブートして
+              //    Home→/store/dashboard→/store-onboarding チェーンで再投獄される。
+              setOptimisticRole('customer', true);
+              navigate('/mypage', { replace: true });
             }}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
           >

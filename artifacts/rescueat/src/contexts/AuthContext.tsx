@@ -20,7 +20,9 @@ interface AuthContextValue {
   // ★ Apple / Google SSO (T004): Supabase OAuth リダイレクトフロー
   signInWithProvider: (provider: 'google' | 'apple') => Promise<{ error: string | null }>;
   // ★ 楽観的ロール更新 (登録途中のユーザーが店舗オーナー UI を見られるように)
-  setOptimisticRole: (role: 'store_owner' | 'customer') => void;
+  //   persistToCache=true で profile キャッシュ (localStorage) にも書き込み、
+  //   次回起動時に古い role でブートストラップされるのを防ぐ (中断時に使用)。
+  setOptimisticRole: (role: 'store_owner' | 'customer', persistToCache?: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -156,11 +158,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // ★ 楽観的にロールを切り替える (StoreOnboarding 開始時など)
-  // キャッシュには書き込まない → リロード時は actual DB role に戻る (整合性保持)
+  // 通常はキャッシュには書き込まない → リロード時は actual DB role に戻る (整合性保持)
   // store_owner への昇格時のみ sessionStorage フラグも立て、 タブ閉じるまで維持
   // (TOKEN_REFRESHED 等の再 fetchProfile による顧客側ロールバック防止)
-  function setOptimisticRole(newRole: 'store_owner' | 'customer') {
-    setProfile(prev => prev ? { ...prev, role: newRole } : prev);
+  //
+  // ★ persistToCache=true: 「中断」 や「ロール降格」 など、 次回起動でも反映したい場合に使う。
+  //   profile キャッシュ (localStorage) にも書き込み、 stale な store_owner キャッシュで
+  //   ブートストラップして Home→/store/dashboard→/store-onboarding に再投獄されるのを防ぐ。
+  function setOptimisticRole(newRole: 'store_owner' | 'customer', persistToCache?: boolean) {
+    setProfile(prev => {
+      const next = prev ? { ...prev, role: newRole } : prev;
+      if (persistToCache && next) writeCachedProfile(next);
+      return next;
+    });
     try {
       if (newRole === 'store_owner') {
         sessionStorage.setItem(PENDING_STORE_OWNER_KEY, '1');
