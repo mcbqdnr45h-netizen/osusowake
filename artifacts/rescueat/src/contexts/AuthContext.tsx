@@ -485,7 +485,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       //   PENDING フラグも立て、 後続の transient な customer 読み出しを
       //   クランプで防御する。
       markStoreOwnerSession();
+      // eslint-disable-next-line no-console
+      console.log('[signUpAsStore] create-profile OK → calling fetchProfile', { userId: data.user.id, at: new Date().toLocaleTimeString() });
       try { await fetchProfile(data.user.id); } catch (_) { /* ignore */ }
+      // eslint-disable-next-line no-console
+      console.log('[signUpAsStore] fetchProfile done', { at: new Date().toLocaleTimeString() });
     }
 
     const needsConfirmation = !data.session;

@@ -645,16 +645,17 @@ export default function StoreOnboarding() {
               // ログイン済みの場合は、 フラグをクリアしない (店舗側 UI を維持)。
               const hasAnyStore = !storeLoading && !!existingStore;
               const isAlreadyStoreOwner = profile?.role === 'store_owner';
-              // ★ profile=null (signUpAsStore 直後で fetchProfile が DB row 未作成のため
-              //   失敗 → profile が一時 null になるレース) のときも、 フラグはクリアしない。
-              //   profile が確定するまでクリア判定を保留 (= フラグ維持) して
-              //   MyPage 到達後の Layout で顧客タブに化けるのを防ぐ。
               const profileLoaded = profile !== null && profile !== undefined;
               const isTrueNewAbort = profileLoaded && !storeLoading && !hasAnyStore && !isAlreadyStoreOwner;
+              const flagBefore = (() => { try { return sessionStorage.getItem('osusowake_pending_store_owner_v1'); } catch { return null; } })();
+              // eslint-disable-next-line no-console
+              console.log('[onb-back] clicked', { profileRole: profile?.role ?? null, profileLoaded, storeLoading, hasAnyStore, isAlreadyStoreOwner, isTrueNewAbort, flagBefore, at: new Date().toLocaleTimeString() });
               if (isTrueNewAbort) {
                 try {
                   sessionStorage.removeItem('osusowake_pending_store_owner_v1');
                 } catch (_) { /* ignore */ }
+                // eslint-disable-next-line no-console
+                console.log('[onb-back] PENDING flag cleared!');
               }
 
               const isRealCompletedStore =

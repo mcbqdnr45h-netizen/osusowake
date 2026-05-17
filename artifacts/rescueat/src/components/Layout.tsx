@@ -49,6 +49,10 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
   const isStoreOwner = profile
     ? profile.role === 'store_owner'
     : (!!user && pendingStoreOwner);
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[Layout] nav decision', { location, profileRole: profile?.role ?? null, hasUser: !!user, pendingStoreOwner, isStoreOwner, at: new Date().toLocaleTimeString() });
+  }, [location, profile?.role, user, pendingStoreOwner, isStoreOwner]);
   // ★ ニックネームはランキング参加時のみ必要 (オプトイン制)。
   //   強制入力モーダルは廃止 — ニックネーム未設定でも自由にアプリを使える。
 
