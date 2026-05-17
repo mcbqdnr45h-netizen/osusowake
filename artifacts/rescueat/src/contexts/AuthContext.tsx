@@ -137,10 +137,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           finalProfile = { ...prof, role: 'store_owner' as const };
         } else {
           finalProfile = prof;
-          // 実 role が store_owner に確定したらフラグ解除 (役目終了)
-          if (prof.role === 'store_owner') {
-            try { sessionStorage.removeItem(PENDING_STORE_OWNER_KEY); } catch (_) {}
-          }
+          // ★ PENDING フラグは fetchProfile では自動クリアしない (重要)。
+          //   過去は prof.role==='store_owner' を見た時点でクリアしていたが、
+          //   その後 fetchProfile が再走して DB が一時的に customer を返した場合
+          //   (replication lag / 一過性の RLS タイミング等)、 クランプが効かず
+          //   in-memory が customer に化けて「アプリ閉じるまで ユーザー側のまま」
+          //   になるバグの原因だった。
+          //   セッション中は店舗オーナー判定を維持し、 sign-out 時と新規登録中断時
+          //   (StoreOnboarding 戻るボタン) のみクリアする。
         }
         setProfile(finalProfile);
         writeCachedProfile(finalProfile); // ★ 成功時のみキャッシュ更新
