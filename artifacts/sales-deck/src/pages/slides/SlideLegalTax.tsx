@@ -43,12 +43,12 @@ export default function SlideLegalTax() {
               }}>
                 <span style={{ fontSize: '1.6vh' }}>⚖️</span>
               </div>
-              <span style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1vw', fontWeight: 700, color: '#E8786C', background: 'rgba(232,120,108,0.1)', padding: '0.3vh 1vw', borderRadius: '100px' }}>
+              <span style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1vw', fontWeight: 700, color: '#E8786C', background: 'rgba(232,120,108,0.1)', padding: '0.3vh 1vw', borderRadius: '100px' }}>
                 法的根拠
               </span>
             </div>
 
-            <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.5vw', fontWeight: 900, color: '#2A2623', lineHeight: 1.4 }}>
+            <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.5vw', fontWeight: 900, color: '#2A2623', lineHeight: 1.4 }}>
               購入後キャンセル不可は<br />
               <span style={{ color: '#E8786C' }}>合法です</span>
             </p>
@@ -70,10 +70,10 @@ export default function SlideLegalTax() {
                     <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1vh', fontWeight: 900, color: '#fff' }}>✓</span>
                   </div>
                   <div>
-                    <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.1vw', fontWeight: 700, color: '#2A2623', lineHeight: 1.4 }}>
+                    <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.1vw', fontWeight: 700, color: '#2A2623', lineHeight: 1.4 }}>
                       {item.title}
                     </p>
-                    <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '0.95vw', color: 'rgba(42,38,35,0.65)', lineHeight: 1.5, marginTop: '0.2vh' }}>
+                    <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '0.95vw', color: 'rgba(42,38,35,0.65)', lineHeight: 1.5, marginTop: '0.2vh' }}>
                       {item.desc}
                     </p>
                   </div>
@@ -100,12 +100,12 @@ export default function SlideLegalTax() {
               }}>
                 <span style={{ fontSize: '1.6vh' }}>📊</span>
               </div>
-              <span style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1vw', fontWeight: 700, color: '#44A836', background: 'rgba(68,168,54,0.1)', padding: '0.3vh 1vw', borderRadius: '100px' }}>
+              <span style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1vw', fontWeight: 700, color: '#44A836', background: 'rgba(68,168,54,0.1)', padding: '0.3vh 1vw', borderRadius: '100px' }}>
                 税務処理
               </span>
             </div>
 
-            <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.5vw', fontWeight: 900, color: '#2A2623', lineHeight: 1.4 }}>
+            <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.5vw', fontWeight: 900, color: '#2A2623', lineHeight: 1.4 }}>
               売上は<span style={{ color: '#44A836' }}>販売額の100%</span>で<br />
               店舗様の売上に計上
             </p>
@@ -118,7 +118,7 @@ export default function SlideLegalTax() {
               borderRadius: '0.6vw',
               padding: '1.5vh 1.2vw',
             }}>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '0.9vw', fontWeight: 700, color: 'rgba(42,38,35,0.55)', marginBottom: '0.8vh', letterSpacing: '0.05em' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '0.9vw', fontWeight: 700, color: 'rgba(42,38,35,0.55)', marginBottom: '0.8vh', letterSpacing: '0.05em' }}>
                 例：500円で販売した場合
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5vh' }}>
@@ -132,7 +132,7 @@ export default function SlideLegalTax() {
                     paddingTop: row.border ? '0.6vh' : 0,
                     borderTop: row.border ? '1px solid rgba(42,38,35,0.15)' : 'none',
                   }}>
-                    <span style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1vw', color: 'rgba(42,38,35,0.75)' }}>
+                    <span style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1vw', color: 'rgba(42,38,35,0.75)' }}>
                       {row.label}
                     </span>
                     <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.2vw', fontWeight: row.bold ? 900 : 700, color: row.color }}>
@@ -157,10 +157,10 @@ export default function SlideLegalTax() {
                     <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1vh', fontWeight: 900, color: '#fff' }}>✓</span>
                   </div>
                   <div>
-                    <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.05vw', fontWeight: 700, color: '#2A2623', lineHeight: 1.4 }}>
+                    <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.05vw', fontWeight: 700, color: '#2A2623', lineHeight: 1.4 }}>
                       {item.title}
                     </p>
-                    <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '0.9vw', color: 'rgba(42,38,35,0.65)', lineHeight: 1.5 }}>
+                    <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '0.9vw', color: 'rgba(42,38,35,0.65)', lineHeight: 1.5 }}>
                       {item.desc}
                     </p>
                   </div>
@@ -172,7 +172,7 @@ export default function SlideLegalTax() {
 
         {/* Disclaimer */}
         <div style={{ marginTop: '2vh', display: 'flex', justifyContent: 'center' }}>
-          <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '0.95vw', color: 'rgba(42,38,35,0.55)', textAlign: 'center' }}>
+          <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '0.95vw', color: 'rgba(42,38,35,0.55)', textAlign: 'center' }}>
             ※ 個別の税務処理については、念のため顧問税理士へのご確認をおすすめします
           </p>
         </div>

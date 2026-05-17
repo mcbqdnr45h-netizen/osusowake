@@ -15,18 +15,18 @@ export default function Slide2Problem() {
               <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '5.5vw', fontWeight: 900, color: '#E8786C', lineHeight: 1, marginBottom: '1vh' }}>
                 472<span style={{ fontSize: '2.5vw' }}>万t</span>
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', fontWeight: 700, marginBottom: '0.5vh' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.8vw', color: '#2A2623', fontWeight: 700, marginBottom: '0.5vh' }}>
                 日本の年間食品廃棄量
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.5vw', color: '#8A7F7A' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.5vw', color: '#8A7F7A' }}>
                 農林水産省 2023年
               </p>
             </div>
             <div style={{ background: '#F5FAF4', borderRadius: '1.2vw', padding: '3.5vh 3vw', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '2vw', color: '#2A2623', fontWeight: 700, lineHeight: 1.6, marginBottom: '1.5vh' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '2vw', color: '#2A2623', fontWeight: 700, lineHeight: 1.6, marginBottom: '1.5vh' }}>
                 廃棄食材のコストは<br />すべて損失として計上される
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#44A836', fontWeight: 700 }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.8vw', color: '#44A836', fontWeight: 700 }}>
                 売れ残りを売上に変える仕組みが必要です
               </p>
             </div>

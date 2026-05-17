@@ -92,7 +92,7 @@ export default function SlideQA() {
             >
               {/* Tag */}
               <span style={{
-                fontFamily: 'Noto Sans JP, sans-serif',
+                fontFamily: "'Noto Sans JP', sans-serif",
                 fontSize: '0.9vw',
                 fontWeight: 700,
                 color: item.color,
@@ -115,7 +115,7 @@ export default function SlideQA() {
                   <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.1vh', fontWeight: 900, color: '#fff' }}>Q</span>
                 </div>
                 <p style={{
-                  fontFamily: 'Noto Sans JP, sans-serif',
+                  fontFamily: "'Noto Sans JP', sans-serif",
                   fontSize: '1.3vw',
                   fontWeight: 900,
                   color: '#FBF8F4',
@@ -140,7 +140,7 @@ export default function SlideQA() {
                   <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.1vh', fontWeight: 900, color: item.color }}>A</span>
                 </div>
                 <p style={{
-                  fontFamily: 'Noto Sans JP, sans-serif',
+                  fontFamily: "'Noto Sans JP', sans-serif",
                   fontSize: '1.15vw',
                   color: 'rgba(251,248,244,0.82)',
                   lineHeight: 1.6,
@@ -164,7 +164,7 @@ export default function SlideQA() {
             gap: '0.8vw',
           }}>
             <span style={{ fontSize: '1.3vw' }}>💬</span>
-            <span style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.2vw', fontWeight: 700, color: 'rgba(251,248,244,0.85)' }}>
+            <span style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.2vw', fontWeight: 700, color: 'rgba(251,248,244,0.85)' }}>
               他にご不安な点は、何でもその場でお答えします！
             </span>
           </div>

@@ -15,13 +15,13 @@ export default function Slide3HowItWorks() {
               <div style={{ width: '5.5vh', height: '5.5vh', borderRadius: '50%', background: '#E8786C', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2vh' }}>
                 <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2.5vh', fontWeight: 900, color: '#fff' }}>1</span>
               </div>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2.2vw', fontWeight: 900, color: '#2A2623', marginBottom: '1.2vh', lineHeight: 1.2 }}>
+              <p style={{ fontFamily: "Outfit, 'Noto Sans JP', sans-serif", fontSize: '2.2vw', fontWeight: 900, color: '#2A2623', marginBottom: '1.2vh', lineHeight: 1.2 }}>
                 出品
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', lineHeight: 1.7 }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.8vw', color: '#2A2623', lineHeight: 1.7 }}>
                 売れ残りそうな商品を「おすそわけ」として出品
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.6vw', color: '#8A7F7A', marginTop: '0.8vh' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.6vw', color: '#8A7F7A', marginTop: '0.8vh' }}>
                 スマホで1分
               </p>
             </div>
@@ -30,13 +30,13 @@ export default function Slide3HowItWorks() {
               <div style={{ width: '5.5vh', height: '5.5vh', borderRadius: '50%', background: '#E8786C', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2vh' }}>
                 <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2.5vh', fontWeight: 900, color: '#fff' }}>2</span>
               </div>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2.2vw', fontWeight: 900, color: '#2A2623', marginBottom: '1.2vh', lineHeight: 1.2 }}>
+              <p style={{ fontFamily: "Outfit, 'Noto Sans JP', sans-serif", fontSize: '2.2vw', fontWeight: 900, color: '#2A2623', marginBottom: '1.2vh', lineHeight: 1.2 }}>
                 購入
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', lineHeight: 1.7 }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.8vw', color: '#2A2623', lineHeight: 1.7 }}>
                 近隣ユーザーがアプリで発見・購入
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.6vw', color: '#8A7F7A', marginTop: '0.8vh' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.6vw', color: '#8A7F7A', marginTop: '0.8vh' }}>
                 決済はアプリ内で完結
               </p>
             </div>
@@ -45,13 +45,13 @@ export default function Slide3HowItWorks() {
               <div style={{ width: '5.5vh', height: '5.5vh', borderRadius: '50%', background: '#44A836', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2vh' }}>
                 <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2.5vh', fontWeight: 900, color: '#fff' }}>3</span>
               </div>
-              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2.2vw', fontWeight: 900, color: '#2A2623', marginBottom: '1.2vh', lineHeight: 1.2 }}>
+              <p style={{ fontFamily: "Outfit, 'Noto Sans JP', sans-serif", fontSize: '2.2vw', fontWeight: 900, color: '#2A2623', marginBottom: '1.2vh', lineHeight: 1.2 }}>
                 受け取り
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', lineHeight: 1.7 }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.8vw', color: '#2A2623', lineHeight: 1.7 }}>
                 閉店前にお客様が来店して受け取り
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.6vw', color: '#44A836', marginTop: '0.8vh', fontWeight: 700 }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.6vw', color: '#44A836', marginTop: '0.8vh', fontWeight: 700 }}>
                 廃棄ゼロ ・ 売上確保
               </p>
             </div>

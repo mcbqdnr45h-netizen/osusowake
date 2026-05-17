@@ -15,10 +15,10 @@ export default function Slide5Pricing() {
               <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '4.5vw', fontWeight: 900, color: '#2A2623', lineHeight: 1, marginBottom: '1.2vh' }}>
                 無料
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', marginBottom: '2.5vh' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.8vw', color: '#2A2623', marginBottom: '2.5vh' }}>
                 初期費用・月額固定費
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.6vw', color: 'rgba(42,38,35,0.55)', lineHeight: 1.6 }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.6vw', color: 'rgba(42,38,35,0.55)', lineHeight: 1.6 }}>
                 売れなければ費用ゼロ。リスクなしでスタートできます
               </p>
             </div>
@@ -26,10 +26,10 @@ export default function Slide5Pricing() {
               <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '4.5vw', fontWeight: 900, color: '#E8786C', lineHeight: 1, marginBottom: '1.2vh' }}>
                 25<span style={{ fontSize: '2.2vw' }}>%</span>
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', marginBottom: '2.5vh' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.8vw', color: '#2A2623', marginBottom: '2.5vh' }}>
                 店舗様の手数料（販売額より）
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.6vw', color: 'rgba(42,38,35,0.55)', lineHeight: 1.6 }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.6vw', color: 'rgba(42,38,35,0.55)', lineHeight: 1.6 }}>
                 別途、ユーザー側から5%いただきます。固定費は一切なし。
               </p>
             </div>

@@ -24,7 +24,7 @@ export default function SlideAboutUs() {
           <h2 style={{ fontFamily: 'Outfit, sans-serif', fontSize: '4.2vw', fontWeight: 900, color: '#FBF8F4', lineHeight: 1.1, letterSpacing: '-0.02em', marginBottom: '3.5vh' }}>
             高槻のフードロスを<br />ゼロにしたい。
           </h2>
-          <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.9vw', color: 'rgba(251,248,244,0.85)', lineHeight: 1.9, marginBottom: '4vh', maxWidth: '46vw' }}>
+          <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.9vw', color: 'rgba(251,248,244,0.85)', lineHeight: 1.9, marginBottom: '4vh', maxWidth: '46vw' }}>
             私たちは、<strong style={{ color: '#FBF8F4' }}>高槻で育った学生チーム</strong>です。<br />
             大学はバラバラですが、地元高槻への思いは一緒。<br />
             「大好きな地元から変えたい」と立ち上がりました。
@@ -36,7 +36,7 @@ export default function SlideAboutUs() {
               <span
                 key={tag}
                 style={{
-                  fontFamily: 'Noto Sans JP, sans-serif',
+                  fontFamily: "'Noto Sans JP', sans-serif",
                   fontSize: '1.5vw',
                   fontWeight: 700,
                   color: '#FBF8F4',
@@ -62,10 +62,10 @@ export default function SlideAboutUs() {
             padding: '3.5vh 3vw',
             backdropFilter: 'blur(8px)',
           }}>
-            <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: 'rgba(251,248,244,0.9)', lineHeight: 2, marginBottom: '2vh' }}>
+            <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.8vw', color: 'rgba(251,248,244,0.9)', lineHeight: 2, marginBottom: '2vh' }}>
               「バイト先でパンを袋ごと捨てるのを見て、<br />なんかもったいないな…って、ずっと思ってた。」
             </p>
-            <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.4vw', color: 'rgba(232,120,108,0.85)', fontWeight: 700 }}>
+            <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.4vw', color: 'rgba(232,120,108,0.85)', fontWeight: 700 }}>
               — チーム発起人 / 高槻在住
             </p>
           </div>
@@ -84,10 +84,10 @@ export default function SlideAboutUs() {
               <span style={{ fontSize: '1.8vh' }}>🌸</span>
             </div>
             <div>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.6vw', fontWeight: 900, color: '#FBF8F4', marginBottom: '0.3vh' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.6vw', fontWeight: 900, color: '#FBF8F4', marginBottom: '0.3vh' }}>
                 高槻発・地域密着プロジェクト
               </p>
-              <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.3vw', color: 'rgba(251,248,244,0.6)' }}>
+              <p style={{ fontFamily: "'Noto Sans JP', sans-serif", fontSize: '1.3vw', color: 'rgba(251,248,244,0.6)' }}>
                 芥川・高槻駅周辺を中心に展開中
               </p>
             </div>
