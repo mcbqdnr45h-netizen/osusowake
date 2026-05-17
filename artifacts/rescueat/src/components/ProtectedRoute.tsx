@@ -303,6 +303,17 @@ export function GuestRoute({
       }
     }
 
+    // ★ 店舗新規登録の直後 (PENDING フラグあり) は MyPage を経由させず
+    //   /store-onboarding へ直行する (profile 確定前でも判定可能)
+    let pendingStoreOwner = false;
+    try { pendingStoreOwner = sessionStorage.getItem('osusowake_pending_store_owner_v1') === '1'; }
+    catch { /* ignore */ }
+    if (pendingStoreOwner) {
+      logNav('GuestRoute(pending store owner)', '/store-onboarding', { role: profile?.role ?? null });
+      navigate('/store-onboarding', { replace: true });
+      return;
+    }
+
     // profile が確定してからロールで振り分け
     if (profile) {
       // オーナー・一般とも /mypage へ (発見ページに飛ばさない)

@@ -70,7 +70,9 @@ export default function SignUp() {
         if (err) { setError(err); setShakeKey(k => k + 1); return; }
         setNeedsConfirm(confirm);
         setDone(true);
-        if (!confirm) setTimeout(() => navigate('/store-onboarding'), 2000);
+        // ★ GuestRoute が認証完了時に /mypage へ飛ばすため、 setTimeout を待たず
+        //   即座に replace で /store-onboarding に遷移して MyPage 経由を防ぐ。
+        if (!confirm) navigate('/store-onboarding', { replace: true });
       } else {
         const { error: err, needsConfirmation: confirm } = await signUp(email, password, name, phone, '', setLoadingStep);
         if (err) { setError(err); setShakeKey(k => k + 1); return; }
