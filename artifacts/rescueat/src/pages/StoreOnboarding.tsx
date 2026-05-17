@@ -493,6 +493,11 @@ export default function StoreOnboarding() {
               console.log('[StoreOnboarding] ✅ 確認: 店舗は実際には作成されている → 続行');
               clearOnboardingDraft();
               refetchStores();
+              // ★ サーバ側で users.role=store_owner に更新済み。
+              //   refreshProfile() は 2s タイムアウトで失敗する可能性があるため、
+              //   キャッシュ (localStorage) にも先に store_owner を書き込んで
+              //   次回コールドスタート時に「メンバー」表示にならないよう保証する。
+              setOptimisticRole('store_owner', true);
               try { await refreshProfile(); } catch (_) {}
               if (isInherited) {
                 toast({
@@ -521,6 +526,11 @@ export default function StoreOnboarding() {
 
       // 店舗リストを即時更新してから遷移する
       refetchStores();
+      // ★ サーバ側で users.role=store_owner に更新済み。
+      //   refreshProfile() は 2s タイムアウトで失敗する可能性があるため、
+      //   キャッシュ (localStorage) にも先に store_owner を書き込んで
+      //   次回コールドスタート時に「メンバー」表示にならないよう保証する。
+      setOptimisticRole('store_owner', true);
       // ★ DB の users.role が server 側で store_owner に更新されているので profile を再取得
       try { await refreshProfile(); } catch (_) {}
 
@@ -557,6 +567,9 @@ export default function StoreOnboarding() {
             const checkStore = await check.json().catch(() => null);
             clearOnboardingDraft();
             refetchStores();
+            // ★ 店舗作成は完了している (サーバ側で users.role=store_owner 更新済)
+            //   キャッシュにも store_owner を書き込み、 次回起動時に「メンバー」 表示にならないよう保証
+            if (checkStore?.id) setOptimisticRole('store_owner', true);
             if (isInherited) {
               navigate('/mypage');
             } else {
