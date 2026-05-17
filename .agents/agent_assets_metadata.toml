@@ -773,3 +773,9 @@ id = "5L0u01SDiZiKBJoU0WgKh"
 uri = "file://.local/outputs/--------------.pdf"
 type = "pdf"
 title = "おすそわけ 店舗向け営業資料 (PDF)"
+
+[[outputs]]
+id = "-ROp1Ln74VuCDSH2DLWP_"
+uri = "file://.local/outputs/-----_--------.pptx"
+type = "slides"
+title = "おすそわけ 店舗向け営業資料 (PPTX)"
