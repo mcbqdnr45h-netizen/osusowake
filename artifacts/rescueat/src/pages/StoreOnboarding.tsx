@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -127,7 +127,21 @@ export default function StoreOnboarding() {
   // ★ StoreOnboarding 開始時に楽観的にロールを store_owner にする
   // → 戻るボタンで MyPage に行っても「お客様」表示にならず、店舗ナビが出る
   // submit 完了で実際のロールが DB 上で更新される (refreshProfile で同期)
-  useEffect(() => {
+  //
+  // ★ 重要: sessionStorage フラグは「マウントと同時に同期的に」立てる必要がある。
+  //   useEffect だと paint 後実行のため、 その隙間に fetchProfile (TOKEN_REFRESHED 等)
+  //   が走ると profile=customer で上書きされ、 キャッシュも customer になり、
+  //   戻るボタン押下時に MyPage で「メンバー」 表示になるバグの原因になる。
+  //   → useLayoutEffect + 初回 render 前に sessionStorage を立てて、 fetchProfile が
+  //     どのタイミングで走ってもフラグを見て store_owner にクランプされるよう保証する。
+  const flagSetOnceRef = useRef(false);
+  if (!flagSetOnceRef.current) {
+    try {
+      sessionStorage.setItem('osusowake_pending_store_owner_v1', '1');
+    } catch (_) { /* ignore */ }
+    flagSetOnceRef.current = true;
+  }
+  useLayoutEffect(() => {
     if (user && profile && profile.role === 'customer') {
       setOptimisticRole('store_owner');
     }
@@ -585,15 +599,22 @@ export default function StoreOnboarding() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => {
+              // ★ 何があっても先に楽観的ロールを立てる (race condition 完全封じ)
+              //    sessionStorage フラグは mount 時にも立てているが、 ここでも念のため
+              //    setOptimisticRole を呼び profile state も同期的に store_owner にする。
+              //    → 次のページ (MyPage / StoreDashboard) のレンダリングで必ず店舗扱い。
+              setOptimisticRole('store_owner');
+              try {
+                sessionStorage.setItem('osusowake_pending_store_owner_v1', '1');
+              } catch (_) { /* ignore */ }
+
               // 1. 追加モード or 既存店舗あり → 店舗ダッシュボード
               if (isAddMode || existingStore) { navigate('/store/dashboard'); return; }
-              // 2. プロフィールが既に store_owner → 店舗ダッシュボード
-              //    (existingStore がまだ読込中のときでもオーナーを正しく扱う)
-              if (profile?.role === 'store_owner') { navigate('/store/dashboard'); return; }
-              // 3. 新規登録途中の顧客 → マイページ
-              //    必ず setOptimisticRole を呼んで sessionStorage フラグを立てる。
-              //    これがないと navigate 後に fetchProfile が customer で上書きしてしまう。
-              setOptimisticRole('store_owner');
+              // 2. それ以外 (新規登録途中) → マイページ
+              //    ★ 旧ロジックでは profile?.role === 'store_owner' のときも
+              //      /store/dashboard へ飛ばしていたが、 既存店舗が無いと
+              //      StoreDashboard が /store-onboarding に再リダイレクトして
+              //      無限ループになるため、 store が無い場合は MyPage に統一する。
               navigate('/mypage');
             }}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
