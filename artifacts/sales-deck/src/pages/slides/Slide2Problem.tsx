@@ -12,7 +12,7 @@ export default function Slide2Problem() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5vw', maxWidth: '72vw' }}>
             <div style={{ background: '#FDF0EE', borderRadius: '1.2vw', padding: '3.5vh 3vw' }}>
-              <p style={{ fontFamily: "'MS Mincho', 'MS 明朝', serif", fontSize: '5.5vw', fontWeight: 900, color: '#E8786C', lineHeight: 1, marginBottom: '1vh' }}>
+              <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '5.5vw', fontWeight: 900, color: '#E8786C', lineHeight: 1, marginBottom: '1vh' }}>
                 472<span style={{ fontSize: '2.5vw' }}>万t</span>
               </p>
               <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.8vw', color: '#2A2623', fontWeight: 700, marginBottom: '0.5vh' }}>

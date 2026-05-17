@@ -60,18 +60,22 @@ export default function Slide6Closing() {
                 <p style={{ fontFamily: 'Outfit, sans-serif', fontSize: '2vw', fontWeight: 700, color: '#E8786C' }}>osusowakejapan.org</p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '1.2vw' }}>
-              <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 1.4vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
-                <img src={`${base}store-qr.png`} crossOrigin="anonymous" alt="店舗登録QRコード" style={{ width: '6.8vw', height: '6.8vw', objectFit: 'contain' }} />
-                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1vw', color: '#44A836', fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }}>WEBから<br />店舗登録</p>
+            <div style={{ display: 'flex', gap: '1vw' }}>
+              <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 1.1vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
+                <img src={`${base}store-qr.png`} crossOrigin="anonymous" alt="店舗登録QRコード" style={{ width: '5.8vw', height: '5.8vw', objectFit: 'contain' }} />
+                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '0.9vw', color: '#44A836', fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }}>WEBから<br />店舗登録</p>
               </div>
-              <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 1.4vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
-                <img src={`${base}qr-line.png`} crossOrigin="anonymous" alt="App Store QRコード" style={{ width: '6.8vw', height: '6.8vw', objectFit: 'contain' }} />
-                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1vw', color: '#44A836', fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }}>iPhone<br />App Store</p>
+              <div style={{ background: '#F0F7EE', borderRadius: '1.2vw', padding: '2vh 1.1vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(68,168,54,0.2)' }}>
+                <img src={`${base}qr-line.png`} crossOrigin="anonymous" alt="App Store QRコード" style={{ width: '5.8vw', height: '5.8vw', objectFit: 'contain' }} />
+                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '0.9vw', color: '#44A836', fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }}>iPhone<br />App Store</p>
               </div>
-              <div style={{ background: '#FFF4F2', borderRadius: '1.2vw', padding: '2vh 1.4vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(232,120,108,0.25)' }}>
-                <img src={`${base}web-signup-qr.png`} crossOrigin="anonymous" alt="Web版登録QRコード" style={{ width: '6.8vw', height: '6.8vw', objectFit: 'contain' }} />
-                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1vw', color: '#E8786C', fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }}>Android<br />Web版登録</p>
+              <div style={{ background: '#FFF4F2', borderRadius: '1.2vw', padding: '2vh 1.1vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(232,120,108,0.25)' }}>
+                <img src={`${base}web-signup-qr.png`} crossOrigin="anonymous" alt="Web版登録QRコード" style={{ width: '5.8vw', height: '5.8vw', objectFit: 'contain' }} />
+                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '0.9vw', color: '#E8786C', fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }}>Android<br />Web版登録</p>
+              </div>
+              <div style={{ background: '#F9F5FF', borderRadius: '1.2vw', padding: '2vh 1.1vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1vh', border: '1px solid rgba(131,58,180,0.25)' }}>
+                <img src={`${base}instagram-qr.png`} crossOrigin="anonymous" alt="Instagram QRコード" style={{ width: '5.8vw', height: '5.8vw', objectFit: 'contain' }} />
+                <p style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '0.9vw', color: '#833AB4', fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }}>Instagram<br />フォロー</p>
               </div>
             </div>
           </div>
