@@ -37,7 +37,18 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
 
   useEffect(() => { setMenuOpen(false); }, [location]);
 
-  const isStoreOwner = profile?.role === 'store_owner';
+  // ★ profile=null の一時ウィンドウ (signUpAsStore 直後の fetchProfile レース、
+  //   トークンリフレッシュ中の transient 失敗 等) で下タブが顧客側に化けるのを防ぐ。
+  //   PENDING_STORE_OWNER フラグが立っている = 「このセッションは店舗側」 と
+  //   AuthContext が判定済み → profile が null の間も店舗ナビにフォールバック。
+  //   profile が確定したら通常通り profile.role を使う (フラグより優先)。
+  const pendingStoreOwner = (() => {
+    try { return sessionStorage.getItem('osusowake_pending_store_owner_v1') === '1'; }
+    catch { return false; }
+  })();
+  const isStoreOwner = profile
+    ? profile.role === 'store_owner'
+    : (!!user && pendingStoreOwner);
   // ★ ニックネームはランキング参加時のみ必要 (オプトイン制)。
   //   強制入力モーダルは廃止 — ニックネーム未設定でも自由にアプリを使える。
 
