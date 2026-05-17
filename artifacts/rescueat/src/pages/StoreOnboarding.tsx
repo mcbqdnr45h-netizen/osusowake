@@ -628,15 +628,29 @@ export default function StoreOnboarding() {
               //   - 追加モード or Stripe 完成済店舗あり → /store/dashboard
               //   - それ以外 (新規/未完成) → /mypage (バナーから再開可能)
               //
-              // sessionStorage の pending フラグはクリアして良い:
-              //   - 店舗あり: fetchProfile が DB から store_owner を取り直して
-              //     キャッシュに書き込むため、 フラグなしでも正しく維持される。
-              //   - 店舗なし: そもそも DB role=customer なのでフラグ不要。
+              // ★★ sessionStorage の pending フラグ取り扱い (重要):
+              //   - 既存店舗あり (DB role=store_owner 確定) → フラグはクリアしない。
+              //     クリアしてしまうと、 直後の fetchProfile (TOKEN_REFRESHED 等) が
+              //     DB から一時的に customer を返した場合にクランプが効かず、
+              //     in-memory profile が customer に化けて MyPage 下タブが
+              //     お客さん側 (ホーム/お気に入り/マイページ) に切り替わる。
+              //     これがユーザ報告の「戻るボタン押すとユーザー側になる」 バグの真因。
+              //   - 既存店舗なし (= 真の新規登録中断) → DB は本当に customer なので
+              //     フラグをクリアして customer 表示に戻す (アプリ全体の整合性のため)。
               //
               // ドラフト (localStorage) は保持 → MyPage バナーから再開可能。
-              try {
-                sessionStorage.removeItem('osusowake_pending_store_owner_v1');
-              } catch (_) { /* ignore */ }
+              // 「真の新規登録中断」 と判定できるのは、 既存店舗が無く、 かつ
+              // 現在の profile.role も store_owner ではない場合のみ。
+              // useMyStores が読み込み中の場合や、 既に store_owner として
+              // ログイン済みの場合は、 フラグをクリアしない (店舗側 UI を維持)。
+              const hasAnyStore = !storeLoading && !!existingStore;
+              const isAlreadyStoreOwner = profile?.role === 'store_owner';
+              const isTrueNewAbort = !storeLoading && !hasAnyStore && !isAlreadyStoreOwner;
+              if (isTrueNewAbort) {
+                try {
+                  sessionStorage.removeItem('osusowake_pending_store_owner_v1');
+                } catch (_) { /* ignore */ }
+              }
 
               const isRealCompletedStore =
                 !storeLoading && !!existingStore && !!existingStore.stripeAccountId;
