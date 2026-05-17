@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url('/fonts/Outfit.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Noto Sans JP';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url('/fonts/NotoSansJP-Regular.ttf') format('truetype');
+}
+
 @theme inline {
   --color-primary: var(--slide-primary);
   --color-accent: var(--slide-accent);
