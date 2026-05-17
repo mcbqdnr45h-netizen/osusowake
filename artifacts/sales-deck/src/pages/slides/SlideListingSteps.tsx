@@ -74,15 +74,15 @@ function PhoneMockup({ step, stepColor, label, sublabel, children }: {
 
       {/* Phone shell */}
       <div style={{
-        width: '16.5vw',
+        width: '14.5vw',
         aspectRatio: '9 / 19.5',
-        borderRadius: '2.2vw',
+        borderRadius: '2vw',
         background: 'linear-gradient(160deg, #2E2E30 0%, #1A1A1C 100%)',
         padding: '0.5vw',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
-        marginBottom: '2vh',
+        marginBottom: '1.5vh',
         flexShrink: 0,
         border: '0.5px solid rgba(255,255,255,0.1)',
       }}>
