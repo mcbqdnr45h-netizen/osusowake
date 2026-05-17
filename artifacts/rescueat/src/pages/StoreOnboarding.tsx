@@ -587,7 +587,14 @@ export default function StoreOnboarding() {
             onClick={() => {
               // 1. 追加モード or 既存店舗あり → 店舗ダッシュボード
               if (isAddMode || existingStore) { navigate('/store/dashboard'); return; }
-              // 2. それ以外 (新規登録途中) → マイページ (profile 読込待ちでスケルトンが出る)
+              // 2. それ以外 (新規登録途中) → マイページ
+              // ★ 戻る直前にも楽観的ロール設定を保証する (race condition 防止)
+              //   useEffect 経由の setOptimisticRole が profile 未ロード等で間に合わずに
+              //   遷移した場合、 /mypage で customer ロールが表示されてしまうバグの修正。
+              //   既に store_owner なら no-op (setProfile 内で prev のまま)。
+              if (!profile || profile.role === 'customer') {
+                setOptimisticRole('store_owner');
+              }
               navigate('/mypage');
             }}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors shrink-0"
