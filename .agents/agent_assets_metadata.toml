@@ -779,3 +779,9 @@ id = "-ROp1Ln74VuCDSH2DLWP_"
 uri = "file://.local/outputs/-----_--------.pptx"
 type = "slides"
 title = "おすそわけ 店舗向け営業資料 (PPTX)"
+
+[[outputs]]
+id = "OqrfIM6synrfOwdwKeYK-"
+uri = "file://.local/outputs/Food-Rescue-Map.pptx"
+type = "slides"
+title = "Food Rescue Map.pptx"
