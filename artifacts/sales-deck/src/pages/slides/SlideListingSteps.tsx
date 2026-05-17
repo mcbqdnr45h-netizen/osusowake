@@ -303,20 +303,6 @@ export default function SlideListingSteps() {
 
           </div>
 
-          {/* Bottom pill */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5vh' }}>
-            <div style={{
-              background: 'linear-gradient(90deg, #FDF0EE, #FBF8F4)',
-              border: '1px solid #E8786C',
-              borderRadius: '100px',
-              padding: '0.7vh 2vw',
-              display: 'inline-flex', alignItems: 'center', gap: '0.8vw',
-              boxShadow: '0 2px 12px rgba(232,120,108,0.15)',
-            }}>
-              <span style={{ fontSize: '1.5vw' }}>⏱</span>
-              <span style={{ fontFamily: 'Noto Sans JP, sans-serif', fontSize: '1.5vw', fontWeight: 900, color: '#E8786C' }}>写真を撮って、個数を入れるだけ。慣れたら1分以内で完了！</span>
-            </div>
-          </div>
 
         </div>
       </div>
