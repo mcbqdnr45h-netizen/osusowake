@@ -499,6 +499,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <SplashHider />
         <MyStoresProvider>
           <FavoritesProvider>
             <TooltipProvider>
@@ -526,6 +527,21 @@ function App() {
 //   失敗しても無視 (ベストエフォート)。
 //   ★ チャンクの prefetch は モジュール初期化時 (上の __idle) で既に発火済 →
 //     ここではユーザ固有 API データのみ。
+// ── スプラッシュスクリーン制御 ─────────────────────────────────────────────
+// launchAutoHide: false にした上で、 認証確定後にここで明示的に hide する。
+// 未ログイン・ログイン済み問わず isLoading=false になった瞬間に閉じる。
+// Web ブラウザでは Capacitor が無いので何もしない (import は dynamic)。
+function SplashHider() {
+  const { isLoading } = useAuth();
+  useEffect(() => {
+    if (isLoading) return;
+    import('@capacitor/splash-screen').then(({ SplashScreen }) => {
+      SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => {});
+    }).catch(() => {});
+  }, [isLoading]);
+  return null;
+}
+
 function PrefetchOnAuth() {
   const { user } = useAuth();
   usePushNotifications();
