@@ -381,26 +381,116 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   useEffect(() => { onUserPositionChangeRef.current?.(userPos); }, [userPos]);
 
-  // ── マップに表示する店舗（全承認済み店舗・ID+座標で重複排除）────────────────
+  // ── マップに表示する店舗（全承認済み店舗・IDで重複排除）─────────────────────
   // 在庫の有無にかかわらず全店舗を表示する（在庫あり→オレンジ、なし→グレー）
-  // 重複排除ロジック:
-  //   1. 店舗IDで重複排除（同じIDが複数来ても1ピンのみ）
-  //   2. 同一座標（約11m精度）の別店舗も1ピンに統合（「2」バグの根本原因修正）
+  // ★ 同一座標の別店舗も全部表示する (重なりは displayPositions で円周配置)。
   const listingStores = useMemo(() => {
-    const seenId  = new Set<number | string>();
-    const seenLoc = new Set<string>();
+    const seenId = new Set<number | string>();
     return stores.filter(s => {
       const ok = (s as any).status === 'approved' || !(s as any).status || (s as any).showOnMap === true || (s as any).show_on_map === true;
       if (!ok) return false;
       if (seenId.has(s.id)) return false;
       seenId.add(s.id);
-      // 同一lat/lng（約11m精度）の重複ピンを排除
-      const locKey = `${Math.round(s.lat * 10000)}-${Math.round(s.lng * 10000)}`;
-      if (seenLoc.has(locKey)) return false;
-      seenLoc.add(locKey);
       return true;
     });
   }, [stores]);
+
+  // ── 近接ピンの自動オフセット ─────────────────────────────────────────────
+  // 同じビルや隣接店舗で経緯度が近すぎると iOS の地図上でピンが重なって
+  // 「下のピンが触れない / 何店舗あるか分からない」状態になる。
+  // 約 45m 以内に複数店舗がある場合、 centroid を中心にした円周上へ
+  // 均等配置することで重なりを解消する (表示位置のみ・データは元 store)。
+  //
+  // 距離ベース Union-Find で隣接 8 セルも検索することで、グリッド境界を
+  // 跨いだ近接ペアも漏れなく同一グループにまとめる。
+  const displayPositions = useMemo(() => {
+    const map = new Map<number | string, { lat: number; lng: number }>();
+    if (listingStores.length === 0) return map;
+
+    const THRESHOLD_M = 45;
+    // 1 deg lat ≒ 111,320m
+    const M_PER_DEG_LAT = 111320;
+    const items = listingStores.map(s => ({
+      s,
+      lat: s.lat,
+      lng: s.lng,
+      mPerDegLng: M_PER_DEG_LAT * Math.cos((s.lat * Math.PI) / 180),
+    }));
+
+    // 1 セル = THRESHOLD_M (緯度方向)。隣接 9 セルだけ調べれば閾値内ペアを必ず捕捉。
+    const cellLat = THRESHOLD_M / M_PER_DEG_LAT;
+    const cellLngOf = (lat: number) => THRESHOLD_M / (M_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180));
+    const cells = new Map<string, number[]>();
+    items.forEach((it, i) => {
+      const cy = Math.floor(it.lat / cellLat);
+      const cLng = cellLngOf(it.lat);
+      const cx = Math.floor(it.lng / cLng);
+      const k = `${cx},${cy}`;
+      if (!cells.has(k)) cells.set(k, []);
+      cells.get(k)!.push(i);
+    });
+
+    // Union-Find
+    const parent = items.map((_, i) => i);
+    const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+    const union = (a: number, b: number) => {
+      const ra = find(a), rb = find(b);
+      if (ra !== rb) parent[ra] = rb;
+    };
+
+    items.forEach((it, i) => {
+      const cy = Math.floor(it.lat / cellLat);
+      const cLng = cellLngOf(it.lat);
+      const cx = Math.floor(it.lng / cLng);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const neighbors = cells.get(`${cx + dx},${cy + dy}`);
+          if (!neighbors) continue;
+          for (const j of neighbors) {
+            if (j <= i) continue;
+            const it2 = items[j];
+            const dLatM = (it2.lat - it.lat) * M_PER_DEG_LAT;
+            const dLngM = (it2.lng - it.lng) * ((it.mPerDegLng + it2.mPerDegLng) / 2);
+            const dist2 = dLatM * dLatM + dLngM * dLngM;
+            if (dist2 <= THRESHOLD_M * THRESHOLD_M) union(i, j);
+          }
+        }
+      }
+    });
+
+    // グルーピング結果を集計
+    const groupMap = new Map<number, number[]>();
+    items.forEach((_, i) => {
+      const r = find(i);
+      if (!groupMap.has(r)) groupMap.set(r, []);
+      groupMap.get(r)!.push(i);
+    });
+
+    for (const indices of groupMap.values()) {
+      if (indices.length === 1) {
+        const it = items[indices[0]];
+        map.set(it.s.id, { lat: it.lat, lng: it.lng });
+        continue;
+      }
+      // centroid
+      const cLat = indices.reduce((a, i) => a + items[i].lat, 0) / indices.length;
+      const cLng = indices.reduce((a, i) => a + items[i].lng, 0) / indices.length;
+      // 半径: 約 35m (緯度方向)、経度は緯度で補正
+      const rLat = 35 / M_PER_DEG_LAT;
+      const rLng = 35 / (M_PER_DEG_LAT * Math.cos((cLat * Math.PI) / 180));
+      const N = indices.length;
+      // ID 順で固定 (再描画でピンが入れ替わらない)
+      const sorted = [...indices].sort((a, b) => String(items[a].s.id).localeCompare(String(items[b].s.id)));
+      sorted.forEach((idx, i) => {
+        const angle = (2 * Math.PI * i) / N - Math.PI / 2;
+        map.set(items[idx].s.id, {
+          lat: cLat + rLat * Math.sin(angle),
+          lng: cLng + rLng * Math.cos(angle),
+        });
+      });
+    }
+    return map;
+  }, [listingStores]);
 
   // ── アクティブ店舗ID Set (O(店舗数 × バッグ数) を O(店舗数 + バッグ数) に短縮) ──
   //   bags を1回スキャンして「在庫あり + 受取時間内」の store.id を Set 化。
@@ -655,8 +745,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       const fallbackUrl   = isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category);
       const [fw, fh, fax, fay] = isActive ? [52, 66, 26, 59] : [44, 56, 22, 50];
 
+      const pos = displayPositions.get(store.id) ?? { lat: store.lat, lng: store.lng };
       const marker = new gMaps.Marker({
-        position: { lat: store.lat, lng: store.lng },
+        position: pos,
         icon: {
           url:        fallbackUrl,
           scaledSize: new gMaps.Size(fw, fh),
