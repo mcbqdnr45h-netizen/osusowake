@@ -797,3 +797,15 @@ id = "WFlYH9WSoIkt392uWCiXE"
 uri = "file://.local/outputs/-----------.pdf"
 type = "pdf"
 title = "おすそわけ 広告チラシ 修正版 (PDF)"
+
+[[outputs]]
+id = "5olYZsuKl6o-slPD-NgHe"
+uri = "file://.local/outputs/------------0615.pptx"
+type = "slides"
+title = "おすそわけ 広告チラシ 6/15版 (PowerPoint)"
+
+[[outputs]]
+id = "uYl3Yg_4IVMG4EXztM1F7"
+uri = "file://.local/outputs/------------0615.pdf"
+type = "pdf"
+title = "おすそわけ 広告チラシ 6/15版 (PDF)"
