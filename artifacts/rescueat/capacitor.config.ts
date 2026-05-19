@@ -14,19 +14,27 @@ const config: CapacitorConfig = {
     contentInset: 'never',
     allowsLinkPreview: false,
     scrollEnabled: true,
+    // ★ WebView の背景色をスプラッシュと同色に。
+    //    リモート URL (osusowakejapan.org) をロード中に WebView が白く見えるのを防ぐ。
+    backgroundColor: '#FBF8F4',
   },
 
   plugins: {
     SplashScreen: {
-      launchShowDuration: 0,
+      // ★ 起動スプラッシュを 30 秒 (実質、ずっと) 表示し続ける。
+      //    React マウント + 認証確定後に SplashHider が明示的に hide する。
+      //    launchShowDuration: 0 は launchAutoHide: false より優先され、
+      //    スプラッシュが即非表示 → WebView ロード中の白画面が長時間出る原因。
+      launchShowDuration: 30000,
       launchAutoHide: false,
-      backgroundColor: '#FBFBFA',
+      launchFadeOutDuration: 200,
+      backgroundColor: '#FBF8F4',
       iosSpinnerStyle: 'small',
       spinnerColor: '#F26419',
       showSpinner: false,
       splashFullScreen: true,
       splashImmersive: false,
-      fadeOutDuration: 0,
+      fadeOutDuration: 200,
     },
     StatusBar: {
       style: 'DEFAULT',

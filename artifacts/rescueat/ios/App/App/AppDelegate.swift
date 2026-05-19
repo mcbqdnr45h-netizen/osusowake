@@ -7,7 +7,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // ★ 起動時の白画面対策: window 背景をスプラッシュと同じ #FBF8F4 に。
+        //    WKWebView が osusowakejapan.org のロードを完了する前に背景が透ける
+        //    タイミングがあっても、 白ではなくブランド色が見えるようになる。
+        let brand = UIColor(red: 0.984, green: 0.973, blue: 0.957, alpha: 1.0)
+        if window == nil { window = UIWindow(frame: UIScreen.main.bounds) }
+        window?.backgroundColor = brand
         return true
     }
 
