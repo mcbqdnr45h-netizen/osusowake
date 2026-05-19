@@ -210,13 +210,6 @@ function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
       const count  = cluster.count;
       void stats; // 比率による拡大は使わず、件数の絶対値でサイズを決定
 
-      // ★ クラスター内にオレンジ（アクティブ）が1つでもあれば色をオレンジに、
-      //   全部グレー（受付外）ならグレーで表示する。 zIndex で識別 (active=10, gray=5)。
-      const hasActive = (cluster.markers ?? []).some(m => {
-        const z = (m as google.maps.Marker).getZIndex?.();
-        return typeof z === 'number' && z >= 10;
-      });
-
       // 件数の絶対値に応じてサイズを段階的に決定
       // 単店ピン (~40px) と近いサイズに保ち、件数が大きくなる時のみ少し拡大
       // → 全国ズームアウト時に複数地域のクラスターが並んでも大きさが破綻しない
@@ -229,13 +222,11 @@ function makeClusterRenderer(gMaps: typeof google.maps): Renderer {
       const half  = size / 2;
       const r     = half - 5;                       // ハロー分のマージン
 
-      // 件数に応じた濃いオレンジ系（ブランドカラー寄り）。グレー時は彩度を抑えた色に。
-      const fillColor   = !hasActive
-                          ? '#9CA3AF'
-                          : count >= 50 ? '#B83D00'
-                          : count >= 10 ? '#D44A00'
-                          :               '#F26419';
-      const haloColor   = hasActive ? 'rgba(242,100,25,0.20)' : 'rgba(156,163,175,0.22)';
+      // 件数に応じた濃いオレンジ系（ブランドカラー寄り）
+      const fillColor   = count >= 50 ? '#B83D00'
+                        : count >= 10 ? '#D44A00'
+                        :               '#F26419';
+      const haloColor   = 'rgba(242,100,25,0.20)';
       const fontSize    = count >= 1000 ? 12 : count >= 100 ? 14 : count >= 10 ? 16 : 17;
       const labelText   = count >= 1000 ? `${Math.floor(count / 1000)}k+` : String(count);
 
@@ -727,7 +718,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       //   marker.setIcon でカスタムピンへ差し替える (中身が真っ白問題への根本対策)。
       const hasCustomIcon = !!store.iconUrl;
       const fallbackUrl   = isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category);
-      const [fw, fh, fax, fay] = isActive ? [52, 66, 26, 59] : [44, 56, 22, 50];
+      // ★ ピンサイズ縮小: 重なって見えなくなる問題を、 クラスタ化ではなく
+      //   ピンを小さくして物理的な重なり面積を減らすことで解決。
+      const [fw, fh, fax, fay] = isActive ? [38, 48, 19, 43] : [32, 40, 16, 36];
 
       const marker = new gMaps.Marker({
         position: { lat: store.lat, lng: store.lng },
@@ -738,7 +731,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         },
         title:  store.name,
         zIndex: isActive ? 10 : 5,
-        // ★ オレンジもグレーもクラスタリング対象。 mapはClustererが設定する。
+        // グレーピンはクラスタに入れないためmapを直接設定
+        map: isActive ? undefined : map,
       });
 
       // 非同期で iconUrl を data URL 化してから差し替え (失敗時は絵文字ピンのまま)
@@ -747,7 +741,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           if (!dataUrl) return;
           const customPinUrl = makeIconPinUrl(dataUrl, isActive);
           if (!customPinUrl) return;
-          const [cw, ch, cax, cay] = isActive ? [56, 70, 28, 63] : [48, 60, 24, 54];
+          const [cw, ch, cax, cay] = isActive ? [40, 50, 20, 45] : [34, 42, 17, 38];
           marker.setIcon({
             url:        customPinUrl,
             scaledSize: new gMaps.Size(cw, ch),
@@ -762,11 +756,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         // 次のタップで正しい店舗を選べる UX にする。
         const group = proximityGroups.get(store.id);
         const currentZoom = map.getZoom() ?? 14;
-        // ★ Clusterer の maxZoom=17 とズレないよう <=18 で判定。
-        //   クラスタが解けた直後 (zoom=18) でも、本当に同座標なら追加ズームで分離を試みる。
-        if (group && currentZoom <= 18) {
+        if (group && currentZoom < 18) {
           if (pos) {
-            map.setZoom(Math.min(20, currentZoom + 2));
+            map.setZoom(Math.min(19, currentZoom + 3));
             map.panTo(pos);
           }
           return; // 詳細は開かず、ズーム後にもう一度タップしてもらう
@@ -785,22 +777,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     storeMarkersRef.current = allMarkers;
 
-    // ★ オレンジもグレーも同じClustererで管理。
-    //   maxZoom を上げて (17) 重なって見えるズームレベルでもクラスタリングが効くようにする。
-    //   minPoints=2 なので 2 件以上が近接していればバッジ化される。
-    if (allMarkers.length > 0) {
+    // オレンジマーカーのみクラスタリング（グレーはピンを小さくして重なりを許容）
+    if (activeMarkers.length > 0) {
       clustererRef.current = new MarkerClusterer({
         map,
-        markers: allMarkers,
+        markers: activeMarkers,
         algorithm: new SuperClusterAlgorithm({
-          radius:    60,
-          maxZoom:   17,
+          radius:    80,
+          maxZoom:   15,
           minPoints: 2,
         }),
         renderer: makeClusterRenderer(gMaps),
       });
     }
-    void activeMarkers;
   // ★ markerKey が ID:色:座標:アイコン を全部含むので、 これだけで実質変更を検知できる。
   //   listingStores 参照の変化 (React Query refetch 等) では再描画させない ＝
   //   タップ中にマーカーが消える競合バグを根本回避。
