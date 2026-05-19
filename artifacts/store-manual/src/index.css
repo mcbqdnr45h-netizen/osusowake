@@ -11,12 +11,12 @@
 }
 
 :root {
-  --slide-primary: #E8786C;
-  --slide-accent: #44A836;
-  --slide-bg: #FBF8F4;
-  --slide-text: #2A2623;
-  --slide-muted: #8A7F7A;
-  --font-display-family: "Outfit", sans-serif;
+  --slide-primary: #F26419;
+  --slide-accent: #2ECC71;
+  --slide-bg: #FBFBFA;
+  --slide-text: #1A1A1A;
+  --slide-muted: #888888;
+  --font-display-family: "Noto Sans JP", sans-serif;
   --font-body-family: "Noto Sans JP", sans-serif;
   color-scheme: light;
 }
