@@ -1,75 +1,66 @@
 export default function Slide2User() {
   const base = import.meta.env.BASE_URL;
   return (
-    <div className="w-screen h-screen overflow-hidden relative" style={{ background: '#081a00', fontFamily: "'Noto Sans JP', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-
-      {/* 背景: 食材写真 */}
-      <img src={`${base}slide-hero.png`} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.32, filter: 'saturate(1.5) hue-rotate(10deg)' }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(135deg, rgba(141,198,63,0.06) 0px, rgba(141,198,63,0.06) 2px, transparent 2px, transparent 18px)', pointerEvents: 'none' }} />
-
+    <div className="w-screen h-screen overflow-hidden relative" style={{ background: '#F0F5E8', fontFamily: "'Noto Sans JP', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {/* A4縦カード */}
       <div style={{
-        position: 'relative', zIndex: 10,
         height: '96vh', width: '54vh',
         borderRadius: '2vh',
         overflow: 'hidden',
-        boxShadow: '0 2vh 8vh rgba(0,0,0,0.7)',
+        boxShadow: '0 1.5vh 6vh rgba(0,0,0,0.18)',
         display: 'flex', flexDirection: 'column',
         background: '#fff',
       }}>
 
         {/* ▼ ヘッダー */}
-        <div style={{ background: 'linear-gradient(160deg, #8DC63F 0%, #6aab1a 100%)', padding: '2.2vh 2vh 1.5vh', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-          <img src={`${base}slide-hero.png`} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.15 }} />
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: '1.4vh', fontWeight: 700, color: 'rgba(255,255,255,0.9)', marginBottom: '0.3vh', letterSpacing: '0.1em' }}>北摂エリア（高槻・茨木中心）</div>
-            <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '0.5vh', marginBottom: '0.2vh' }}>
-              <span style={{ fontSize: '8.5vh', fontWeight: 900, color: '#fff', lineHeight: 1, textShadow: '0 0.3vh 1.2vh rgba(0,0,0,0.25)', letterSpacing: '-0.02em' }}>6/15</span>
-              <span style={{ fontSize: '3vh', fontWeight: 900, color: '#FFE566', textShadow: '0 0.2vh 0.8vh rgba(0,0,0,0.2)' }}>日</span>
-            </div>
-            <div style={{ fontSize: '4.8vh', fontWeight: 900, color: '#fff', lineHeight: 1, textShadow: '0 0.3vh 1.2vh rgba(0,0,0,0.2)', letterSpacing: '0.02em' }}>
-              <span style={{ color: '#FFE566' }}>出品</span>開始！
-            </div>
+        <div style={{ background: 'linear-gradient(160deg, #8DC63F 0%, #6aab1a 100%)', padding: '2vh 2vh 1.8vh', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.3vh', fontWeight: 700, color: 'rgba(255,255,255,0.9)', marginBottom: '0.3vh', letterSpacing: '0.08em' }}>北摂エリア（高槻・茨木中心）</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6vh', marginBottom: '0.2vh' }}>
+            <span style={{ fontSize: '7.8vh', fontWeight: 900, color: '#fff', lineHeight: 1, letterSpacing: '-0.02em', textShadow: '0 0.2vh 0.8vh rgba(0,0,0,0.15)' }}>6/15</span>
+            <span style={{ fontSize: '2.8vh', fontWeight: 900, color: '#FFE566', alignSelf: 'flex-end', paddingBottom: '0.6vh' }}>日</span>
+          </div>
+          <div style={{ fontSize: '4.4vh', fontWeight: 900, color: '#fff', lineHeight: 1, letterSpacing: '0.04em', textShadow: '0 0.2vh 0.8vh rgba(0,0,0,0.12)' }}>
+            <span style={{ color: '#FFE566' }}>出品</span>開始！
           </div>
         </div>
 
         {/* ▼ ロゴ帯 */}
-        <div style={{ background: '#F26419', padding: '1.2vh 2vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.2vh' }}>
-          <img src={`${base}logo.jpg`} alt="おすそわけ" style={{ width: '4.5vh', height: '4.5vh', borderRadius: '0.8vh', objectFit: 'cover', border: '0.3vh solid rgba(255,255,255,0.6)' }} />
+        <div style={{ background: '#F26419', padding: '1.1vh 2vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.2vh' }}>
+          <img src={`${base}logo.jpg`} alt="おすそわけ" style={{ width: '4.2vh', height: '4.2vh', borderRadius: '0.8vh', objectFit: 'cover', border: '0.25vh solid rgba(255,255,255,0.6)', flexShrink: 0 }} />
           <div>
-            <div style={{ fontSize: '2.2vh', fontWeight: 900, color: '#fff', lineHeight: 1 }}>おすそわけ</div>
-            <div style={{ fontSize: '1.1vh', color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>フードシェアリングアプリ 完全無料</div>
+            <div style={{ fontSize: '2.1vh', fontWeight: 900, color: '#fff', lineHeight: 1 }}>おすそわけ</div>
+            <div style={{ fontSize: '1.05vh', color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>フードシェアリングアプリ 完全無料</div>
           </div>
         </div>
 
         {/* ▼ メインコンテンツ */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '2vh 2.2vh', gap: '1.6vh', background: '#FAFAFA' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '2vh 2.2vh', gap: '1.5vh', background: '#FAFAFA' }}>
 
           {/* キャッチ */}
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2.6vh', fontWeight: 900, color: '#1A1A1A', lineHeight: 1.25 }}>近くのお店の食材が</div>
             <div style={{ fontSize: '2.6vh', fontWeight: 900, color: '#F26419', lineHeight: 1.25 }}>お得にゲットできる！</div>
-            <div style={{ width: '5vh', height: '0.4vh', background: '#8DC63F', borderRadius: '1vh', margin: '1vh auto' }} />
+            <div style={{ width: '5vh', height: '0.4vh', background: '#8DC63F', borderRadius: '1vh', margin: '0.8vh auto' }} />
           </div>
 
           {/* バッジ */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1.2vh' }}>
-            <div style={{ background: '#FFF4EE', border: '0.2vh solid #F26419', borderRadius: '1vh', padding: '0.9vh 1.2vh', textAlign: 'center', flex: 1 }}>
+            <div style={{ background: '#FFF4EE', border: '0.2vh solid #F26419', borderRadius: '1vh', padding: '0.9vh 1vh', textAlign: 'center', flex: 1 }}>
               <div style={{ fontSize: '2vh' }}>🛍️</div>
               <div style={{ fontSize: '1.1vh', fontWeight: 900, color: '#F26419', marginTop: '0.2vh' }}>お得に購入</div>
             </div>
-            <div style={{ background: '#F0FFF5', border: '0.2vh solid #8DC63F', borderRadius: '1vh', padding: '0.9vh 1.2vh', textAlign: 'center', flex: 1 }}>
+            <div style={{ background: '#F0FFF5', border: '0.2vh solid #8DC63F', borderRadius: '1vh', padding: '0.9vh 1vh', textAlign: 'center', flex: 1 }}>
               <div style={{ fontSize: '2vh' }}>🌱</div>
               <div style={{ fontSize: '1.1vh', fontWeight: 900, color: '#6aab1a', marginTop: '0.2vh' }}>食品ロス削減</div>
             </div>
-            <div style={{ background: '#FFF9E6', border: '0.2vh solid #F0C000', borderRadius: '1vh', padding: '0.9vh 1.2vh', textAlign: 'center', flex: 1 }}>
+            <div style={{ background: '#FFF9E6', border: '0.2vh solid #F0C000', borderRadius: '1vh', padding: '0.9vh 1vh', textAlign: 'center', flex: 1 }}>
               <div style={{ fontSize: '2vh' }}>📍</div>
               <div style={{ fontSize: '1.1vh', fontWeight: 900, color: '#b8860b', marginTop: '0.2vh' }}>北摂エリア</div>
             </div>
           </div>
 
           {/* 説明 */}
-          <div style={{ background: '#fff', border: '0.18vh solid #E8E8E8', borderRadius: '1.2vh', padding: '1.5vh 1.8vh', fontSize: '1.48vh', color: '#444', lineHeight: 1.9, textAlign: 'center', boxShadow: '0 0.2vh 0.8vh rgba(0,0,0,0.05)' }}>
+          <div style={{ background: '#fff', border: '0.18vh solid #E8E8E8', borderRadius: '1.2vh', padding: '1.5vh 1.8vh', fontSize: '1.45vh', color: '#444', lineHeight: 1.9, textAlign: 'center', boxShadow: '0 0.15vh 0.6vh rgba(0,0,0,0.05)' }}>
             レストラン・ベーカリー・カフェなどが<br />
             余ったお弁当や食材を出品中！<br />
             <span style={{ fontWeight: 700, color: '#F26419' }}>アプリで予約してお店に取りに行くだけ。</span><br />
@@ -97,7 +88,7 @@ export default function Slide2User() {
 
           {/* エリア帯 */}
           <div style={{ background: 'linear-gradient(90deg, #F26419, #8DC63F)', borderRadius: '1vh', padding: '0.9vh 1.5vh', textAlign: 'center' }}>
-            <div style={{ color: '#fff', fontWeight: 900, fontSize: '1.42vh' }}>📍 高槻市・茨木市を中心とした北摂エリアで展開中</div>
+            <div style={{ color: '#fff', fontWeight: 900, fontSize: '1.4vh' }}>📍 高槻市・茨木市を中心とした北摂エリアで展開中</div>
           </div>
         </div>
 

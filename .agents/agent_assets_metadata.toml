@@ -809,3 +809,15 @@ id = "uYl3Yg_4IVMG4EXztM1F7"
 uri = "file://.local/outputs/------------0615.pdf"
 type = "pdf"
 title = "おすそわけ 広告チラシ 6/15版 (PDF)"
+
+[[outputs]]
+id = "Fgn7X-MPafSoaBUrIGM0Q"
+uri = "file://.local/outputs/---------------.pptx"
+type = "slides"
+title = "広告チラシ 完成版 (PowerPoint)"
+
+[[outputs]]
+id = "tH6a2X0mH2CJLGDywzHsu"
+uri = "file://.local/outputs/---------------.pdf"
+type = "pdf"
+title = "広告チラシ 完成版 (PDF)"
