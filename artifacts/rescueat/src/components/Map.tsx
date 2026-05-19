@@ -39,7 +39,17 @@ function isInPickupWindow(start?: string | null, end?: string | null): boolean {
 //   JR・阪急など鉄道路線、 店舗 POI まで全部出る Google デフォルトの賑やかな見た目。
 //   カスタムスタイルを一切当てない (= 空配列) ことで Google 標準スタイルが復活する。
 //   ★ mapId は使わない方針は維持 (iOS で道路ラベル消失バグの再発防止)。
-const MAP_STYLES: google.maps.MapTypeStyle[] = [];
+// ★ Googleマップのデフォルト観光地アイコン (古墳・神社・天満宮など) を非表示。
+//    自店舗のピンを見やすくするため、 POIアイコンを抑制する。
+//    ラベル(地名テキスト)は残してアイコンのみ消す指定。
+const MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { featureType: 'poi.attraction',       elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.place_of_worship', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.business',         elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.government',       elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.attraction',       elementType: 'labels.text', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.place_of_worship', elementType: 'labels.text', stylers: [{ visibility: 'off' }] },
+];
 
 // ── カスタムアイコン用フレームピン (店舗 iconUrl をピンの「滴」内にはめ込む) ──
 //   オレンジ枠 (active) / グレー枠 (inactive) の2バリアント。
