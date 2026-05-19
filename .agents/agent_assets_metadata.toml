@@ -821,3 +821,15 @@ id = "tH6a2X0mH2CJLGDywzHsu"
 uri = "file://.local/outputs/---------------.pdf"
 type = "pdf"
 title = "広告チラシ 完成版 (PDF)"
+
+[[outputs]]
+id = "75lV71IipkiUPZac4p_zJ"
+uri = "file://.local/outputs/---------------2.pptx"
+type = "slides"
+title = "広告チラシ ピンク・黄緑版 (PowerPoint)"
+
+[[outputs]]
+id = "m21GIqxaNiZWEstQjcwaM"
+uri = "file://.local/outputs/---------------2.pdf"
+type = "pdf"
+title = "広告チラシ ピンク・黄緑版 (PDF)"

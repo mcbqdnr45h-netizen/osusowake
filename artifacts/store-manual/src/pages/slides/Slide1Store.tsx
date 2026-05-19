@@ -80,7 +80,7 @@ export default function Slide1Store() {
         </div>
 
         {/* ▼ QRフッター */}
-        <div style={{ background: '#1A1A1A', padding: '1.6vh 1.5vh', display: 'flex', justifyContent: 'center', gap: '2vh', alignItems: 'flex-start' }}>
+        <div style={{ background: '#F26419', padding: '1.6vh 1.5vh', display: 'flex', justifyContent: 'center', gap: '2vh', alignItems: 'flex-start' }}>
           {[
             { src: `${base}qr-appstore.jpeg`, label: 'App Store', sub: 'iPhone' },
             { src: `${base}web-signup-qr.png`, label: 'Web サイト', sub: 'Android' },
@@ -90,8 +90,8 @@ export default function Slide1Store() {
               <div style={{ background: '#fff', padding: '0.5vh', borderRadius: '0.7vh', marginBottom: '0.4vh' }}>
                 <img src={src} alt={label} style={{ width: '6.5vh', height: '6.5vh', objectFit: 'cover', display: 'block' }} />
               </div>
-              <div style={{ fontSize: '1.05vh', color: '#ccc', fontWeight: 700 }}>{label}</div>
-              <div style={{ fontSize: '0.9vh', color: '#666' }}>{sub}</div>
+              <div style={{ fontSize: '1.05vh', color: 'rgba(255,255,255,0.95)', fontWeight: 700 }}>{label}</div>
+              <div style={{ fontSize: '0.9vh', color: 'rgba(255,255,255,0.7)' }}>{sub}</div>
             </div>
           ))}
         </div>

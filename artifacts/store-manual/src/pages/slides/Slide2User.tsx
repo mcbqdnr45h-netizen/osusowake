@@ -13,7 +13,7 @@ export default function Slide2User() {
       }}>
 
         {/* ▼ ヘッダー */}
-        <div style={{ background: 'linear-gradient(160deg, #8DC63F 0%, #6aab1a 100%)', padding: '2vh 2vh 1.8vh', textAlign: 'center' }}>
+        <div style={{ background: 'linear-gradient(160deg, #F26419 0%, #d94f0a 100%)', padding: '2vh 2vh 1.8vh', textAlign: 'center' }}>
           <div style={{ fontSize: '1.3vh', fontWeight: 700, color: 'rgba(255,255,255,0.9)', marginBottom: '0.3vh', letterSpacing: '0.08em' }}>北摂エリア（高槻・茨木中心）</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6vh', marginBottom: '0.2vh' }}>
             <span style={{ fontSize: '7.8vh', fontWeight: 900, color: '#fff', lineHeight: 1, letterSpacing: '-0.02em', textShadow: '0 0.2vh 0.8vh rgba(0,0,0,0.15)' }}>6/15</span>
@@ -25,7 +25,7 @@ export default function Slide2User() {
         </div>
 
         {/* ▼ ロゴ帯 */}
-        <div style={{ background: '#F26419', padding: '1.1vh 2vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.2vh' }}>
+        <div style={{ background: '#8DC63F', padding: '1.1vh 2vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.2vh' }}>
           <img src={`${base}logo.jpg`} alt="おすそわけ" style={{ width: '4.2vh', height: '4.2vh', borderRadius: '0.8vh', objectFit: 'cover', border: '0.25vh solid rgba(255,255,255,0.6)', flexShrink: 0 }} />
           <div>
             <div style={{ fontSize: '2.1vh', fontWeight: 900, color: '#fff', lineHeight: 1 }}>おすそわけ</div>
@@ -93,7 +93,7 @@ export default function Slide2User() {
         </div>
 
         {/* ▼ QRフッター */}
-        <div style={{ background: '#1A1A1A', padding: '1.6vh 1.5vh', display: 'flex', justifyContent: 'center', gap: '2vh', alignItems: 'flex-start' }}>
+        <div style={{ background: '#F26419', padding: '1.6vh 1.5vh', display: 'flex', justifyContent: 'center', gap: '2vh', alignItems: 'flex-start' }}>
           {[
             { src: `${base}qr-appstore.jpeg`, label: 'App Store', sub: 'iPhone' },
             { src: `${base}web-signup-qr.png`, label: 'Web サイト', sub: 'Android' },
@@ -103,8 +103,8 @@ export default function Slide2User() {
               <div style={{ background: '#fff', padding: '0.5vh', borderRadius: '0.7vh', marginBottom: '0.4vh' }}>
                 <img src={src} alt={label} style={{ width: '6.5vh', height: '6.5vh', objectFit: 'cover', display: 'block' }} />
               </div>
-              <div style={{ fontSize: '1.05vh', color: '#ccc', fontWeight: 700 }}>{label}</div>
-              <div style={{ fontSize: '0.9vh', color: '#666' }}>{sub}</div>
+              <div style={{ fontSize: '1.05vh', color: 'rgba(255,255,255,0.95)', fontWeight: 700 }}>{label}</div>
+              <div style={{ fontSize: '0.9vh', color: 'rgba(255,255,255,0.7)' }}>{sub}</div>
             </div>
           ))}
         </div>
