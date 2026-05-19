@@ -407,7 +407,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map = new Map<number | string, { lat: number; lng: number }>();
     if (listingStores.length === 0) return map;
 
-    const THRESHOLD_M = 120;
+    const THRESHOLD_M = 200;
     // 1 deg lat ≒ 111,320m
     const M_PER_DEG_LAT = 111320;
     const items = listingStores.map(s => ({
@@ -475,9 +475,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       // centroid
       const cLat = indices.reduce((a, i) => a + items[i].lat, 0) / indices.length;
       const cLng = indices.reduce((a, i) => a + items[i].lng, 0) / indices.length;
-      // 半径: 店舗数に応じて 70〜120m (緯度方向)、経度は緯度で補正
+      // 半径: 店舗数に応じて 180〜300m (緯度方向)、経度は緯度で補正
       // 店舗が多いほど大きく開いて重ならないように
-      const radiusM = Math.min(120, 70 + (indices.length - 2) * 12);
+      // ハッキリ離れて見えるよう大きめに設定 (ズーム 15 で約 35px 以上の間隔)
+      const radiusM = Math.min(300, 180 + (indices.length - 2) * 25);
       const rLat = radiusM / M_PER_DEG_LAT;
       const rLng = radiusM / (M_PER_DEG_LAT * Math.cos((cLat * Math.PI) / 180));
       const N = indices.length;
