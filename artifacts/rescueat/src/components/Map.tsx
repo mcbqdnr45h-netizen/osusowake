@@ -395,20 +395,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     });
   }, [stores]);
 
-  // ── 近接ピンの自動オフセット ─────────────────────────────────────────────
-  // 同じビルや隣接店舗で経緯度が近すぎると iOS の地図上でピンが重なって
-  // 「下のピンが触れない / 何店舗あるか分からない」状態になる。
-  // 約 45m 以内に複数店舗がある場合、 centroid を中心にした円周上へ
-  // 均等配置することで重なりを解消する (表示位置のみ・データは元 store)。
-  //
-  // 距離ベース Union-Find で隣接 8 セルも検索することで、グリッド境界を
-  // 跨いだ近接ペアも漏れなく同一グループにまとめる。
-  const displayPositions = useMemo(() => {
-    const map = new Map<number | string, { lat: number; lng: number }>();
-    if (listingStores.length === 0) return map;
+  // ── 近接ピンの検出 (位置はズラさず、グループ ID と店舗 ID Set のみ算出) ──
+  // 同じビルや隣接店舗で経緯度が近すぎると地図上でピンが重なってしまうため、
+  // タップ時に「近接ピングループ」を判定するためのデータを事前計算する。
+  // 位置は元のまま (店舗の正しい場所を維持) し、 タップ時にズームインして
+  // 物理的に分離させる方式。
+  const proximityGroups = useMemo(() => {
+    // store.id -> { groupKey: string, memberIds: (number|string)[] }
+    const result = new Map<number | string, { groupKey: string; memberIds: (number | string)[] }>();
+    if (listingStores.length === 0) return result;
 
-    const THRESHOLD_M = 200;
-    // 1 deg lat ≒ 111,320m
+    const THRESHOLD_M = 60; // 60m 以内 = 多くのズームレベルで重なって見える距離
     const M_PER_DEG_LAT = 111320;
     const items = listingStores.map(s => ({
       s,
@@ -417,20 +414,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       mPerDegLng: M_PER_DEG_LAT * Math.cos((s.lat * Math.PI) / 180),
     }));
 
-    // 1 セル = THRESHOLD_M (緯度方向)。隣接 9 セルだけ調べれば閾値内ペアを必ず捕捉。
     const cellLat = THRESHOLD_M / M_PER_DEG_LAT;
     const cellLngOf = (lat: number) => THRESHOLD_M / (M_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180));
     const cells = new Map<string, number[]>();
     items.forEach((it, i) => {
       const cy = Math.floor(it.lat / cellLat);
-      const cLng = cellLngOf(it.lat);
-      const cx = Math.floor(it.lng / cLng);
+      const cx = Math.floor(it.lng / cellLngOf(it.lat));
       const k = `${cx},${cy}`;
       if (!cells.has(k)) cells.set(k, []);
       cells.get(k)!.push(i);
     });
 
-    // Union-Find
     const parent = items.map((_, i) => i);
     const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])));
     const union = (a: number, b: number) => {
@@ -440,8 +434,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     items.forEach((it, i) => {
       const cy = Math.floor(it.lat / cellLat);
-      const cLng = cellLngOf(it.lat);
-      const cx = Math.floor(it.lng / cLng);
+      const cx = Math.floor(it.lng / cellLngOf(it.lat));
       for (let dx = -1; dx <= 1; dx++) {
         for (let dy = -1; dy <= 1; dy++) {
           const neighbors = cells.get(`${cx + dx},${cy + dy}`);
@@ -451,48 +444,27 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             const it2 = items[j];
             const dLatM = (it2.lat - it.lat) * M_PER_DEG_LAT;
             const dLngM = (it2.lng - it.lng) * ((it.mPerDegLng + it2.mPerDegLng) / 2);
-            const dist2 = dLatM * dLatM + dLngM * dLngM;
-            if (dist2 <= THRESHOLD_M * THRESHOLD_M) union(i, j);
+            if (dLatM * dLatM + dLngM * dLngM <= THRESHOLD_M * THRESHOLD_M) union(i, j);
           }
         }
       }
     });
 
-    // グルーピング結果を集計
-    const groupMap = new Map<number, number[]>();
-    items.forEach((_, i) => {
+    const groupMembers = new Map<number, (number | string)[]>();
+    items.forEach((it, i) => {
       const r = find(i);
-      if (!groupMap.has(r)) groupMap.set(r, []);
-      groupMap.get(r)!.push(i);
+      if (!groupMembers.has(r)) groupMembers.set(r, []);
+      groupMembers.get(r)!.push(it.s.id);
     });
 
-    for (const indices of groupMap.values()) {
-      if (indices.length === 1) {
-        const it = items[indices[0]];
-        map.set(it.s.id, { lat: it.lat, lng: it.lng });
-        continue;
+    items.forEach((it, i) => {
+      const r = find(i);
+      const members = groupMembers.get(r)!;
+      if (members.length >= 2) {
+        result.set(it.s.id, { groupKey: `g${r}`, memberIds: members });
       }
-      // centroid
-      const cLat = indices.reduce((a, i) => a + items[i].lat, 0) / indices.length;
-      const cLng = indices.reduce((a, i) => a + items[i].lng, 0) / indices.length;
-      // 半径: 店舗数に応じて 180〜300m (緯度方向)、経度は緯度で補正
-      // 店舗が多いほど大きく開いて重ならないように
-      // ハッキリ離れて見えるよう大きめに設定 (ズーム 15 で約 35px 以上の間隔)
-      const radiusM = Math.min(300, 180 + (indices.length - 2) * 25);
-      const rLat = radiusM / M_PER_DEG_LAT;
-      const rLng = radiusM / (M_PER_DEG_LAT * Math.cos((cLat * Math.PI) / 180));
-      const N = indices.length;
-      // ID 順で固定 (再描画でピンが入れ替わらない)
-      const sorted = [...indices].sort((a, b) => String(items[a].s.id).localeCompare(String(items[b].s.id)));
-      sorted.forEach((idx, i) => {
-        const angle = (2 * Math.PI * i) / N - Math.PI / 2;
-        map.set(items[idx].s.id, {
-          lat: cLat + rLat * Math.sin(angle),
-          lng: cLng + rLng * Math.cos(angle),
-        });
-      });
-    }
-    return map;
+    });
+    return result;
   }, [listingStores]);
 
   // ── アクティブ店舗ID Set (O(店舗数 × バッグ数) を O(店舗数 + バッグ数) に短縮) ──
@@ -527,18 +499,15 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return listingStores
       .map(s => {
         const color = activeStoreIdSet.has(s.id) ? 'o' : 'g';
-        // ★ displayPositions のオフセット後の座標を使うことで、 近接ピンの
-        //   再配置 (グループ追加/削除) もマーカー再描画の対象になる。
-        const dp = displayPositions.get(s.id) ?? { lat: s.lat, lng: s.lng };
-        const lat = Number(dp.lat).toFixed(5);
-        const lng = Number(dp.lng).toFixed(5);
+        const lat = Number(s.lat).toFixed(5);
+        const lng = Number(s.lng).toFixed(5);
         // ★ iconUrl は実 URL を含める (presence だけだと URL→別 URL の変更を検知できない)。
         //   カンマは join 区切りなので除去。 長さは制限せず content hash 代わりに URL 全体を使用。
         const icon  = s.iconUrl ? s.iconUrl.replace(/,/g, '%2C') : '';
         return `${s.id}:${color}:${lat}:${lng}:${icon}`;
       })
       .join(',');
-  }, [listingStores, activeStoreIdSet, displayPositions]);
+  }, [listingStores, activeStoreIdSet]);
 
   // ── マップ初期化 ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -751,9 +720,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       const fallbackUrl   = isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category);
       const [fw, fh, fax, fay] = isActive ? [52, 66, 26, 59] : [44, 56, 22, 50];
 
-      const pos = displayPositions.get(store.id) ?? { lat: store.lat, lng: store.lng };
       const marker = new gMaps.Marker({
-        position: pos,
+        position: { lat: store.lat, lng: store.lng },
         icon: {
           url:        fallbackUrl,
           scaledSize: new gMaps.Size(fw, fh),
@@ -782,8 +750,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       marker.addListener('click', () => {
         const pos = marker.getPosition();
+        // 近接ピングループに属する場合は、 まずズームインして物理的に分離。
+        // 次のタップで正しい店舗を選べる UX にする。
+        const group = proximityGroups.get(store.id);
+        const currentZoom = map.getZoom() ?? 14;
+        if (group && currentZoom < 18) {
+          if (pos) {
+            map.setZoom(Math.min(19, currentZoom + 3));
+            map.panTo(pos);
+          }
+          return; // 詳細は開かず、ズーム後にもう一度タップしてもらう
+        }
         if (pos) {
-          map.setZoom(15);
+          map.setZoom(Math.max(currentZoom, 15));
           map.panTo(pos);
           setTimeout(() => { map.panBy(0, 200); }, 80);
         }
