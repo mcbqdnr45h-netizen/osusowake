@@ -423,7 +423,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const result = new Map<number | string, { groupKey: string; memberIds: (number | string)[] }>();
     if (listingStores.length === 0) return result;
 
-    const THRESHOLD_M = 60; // 60m 以内 = 多くのズームレベルで重なって見える距離
+    const THRESHOLD_M = 200; // 200m 以内 = ピンが大きい(52×66px)ため広めに取らないと
+                              //              通常ズーム(13-15)で見た目重なって見える距離をカバーできない
     const M_PER_DEG_LAT = 111320;
     const items = listingStores.map(s => ({
       s,
