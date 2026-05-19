@@ -297,7 +297,7 @@
                         buildSettings = {
                                 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
                                 CODE_SIGN_STYLE = Automatic;
-                                CURRENT_PROJECT_VERSION = 101;
+                                CURRENT_PROJECT_VERSION = 120;
                                 DEVELOPMENT_TEAM = 24P8637Y9A;
                                 INFOPLIST_FILE = App/Info.plist;
                                 IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -305,7 +305,7 @@
                                         "$(inherited)",
                                         "@executable_path/Frameworks",
                                 );
-                                MARKETING_VERSION = 1.0;
+                                MARKETING_VERSION = 1.0.1;
                                 OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
                                 PRODUCT_BUNDLE_IDENTIFIER = com.yuhi.osusowake;
                                 PRODUCT_NAME = Osusowake;
@@ -320,7 +320,7 @@
                         buildSettings = {
                                 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
                                 CODE_SIGN_STYLE = Automatic;
-                                CURRENT_PROJECT_VERSION = 101;
+                                CURRENT_PROJECT_VERSION = 120;
                                 DEVELOPMENT_TEAM = 24P8637Y9A;
                                 INFOPLIST_FILE = App/Info.plist;
                                 IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -328,7 +328,7 @@
                                         "$(inherited)",
                                         "@executable_path/Frameworks",
                                 );
-                                MARKETING_VERSION = 1.0;
+                                MARKETING_VERSION = 1.0.1;
                                 PRODUCT_BUNDLE_IDENTIFIER = com.yuhi.osusowake;
                                 PRODUCT_NAME = Osusowake;
                                 SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
