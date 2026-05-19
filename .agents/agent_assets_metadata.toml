@@ -785,3 +785,15 @@ id = "OqrfIM6synrfOwdwKeYK-"
 uri = "file://.local/outputs/Food-Rescue-Map.pptx"
 type = "slides"
 title = "Food Rescue Map.pptx"
+
+[[outputs]]
+id = "Q5cp3h-z2PNhjwa2HNY2k"
+uri = "file://.local/outputs/-----------.pptx"
+type = "slides"
+title = "おすそわけ 広告チラシ (PowerPoint)"
+
+[[outputs]]
+id = "WFlYH9WSoIkt392uWCiXE"
+uri = "file://.local/outputs/-----------.pdf"
+type = "pdf"
+title = "おすそわけ 広告チラシ (PDF)"
