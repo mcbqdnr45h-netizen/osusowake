@@ -300,6 +300,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const userMarkerRef   = useRef<google.maps.Marker | null>(null);
   const storeMarkersRef = useRef<google.maps.Marker[]>([]);
   const clustererRef    = useRef<MarkerClusterer | null>(null);
+  // ★ スパイダー展開状態 (近接ピンをタップしたとき、 円形に広げて選択可能にする)
+  const spiderRef       = useRef<{
+    groupKey: string;
+    hiddenMarkers: google.maps.Marker[];
+    spiderMarkers: google.maps.Marker[];
+    spiderLines:   google.maps.Polyline[];
+  } | null>(null);
+  const spiderMapListenersRef = useRef<google.maps.MapsEventListener[]>([]);
   const onStoreSelectRef        = useRef(onStoreSelect);
   const onUserPositionChangeRef = useRef(onUserPositionChange);
   const onMapIdleRef            = useRef(onMapIdle);
@@ -699,6 +707,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const gMaps = (window as any).google?.maps as typeof google.maps | undefined;
     if (!map || !gMaps) return;
 
+    // ── スパイダー展開のクリーンアップ (既存展開を確実に閉じてからマーカー再生成) ──
+    const unspiderfy = () => {
+      const s = spiderRef.current;
+      if (!s) return;
+      s.spiderMarkers.forEach(m => { gMaps.event.clearInstanceListeners(m); m.setMap(null); });
+      s.spiderLines.forEach(l => l.setMap(null));
+      s.hiddenMarkers.forEach(m => { try { m.setVisible(true); } catch { /* noop */ } });
+      spiderRef.current = null;
+    };
+    unspiderfy();
+    spiderMapListenersRef.current.forEach(l => { try { l.remove(); } catch { /* noop */ } });
+    spiderMapListenersRef.current = [];
+
     // 既存マーカーをすべて削除
     if (clustererRef.current) {
       clustererRef.current.clearMarkers();
@@ -714,6 +735,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     const activeMarkers: google.maps.Marker[] = [];
     const allMarkers:    google.maps.Marker[] = [];
+    // store.id → { marker, store } を引けるようにする (スパイダー展開で使う)
+    const storeMarkerMap = new Map<number | string, { marker: google.maps.Marker; store: Store }>();
 
     listingStores.forEach(store => {
       // このstoreが「アクティブ（在庫あり + 受取時間内）」かを判定
@@ -760,19 +783,15 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       marker.addListener('click', () => {
         const pos = marker.getPosition();
-        // 近接ピングループに属する場合は、 まずズームインして物理的に分離。
-        // 次のタップで正しい店舗を選べる UX にする。
+        // 近接ピングループに属する場合 → スパイダー展開で全店舗を選択可能にする
+        // (位置はズラさず、 元の真の位置から線を伸ばして円形に広げる)
         const group = proximityGroups.get(store.id);
-        const currentZoom = map.getZoom() ?? 14;
-        if (group && currentZoom < 18) {
-          if (pos) {
-            map.setZoom(Math.min(19, currentZoom + 3));
-            map.panTo(pos);
-          }
-          return; // 詳細は開かず、ズーム後にもう一度タップしてもらう
+        if (group && group.memberIds.length >= 2) {
+          spiderfyGroup(group.groupKey, group.memberIds);
+          return;
         }
         if (pos) {
-          map.setZoom(Math.max(currentZoom, 15));
+          map.setZoom(Math.max(map.getZoom() ?? 14, 15));
           map.panTo(pos);
           setTimeout(() => { map.panBy(0, 200); }, 80);
         }
@@ -781,7 +800,112 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
       allMarkers.push(marker);
       if (isActive) activeMarkers.push(marker);
+      storeMarkerMap.set(store.id, { marker, store });
     });
+
+    // ── スパイダー展開関数 (近接ピンをタップしたら円形に広げる) ─────────────
+    function spiderfyGroup(groupKey: string, memberIds: (number | string)[]) {
+      if (!map || !gMaps) return;
+      // 同じグループが既に展開中なら閉じる (トグル)
+      if (spiderRef.current && spiderRef.current.groupKey === groupKey) {
+        unspiderfy();
+        return;
+      }
+      unspiderfy();
+
+      const members = memberIds
+        .map(id => storeMarkerMap.get(id))
+        .filter((x): x is { marker: google.maps.Marker; store: Store } => !!x);
+      if (members.length < 2) return;
+
+      // 中心 = メンバーの平均座標 (実位置をそのまま使うので情報の改ざんなし)
+      const centerLat = members.reduce((a, m) => a + m.store.lat, 0) / members.length;
+      const centerLng = members.reduce((a, m) => a + m.store.lng, 0) / members.length;
+      const centerLatLng = new gMaps.LatLng(centerLat, centerLng);
+
+      // 画面ピクセル単位で円形に展開する半径 (件数に応じて拡大)
+      const n = members.length;
+      const radiusPx = n <= 4 ? 60 : n <= 8 ? 80 : 100;
+
+      const proj = map.getProjection();
+      if (!proj) return;
+      const zoom = map.getZoom() ?? 14;
+      const scale = Math.pow(2, zoom);
+      const centerWorld = proj.fromLatLngToPoint(centerLatLng);
+      if (!centerWorld) return;
+
+      const spiderMarkers: google.maps.Marker[] = [];
+      const spiderLines:   google.maps.Polyline[] = [];
+      const hiddenMarkers: google.maps.Marker[] = [];
+
+      members.forEach((mm, i) => {
+        const angle = (i / n) * 2 * Math.PI - Math.PI / 2; // 12時方向起点
+        const dx = (Math.cos(angle) * radiusPx) / scale;
+        const dy = (Math.sin(angle) * radiusPx) / scale;
+        const newPoint = new gMaps.Point(centerWorld.x + dx, centerWorld.y + dy);
+        const newLatLng = proj.fromPointToLatLng(newPoint);
+        if (!newLatLng) return;
+
+        try { mm.marker.setVisible(false); } catch { /* noop */ }
+        hiddenMarkers.push(mm.marker);
+
+        // 中心からスパイダーマーカーへの引出線
+        const line = new gMaps.Polyline({
+          map,
+          path: [centerLatLng, newLatLng],
+          strokeColor:   '#F26419',
+          strokeOpacity: 0.85,
+          strokeWeight:  2,
+          zIndex:        999,
+        });
+        spiderLines.push(line);
+
+        // 元マーカーと同じアイコンで複製 (展開先で同じ見た目)
+        const sMarker = new gMaps.Marker({
+          map,
+          position: newLatLng,
+          icon:     mm.marker.getIcon() as google.maps.Icon | google.maps.Symbol | string | null,
+          title:    mm.store.name,
+          zIndex:   1000 + i,
+        });
+        sMarker.addListener('click', () => {
+          const realPos = { lat: mm.store.lat, lng: mm.store.lng };
+          map.panTo(realPos);
+          setTimeout(() => { map.panBy(0, 200); }, 80);
+          unspiderfy();
+          onStoreSelectRef.current?.(mm.store);
+        });
+        spiderMarkers.push(sMarker);
+      });
+
+      // 中心点インジケータ (元の真の位置を示す小さなドット)
+      const centerDot = new gMaps.Marker({
+        map,
+        position: centerLatLng,
+        icon: {
+          path:         gMaps.SymbolPath.CIRCLE,
+          scale:        5,
+          fillColor:    '#F26419',
+          fillOpacity:  1,
+          strokeColor:  '#FFFFFF',
+          strokeWeight: 2,
+        },
+        zIndex: 998,
+        clickable: false,
+      });
+      spiderMarkers.push(centerDot);
+
+      spiderRef.current = { groupKey, hiddenMarkers, spiderMarkers, spiderLines };
+    }
+
+    // 地図クリック / ズーム変更 / ドラッグ で展開を閉じる
+    const onMapClick = () => unspiderfy();
+    const onMapZoom  = () => unspiderfy();
+    spiderMapListenersRef.current.push(
+      map.addListener('click',         onMapClick),
+      map.addListener('zoom_changed',  onMapZoom),
+      map.addListener('dragstart',     onMapClick),
+    );
 
     storeMarkersRef.current = allMarkers;
 
@@ -798,6 +922,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         renderer: makeClusterRenderer(gMaps),
       });
     }
+    // ── アンマウント時の最終クリーンアップ (スパイダー展開 + 地図リスナーを確実に破棄) ──
+    return () => {
+      try { unspiderfy(); } catch { /* noop */ }
+      spiderMapListenersRef.current.forEach(l => { try { l.remove(); } catch { /* noop */ } });
+      spiderMapListenersRef.current = [];
+    };
   // ★ markerKey が ID:色:座標:アイコン を全部含むので、 これだけで実質変更を検知できる。
   //   listingStores 参照の変化 (React Query refetch 等) では再描画させない ＝
   //   タップ中にマーカーが消える競合バグを根本回避。
