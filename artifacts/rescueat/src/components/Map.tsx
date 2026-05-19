@@ -407,7 +407,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map = new Map<number | string, { lat: number; lng: number }>();
     if (listingStores.length === 0) return map;
 
-    const THRESHOLD_M = 45;
+    const THRESHOLD_M = 120;
     // 1 deg lat ≒ 111,320m
     const M_PER_DEG_LAT = 111320;
     const items = listingStores.map(s => ({
@@ -475,9 +475,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       // centroid
       const cLat = indices.reduce((a, i) => a + items[i].lat, 0) / indices.length;
       const cLng = indices.reduce((a, i) => a + items[i].lng, 0) / indices.length;
-      // 半径: 約 35m (緯度方向)、経度は緯度で補正
-      const rLat = 35 / M_PER_DEG_LAT;
-      const rLng = 35 / (M_PER_DEG_LAT * Math.cos((cLat * Math.PI) / 180));
+      // 半径: 店舗数に応じて 70〜120m (緯度方向)、経度は緯度で補正
+      // 店舗が多いほど大きく開いて重ならないように
+      const radiusM = Math.min(120, 70 + (indices.length - 2) * 12);
+      const rLat = radiusM / M_PER_DEG_LAT;
+      const rLng = radiusM / (M_PER_DEG_LAT * Math.cos((cLat * Math.PI) / 180));
       const N = indices.length;
       // ID 順で固定 (再描画でピンが入れ替わらない)
       const sorted = [...indices].sort((a, b) => String(items[a].s.id).localeCompare(String(items[b].s.id)));
@@ -524,15 +526,18 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return listingStores
       .map(s => {
         const color = activeStoreIdSet.has(s.id) ? 'o' : 'g';
-        const lat   = Number(s.lat).toFixed(5);
-        const lng   = Number(s.lng).toFixed(5);
+        // ★ displayPositions のオフセット後の座標を使うことで、 近接ピンの
+        //   再配置 (グループ追加/削除) もマーカー再描画の対象になる。
+        const dp = displayPositions.get(s.id) ?? { lat: s.lat, lng: s.lng };
+        const lat = Number(dp.lat).toFixed(5);
+        const lng = Number(dp.lng).toFixed(5);
         // ★ iconUrl は実 URL を含める (presence だけだと URL→別 URL の変更を検知できない)。
         //   カンマは join 区切りなので除去。 長さは制限せず content hash 代わりに URL 全体を使用。
         const icon  = s.iconUrl ? s.iconUrl.replace(/,/g, '%2C') : '';
         return `${s.id}:${color}:${lat}:${lng}:${icon}`;
       })
       .join(',');
-  }, [listingStores, activeStoreIdSet]);
+  }, [listingStores, activeStoreIdSet, displayPositions]);
 
   // ── マップ初期化 ──────────────────────────────────────────────────────────
   useEffect(() => {
