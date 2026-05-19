@@ -13,7 +13,7 @@ export default function Slide2User() {
       }}>
 
         {/* ▼ ヘッダー */}
-        <div style={{ background: 'linear-gradient(160deg, #F26419 0%, #d94f0a 100%)', padding: '2vh 2vh 1.8vh', textAlign: 'center' }}>
+        <div style={{ background: 'linear-gradient(160deg, #E8247A 0%, #c01265 100%)', padding: '2vh 2vh 1.8vh', textAlign: 'center' }}>
           <div style={{ fontSize: '1.3vh', fontWeight: 700, color: 'rgba(255,255,255,0.9)', marginBottom: '0.3vh', letterSpacing: '0.08em' }}>北摂エリア（高槻・茨木中心）</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6vh', marginBottom: '0.2vh' }}>
             <span style={{ fontSize: '7.8vh', fontWeight: 900, color: '#fff', lineHeight: 1, letterSpacing: '-0.02em', textShadow: '0 0.2vh 0.8vh rgba(0,0,0,0.15)' }}>6/15</span>
@@ -39,15 +39,15 @@ export default function Slide2User() {
           {/* キャッチ */}
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2.6vh', fontWeight: 900, color: '#1A1A1A', lineHeight: 1.25 }}>近くのお店の食材が</div>
-            <div style={{ fontSize: '2.6vh', fontWeight: 900, color: '#F26419', lineHeight: 1.25 }}>お得にゲットできる！</div>
+            <div style={{ fontSize: '2.6vh', fontWeight: 900, color: '#E8247A', lineHeight: 1.25 }}>お得にゲットできる！</div>
             <div style={{ width: '5vh', height: '0.4vh', background: '#8DC63F', borderRadius: '1vh', margin: '0.8vh auto' }} />
           </div>
 
           {/* バッジ */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1.2vh' }}>
-            <div style={{ background: '#FFF4EE', border: '0.2vh solid #F26419', borderRadius: '1vh', padding: '0.9vh 1vh', textAlign: 'center', flex: 1 }}>
+            <div style={{ background: '#FFF4EE', border: '0.2vh solid #E8247A', borderRadius: '1vh', padding: '0.9vh 1vh', textAlign: 'center', flex: 1 }}>
               <div style={{ fontSize: '2vh' }}>🛍️</div>
-              <div style={{ fontSize: '1.1vh', fontWeight: 900, color: '#F26419', marginTop: '0.2vh' }}>お得に購入</div>
+              <div style={{ fontSize: '1.1vh', fontWeight: 900, color: '#E8247A', marginTop: '0.2vh' }}>お得に購入</div>
             </div>
             <div style={{ background: '#F0FFF5', border: '0.2vh solid #8DC63F', borderRadius: '1vh', padding: '0.9vh 1vh', textAlign: 'center', flex: 1 }}>
               <div style={{ fontSize: '2vh' }}>🌱</div>
@@ -63,7 +63,7 @@ export default function Slide2User() {
           <div style={{ background: '#fff', border: '0.18vh solid #E8E8E8', borderRadius: '1.2vh', padding: '1.5vh 1.8vh', fontSize: '1.45vh', color: '#444', lineHeight: 1.9, textAlign: 'center', boxShadow: '0 0.15vh 0.6vh rgba(0,0,0,0.05)' }}>
             レストラン・ベーカリー・カフェなどが<br />
             余ったお弁当や食材を出品中！<br />
-            <span style={{ fontWeight: 700, color: '#F26419' }}>アプリで予約してお店に取りに行くだけ。</span><br />
+            <span style={{ fontWeight: 700, color: '#E8247A' }}>アプリで予約してお店に取りに行くだけ。</span><br />
             買うだけで地球に優しい。
           </div>
 
@@ -87,13 +87,13 @@ export default function Slide2User() {
           </div>
 
           {/* エリア帯 */}
-          <div style={{ background: 'linear-gradient(90deg, #F26419, #8DC63F)', borderRadius: '1vh', padding: '0.9vh 1.5vh', textAlign: 'center' }}>
+          <div style={{ background: 'linear-gradient(90deg, #E8247A, #8DC63F)', borderRadius: '1vh', padding: '0.9vh 1.5vh', textAlign: 'center' }}>
             <div style={{ color: '#fff', fontWeight: 900, fontSize: '1.4vh' }}>📍 高槻市・茨木市を中心とした北摂エリアで展開中</div>
           </div>
         </div>
 
         {/* ▼ QRフッター */}
-        <div style={{ background: '#F26419', padding: '1.6vh 1.5vh', display: 'flex', justifyContent: 'center', gap: '2vh', alignItems: 'flex-start' }}>
+        <div style={{ background: '#E8247A', padding: '1.6vh 1.5vh', display: 'flex', justifyContent: 'center', gap: '2vh', alignItems: 'flex-start' }}>
           {[
             { src: `${base}qr-appstore.jpeg`, label: 'App Store', sub: 'iPhone' },
             { src: `${base}web-signup-qr.png`, label: 'Web サイト', sub: 'Android' },

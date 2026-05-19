@@ -13,7 +13,7 @@ export default function Slide1Store() {
       }}>
 
         {/* ▼ ヘッダー: 日付 */}
-        <div style={{ background: 'linear-gradient(160deg, #F26419 0%, #d94f0a 100%)', padding: '2vh 2vh 1.8vh', textAlign: 'center' }}>
+        <div style={{ background: 'linear-gradient(160deg, #E8247A 0%, #c01265 100%)', padding: '2vh 2vh 1.8vh', textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6vh', marginBottom: '0.2vh' }}>
             <span style={{ fontSize: '7.8vh', fontWeight: 900, color: '#fff', lineHeight: 1, letterSpacing: '-0.02em', textShadow: '0 0.2vh 0.8vh rgba(0,0,0,0.2)' }}>6/15</span>
             <span style={{ fontSize: '2.8vh', fontWeight: 900, color: '#FFE566', alignSelf: 'flex-end', paddingBottom: '0.6vh' }}>日</span>
@@ -40,9 +40,9 @@ export default function Slide1Store() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '2vh 2.2vh', gap: '1.5vh', background: '#FAFAFA' }}>
 
           {/* キャッチ */}
-          <div style={{ background: '#FFF4EE', border: '0.25vh solid #F26419', borderRadius: '1.2vh', padding: '1.4vh 1.8vh', textAlign: 'center' }}>
+          <div style={{ background: '#FFF4EE', border: '0.25vh solid #E8247A', borderRadius: '1.2vh', padding: '1.4vh 1.8vh', textAlign: 'center' }}>
             <div style={{ fontSize: '2.7vh', fontWeight: 900, color: '#1A1A1A', lineHeight: 1.25 }}>余った食材・お弁当を</div>
-            <div style={{ fontSize: '2.7vh', fontWeight: 900, color: '#F26419', lineHeight: 1.25 }}>アプリでお得にゲット！</div>
+            <div style={{ fontSize: '2.7vh', fontWeight: 900, color: '#E8247A', lineHeight: 1.25 }}>アプリでお得にゲット！</div>
           </div>
 
           {/* 説明 */}
@@ -61,7 +61,7 @@ export default function Slide1Store() {
               { num: '3', text: '予約→お店でピックアップ', sub: 'かんたん操作で完了！' },
             ].map(({ num, text, sub }) => (
               <div key={num} style={{ display: 'flex', alignItems: 'center', gap: '1.2vh', background: '#fff', border: '0.18vh solid #E8E8E8', borderRadius: '1vh', padding: '1vh 1.3vh', boxShadow: '0 0.15vh 0.5vh rgba(0,0,0,0.05)' }}>
-                <div style={{ width: '3.4vh', height: '3.4vh', background: '#F26419', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: '3.4vh', height: '3.4vh', background: '#E8247A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <span style={{ fontSize: '1.6vh', fontWeight: 900, color: '#fff' }}>{num}</span>
                 </div>
                 <div>
@@ -80,7 +80,7 @@ export default function Slide1Store() {
         </div>
 
         {/* ▼ QRフッター */}
-        <div style={{ background: '#F26419', padding: '1.6vh 1.5vh', display: 'flex', justifyContent: 'center', gap: '2vh', alignItems: 'flex-start' }}>
+        <div style={{ background: '#E8247A', padding: '1.6vh 1.5vh', display: 'flex', justifyContent: 'center', gap: '2vh', alignItems: 'flex-start' }}>
           {[
             { src: `${base}qr-appstore.jpeg`, label: 'App Store', sub: 'iPhone' },
             { src: `${base}web-signup-qr.png`, label: 'Web サイト', sub: 'Android' },
