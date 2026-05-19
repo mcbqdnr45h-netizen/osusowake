@@ -59,12 +59,21 @@ export default function Slide2User() {
             </div>
           </div>
 
-          {/* 説明 */}
-          <div style={{ background: '#fff', border: '0.18vh solid #E8E8E8', borderRadius: '1.2vh', padding: '1.5vh 1.8vh', fontSize: '1.45vh', color: '#444', lineHeight: 1.9, textAlign: 'center', boxShadow: '0 0.15vh 0.6vh rgba(0,0,0,0.05)' }}>
-            レストラン・ベーカリー・カフェなどが<br />
-            余ったお弁当や食材を出品中！<br />
-            <span style={{ fontWeight: 700, color: '#E87A6D' }}>アプリで予約してお店に取りに行くだけ。</span><br />
-            買うだけで地球に優しい。
+          {/* アプリ画像 + 説明 */}
+          <div style={{ display: 'flex', gap: '1.5vh', alignItems: 'center' }}>
+            <div style={{ flexShrink: 0, width: '18vh', borderRadius: '1.5vh', overflow: 'hidden', boxShadow: '0 0.5vh 2vh rgba(0,0,0,0.15)', border: '0.3vh solid #E8E8E8' }}>
+              <img src={`${base}app-screenshot.png`} alt="アプリ画面" style={{ width: '100%', display: 'block' }} />
+            </div>
+            <div style={{ fontSize: '1.38vh', color: '#444', lineHeight: 1.85 }}>
+              レストラン・<br />
+              ベーカリー・<br />
+              カフェなどが<br />
+              余ったお弁当や<br />
+              食材を出品中！<br />
+              <span style={{ fontWeight: 700, color: '#E87A6D' }}>予約して<br />取りに行くだけ。</span><br />
+              買うだけで<br />
+              地球に優しい。
+            </div>
           </div>
 
           {/* ステップ */}

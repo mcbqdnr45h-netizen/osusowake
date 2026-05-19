@@ -45,12 +45,21 @@ export default function Slide1Store() {
             <div style={{ fontSize: '2.7vh', fontWeight: 900, color: '#E87A6D', lineHeight: 1.25 }}>アプリでお得にゲット！</div>
           </div>
 
-          {/* 説明 */}
-          <div style={{ fontSize: '1.48vh', color: '#444', lineHeight: 1.9, textAlign: 'center' }}>
-            近くのお店が余った食材やお弁当を<br />
-            アプリに出品しています。<br />
-            予約してお店に取りに来るだけで<br />
-            <span style={{ fontWeight: 700, color: '#8DC63F' }}>食品ロス削減</span> に貢献できます。
+          {/* アプリ画像 + 説明 */}
+          <div style={{ display: 'flex', gap: '1.5vh', alignItems: 'center' }}>
+            <div style={{ flexShrink: 0, width: '18vh', borderRadius: '1.5vh', overflow: 'hidden', boxShadow: '0 0.5vh 2vh rgba(0,0,0,0.15)', border: '0.3vh solid #E8E8E8' }}>
+              <img src={`${base}app-screenshot.png`} alt="アプリ画面" style={{ width: '100%', display: 'block' }} />
+            </div>
+            <div style={{ fontSize: '1.38vh', color: '#444', lineHeight: 1.85 }}>
+              近くのお店が<br />
+              余った食材や<br />
+              お弁当をアプリに<br />
+              出品しています。<br />
+              予約してお店に<br />
+              取りに来るだけで<br />
+              <span style={{ fontWeight: 700, color: '#8DC63F' }}>食品ロス削減</span><br />
+              に貢献できます。
+            </div>
           </div>
 
           {/* ステップ */}

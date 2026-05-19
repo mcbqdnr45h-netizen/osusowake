@@ -845,3 +845,15 @@ id = "Fwu8LZgXJsknGmVfSZ7ah"
 uri = "file://.local/outputs/----------------.pdf"
 type = "pdf"
 title = "広告チラシ アプリ色版 (PDF)"
+
+[[outputs]]
+id = "7aNO3AjQdCgjx1mq5mpdn"
+uri = "file://.local/outputs/-----------------------.pptx"
+type = "slides"
+title = "広告チラシ アプリ画面入り (PowerPoint)"
+
+[[outputs]]
+id = "jZ87HTN6nEd427JV1Lj3n"
+uri = "file://.local/outputs/-----------------------.pdf"
+type = "pdf"
+title = "広告チラシ アプリ画面入り (PDF)"
