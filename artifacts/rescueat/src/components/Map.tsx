@@ -728,9 +728,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       //   marker.setIcon でカスタムピンへ差し替える (中身が真っ白問題への根本対策)。
       const hasCustomIcon = !!store.iconUrl;
       const fallbackUrl   = isActive ? makeActivePinUrl(store.category) : makeGrayPinUrl(store.category);
-      // ★ ピンサイズ縮小: 重なって見えなくなる問題を、 クラスタ化ではなく
-      //   ピンを小さくして物理的な重なり面積を減らすことで解決。
-      const [fw, fh, fax, fay] = isActive ? [38, 48, 19, 43] : [32, 40, 16, 36];
+      const [fw, fh, fax, fay] = isActive ? [52, 66, 26, 59] : [44, 56, 22, 50];
 
       const marker = new gMaps.Marker({
         position: { lat: store.lat, lng: store.lng },
@@ -751,7 +749,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           if (!dataUrl) return;
           const customPinUrl = makeIconPinUrl(dataUrl, isActive);
           if (!customPinUrl) return;
-          const [cw, ch, cax, cay] = isActive ? [40, 50, 20, 45] : [34, 42, 17, 38];
+          const [cw, ch, cax, cay] = isActive ? [56, 70, 28, 63] : [48, 60, 24, 54];
           marker.setIcon({
             url:        customPinUrl,
             scaledSize: new gMaps.Size(cw, ch),
