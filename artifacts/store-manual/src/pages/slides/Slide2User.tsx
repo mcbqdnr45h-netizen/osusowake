@@ -60,19 +60,26 @@ export default function Slide2User() {
           </div>
 
           {/* アプリ画像 + 説明 */}
-          <div style={{ display: 'flex', gap: '1.5vh', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '1.5vh', alignItems: 'flex-start' }}>
             <div style={{ flexShrink: 0, width: '18vh', borderRadius: '1.5vh', overflow: 'hidden', boxShadow: '0 0.5vh 2vh rgba(0,0,0,0.15)', border: '0.3vh solid #E8E8E8' }}>
               <img src={`${base}app-screenshot.png`} alt="アプリ画面" style={{ width: '100%', display: 'block' }} />
             </div>
-            <div style={{ fontSize: '1.38vh', color: '#444', lineHeight: 1.85 }}>
-              レストラン・<br />
-              ベーカリー・<br />
-              カフェなどが<br />
-              余ったお弁当や<br />
-              食材を出品中！<br />
-              <span style={{ fontWeight: 700, color: '#E87A6D' }}>予約して<br />取りに行くだけ。</span><br />
-              買うだけで<br />
-              地球に優しい。
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1vh' }}>
+              <div style={{ fontSize: '1.7vh', color: '#444', lineHeight: 1.9 }}>
+                レストラン・ベーカリー・カフェなどが余ったお弁当や食材を出品中！<span style={{ fontWeight: 700, color: '#E87A6D' }}>予約してお店に取りに行くだけ。</span>買うだけで地球に優しい。
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7vh' }}>
+                {[
+                  { icon: '🍱', text: '弁当・惣菜' },
+                  { icon: '🥖', text: 'パン・スイーツ' },
+                  { icon: '🥩', text: '食材・食品' },
+                ].map(({ icon, text }) => (
+                  <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '0.6vh', background: '#fff', border: '0.15vh solid #E8E8E8', borderRadius: '0.7vh', padding: '0.5vh 0.8vh' }}>
+                    <span style={{ fontSize: '1.6vh' }}>{icon}</span>
+                    <span style={{ fontSize: '1.3vh', fontWeight: 700, color: '#555' }}>{text}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 

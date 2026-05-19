@@ -814,13 +814,13 @@ title = "おすそわけ 広告チラシ 6/15版 (PDF)"
 id = "Fgn7X-MPafSoaBUrIGM0Q"
 uri = "file://.local/outputs/---------------.pptx"
 type = "slides"
-title = "広告チラシ 完成版 (PowerPoint)"
+title = "広告チラシ 最終版 (PowerPoint)"
 
 [[outputs]]
 id = "tH6a2X0mH2CJLGDywzHsu"
 uri = "file://.local/outputs/---------------.pdf"
 type = "pdf"
-title = "広告チラシ 完成版 (PDF)"
+title = "広告チラシ 最終版 (PDF)"
 
 [[outputs]]
 id = "75lV71IipkiUPZac4p_zJ"
