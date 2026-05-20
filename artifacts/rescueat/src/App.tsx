@@ -527,19 +527,81 @@ function App() {
 //   失敗しても無視 (ベストエフォート)。
 //   ★ チャンクの prefetch は モジュール初期化時 (上の __idle) で既に発火済 →
 //     ここではユーザ固有 API データのみ。
-// ── スプラッシュスクリーン制御 ─────────────────────────────────────────────
-// launchAutoHide: false にした上で、 認証確定後にここで明示的に hide する。
-// 未ログイン・ログイン済み問わず isLoading=false になった瞬間に閉じる。
-// Web ブラウザでは Capacitor が無いので何もしない (import は dynamic)。
+// ── スプラッシュスクリーン制御 + バックグラウンド復帰ローディング ───────────
+// 【起動時】launchAutoHide: false にした上で、認証確定後にここで明示的に hide する。
+// 【復帰時】iOS がバックグラウンドで WebView コンテンツを破棄した後に復帰すると
+//          ページリロードが走り、Capacitor スプラッシュが出ないまま白画面になる。
+//          appStateChange を監視して長時間バックグラウンド後の復帰時に
+//          CSS オーバーレイでブランドカラー画面を一時的に表示して隠す。
 function SplashHider() {
   const { isLoading } = useAuth();
+  const [resumeOverlay, setResumeOverlay] = React.useState(false);
+  const bgAtRef   = useRef<number>(0);
+  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── 起動時スプラッシュを隠す ─────────────────────────────────────────────
   useEffect(() => {
     if (isLoading) return;
     import('@capacitor/splash-screen').then(({ SplashScreen }) => {
       SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => {});
     }).catch(() => {});
   }, [isLoading]);
-  return null;
+
+  // ── バックグラウンド復帰ホワイト画面対策 ──────────────────────────────────
+  // iOS が長時間バックグラウンド後に WebView コンテンツを破棄すると、
+  // 復帰時にページリロードが走り Capacitor スプラッシュなしで白画面になる。
+  // → background 時刻を記録し、30 秒以上経って active になったら
+  //   ブランドカラーの CSS オーバーレイを表示 → 1.5 秒後に fade out。
+  useEffect(() => {
+    let listenerHandle: { remove: () => void } | null = null;
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          bgAtRef.current = Date.now();
+          return;
+        }
+        const elapsed = Date.now() - bgAtRef.current;
+        if (elapsed > 30_000) {
+          // 30秒以上バックグラウンドにいた → 復帰オーバーレイを表示
+          setResumeOverlay(true);
+          if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+          overlayTimerRef.current = setTimeout(() => {
+            setResumeOverlay(false);
+            overlayTimerRef.current = null;
+          }, 1500);
+        }
+      }).then(h => { listenerHandle = h; }).catch(() => {});
+    }).catch(() => {});
+
+    return () => {
+      listenerHandle?.remove();
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+    };
+  }, []);
+
+  if (!resumeOverlay) return null;
+  return (
+    <div
+      style={{
+        position:   'fixed', inset: 0, zIndex: 999998,
+        background: '#FBF8F4',
+        display:    'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        animation:  resumeOverlay ? 'none' : '__fadeOut .4s ease-out forwards',
+        pointerEvents: 'none',
+      }}
+      aria-hidden="true"
+    >
+      <img
+        src="/images/logo-192.png"
+        alt=""
+        style={{
+          width: 96, height: 96, borderRadius: 28,
+          boxShadow: '0 12px 28px -10px rgba(232,120,108,.35)',
+        }}
+      />
+    </div>
+  );
 }
 
 function PrefetchOnAuth() {
