@@ -1348,6 +1348,14 @@ export default function StoreDashboard() {
     useListReservations({ storeId: storeId ?? 0 }, { query: {
       queryKey: getListReservationsQueryKey({ storeId: storeId ?? 0 }),
       enabled: !!storeId,
+      // ★ 購入が発生した瞬間に「本日の受取」に即出すため、
+      //   アプリ起動中は15秒間隔でポーリング + ウィンドウ復帰時に即時更新。
+      //   Stripe webhook → DB 反映後、最大15秒以内には画面に出る。
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchInterval: 15_000,
+      refetchIntervalInBackground: false,
     } });
 
   const { data: bags = [], refetch: refetchBags } =
@@ -1357,6 +1365,10 @@ export default function StoreDashboard() {
         enabled: !!storeId,
         staleTime: 0,             // 常に古いと見なし必ず再取得チェック
         refetchOnMount: 'always', // 画面に戻るたびサーバーから最新取得
+        // ★ 出品中→売切表示もリアルタイム化（売上発生時に在庫が即時減る）
+        refetchOnWindowFocus: true,
+        refetchInterval: 15_000,
+        refetchIntervalInBackground: false,
       },
     });
 
