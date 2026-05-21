@@ -857,3 +857,9 @@ id = "jZ87HTN6nEd427JV1Lj3n"
 uri = "file://.local/outputs/-----------------------.pdf"
 type = "pdf"
 title = "広告チラシ アプリ画面入り (PDF)"
+
+[[outputs]]
+id = "21FBYjz9Hi1JDHjxtyX9E"
+uri = "file://downloads/api-server-src.tar.gz"
+type = "unspecified"
+title = "api-server 最新コード(通知修正含む)"
