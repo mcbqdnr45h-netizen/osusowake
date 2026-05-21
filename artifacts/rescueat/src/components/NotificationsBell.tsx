@@ -105,6 +105,22 @@ function NotificationItem({ n, onRead, onClose }: {
       return;
     }
     onClose();
+    // ★ 「詳細を見る」が無反応に見える問題対策:
+    //   bag_sold や store_action_required は遷移先が現在ページ (/store/dashboard) と
+    //   同じになるケースが多く、 navigate() しても URL 変化が無いため画面が動かない
+    //   → 同一パスなら最上部までスクロールし「何か起きた」感を出す。
+    //   さらに今日の受取セクションへ #today-pickup でアンカージャンプ。
+    const currentPath = window.location.pathname + window.location.hash;
+    if (link === window.location.pathname || link === currentPath) {
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* ignore */ }
+      if (link === '/store/dashboard') {
+        const el = document.getElementById('today-pickup');
+        if (el) {
+          setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+        }
+      }
+      return;
+    }
     navigate(link!);
   };
 

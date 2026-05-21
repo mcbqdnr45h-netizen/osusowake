@@ -2095,7 +2095,8 @@ export default function StoreDashboard() {
         )}
 
         {/* ── 本日の受取予定リスト ── */}
-        <div ref={pendingRef}>
+        {/* id="today-pickup": ベル通知「詳細を見る」からアンカージャンプ用 */}
+        <div ref={pendingRef} id="today-pickup">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-black text-foreground flex items-center gap-2">
               <Ticket className="w-5 h-5 text-primary" />

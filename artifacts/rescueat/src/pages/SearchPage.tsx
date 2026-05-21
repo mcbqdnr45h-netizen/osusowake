@@ -12,8 +12,9 @@ import {
   ArrowUpDown, MapPin, Clock, Package, ChevronRight, ShoppingBag, Navigation2,
   Croissant, Utensils, Coffee, ShoppingCart, Store as StoreIcon,
   Candy, Wheat, Sparkles, History, RefreshCw, Loader2, PackageOpen, Navigation,
-  RotateCcw, Apple, Fish, UtensilsCrossed, GlassWater, Gift,
+  RotateCcw, Apple, Fish, UtensilsCrossed, GlassWater, Gift, Heart,
 } from 'lucide-react';
+import { useFavorites } from '@/hooks/useFavorites';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage, getCategoryLabel, normalizeCategory } from '@/lib/category-utils';
@@ -108,6 +109,10 @@ function StoreBottomSheet({
   userPos: { lat: number; lng: number } | null; onClose: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // ★ お気に入りトグル: マップ上で店舗をタップしたシート内からも追加/解除できるようにする。
+  //   既に BagCard などで使われている FavoritesContext と同じ実装。
+  const { isFavorite, toggle: toggleFavorite } = useFavorites();
+  const favorited = isFavorite(store.id);
 
   const allStoreBags = bags.filter(b => b.store.id === store.id);
   const storeBags = [...allStoreBags].sort((a, b) => {
@@ -214,6 +219,17 @@ function StoreBottomSheet({
             />
             {/* 下半分グラデーション — 強め */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+
+            {/* お気に入りボタン (閉じるボタンの左) */}
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleFavorite(store.id); }}
+              aria-label={favorited ? 'お気に入りから外す' : 'お気に入りに追加'}
+              className="absolute top-2.5 right-12 w-8 h-8 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center tap-scale"
+            >
+              <Heart
+                className={`w-4 h-4 transition-colors ${favorited ? 'text-primary fill-primary' : 'text-white'}`}
+              />
+            </button>
 
             {/* 閉じるボタン */}
             <button

@@ -92,12 +92,13 @@ export default function Login() {
           return;
         }
       }
-      // 店舗オーナーのログイン後はマイページへ。
-      // (StoreLayout のボトムナビから「出品管理 / 売上確認 / マイページ」を行き来できるが、
-      //  プロフィール編集 / 銀行登録 / 特商法 等の「アカウント系操作」は /mypage 起点なので、
-      //  /mypage を着地点にした方がオンボーディング/再設定動線が圧倒的に短い)
+      // ★ 店舗ログイン直後の遷移先: /store/dashboard に直接飛ばす。
+      //   以前は /mypage 経由にしていたが、role 判定が完了するまでの一瞬
+      //   ユーザー向け MyPage がレンダリングされて「ユーザー画面がチラつく」
+      //   問題があったため、店舗ガード付きの dashboard に直行することで防止する。
+      //   オンボーディング (銀行登録 / 特商法) はベル通知やマイページタブから到達可能。
       // ★ replace: true で履歴に /login を残さない (戻るボタンでログイン画面に戻る挙動防止)
-      navigate('/mypage', { replace: true });
+      navigate('/store/dashboard', { replace: true });
     } else {
       const { error: err, role, isAdmin: adminFlag, requiresMfa } = await signIn(email, password);
       setIsLoading(false);
