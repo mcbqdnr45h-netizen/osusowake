@@ -17,6 +17,9 @@ export interface PushLogEntry {
 const MAX_LOGS = 100;
 const buffer: PushLogEntry[] = [];
 const listeners = new Set<() => void>();
+// ★ useSyncExternalStore は getSnapshot が「変化なし時に同じ参照」を返さないと
+//   無限再レンダーで ErrorBoundary を発火させる。snapshot を凍結キャッシュする。
+let snapshot: PushLogEntry[] = [];
 
 function push(level: PushLogEntry['level'], args: unknown[]) {
   try {
@@ -30,6 +33,7 @@ function push(level: PushLogEntry['level'], args: unknown[]) {
     if (!message.startsWith('[push]')) return;
     buffer.push({ ts: Date.now(), level, message });
     if (buffer.length > MAX_LOGS) buffer.shift();
+    snapshot = buffer.slice();
     listeners.forEach(fn => { try { fn(); } catch { /* ignore */ } });
   } catch { /* ignore */ }
 }
@@ -47,7 +51,7 @@ export function installPushDebugCapture() {
 }
 
 export function getPushLogs(): PushLogEntry[] {
-  return buffer.slice();
+  return snapshot;
 }
 
 export function subscribePushLogs(fn: () => void): () => void {
@@ -57,5 +61,6 @@ export function subscribePushLogs(fn: () => void): () => void {
 
 export function clearPushLogs() {
   buffer.length = 0;
+  snapshot = [];
   listeners.forEach(fn => { try { fn(); } catch { /* ignore */ } });
 }

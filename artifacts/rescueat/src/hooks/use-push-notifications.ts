@@ -34,9 +34,10 @@ export function usePushNotifications() {
           return;
         }
 
-        console.log('[push] PushNotifications.register() 呼び出し');
-        await PushNotifications.register();
-
+        // ★ race condition 修正: register() より先に listener を登録する。
+        //   register() が即座に registration イベントを発火するケースがあり、
+        //   後付けだとトークン取得を取りこぼす (実機ログで permission granted の後
+        //   APNs device token received が一切出ない原因)。
         const regListener = await PushNotifications.addListener(
           'registration',
           async (token) => {
@@ -49,7 +50,7 @@ export function usePushNotifications() {
               });
               if (res.ok) {
                 registered.current = true;
-                console.log('[push] device token registered ✅');
+                console.log('[push] device token registered OK');
               } else {
                 const text = await res.text().catch(() => '');
                 console.warn('[push] device token registration failed:', res.status, text);
@@ -83,6 +84,9 @@ export function usePushNotifications() {
             }
           },
         );
+
+        console.log('[push] PushNotifications.register() 呼び出し');
+        await PushNotifications.register();
 
         cleanup = () => {
           regListener.remove();
