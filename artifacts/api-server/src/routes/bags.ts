@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { surpriseBagsTable, storesTable, reservationsTable, favoritesTable, notificationsTable, reviewsTable } from "@workspace/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, ne, sql } from "drizzle-orm";
 import { releaseExpiredCartReservations } from "./reservations";
 import { sendPushToUsers } from "../lib/push.js";
 import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
@@ -538,7 +538,34 @@ router.delete("/stores/:storeId/bags/:bagId", requireAuth, requireStoreOwner, as
       return;
     }
 
-    // トランザクション内で関連予約を先に削除 → バッグを削除
+    // ★ 重要: 予約が1件でも残っている (キャンセル以外) バッグは物理削除を拒否する。
+    //   従来は関連予約を tx 内で一括 delete してから バッグを削除していたが、
+    //   これにより以下が消失していた:
+    //     - picked_up (受取済み = 決済成立済み売上)
+    //     - confirmed (決済済み未受取)
+    //     - pending   (仮押さえ中)
+    //   結果: お客様のマイバック / 購入履歴 / 領収書 / 店舗売上集計から
+    //   レコードが消える致命的バグ。 売上が消えると会計・税務・返金対応が壊れる。
+    //
+    //   保護対象外 = cancelled のみ。 これは在庫復元済みで、 残しても集計に影響しない。
+    //   削除したい場合は店舗側で履歴を「非表示」(論理削除) する UI を使用すること。
+    const blockingReservations = await db
+      .select({ id: reservationsTable.id, status: reservationsTable.status })
+      .from(reservationsTable)
+      .where(and(
+        eq(reservationsTable.bagId, bagId),
+        ne(reservationsTable.status, "cancelled"),
+      ));
+
+    if (blockingReservations.length > 0) {
+      res.status(409).json({
+        error: "has_reservations",
+        message: "この商品にはお客様の予約・購入履歴があるため削除できません。代わりに非表示にしてください。",
+      });
+      return;
+    }
+
+    // トランザクション内でキャンセル済み予約を先に削除 → バッグを削除
     await db.transaction(async (tx) => {
       await tx
         .delete(reservationsTable)

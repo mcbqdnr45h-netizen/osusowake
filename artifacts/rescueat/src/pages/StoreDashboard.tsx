@@ -52,13 +52,14 @@ interface Reservation {
 // ─── ヘルパー ───────────────────────────────────────────────────────────────
 
 /** UTCのISO文字列をJST(+09:00)の YYYY-MM-DD 文字列に変換する */
-// ─── 収益モデル: ユーザー側「システム利用料 5%」を加算し10円単位で四捨五入 ─
+// ─── 収益モデル: ユーザー側「システム利用料 5%」を加算し10円単位で切り上げ ─
 //  (api-server/src/routes/reservations.ts と完全同一のロジック)
-//  例: 100円 → 100*1.05=105 → 110円 / 480円 → 504 → 500円
+//  切り上げにする理由: 四捨五入だと低額帯 (例 51円) で買い手合計 < 販売価格 になる逆転バグが発生するため。
+//  例: 100円 → 100*1.05=105 → 110円 / 480円 → 504 → 510円 / 51円 → 53.55 → 60円
 const BUYER_SERVICE_FEE_RATE = 0.05;
 function buyerTotalJpy(merchandiseJpy: number): number {
   if (!Number.isFinite(merchandiseJpy) || merchandiseJpy <= 0) return 0;
-  return Math.round((merchandiseJpy * (1 + BUYER_SERVICE_FEE_RATE)) / 10) * 10;
+  return Math.ceil((merchandiseJpy * (1 + BUYER_SERVICE_FEE_RATE)) / 10) * 10;
 }
 
 function toJSTDateStr(utcIso: string): string {
