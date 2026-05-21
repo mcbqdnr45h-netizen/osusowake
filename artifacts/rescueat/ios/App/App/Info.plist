@@ -64,5 +64,9 @@
         <string>受け取りコードや領収書を保存するために写真ライブラリへの保存を許可します。</string>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
+        <key>UIBackgroundModes</key>
+        <array>
+            <string>remote-notification</string>
+        </array>
 </dict>
 </plist>
