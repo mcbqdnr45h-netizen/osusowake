@@ -386,9 +386,8 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
       isActive: true,
     }).returning();
 
-    res.status(201).json(bag);
-
-    // お気に入りユーザーへの通知（非同期・レスポンス後）
+    // お気に入りユーザーへの通知（★ res.json より先に await。autoscale 環境で worker が
+    //   応答後にリサイクルされて push が消えるのを防ぐため。）
     try {
       const [store] = await db
         .select({ name: storesTable.name })
@@ -404,7 +403,6 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
       if (fanRows.length > 0 && store) {
         const priceLabel = `¥${Number(body.discountedPrice).toLocaleString()}`;
         const notifTitle = `🛍️ ${store.name} が新しいおすそわけを出品`;
-        // ★ Push はクリーン本文、 DB のみ末尾に [bag:ID] トークン付与
         const notifBodyClean = `「${body.title}」${priceLabel}〜 在庫: ${body.stockCount}個`;
         const notifBodyDb    = bag?.id ? `${notifBodyClean} [bag:${bag.id}]` : notifBodyClean;
         await db.insert(notificationsTable).values(
@@ -416,7 +414,7 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
             storeId,
           }))
         );
-        // Web Push（アプリ外通知）
+        console.log(`[bags] 新出品通知ブロック開始 bag=${bag?.id} fans=${fanRows.length}`);
         await sendPushToUsers(fanRows.map(f => f.userId), {
           title: notifTitle,
           body:  notifBodyClean,
@@ -428,6 +426,8 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
     } catch (notifErr) {
       console.error("[bags] notification error (non-fatal):", notifErr);
     }
+
+    res.status(201).json(bag);
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: "bad_request", message: "Invalid bag data" });
