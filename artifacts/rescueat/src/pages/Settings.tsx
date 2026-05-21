@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { getPushLogs, subscribePushLogs, clearPushLogs } from '@/lib/push-debug';
+import { authedFetch } from '@/lib/authed-fetch';
 import { Layout } from '@/components/Layout';
 import { StoreLayout } from '@/components/StoreLayout';
 import { useUserId } from '@/hooks/use-user';
@@ -152,6 +156,103 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
           ${value ? 'translate-x-5' : 'translate-x-0'}`}
       />
     </button>
+  );
+}
+
+function PushDebugCard() {
+  const logs = useSyncExternalStore(subscribePushLogs, getPushLogs, getPushLogs);
+  const [serverState, setServerState] = useState<{ count: number; tokens: { prefix: string; updatedAt: string | null }[] } | null>(null);
+  const [serverErr, setServerErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState<null | 'check' | 'register'>(null);
+
+  const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
+               ((import.meta.env.BASE_URL as string)?.replace(/\/$/, '') || '');
+
+  async function handleCheckServer() {
+    setBusy('check'); setServerErr(null);
+    try {
+      const res = await authedFetch(`${BASE}/api/push/me/registrations`);
+      if (!res.ok) { setServerErr(`HTTP ${res.status}`); setServerState(null); return; }
+      const data = await res.json();
+      setServerState(data);
+    } catch (e: any) {
+      setServerErr(e?.message ?? 'failed');
+    } finally { setBusy(null); }
+  }
+
+  async function handleRetryRegister() {
+    setBusy('register');
+    try {
+      if (!Capacitor.isNativePlatform()) {
+        console.warn('[push] re-register skipped: not native platform');
+        return;
+      }
+      const perm = await PushNotifications.requestPermissions();
+      console.log('[push] re-register permission =', perm.receive);
+      if (perm.receive !== 'granted') return;
+      await PushNotifications.register();
+      console.log('[push] re-register called register()');
+    } catch (e) {
+      console.warn('[push] re-register failed:', e);
+    } finally { setBusy(null); }
+  }
+
+  return (
+    <div className="px-4 py-3 space-y-3">
+      <div className="flex gap-2 flex-wrap">
+        <button
+          onClick={handleCheckServer}
+          disabled={busy !== null}
+          className="px-3 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
+        >
+          {busy === 'check' ? '確認中…' : 'サーバー登録状況を確認'}
+        </button>
+        <button
+          onClick={handleRetryRegister}
+          disabled={busy !== null}
+          className="px-3 py-2 text-xs font-bold bg-secondary text-secondary-foreground rounded-lg disabled:opacity-50"
+        >
+          {busy === 'register' ? '実行中…' : '通知登録を再実行'}
+        </button>
+        <button
+          onClick={() => { clearPushLogs(); setServerState(null); setServerErr(null); }}
+          className="px-3 py-2 text-xs font-bold bg-secondary text-secondary-foreground rounded-lg"
+        >
+          ログクリア
+        </button>
+      </div>
+
+      {(serverState || serverErr) && (
+        <div className="text-xs bg-secondary/50 rounded-lg p-2 font-mono">
+          {serverErr ? (
+            <span className="text-destructive">エラー: {serverErr}</span>
+          ) : (
+            <>
+              <div>サーバー登録数: <strong>{serverState!.count}</strong></div>
+              {serverState!.tokens.map((t, i) => (
+                <div key={i}>・{t.prefix}... ({t.updatedAt ?? '-'})</div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="text-[10px] font-bold text-muted-foreground">
+        環境: native={String(Capacitor.isNativePlatform())} API={BASE || '(相対)'}
+      </div>
+
+      <div className="text-[11px] bg-black text-green-400 rounded-lg p-2 font-mono max-h-64 overflow-auto whitespace-pre-wrap break-all">
+        {logs.length === 0 ? (
+          <span className="text-gray-500">[push] ログはまだありません。アプリ再起動後、ログイン状態でしばらく待ってください。</span>
+        ) : (
+          logs.map((l, i) => (
+            <div key={i} className={l.level === 'warn' ? 'text-yellow-300' : l.level === 'error' ? 'text-red-400' : ''}>
+              {new Date(l.ts).toLocaleTimeString()} {l.message}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -738,6 +839,12 @@ export default function Settings() {
 
           {/* ★ ランキング参加トグルは削除 (RankingPage 内にプレビュー付きトグルがあるため重複)。
                 ニックネーム入力 (上のアカウント情報) は残し、 ON/OFF は RankingPage で完結させる。 */}
+
+          {/* ── PUSH DEBUG （通知が来ない時の原因切り分け） ── */}
+          <SectionLabel>通知デバッグ</SectionLabel>
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-8">
+            <PushDebugCard />
+          </div>
 
           {/* ── LOGOUT / DELETE ── */}
           <SectionLabel>アカウント</SectionLabel>

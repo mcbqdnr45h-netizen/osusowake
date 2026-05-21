@@ -3,7 +3,12 @@ import { setAuthTokenProvider, setAuthTokenRefresher } from "@workspace/api-clie
 import App from "./App";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/lib/supabase";
+import { installPushDebugCapture } from "@/lib/push-debug";
 import "./index.css";
+
+// ★ [push] ログを設定画面の「通知デバッグ」セクションで表示するため、
+//   アプリ起動の最初期に console をフック (実機 Web Inspector が使えない場合の代替)
+installPushDebugCapture();
 
 // ── スクリーンショット撮影モード ──
 //   App Store 提出用スクショから価格・%OFF を全消しするための切替フラグ。

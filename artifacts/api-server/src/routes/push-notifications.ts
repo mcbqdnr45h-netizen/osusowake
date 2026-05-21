@@ -13,6 +13,28 @@ import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+// ★ デバッグ用: 現在のユーザーに登録されている APNs デバイストークン数を返す
+//   設定画面の「通知デバッグ」セクションがこれを叩いて状態確認する。
+router.get("/push/me/registrations", requireAuth, async (req, res) => {
+  try {
+    const userId = req.authUser!.id;
+    const rows = await db
+      .select({ deviceToken: apnsRegistrationsTable.deviceToken, updatedAt: apnsRegistrationsTable.updatedAt })
+      .from(apnsRegistrationsTable)
+      .where(eq(apnsRegistrationsTable.userId, userId));
+    return res.json({
+      count: rows.length,
+      tokens: rows.map(r => ({
+        prefix: (r.deviceToken ?? '').slice(0, 10),
+        updatedAt: r.updatedAt,
+      })),
+    });
+  } catch (err: any) {
+    console.error("[GET /push/me/registrations] error:", err?.message ?? err);
+    return res.status(500).json({ error: "internal_error", message: err?.message });
+  }
+});
+
 router.post("/push/device-token", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser!.id;
