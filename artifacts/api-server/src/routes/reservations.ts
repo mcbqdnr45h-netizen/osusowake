@@ -17,13 +17,16 @@ import { getAllAdminUserIds } from "../lib/admin.js";
 
 const HOLD_MINUTES = 5;
 
-// ─── 収益モデル: ユーザー側 5%「システム利用料」を加算し、合計を10円単位四捨五入 ─────
-// 例: merchandise=350円 → userTotal = round10(350 * 1.05) = round10(367.5) = 370円
-//     merchandise=480円 → userTotal = round10(480 * 1.05) = round10(504)   = 500円
-//     merchandise=120円 → userTotal = round10(120 * 1.05) = round10(126)   = 130円
+// ─── 収益モデル: ユーザー側 5%「システム利用料」を加算し、合計を10円単位切り上げ ─────
+// 切り上げにする理由: 四捨五入だと低額帯 (例 merchandise=51円) で
+//   userTotal=50円 となり「店舗の販売価格 > お客様の支払額」の逆転が発生するため。
+// 例: merchandise=350円 → userTotal = ceil10(350 * 1.05) = ceil10(367.5) = 370円
+//     merchandise=480円 → userTotal = ceil10(480 * 1.05) = ceil10(504)   = 510円
+//     merchandise=120円 → userTotal = ceil10(120 * 1.05) = ceil10(126)   = 130円
+//     merchandise=51円  → userTotal = ceil10(51  * 1.05) = ceil10(53.55) = 60円
 const USER_SERVICE_FEE_RATE = 0.05;
 function roundTo10(n: number): number {
-  return Math.round(n / 10) * 10;
+  return Math.ceil(n / 10) * 10;
 }
 function computeUserTotal(merchandiseJpy: number): number {
   return roundTo10(merchandiseJpy * (1 + USER_SERVICE_FEE_RATE));

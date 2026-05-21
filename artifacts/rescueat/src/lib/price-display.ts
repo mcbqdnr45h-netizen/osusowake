@@ -2,7 +2,7 @@ const USER_FEE_RATE = 0.05;
 
 export function getDisplayPrice(basePrice: number | null | undefined): number {
   if (!basePrice || basePrice <= 0) return 0;
-  return Math.round((basePrice * (1 + USER_FEE_RATE)) / 10) * 10;
+  return Math.ceil((basePrice * (1 + USER_FEE_RATE)) / 10) * 10;
 }
 
 export function getDisplaySavings(
