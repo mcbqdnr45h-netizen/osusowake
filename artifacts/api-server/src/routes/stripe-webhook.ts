@@ -598,8 +598,10 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
       // ユーザが /checkout/verify を踏まずにブラウザを閉じた場合の救済。
       await executeShopTransferIfNeeded({ intent, reservationId, context: "paid" });
 
-      // 購入通知（店舗オーナー + ユーザー）— 安全網発動時のみ送信
+      // 購入通知（店舗オーナー + ユーザー）
+      //   DB 二重挿入を防ぐため事前 select。push は APNs tag で端末側 dedupe。
       try {
+        console.log(`[stripe-webhook] 通知ブロック開始 reservation=${row.id}`);
         const [[store], [bag], [reservation]] = await Promise.all([
           db.select({ ownerId: storesTable.ownerId, name: storesTable.name })
             .from(storesTable).where(eq(storesTable.id, row.storeId)).limit(1),
@@ -615,10 +617,19 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
         if (store?.ownerId) {
           const ownerTitle = "【重要】おすそわけバッグが購入されました！";
           const ownerBody  = `受取コード: ${row.pickupCode ?? "---"} ｜ 受取準備をご確認ください`;
-          await Promise.all([
-            db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: row.storeId }),
-            sendPushToUser(store.ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${row.id}`, url: "/store/orders" }),
-          ]);
+          const existingOwner = await db
+            .select({ id: notificationsTable.id })
+            .from(notificationsTable)
+            .where(and(
+              eq(notificationsTable.userId, store.ownerId),
+              eq(notificationsTable.type, "bag_sold"),
+              eq(notificationsTable.body, ownerBody),
+            ))
+            .limit(1);
+          if (existingOwner.length === 0) {
+            await db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: row.storeId });
+          }
+          await sendPushToUser(store.ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${row.id}`, url: "/store/orders" });
         }
 
         // ユーザー（購入者）通知
@@ -627,15 +638,21 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
             ? ` 受取時間: ${bag.pickupStart}〜${bag.pickupEnd}`
             : "";
           const userTitle = "🛍️ おすそわけのご予約が確定しました！";
-          // ★ Push 本文 (アプリ外通知): クリーンに表示。
-          //   DB 通知本文には末尾に [bag:ID] トークン付与 → ベルからの「詳細を見る」 で
-          //   bag detail に直接遷移可能 (NotificationsBell.tsx 側で抽出/除去)
           const userBodyClean = `「${bag?.title ?? "おすそわけ袋"}」（${store?.name ?? "店舗"}）受取コード: ${row.pickupCode ?? "---"}${pickupHint}`;
           const userBodyDb    = bag?.id ? `${userBodyClean} [bag:${bag.id}]` : userBodyClean;
-          await Promise.all([
-            db.insert(notificationsTable).values({ userId: reservation.userId, type: "purchase_confirmed", title: userTitle, body: userBodyDb }),
-            sendPushToUser(reservation.userId, { title: userTitle, body: userBodyClean, tag: `purchase-confirmed-${row.id}`, url: bag?.id ? `/bags/${bag.id}` : "/my-reservations" }),
-          ]);
+          const existingUser = await db
+            .select({ id: notificationsTable.id })
+            .from(notificationsTable)
+            .where(and(
+              eq(notificationsTable.userId, reservation.userId),
+              eq(notificationsTable.type, "purchase_confirmed"),
+              eq(notificationsTable.body, userBodyDb),
+            ))
+            .limit(1);
+          if (existingUser.length === 0) {
+            await db.insert(notificationsTable).values({ userId: reservation.userId, type: "purchase_confirmed", title: userTitle, body: userBodyDb });
+          }
+          await sendPushToUser(reservation.userId, { title: userTitle, body: userBodyClean, tag: `purchase-confirmed-${row.id}`, url: bag?.id ? `/bags/${bag.id}` : "/my-reservations" });
         }
       } catch (notifErr) {
         console.error('[stripe-webhook] 安全網からの通知挿入失敗:', notifErr);
