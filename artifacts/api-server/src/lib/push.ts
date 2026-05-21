@@ -59,14 +59,23 @@ export interface PushPayload {
 }
 
 async function sendApnsPushToUser(userId: string, payload: PushPayload): Promise<void> {
-  if (!apnsProvider) return;
+  const uShort = userId.slice(0, 8);
+  if (!apnsProvider) {
+    console.warn(`[push] APNs provider 未初期化 (user ${uShort})`);
+    return;
+  }
 
   const regs = await db
     .select()
     .from(apnsRegistrationsTable)
     .where(eq(apnsRegistrationsTable.userId, userId));
 
-  if (regs.length === 0) return;
+  console.log(`[push] APNs 送信開始 user=${uShort} regs=${regs.length} title="${payload.title}"`);
+
+  if (regs.length === 0) {
+    console.warn(`[push] user ${uShort} のデバイストークンが DB に無い`);
+    return;
+  }
 
   const notification = new apn.Notification();
   notification.expiry     = Math.floor(Date.now() / 1000) + 3600;
@@ -78,12 +87,22 @@ async function sendApnsPushToUser(userId: string, payload: PushPayload): Promise
   notification.pushType   = 'alert';
 
   const tokens = regs.map((r) => r.deviceToken);
-  const result = await apnsProvider.send(notification, tokens);
+  let result;
+  try {
+    result = await apnsProvider.send(notification, tokens);
+  } catch (err: any) {
+    console.error(`[push] APNs send 例外 user=${uShort}:`, err?.message ?? err);
+    return;
+  }
+
+  console.log(`[push] APNs 結果 user=${uShort} sent=${result.sent.length} failed=${result.failed.length}`);
 
   if (result.failed.length > 0) {
     for (const fail of result.failed) {
       const reason = (fail.response as any)?.reason;
-      console.warn('[push] APNs send failed:', fail.device?.slice(0, 10), reason);
+      const status = (fail as any)?.status;
+      const errStr = (fail as any)?.error ? String((fail as any).error) : '';
+      console.warn(`[push] APNs 失敗 token=${fail.device?.slice(0, 10)}... status=${status} reason=${reason} err=${errStr}`);
       if (reason === 'BadDeviceToken' || reason === 'Unregistered') {
         await db
           .delete(apnsRegistrationsTable)
