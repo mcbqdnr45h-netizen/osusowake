@@ -540,11 +540,26 @@ function SplashHider() {
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── 起動時スプラッシュを隠す ─────────────────────────────────────────────
+  //   認証確定 → 即 hide だと React の初回ペイントより先にスプラッシュが消えて
+  //   一瞬白画面が見える。 requestAnimationFrame を 2回ネストして
+  //   "次フレームの描画が終わった後" にスプラッシュを消す + 50ms の余裕を取る。
   useEffect(() => {
     if (isLoading) return;
-    import('@capacitor/splash-screen').then(({ SplashScreen }) => {
-      SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => {});
-    }).catch(() => {});
+    let cancelled = false;
+    const hide = () => {
+      if (cancelled) return;
+      import('@capacitor/splash-screen').then(({ SplashScreen }) => {
+        SplashScreen.hide({ fadeOutDuration: 250 }).catch(() => {});
+      }).catch(() => {});
+    };
+    // 2 段 rAF: 1段目で layout 確定 → 2段目で paint 完了直後に到達
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // さらに 50ms 待って WebView の合成完了を確実に待つ
+        setTimeout(hide, 50);
+      });
+    });
+    return () => { cancelled = true; };
   }, [isLoading]);
 
   // ── バックグラウンド復帰ホワイト画面対策 ──────────────────────────────────
