@@ -716,8 +716,11 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 runMigrations().then(() => {
-  app.listen(port, () => {
-    console.log(`Server listening on port ${port} — DB: Supabase PostgreSQL`);
+  // ★ Fly.io 等で fly-proxy から到達可能にするため 0.0.0.0 で明示 bind。
+  //   host 引数を省略すると環境によっては ::1 / 127.0.0.1 にしか bind されず
+  //   "app is not listening on the expected address" 警告で外部アクセス不能になる。
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`Server listening on 0.0.0.0:${port} — DB: Supabase PostgreSQL`);
   });
 
   // 期限切れ仮押さえを1分ごとに自動解放（在庫復元）
