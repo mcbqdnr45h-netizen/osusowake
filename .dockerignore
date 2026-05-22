@@ -1,3 +1,7 @@
+.git
+.github
+.gitignore
+attached_assets
 **/node_modules
 **/dist
 **/dist-cap
@@ -8,13 +12,10 @@
 **/.vite
 **/.expo
 **/coverage
-**/.git
-**/.github
 **/.vscode
 **/.idea
 **/.DS_Store
 **/*.log
-attached_assets
 artifacts/rescueat/ios
 artifacts/rescueat/android
 artifacts/meishi
@@ -22,5 +23,12 @@ artifacts/gov-deck
 artifacts/sales-deck
 artifacts/store-manual
 artifacts/mockup-sandbox
-**/.replit
+.replit
 replit.nix
+replit.md
+*.png
+*.jpg
+*.jpeg
+*.mov
+*.mp4
+*.pdf
