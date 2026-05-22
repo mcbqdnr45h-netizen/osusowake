@@ -16,24 +16,29 @@ import { ReviewModal } from '@/components/ReviewModal';
 import type { ReviewTarget } from '@/components/ReviewModal';
 
 function isPickupExpired(pickupEnd?: string | null, createdAt?: string): boolean {
-  const now = new Date();
-  if (createdAt) {
+  if (!pickupEnd) {
+    // pickupEnd 不明なら createdAt の翌日 0時を期限とみなす（保険）
+    if (!createdAt) return false;
     const created = new Date(createdAt);
-    const sameDay =
-      created.getFullYear() === now.getFullYear() &&
-      created.getMonth()    === now.getMonth()    &&
-      created.getDate()     === now.getDate();
-    if (!sameDay) return true;
+    const fallback = new Date(created.getFullYear(), created.getMonth(), created.getDate() + 1, 0, 0, 0);
+    return new Date() > fallback;
   }
-  if (!pickupEnd) return false;
+  const now = new Date();
   const [hStr, mStr] = pickupEnd.split(':');
   const h = parseInt(hStr ?? '0', 10);
   const m = parseInt(mStr ?? '0', 10);
   if (isNaN(h) || isNaN(m)) return false;
-  // "00:00" は深夜0時（翌日開始）を意味するので翌日の 00:00 として扱う
-  const end = (h === 0 && m === 0)
-    ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0)
-    : new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+
+  // 基準日 = createdAt の "日付" (なければ今日)。
+  //   例: 22:26 に予約 → base=その日 → pickupEnd="01:00" は翌日深夜1時として解釈する。
+  //   従来は「createdAt と今日が違ったら問答無用で期限切れ」だったので、
+  //   日跨ぎ営業 (例 22:26〜01:00) で深夜0時を過ぎた瞬間に期限切れ扱いされていた。
+  const base = createdAt ? new Date(createdAt) : now;
+  let end = new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m, 0);
+  // pickupEnd が深夜帯 (0:00〜5:59) は翌日扱い (店舗の日跨ぎ営業に対応)
+  if (h < 6) {
+    end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+  }
   return now > end;
 }
 
