@@ -17,6 +17,7 @@ if (vapidPublicKey && vapidPrivateKey) {
 
 const APNS_BUNDLE_ID = 'com.yuhi.osusowake';
 let apnsProvider: apn.Provider | null = null;
+let apnsProviderSandbox: apn.Provider | null = null;
 
 function normalizeApnsKey(raw: string): string {
   const body = raw
@@ -32,16 +33,14 @@ function normalizeApnsKey(raw: string): string {
 if (process.env.APNS_PRIVATE_KEY && process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID) {
   try {
     const apnsKey = normalizeApnsKey(process.env.APNS_PRIVATE_KEY);
-
-    apnsProvider = new apn.Provider({
-      token: {
-        key:    apnsKey,
-        keyId:  process.env.APNS_KEY_ID,
-        teamId: process.env.APNS_TEAM_ID,
-      },
-      production: process.env.NODE_ENV === 'production',
-    });
-    console.log('[push] APNs configured ✅ (production:', process.env.NODE_ENV === 'production', ')');
+    const tokenCfg = {
+      key:    apnsKey,
+      keyId:  process.env.APNS_KEY_ID,
+      teamId: process.env.APNS_TEAM_ID,
+    };
+    apnsProvider        = new apn.Provider({ token: tokenCfg, production: true  });
+    apnsProviderSandbox = new apn.Provider({ token: tokenCfg, production: false });
+    console.log('[push] APNs configured ✅ (dual: production + sandbox, auto-fallback enabled)');
   } catch (err: any) {
     console.error('[push] APNs Provider 初期化失敗:', err?.message ?? err);
   }
@@ -87,33 +86,56 @@ async function sendApnsPushToUser(userId: string, payload: PushPayload): Promise
   notification.pushType   = 'alert';
 
   const tokens = regs.map((r) => r.deviceToken);
-  let result;
-  try {
-    result = await apnsProvider.send(notification, tokens);
-  } catch (err: any) {
-    console.error(`[push] APNs send 例外 user=${uShort}:`, err?.message ?? err);
-    return;
+
+  async function trySend(provider: apn.Provider, label: 'prod' | 'sandbox', toks: string[]) {
+    try {
+      const r = await provider.send(notification, toks);
+      console.log(`[push] APNs[${label}] 結果 user=${uShort} sent=${r.sent.length} failed=${r.failed.length}`);
+      return r;
+    } catch (err: any) {
+      console.error(`[push] APNs[${label}] send 例外 user=${uShort}:`, err?.message ?? err);
+      return null;
+    }
   }
 
-  console.log(`[push] APNs 結果 user=${uShort} sent=${result.sent.length} failed=${result.failed.length}`);
+  const prodResult = await trySend(apnsProvider, 'prod', tokens);
+  if (!prodResult) return;
 
-  if (result.failed.length > 0) {
-    for (const fail of result.failed) {
-      const reason = (fail.response as any)?.reason;
-      const status = (fail as any)?.status;
-      const errStr = (fail as any)?.error ? String((fail as any).error) : '';
-      console.warn(`[push] APNs 失敗 token=${fail.device?.slice(0, 10)}... status=${status} reason=${reason} err=${errStr}`);
-      if (reason === 'BadDeviceToken' || reason === 'Unregistered') {
-        await db
-          .delete(apnsRegistrationsTable)
-          .where(eq(apnsRegistrationsTable.deviceToken, fail.device))
-          .catch(() => {});
-        console.log('[push] 無効な APNs トークンを削除:', fail.device?.slice(0, 10) + '...');
+  const envMismatchTokens: string[] = [];
+  for (const fail of prodResult.failed) {
+    const reason = (fail.response as any)?.reason;
+    const status = (fail as any)?.status;
+    const errStr = (fail as any)?.error ? String((fail as any).error) : '';
+    console.warn(`[push] APNs[prod] 失敗 token=${fail.device?.slice(0, 10)}... status=${status} reason=${reason} err=${errStr}`);
+    if (reason === 'BadEnvironmentKeyInToken' || reason === 'BadDeviceToken') {
+      envMismatchTokens.push(fail.device);
+    } else if (reason === 'Unregistered') {
+      await db.delete(apnsRegistrationsTable).where(eq(apnsRegistrationsTable.deviceToken, fail.device)).catch(() => {});
+      console.log('[push] 無効な APNs トークンを削除(Unregistered):', fail.device?.slice(0, 10) + '...');
+    }
+  }
+
+  if (envMismatchTokens.length > 0 && apnsProviderSandbox) {
+    console.log(`[push] sandbox フォールバック試行 user=${uShort} tokens=${envMismatchTokens.length}`);
+    const sbResult = await trySend(apnsProviderSandbox, 'sandbox', envMismatchTokens);
+    if (sbResult) {
+      for (const fail of sbResult.failed) {
+        const reason = (fail.response as any)?.reason;
+        const status = (fail as any)?.status;
+        console.warn(`[push] APNs[sandbox] 失敗 token=${fail.device?.slice(0, 10)}... status=${status} reason=${reason}`);
+        if (reason === 'BadDeviceToken' || reason === 'Unregistered') {
+          await db.delete(apnsRegistrationsTable).where(eq(apnsRegistrationsTable.deviceToken, fail.device)).catch(() => {});
+          console.log('[push] 無効な APNs トークンを削除(sandbox失敗):', fail.device?.slice(0, 10) + '...');
+        }
+      }
+      if (sbResult.sent.length > 0) {
+        console.log(`[push] ✅ sandbox 送信成功: ${sbResult.sent.length} 件`);
       }
     }
   }
-  if (result.sent.length > 0) {
-    console.log(`[push] APNs 送信成功: ${result.sent.length} 件`);
+
+  if (prodResult.sent.length > 0) {
+    console.log(`[push] ✅ prod 送信成功: ${prodResult.sent.length} 件`);
   }
 }
 
