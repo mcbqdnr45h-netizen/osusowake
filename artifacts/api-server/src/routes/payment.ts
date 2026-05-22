@@ -594,6 +594,7 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
       | { kind: "already_cancelled" }
       | { kind: "already_paid"; reservation: typeof reservationsTable.$inferSelect }
       | { kind: "out_of_stock"; reservation: typeof reservationsTable.$inferSelect }
+      | { kind: "unpublished";  reservation: typeof reservationsTable.$inferSelect }
       | { kind: "paid";         reservation: typeof reservationsTable.$inferSelect; pickupCode: string | null };
 
     const result: ConfirmResult = await db.transaction(async (tx) => {
@@ -631,6 +632,21 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
           })
           .where(eq(reservationsTable.id, reservation.id));
         return { kind: "out_of_stock", reservation };
+      }
+
+      // 店舗側で非公開化された (isActive=false) → 決済を成立させず自動返金。
+      // race condition: ユーザーが決済画面に進んだ直後に店舗が非公開化したケース。
+      // App Review Bypass より先に判定 (審査用デモバッグは常に isActive=true 想定)。
+      if (!bag.isActive) {
+        await tx
+          .update(reservationsTable)
+          .set({
+            paymentStatus: "refunded",
+            status: "cancelled",
+            paymentIntentId: body.paymentIntentId,
+          })
+          .where(eq(reservationsTable.id, reservation.id));
+        return { kind: "unpublished", reservation };
       }
 
       // ━━ App Review Bypass: 在庫減算をスキップして審査用デモバッグの在庫を維持 ━━
@@ -728,6 +744,32 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
       res.status(409).json({
         error: "sold_out_refunded",
         message: "残念ながら他の方が一足先にご購入されました。お支払いは自動的に全額返金されます（数日以内に反映）。",
+      });
+      return;
+    }
+
+    if (result.kind === "unpublished") {
+      // ❗ 決済は成立してしまったが店舗側で販売停止 → Stripe で自動返金
+      const stripeKey = process.env["STRIPE_SECRET_KEY"];
+      if (stripeKey && body.paymentIntentId && !body.paymentIntentId.startsWith("pi_mock_")) {
+        try {
+          const stripe = await import("stripe").then((m) => new m.default(stripeKey));
+          await stripe.refunds.create({
+            payment_intent: body.paymentIntentId,
+            reason: "requested_by_customer",
+            metadata: {
+              reservationId: String(body.reservationId),
+              reason: "unpublished_after_payment",
+            },
+          });
+          console.log(`💸 自動返金実行: PI ${body.paymentIntentId} (reservation ${body.reservationId}, 店舗側で販売停止)`);
+        } catch (refundErr: any) {
+          console.error(`[payment] /confirm: Stripe refund failed for ${body.paymentIntentId}:`, refundErr?.message);
+        }
+      }
+      res.status(409).json({
+        error: "unpublished_refunded",
+        message: "店舗側でこの商品の販売が停止されました。お支払いは自動的に全額返金されます（数日以内に反映）。",
       });
       return;
     }
