@@ -1,6 +1,6 @@
 # Format identical to .dockerignore. Reduces deploy image size.
 
-# Large local-only data
+# === Huge local-only data (the real culprits, ~10GB) ===
 .local
 .git
 .github
@@ -8,7 +8,7 @@ attached_assets
 downloads
 screenshots
 
-# Build caches (not needed at runtime)
+# === Build caches (regenerated, not needed at runtime) ===
 **/.next
 **/.turbo
 **/.cache
@@ -17,27 +17,19 @@ screenshots
 **/coverage
 **/*.tsbuildinfo
 
-# IDE / OS
+# === IDE / OS junk ===
 **/.vscode
 **/.idea
 **/.DS_Store
 **/*.log
 
-# Native mobile sources (not used by web deploy)
+# === Native mobile build (iOS/Android not served by Replit) ===
 artifacts/rescueat/ios
 artifacts/rescueat/android
-artifacts/rescueat/store-assets
 artifacts/rescueat/dist-cap
+artifacts/rescueat/store-assets
 
-# Artifacts NOT in [[artifacts]] of .replit
-# (api-server and mockup-sandbox stay; everything else is excluded)
-artifacts/rescueat
-artifacts/meishi
-artifacts/gov-deck
-artifacts/sales-deck
-artifacts/store-manual
-
-# Misc heavy files
+# === Misc heavy files ===
 *.mov
 *.mp4
 *.pdf
