@@ -64,12 +64,24 @@ async function sendApnsPushToUser(userId: string, payload: PushPayload): Promise
     return;
   }
 
-  const regs = await db
+  const allRegs = await db
     .select()
     .from(apnsRegistrationsTable)
     .where(eq(apnsRegistrationsTable.userId, userId));
 
-  console.log(`[push] APNs 送信開始 user=${uShort} regs=${regs.length} title="${payload.title}"`);
+  // ★ 防御的 dedup: 同じユーザーに複数行 (古いトークンが残ってる) がある場合、
+  //   最新の updatedAt を持つ1行だけに送信する。これで同じ端末に2回届く事故を防ぐ。
+  //   登録 API 側の掃除と二重防御。
+  const regs = allRegs
+    .slice()
+    .sort((a, b) => {
+      const ta = a.updatedAt ? new Date(a.updatedAt as any).getTime() : 0;
+      const tb = b.updatedAt ? new Date(b.updatedAt as any).getTime() : 0;
+      return tb - ta;
+    })
+    .slice(0, 1);
+
+  console.log(`[push] APNs 送信開始 user=${uShort} regs=${regs.length}/${allRegs.length} title="${payload.title}"`);
 
   if (regs.length === 0) {
     console.warn(`[push] user ${uShort} のデバイストークンが DB に無い`);

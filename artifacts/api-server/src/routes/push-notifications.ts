@@ -46,6 +46,28 @@ router.post("/push/device-token", requireAuth, async (req, res) => {
 
     const deviceToken = body.deviceToken.trim();
 
+    // ★ 重複通知の根本対策:
+    //   (1) 同じユーザーの「他の deviceToken」を全削除 (トークン rotation 時に
+    //       古い行が残ると APNs が同じ端末に2回送ってしまう)
+    //   (2) 同じ deviceToken の「他のユーザー」も全削除 (端末ハンドオフ時)
+    //   その後で新しい (userId, deviceToken) を upsert。
+    await db
+      .delete(apnsRegistrationsTable)
+      .where(
+        and(
+          eq(apnsRegistrationsTable.userId, userId),
+          sql`${apnsRegistrationsTable.deviceToken} <> ${deviceToken}`,
+        ),
+      );
+    await db
+      .delete(apnsRegistrationsTable)
+      .where(
+        and(
+          eq(apnsRegistrationsTable.deviceToken, deviceToken),
+          sql`${apnsRegistrationsTable.userId} <> ${userId}`,
+        ),
+      );
+
     await db
       .insert(apnsRegistrationsTable)
       .values({ userId, deviceToken })
@@ -54,7 +76,7 @@ router.post("/push/device-token", requireAuth, async (req, res) => {
         set: { updatedAt: sql`now()` },
       });
 
-    console.log(`[push] device token registered for user ${userId.slice(0, 8)}...`);
+    console.log(`[push] device token registered for user ${userId.slice(0, 8)}... (古いトークン掃除済)`);
     return res.json({ ok: true });
   } catch (err: any) {
     console.error("[POST /push/device-token] error:", err?.message ?? err);
