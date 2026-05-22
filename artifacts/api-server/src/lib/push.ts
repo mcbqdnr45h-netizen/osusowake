@@ -186,7 +186,33 @@ export async function sendWebPushToUser(userId: string, payload: PushPayload): P
   );
 }
 
+// ★ 重複送信防止 (in-memory dedup):
+//   confirm / webhook / verify-session の3経路から同じ (userId, tag) で
+//   sendPushToUser が呼ばれても、最初の1回だけ実際に送信する。
+//   collapseId だけでは APNs の配信タイミングによっては端末で重複表示
+//   される事があるため、送信側で完全に止める。TTL 10分。
+const recentPushDedup = new Map<string, number>();
+const PUSH_DEDUP_TTL_MS = 10 * 60 * 1000;
+
+function shouldSkipDuplicate(userId: string, tag: string | undefined): boolean {
+  if (!tag) return false;
+  const key = `${userId}::${tag}`;
+  const now = Date.now();
+  // 期限切れエントリを掃除 (Map が肥大化しないように)
+  for (const [k, ts] of recentPushDedup) {
+    if (now - ts > PUSH_DEDUP_TTL_MS) recentPushDedup.delete(k);
+  }
+  const prev = recentPushDedup.get(key);
+  if (prev && now - prev < PUSH_DEDUP_TTL_MS) {
+    console.log(`[push] dedup skip user=${userId.slice(0, 8)} tag=${tag} (${Math.round((now - prev) / 1000)}s 前に送信済)`);
+    return true;
+  }
+  recentPushDedup.set(key, now);
+  return false;
+}
+
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
+  if (shouldSkipDuplicate(userId, payload.tag)) return;
   await Promise.allSettled([
     sendWebPushToUser(userId, payload),
     sendApnsPushToUser(userId, payload),
