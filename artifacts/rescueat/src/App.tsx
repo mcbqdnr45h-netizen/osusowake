@@ -377,7 +377,17 @@ function AnimatedRoutes() {
 }
 
 // ── ホームルーター ──────────────────────────────────────────────────────────
+//   店舗オーナーが「/」 を開いたら一瞬「発見」ページが見えるのを防ぐため、
+//   キャッシュ profile (AuthContext 起動時に localStorage から sync 読込) を
+//   見て store_owner なら描画前に /store/dashboard へ replace 遷移する。
 function HomeRouter() {
+  const { profile } = useAuth();
+  const [, navigate] = useLocation();
+  const isStoreOwner = profile?.role === 'store_owner';
+  useEffect(() => {
+    if (isStoreOwner) navigate('/store/dashboard', { replace: true });
+  }, [isStoreOwner, navigate]);
+  if (isStoreOwner) return null;
   return <Home />;
 }
 
