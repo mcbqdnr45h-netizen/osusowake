@@ -35,8 +35,11 @@ function isPickupExpired(pickupEnd?: string | null, createdAt?: string): boolean
   //   日跨ぎ営業 (例 22:26〜01:00) で深夜0時を過ぎた瞬間に期限切れ扱いされていた。
   const base = createdAt ? new Date(createdAt) : now;
   let end = new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m, 0);
-  // pickupEnd が深夜帯 (0:00〜5:59) は翌日扱い (店舗の日跨ぎ営業に対応)
-  if (h < 6) {
+  // ★ pickupEnd が createdAt より時刻的に早い場合のみ「日跨ぎ営業」と解釈し +24h。
+  //   例: 22:26 予約 → pickupEnd 01:00 → 翌日扱い ✅
+  //   例: 00:39 予約 → pickupEnd 03:00 → 同日扱い (旧ロジックは深夜=翌日にして
+  //       3:00 を過ぎても期限切れにならないバグだった)
+  if (end.getTime() <= base.getTime()) {
     end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
   }
   return now > end;
