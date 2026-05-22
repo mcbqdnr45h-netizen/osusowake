@@ -84,6 +84,12 @@ async function sendApnsPushToUser(userId: string, payload: PushPayload): Promise
   notification.topic      = APNS_BUNDLE_ID;
   notification.payload    = { url: payload.url ?? '/', ...(payload.data ?? {}) };
   notification.pushType   = 'alert';
+  // ★ apns-collapse-id: 同じ tag の通知は端末で1個に統合される。
+  //   confirm / webhook / verify-session の3経路から同一 tag で push しても
+  //   通知センターに重複表示されない。設定しないと別通知として並んでしまう。
+  if (payload.tag) {
+    notification.collapseId = payload.tag.slice(0, 64);
+  }
 
   const tokens = regs.map((r) => r.deviceToken);
 
