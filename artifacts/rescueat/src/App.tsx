@@ -540,27 +540,30 @@ function SplashHider() {
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── 起動時スプラッシュを隠す ─────────────────────────────────────────────
-  //   認証確定 → 即 hide だと React の初回ペイントより先にスプラッシュが消えて
-  //   一瞬白画面が見える。 requestAnimationFrame を 2回ネストして
-  //   "次フレームの描画が終わった後" にスプラッシュを消す + 50ms の余裕を取る。
+  //   認証確定を待つと API が遅い時 (Fly machine cold-start 等) に
+  //   スプラッシュが何秒も出っぱなしになる。
+  //   → React がマウントされた瞬間 (= この effect が走る) に即 hide する。
+  //      認証中は通常の useAuth().isLoading に基づくローディング UI が
+  //      WebView 内で表示されるので、白画面にはならない。
+  //   さらに念のため最大 1500ms のハード上限を設ける。
   useEffect(() => {
-    if (isLoading) return;
     let cancelled = false;
     const hide = () => {
       if (cancelled) return;
       import('@capacitor/splash-screen').then(({ SplashScreen }) => {
-        SplashScreen.hide({ fadeOutDuration: 250 }).catch(() => {});
+        SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => {});
       }).catch(() => {});
     };
-    // 2 段 rAF: 1段目で layout 確定 → 2段目で paint 完了直後に到達
+    // 1段目: React マウント直後 → 次フレームの paint 完了で即 hide
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        // さらに 50ms 待って WebView の合成完了を確実に待つ
-        setTimeout(hide, 50);
+        setTimeout(hide, 30);
       });
     });
-    return () => { cancelled = true; };
-  }, [isLoading]);
+    // 2段目: 何か詰まった場合の保険 (最大 1.5 秒)
+    const hardCap = setTimeout(hide, 1500);
+    return () => { cancelled = true; clearTimeout(hardCap); };
+  }, []);
 
   // ── バックグラウンド復帰ホワイト画面対策 ──────────────────────────────────
   // iOS が長時間バックグラウンド後に WebView コンテンツを破棄すると、
