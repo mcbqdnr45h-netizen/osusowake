@@ -12,10 +12,37 @@ import { authedFetch } from '@/lib/authed-fetch';
 const BASE = (((import.meta as any).env?.VITE_API_BASE as string) || '') ||
              (import.meta.env.BASE_URL?.replace(/\/$/, '') || '');
 
+// ★ アプリ起動直後(ログイン前)に1回だけ通知許可ダイアログを出す。
+//   permission 取得は userId 不要なので、SignIn 画面より前のタイミングで OK。
+//   グローバルフラグで二重実行を防ぐ。
+let permissionRequested = false;
+
 export function usePushNotifications() {
   const { session } = useAuth();
   const registered = useRef(false);
 
+  // ── Phase 1: ログイン前に通知許可ダイアログを出す(初回起動時のみ)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (permissionRequested) return;
+    permissionRequested = true;
+
+    (async () => {
+      try {
+        const current = await PushNotifications.checkPermissions();
+        console.log('[push] 起動時 permission state:', current.receive);
+        if (current.receive === 'prompt' || current.receive === 'prompt-with-rationale') {
+          console.log('[push] ログイン前 requestPermissions 開始');
+          const result = await PushNotifications.requestPermissions();
+          console.log('[push] ログイン前 permission result:', result.receive);
+        }
+      } catch (err) {
+        console.warn('[push] pre-login permission request failed:', err);
+      }
+    })();
+  }, []);
+
+  // ── Phase 2: ログイン後にデバイストークンをサーバに登録
   useEffect(() => {
     console.log('[push] hook fired native=', Capacitor.isNativePlatform(), 'hasSession=', !!session?.access_token);
     if (!Capacitor.isNativePlatform()) return;
@@ -26,12 +53,15 @@ export function usePushNotifications() {
 
     (async () => {
       try {
-        console.log('[push] requestPermissions 開始');
-        const permResult = await PushNotifications.requestPermissions();
-        console.log('[push] permission result:', permResult.receive);
-        if (permResult.receive !== 'granted') {
-          console.warn('[push] permission not granted:', permResult.receive, '— iOS設定 > 通知 > おすそわけ を確認');
-          return;
+        // 既に Phase 1 で許可済みのはずだが、未許可なら再度トライ
+        const perm = await PushNotifications.checkPermissions();
+        if (perm.receive !== 'granted') {
+          console.log('[push] post-login: 未許可なので requestPermissions');
+          const r = await PushNotifications.requestPermissions();
+          if (r.receive !== 'granted') {
+            console.warn('[push] permission not granted:', r.receive, '— iOS設定 > 通知 > おすそわけ を確認');
+            return;
+          }
         }
 
         // ★ race condition 修正: register() より先に listener を登録する。
