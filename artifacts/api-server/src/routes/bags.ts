@@ -418,7 +418,7 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
         await sendPushToUsers(fanRows.map(f => f.userId), {
           title: notifTitle,
           body:  notifBodyClean,
-          tag:   `new-bag-${storeId}`,
+          tag:   bag?.id ? `new-bag-${bag.id}` : `new-bag-${storeId}-${Date.now()}`,
           url:   bag?.id ? `/bags/${bag.id}` : `/stores/${storeId}`,
         });
         console.log(`[bags] notified ${fanRows.length} favorite users for store ${storeId}`);
