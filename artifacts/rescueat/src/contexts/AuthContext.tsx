@@ -306,10 +306,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     );
 
+    // ★ Capacitor iOS: アプリをバックグラウンドにすると JS が停止し、
+    //   Supabase の autoRefreshToken も止まる。再開時にアクセストークン
+    //   が失効していると refresh 失敗 → SIGNED_OUT → 「開き直したら
+    //   ログアウトされていた」 バグになる。
+    //   App resume 時に明示的に refreshSession() を呼んで防止する。
+    let appResumeCleanup: (() => void) | null = null;
+    (async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (!Capacitor.isNativePlatform()) return;
+        const { App } = await import('@capacitor/app');
+        const handle = await App.addListener('appStateChange', async ({ isActive }) => {
+          if (!isActive || cancelled) return;
+          try {
+            const { data, error } = await supabase.auth.refreshSession();
+            if (error) {
+              console.warn('[AuthContext] resume refreshSession error:', error.message);
+              return;
+            }
+            // セッションが取れたら user/profile を更新 (再描画でログアウト状態を解消)
+            if (data?.session?.user) {
+              setSession(data.session);
+              setUser(data.session.user);
+              if (!fetchingRef.current) fetchProfile(data.session.user.id);
+            }
+          } catch (err) {
+            console.warn('[AuthContext] resume refresh failed:', err);
+          }
+        });
+        appResumeCleanup = () => { handle.remove().catch(() => {}); };
+      } catch (err) {
+        // Capacitor 未インストール環境 (Web dev など) は無視
+      }
+    })();
+
     return () => {
       cancelled = true;
       clearTimeout(absoluteTimeout);
       subscription.unsubscribe();
+      if (appResumeCleanup) appResumeCleanup();
     };
   }, []);
 
