@@ -316,9 +316,15 @@ export function GuestRoute({
 
     // profile が確定してからロールで振り分け
     if (profile) {
-      // オーナー・一般とも /mypage へ (発見ページに飛ばさない)
-      logNav('GuestRoute(logged-in)', '/mypage', { role: profile.role });
-      navigate('/mypage', { replace: true });
+      // ★ store_owner は /store/dashboard へ直行。/mypage 経由だと一瞬
+      //   顧客向け MyPage が描画されて「ユーザー画面がチラつく」 バグになる。
+      if (profile.role === 'store_owner') {
+        logNav('GuestRoute(logged-in store_owner)', '/store/dashboard', { role: profile.role });
+        navigate('/store/dashboard', { replace: true });
+      } else {
+        logNav('GuestRoute(logged-in customer)', '/mypage', { role: profile.role });
+        navigate('/mypage', { replace: true });
+      }
     }
   }, [isLoading, user, profile, navigate]);
 
