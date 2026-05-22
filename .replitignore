@@ -1,5 +1,45 @@
-# The format of this file is identical to `.dockerignore`.
-# It is used to reduce the size of deployed images to make the process of publishing faster.
+# Format identical to .dockerignore. Reduces deploy image size.
 
-# No need to store the pnpm store twice.
+# Large local-only data
 .local
+.git
+.github
+attached_assets
+downloads
+screenshots
+
+# Build caches (not needed at runtime)
+**/.next
+**/.turbo
+**/.cache
+**/.vite
+**/.expo
+**/coverage
+**/*.tsbuildinfo
+
+# IDE / OS
+**/.vscode
+**/.idea
+**/.DS_Store
+**/*.log
+
+# Native mobile sources (not used by web deploy)
+artifacts/rescueat/ios
+artifacts/rescueat/android
+artifacts/rescueat/store-assets
+artifacts/rescueat/dist-cap
+
+# Artifacts NOT in [[artifacts]] of .replit
+# (api-server and mockup-sandbox stay; everything else is excluded)
+artifacts/rescueat
+artifacts/meishi
+artifacts/gov-deck
+artifacts/sales-deck
+artifacts/store-manual
+
+# Misc heavy files
+*.mov
+*.mp4
+*.pdf
+meishi.html
+threat_model.md
