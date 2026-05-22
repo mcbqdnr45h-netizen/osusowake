@@ -311,33 +311,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     //   が失効していると refresh 失敗 → SIGNED_OUT → 「開き直したら
     //   ログアウトされていた」 バグになる。
     //   App resume 時に明示的に refreshSession() を呼んで防止する。
-    let appResumeCleanup: (() => void) | null = null;
-    (async () => {
+    // ★ アンマウントが listener 登録より先に走るレースに対応するため、
+    //   cleanup 完了状態を Promise で保持して必ず remove() を待つ。
+    const appResumeReady = (async () => {
       try {
         const { Capacitor } = await import('@capacitor/core');
-        if (!Capacitor.isNativePlatform()) return;
+        if (!Capacitor.isNativePlatform()) return null;
         const { App } = await import('@capacitor/app');
         const handle = await App.addListener('appStateChange', async ({ isActive }) => {
           if (!isActive || cancelled) return;
+          // ★ refreshSession 自体が TOKEN_REFRESHED を発火 → onAuthStateChange
+          //   経由で fetchProfile が走るので、ここでは fetchProfile を呼ばない
+          //   (二重 fetch によるチラつき防止)。session/user の更新は listener 側に委譲。
           try {
-            const { data, error } = await supabase.auth.refreshSession();
-            if (error) {
-              console.warn('[AuthContext] resume refreshSession error:', error.message);
-              return;
-            }
-            // セッションが取れたら user/profile を更新 (再描画でログアウト状態を解消)
-            if (data?.session?.user) {
-              setSession(data.session);
-              setUser(data.session.user);
-              if (!fetchingRef.current) fetchProfile(data.session.user.id);
-            }
+            const { error } = await supabase.auth.refreshSession();
+            if (error) console.warn('[AuthContext] resume refreshSession error:', error.message);
           } catch (err) {
             console.warn('[AuthContext] resume refresh failed:', err);
           }
         });
-        appResumeCleanup = () => { handle.remove().catch(() => {}); };
-      } catch (err) {
-        // Capacitor 未インストール環境 (Web dev など) は無視
+        // ★ 登録より先に cancelled になっていたら即 remove
+        if (cancelled) { handle.remove().catch(() => {}); return null; }
+        return handle;
+      } catch {
+        return null; // Capacitor 未インストール (Web dev) は無視
       }
     })();
 
@@ -345,7 +342,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearTimeout(absoluteTimeout);
       subscription.unsubscribe();
-      if (appResumeCleanup) appResumeCleanup();
+      // ★ 登録待ち完了後に必ず remove() (登録前 unmount でもリーク防止)
+      appResumeReady.then(h => h?.remove().catch(() => {})).catch(() => {});
     };
   }, []);
 
