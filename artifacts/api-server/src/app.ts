@@ -1,6 +1,8 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import path from "node:path";
+import fs from "node:fs";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import router from "./routes";
 
@@ -125,5 +127,36 @@ app.use((req, res, next) => {
 });
 
 app.use("/api", router);
+
+// ── SPA 静的配信 (Fly.io 単一オリジン用) ──────────────────────────────────────
+// Dockerfile が rescueat の dist/public を /app/public にコピーし STATIC_DIR を渡す。
+// STATIC_DIR が無い場合 (Replit ローカル開発など) はスキップ。
+const STATIC_DIR = process.env.STATIC_DIR;
+if (STATIC_DIR && fs.existsSync(STATIC_DIR)) {
+  const indexPath = path.join(STATIC_DIR, "index.html");
+  // 1) /assets/*, /favicon.ico などのハッシュ付きアセットは長期キャッシュ
+  app.use(
+    express.static(STATIC_DIR, {
+      index: false,
+      maxAge: "1y",
+      etag: true,
+      setHeaders: (res, filePath) => {
+        // index.html だけは常に最新を取らせる (SPA エントリ)
+        if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache, must-revalidate");
+        }
+      },
+    })
+  );
+  // 2) SPA フォールバック: /api/* 以外の GET は全部 index.html を返す
+  app.get(/^\/(?!api\/).*/, (_req, res, next) => {
+    res.sendFile(indexPath, (err) => {
+      if (err) next(err);
+    });
+  });
+  console.log(`[static] SPA serving enabled from ${STATIC_DIR}`);
+} else if (STATIC_DIR) {
+  console.warn(`[static] STATIC_DIR=${STATIC_DIR} but directory does not exist`);
+}
 
 export default app;
