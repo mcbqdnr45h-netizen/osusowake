@@ -1851,6 +1851,22 @@ export default function StoreDashboard() {
             stripeStatus !== undefined &&
             stripeStatus !== null &&
             (!stripeStatus.chargesEnabled || !stripeStatus.payoutsEnabled);
+          // ★ Stripe が「まだ有効化されていない」理由を区別する:
+          //   - needsAction: 追加提出/エラー/拒否 など → 再提出を促す(rose)
+          //   - underReview: 提出済みで Stripe が確認中 → 待つだけ(再入力不要)。
+          //     新規登録直後は正常に charges/payouts=false なので、これを「再提出が必要」と
+          //     誤表示していた(審査中なのに「もう一度入力してください」が出るバグ)。
+          const req = stripeStatus?.requirements;
+          const needsAction = !!req && (
+            (req.currentlyDue?.length ?? 0) > 0 ||
+            (req.errors?.length ?? 0) > 0 ||
+            (req.disabledReason != null && (
+              req.disabledReason.startsWith('rejected') ||
+              req.disabledReason === 'requirements.past_due' ||
+              req.disabledReason === 'listed'
+            ))
+          );
+          const underReview = stripeApiBlocked && !needsAction;
           const stripeBlocked = noStripeAccount || notApproved || stripeApiBlocked;
 
           // 警告メッセージ — どの理由でブロックされているかを優先順位付きで判定
@@ -1858,21 +1874,26 @@ export default function StoreDashboard() {
             ? '振込先口座の登録が必要です'
             : notApproved
               ? '審査中のため出品できません'
-              : !stripeStatus?.chargesEnabled
-                ? '決済が停止中のため出品できません'
-                : '入金が一時停止中のため出品できません';
+              : underReview
+                ? 'Stripeが確認中です'
+                : !stripeStatus?.chargesEnabled
+                  ? '本人確認の追加対応が必要です'
+                  : '入金に追加対応が必要です';
           const blockDetail = noStripeAccount
             ? '売上を受け取るための口座が未登録です。「振込先口座を登録する」から登録してください。'
             : notApproved
               ? 'Stripeの審査が完了していません。本人確認書類の提出と審査完了をお待ちください。'
-              : !stripeStatus?.chargesEnabled
-                ? 'Stripeの決済が制限されています。本人確認書類を提出して審査を完了させてください。'
-                : 'Stripeより本人確認書類の提出が必要です。このまま放置すると決済も停止されます。';
+              : underReview
+                ? '提出いただいた情報をStripeが確認しています。承認され次第、出品できるようになります。追加の入力は不要です。'
+                : !stripeStatus?.chargesEnabled
+                  ? 'Stripeから本人確認の追加提出を求められています。下のボタンから対応してください。'
+                  : 'Stripeから入金に関する追加対応を求められています。下のボタンから対応してください。';
 
           return (
             <div className="space-y-3">
-              {stripeApiBlocked ? (
-                // Stripe側の本人確認失効など → 強制的に再提出を促す目立つブロック
+              {needsAction ? (
+                // Stripe側の本人確認失効/追加提出など → 強制的に再提出を促す目立つブロック
+                // (審査中=underReview ではここに入らず、下の優しい amber 案内になる)
                 <div className="bg-rose-50 border-2 border-rose-400 rounded-2xl p-4 shadow-md">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center text-xl shrink-0">⚠</div>
