@@ -96,6 +96,52 @@ function translateRequirement(key: string): string {
   return map[key] ?? key;
 }
 
+// ── Stripe requirements.errors[].code → 日本語の理由・対処 ──────────
+//   未知コードは Stripe の元メッセージ(英語)にフォールバックするので後退しない。
+function translateStripeError(code: string | null | undefined, fallback?: string): string {
+  const map: Record<string, string> = {
+    // 書類の品質・読み取り
+    verification_document_corrupt: '書類の画像が壊れています。別の写真で撮り直してアップロードしてください。',
+    verification_document_not_readable: '書類が読み取れませんでした。明るい場所で文字がはっきり写るよう撮り直してください。',
+    verification_document_failed_greyscale: '白黒画像は使用できません。カラーで撮影し直してください。',
+    verification_document_too_large: '画像サイズが大きすぎます。撮影し直して再アップロードしてください。',
+    verification_document_failed_copy: 'コピー（複写）は使用できません。原本を撮影してください。',
+    verification_document_manipulated: '加工された画像は使用できません。未加工の原本を撮影してください。',
+    verification_document_incomplete: '書類の一部しか写っていません。全体が入るよう撮り直してください。',
+    verification_document_not_signed: '署名が確認できません。署名欄が写るよう撮り直してください。',
+    verification_document_issue_or_expiry_date_missing: '発行日・有効期限が読み取れません。日付が写るよう撮り直してください。',
+    // 書類の種類・有効性
+    verification_document_expired: '書類の有効期限が切れています。有効期限内の書類をアップロードしてください。',
+    verification_document_type_not_supported: 'この書類は使用できません。運転免許証・マイナンバーカード・パスポート等をご利用ください。',
+    verification_document_country_not_supported: 'この発行国の書類は使用できません。日本発行の本人確認書類をご利用ください。',
+    verification_document_invalid: '書類が無効です。有効な本人確認書類を再アップロードしてください。',
+    // 表 / 裏 / 未提出
+    verification_document_missing_front: '書類の表面が提出されていません。表面をアップロードしてください。',
+    verification_document_missing_back: '書類の裏面が提出されていません。裏面をアップロードしてください。',
+    verification_document_not_uploaded: '書類がアップロードされていません。本人確認書類をアップロードしてください。',
+    // 一致しない系
+    verification_document_name_mismatch: '書類の氏名が入力内容と一致しません。氏名を確認して修正してください。',
+    verification_document_name_missing: '書類から氏名が読み取れません。氏名がはっきり写るよう撮り直してください。',
+    verification_document_id_number_mismatch: '書類の番号が入力内容と一致しません。確認してください。',
+    verification_document_photo_mismatch: '書類の顔写真が一致しませんでした。本人の有効な書類を再アップロードしてください。',
+    verification_failed_name_match: '氏名が一致しませんでした。入力した氏名と書類が同じか確認してください。',
+    verification_failed_address_match: '住所が一致しませんでした。入力した住所と書類が同じか確認してください。',
+    verification_failed_document_match: '入力内容と書類が一致しませんでした。内容を確認して再提出してください。',
+    verification_failed_keyed_identity: '入力された本人情報が確認できませんでした。氏名・生年月日・住所を確認してください。',
+    verification_failed_other: '本人確認が完了できませんでした。書類を撮り直して再提出してください。',
+    // 不正判定
+    verification_document_fraudulent: 'この書類は受け付けられませんでした。有効な本人確認書類を提出してください。',
+    // 入力値
+    invalid_address_city_state_postal_code: '住所（都道府県・市区町村・郵便番号）が正しくありません。確認して修正してください。',
+    invalid_street_address: '番地・建物名が正しくありません。確認して修正してください。',
+    invalid_dob_age_under_18: '18歳未満は登録できません。',
+    invalid_tos_acceptance: '利用規約への同意が確認できませんでした。もう一度同意して送信してください。',
+    invalid_value_other: '入力内容に誤りがあります。該当項目を確認して修正してください。',
+  };
+  if (code && map[code]) return map[code];
+  return fallback || '確認できませんでした。書類を撮り直して再提出してください。';
+}
+
 // ── Stripe param（ブラケット記法）→ フォームフィールド名 ──────────
 function stripeParamToField(param: string | null | undefined): string | null {
   if (!param) return null;
@@ -686,7 +732,7 @@ export default function StripeKYCPage() {
               </h3>
               {result.requirements.errors.map((err, i) => (
                 <p key={i} className="text-sm text-red-600">
-                  <span className="font-bold">{translateRequirement(err.requirement)}</span>：{err.reason}
+                  <span className="font-bold">{translateRequirement(err.requirement)}</span>：{translateStripeError(err.code, err.reason)}
                 </p>
               ))}
             </div>
