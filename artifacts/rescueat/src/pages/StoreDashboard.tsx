@@ -1411,17 +1411,17 @@ export default function StoreDashboard() {
 
   const updateStatus = useUpdateReservationStatus();
 
-  // 今日の未受取予約
+  // 今日の未受取予約（★決済完了済みのみ表示。未払い=決済待ちは一覧に出さない）
   const todayPending = (reservations as Reservation[]).filter(
-    r => isTodaysReservation(r) && (r.status === 'pending' || r.status === 'confirmed')
+    r => isTodaysReservation(r) && r.paymentStatus === 'paid' && r.status !== 'picked_up' && r.status !== 'cancelled'
   );
   const todayPickedUp = (reservations as Reservation[]).filter(
     r => isTodaysReservation(r) && r.status === 'picked_up'
   );
-  // 過去日付の未処理予約（pending/confirmed のまま放置されているもの）
+  // 過去日付の未処理予約（決済完了済みで受取がまだのもの）
   // 日付フィルタに関わらず受取済みにできるようにし、売上が曖昧にならないようにする
   const oldUnprocessed = (reservations as Reservation[])
-    .filter(r => !isTodaysReservation(r) && (r.status === 'pending' || r.status === 'confirmed'))
+    .filter(r => !isTodaysReservation(r) && r.paymentStatus === 'paid' && r.status !== 'picked_up' && r.status !== 'cancelled')
     .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
 
   // 受取コードで絞り込み（数字のみ抽出して部分一致）
