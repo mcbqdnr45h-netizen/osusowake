@@ -35,6 +35,7 @@ interface Reservation {
   id: number;
   userId: string;
   status: ReservationStatus;
+  paymentStatus?: 'unpaid' | 'paid' | 'refunded';
   pickupCode: string | null;
   quantity: number;
   totalPrice: number;
@@ -1275,19 +1276,28 @@ function ReservationCard({
         <p className="text-[10px] text-muted-foreground/60 mt-1.5">顧客ID: #{customerShort}</p>
       </div>
 
-      {/* 受取済みボタン */}
+      {/* 受取済みボタン（決済完了時のみ活性。未決済の予約は受取不可＝未払いでの売上計上を防ぐ） */}
       {(res.status === 'pending' || res.status === 'confirmed') && (
         <div className="px-4 pb-4">
-          <button
-            onClick={() => onPickedUp(res.id)}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 font-black text-sm hover:bg-green-100 active:scale-[0.98] transition-all disabled:opacity-60"
-          >
-            {loading
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <><CheckCircle2 className="w-4 h-4" />受取済みにする</>
-            }
-          </button>
+          {res.paymentStatus === 'paid' ? (
+            <button
+              onClick={() => onPickedUp(res.id)}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 font-black text-sm hover:bg-green-100 active:scale-[0.98] transition-all disabled:opacity-60"
+            >
+              {loading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <><CheckCircle2 className="w-4 h-4" />受取済みにする</>
+              }
+            </button>
+          ) : (
+            <div
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 font-bold text-sm cursor-not-allowed"
+              title="お客様の決済が完了すると受取操作ができます"
+            >
+              <Clock className="w-4 h-4" />お客様の決済待ち
+            </div>
+          )}
         </div>
       )}
     </div>

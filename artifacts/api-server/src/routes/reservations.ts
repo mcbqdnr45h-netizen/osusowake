@@ -621,6 +621,21 @@ router.put("/reservations/:reservationId", requireAuth, async (req, res) => {
       return;
     }
 
+    // ★ 未決済の予約を picked_up にする経路もブロック（POST /pickup と同一ガード）
+    if (body.status === "picked_up") {
+      const [row] = await db
+        .select({ paymentStatus: reservationsTable.paymentStatus })
+        .from(reservationsTable)
+        .where(eq(reservationsTable.id, reservationId));
+      if (row && row.paymentStatus !== "paid") {
+        res.status(402).json({
+          error: "not_paid",
+          message: "未決済の予約は受取済みにできません。お客様の決済完了後に操作してください。",
+        });
+        return;
+      }
+    }
+
     await db
       .update(reservationsTable)
       .set({ status: body.status })
@@ -673,6 +688,17 @@ router.post("/reservations/:reservationId/pickup", requireAuth, async (req, res)
 
     if (existing.status === "cancelled") {
       res.status(400).json({ error: "cancelled", message: "キャンセル済みの予約です" });
+      return;
+    }
+
+    // ★ 未決済の予約は受取済みにできない（未決済での受取＝売上未計上を防ぐ）。
+    //   正規の決済（Stripe / dev mock / 審査バイパス）はいずれも confirm 時に
+    //   paymentStatus='paid' になる。'unpaid'/'refunded' はここで弾く。
+    if (existing.paymentStatus !== "paid") {
+      res.status(402).json({
+        error: "not_paid",
+        message: "未決済の予約は受取済みにできません。お客様の決済完了後に操作してください。",
+      });
       return;
     }
 
