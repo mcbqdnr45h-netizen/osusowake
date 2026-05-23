@@ -134,6 +134,20 @@ app.use("/api", router);
 const STATIC_DIR = process.env.STATIC_DIR;
 if (STATIC_DIR && fs.existsSync(STATIC_DIR)) {
   const indexPath = path.join(STATIC_DIR, "index.html");
+
+  // ── SPA 応答からは helmet の COOP / X-Frame-Options / CORP を外す ──────────────
+  // Replit の静的配信は SPA にこれらを付けていなかった (= 本番互換)。特に
+  // Cross-Origin-Opener-Policy: same-origin は Stripe.js の controller iframe /
+  // 3DS の window 連携を阻害しうるため、SPA 文書では付与しない。
+  // ※ /api/* は上の app.use("/api", router) で既に応答済みなのでここには来ない
+  //   (= API レスポンスの helmet ヘッダ、特に Capacitor 用 CORP cross-origin は温存)。
+  app.use((_req, res, next) => {
+    res.removeHeader("Cross-Origin-Opener-Policy");
+    res.removeHeader("X-Frame-Options");
+    res.removeHeader("Cross-Origin-Resource-Policy");
+    next();
+  });
+
   // 1) /assets/*, /favicon.ico などのハッシュ付きアセットは長期キャッシュ
   app.use(
     express.static(STATIC_DIR, {
