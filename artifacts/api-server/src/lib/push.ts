@@ -157,6 +157,69 @@ async function sendApnsPushToUser(userId: string, payload: PushPayload): Promise
   }
 }
 
+/**
+ * APNs のアプリアイコンのバッジ数だけを更新するサイレント(背景)プッシュ。
+ * 通知の既読時に badge=0 を送って「アイコンの 1 が消えない」問題を解消する用途。
+ * アラート/音は出さない (content-available の background push)。
+ * ※ 背景プッシュは iOS により遅延/間引きされ得るベストエフォート。
+ *   端末ローカルでの確実なクリアは AppDelegate の applicationDidBecomeActive で別途実施。
+ */
+export async function setApnsBadgeForUser(userId: string, badge: number): Promise<void> {
+  const uShort = userId.slice(0, 8);
+  if (!apnsProvider) return;
+
+  const allRegs = await db
+    .select()
+    .from(apnsRegistrationsTable)
+    .where(eq(apnsRegistrationsTable.userId, userId));
+  const regs = allRegs
+    .slice()
+    .sort((a, b) => {
+      const ta = a.updatedAt ? new Date(a.updatedAt as any).getTime() : 0;
+      const tb = b.updatedAt ? new Date(b.updatedAt as any).getTime() : 0;
+      return tb - ta;
+    })
+    .slice(0, 1);
+  if (regs.length === 0) return;
+
+  const n = new apn.Notification();
+  n.expiry           = Math.floor(Date.now() / 1000) + 3600;
+  n.badge            = Math.max(0, Math.trunc(badge) || 0);
+  n.topic            = APNS_BUNDLE_ID;
+  n.contentAvailable = true;        // サイレント(背景)更新。alert/sound は付けない
+  n.pushType         = 'background';
+  n.priority         = 5;           // background push は priority 5 必須
+
+  const tokens = regs.map((r) => r.deviceToken);
+
+  async function trySend(provider: apn.Provider, label: 'prod' | 'sandbox', toks: string[]) {
+    try {
+      const r = await provider.send(n, toks);
+      console.log(`[push] badge[${label}] user=${uShort} badge=${n.badge} sent=${r.sent.length} failed=${r.failed.length}`);
+      return r;
+    } catch (err: any) {
+      console.error(`[push] badge[${label}] 例外 user=${uShort}:`, err?.message ?? err);
+      return null;
+    }
+  }
+
+  const prod = await trySend(apnsProvider, 'prod', tokens);
+  if (!prod) return;
+
+  const envMismatch: string[] = [];
+  for (const fail of prod.failed) {
+    const reason = (fail.response as any)?.reason;
+    if (reason === 'BadEnvironmentKeyInToken' || reason === 'BadDeviceToken') {
+      envMismatch.push(fail.device);
+    } else if (reason === 'Unregistered') {
+      await db.delete(apnsRegistrationsTable).where(eq(apnsRegistrationsTable.deviceToken, fail.device)).catch(() => {});
+    }
+  }
+  if (envMismatch.length > 0 && apnsProviderSandbox) {
+    await trySend(apnsProviderSandbox, 'sandbox', envMismatch);
+  }
+}
+
 export async function sendWebPushToUser(userId: string, payload: PushPayload): Promise<void> {
   if (!vapidPublicKey || !vapidPrivateKey) return;
 

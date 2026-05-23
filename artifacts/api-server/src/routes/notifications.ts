@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db/schema";
 import { eq, and, desc, isNull, or } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
+import { setApnsBadgeForUser } from "../lib/push.js";
 
 const router: IRouter = Router();
 
@@ -72,6 +73,13 @@ router.patch("/notifications/:id/read", async (req, res) => {
       .set({ read: true })
       .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, userId)));
 
+    // ★ 既読化に合わせて iOS アプリアイコンのバッジを実未読数へ同期(サイレントpush)
+    const remaining = await db
+      .select({ id: notificationsTable.id })
+      .from(notificationsTable)
+      .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.read, false)));
+    setApnsBadgeForUser(userId, remaining.length).catch(() => {});
+
     res.json({ ok: true });
   } catch (err: any) {
     console.error("[notifications] PATCH read error:", err);
@@ -91,6 +99,9 @@ router.patch("/notifications/read-all", async (req, res) => {
       .update(notificationsTable)
       .set({ read: true })
       .where(eq(notificationsTable.userId, userId));
+
+    // ★ 全既読 → iOS アプリアイコンのバッジを 0 にクリア(サイレントpush)
+    setApnsBadgeForUser(userId, 0).catch(() => {});
 
     res.json({ ok: true });
   } catch (err: any) {
