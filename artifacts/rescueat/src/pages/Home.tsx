@@ -624,7 +624,12 @@ export default function Home() {
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label || 'おすすめ順';
 
-  if (authLoading) return null;
+  // ★ 認証確定まで発見をブロックするのは「店舗オーナーがホームを一瞬見る」バグ防止
+  //   (commit 1095140)。ただし profile は localStorage キャッシュから同期初期化されるため、
+  //   キャッシュ上で確実に customer と分かっているユーザーだけは認証完了を待たず即表示する
+  //   (= 大半のユーザーが発見へ最速で到達)。store_owner / 未ログイン / role 不明は従来どおり
+  //   ブロックするので、店舗オーナーのフラッシュは再発しない。
+  if (authLoading && profile?.role !== 'customer') return null;
 
   const areaTitle = geoLoading
     ? '現在地を確認中...'
