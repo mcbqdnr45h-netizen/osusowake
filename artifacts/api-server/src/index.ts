@@ -733,7 +733,7 @@ runMigrations().then(() => {
     sendPickupReminders().catch(() => {});
   }, 5 * 60_000);
 
-  // 毎日のエンゲージメント通知（朝9時・夕方17時 JST）を1分ごとにチェック
+  // 毎日のエンゲージメント通知（昼前11:30・夕方17:30 JST）を1分ごとにチェック
   setInterval(() => {
     runDailyEngagementNotifications().catch(() => {});
   }, 60_000);

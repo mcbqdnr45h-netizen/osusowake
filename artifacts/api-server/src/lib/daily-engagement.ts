@@ -10,7 +10,8 @@ import { sendPushToUsers } from './push.js';
 import { supabaseAdmin } from './supabase.js';
 
 /**
- * 毎日2回（朝9時・夕方17時 JST）全登録ユーザーにエンゲージメント通知を送る。
+ * 毎日2回（昼前 11:30・夕方 17:30 JST）全登録ユーザーにエンゲージメント通知を送る。
+ *   ※ 食事を決める直前(ランチ/ディナー前)に当てて反応率を上げる狙い。
  * - 出品中バッグが1件以上ある場合のみ送信（空振り通知防止）
  * - 重複防止: セッション内の lastSentSlot で管理（サーバー再起動時はリセット）
  */
@@ -21,14 +22,14 @@ const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 // 送信スロット定義
 const SLOTS: { hour: number; minute: number; key: string; makeMessage: (count: number) => { title: string; body: string } }[] = [
   {
-    hour: 9, minute: 0, key: 'morning',
+    hour: 11, minute: 30, key: 'morning',
     makeMessage: (count) => ({
-      title: '🍱 今日のおすそわけが届いています',
+      title: '🍱 今日のランチ、おすそわけがお得です',
       body:  `${count}件のバッグが出品中。今日のランチや夕食をお得に！`,
     }),
   },
   {
-    hour: 17, minute: 0, key: 'evening',
+    hour: 17, minute: 30, key: 'evening',
     makeMessage: (count) => ({
       title: '🌙 夕方のおすそわけ、まだ間に合います',
       body:  `${count}件のバッグが残っています。今夜の食事はおすそわけで決めよう！`,
