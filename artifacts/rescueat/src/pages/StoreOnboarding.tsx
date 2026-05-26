@@ -238,7 +238,6 @@ export default function StoreOnboarding() {
     if (!form.name.trim())                      updated.push('店名が未入力です。');
     if (!form.address.trim())                   updated.push('住所が未入力です。');
     if (!form.city.trim())                      updated.push('市区町村が未入力です。');
-    if (!form.phone.trim())                     updated.push('店舗電話番号が未入力です。');
     if (!form.category)                         updated.push('ジャンルが未選択です。');
     if (!pledgeSigned)                          updated.push('利用規約への同意が未完了です。');
     if (isInherited && !bizLicensePreview)      updated.push('この店舗の営業許可証画像が未提出です。');
@@ -370,7 +369,6 @@ export default function StoreOnboarding() {
     if (!form.name.trim())                      warnings.push('店名が未入力です。');
     if (!form.address.trim())                   warnings.push('住所が未入力です。');
     if (!form.city.trim())                      warnings.push('市区町村が未入力です。');
-    if (!form.phone.trim())                     warnings.push('店舗電話番号が未入力です。');
     if (!form.category)                         warnings.push('ジャンルが未選択です。');
     if (!pledgeSigned)                          warnings.push('利用規約への同意が未完了です。');
     // ★ 住所の構造チェック (適当入力ブロック) — server 側 /stores/apply と完全に同じルール
@@ -867,13 +865,12 @@ export default function StoreOnboarding() {
             />
           </div>
 
-          {/* 店舗電話番号 */}
+          {/* 店舗電話番号 (任意) */}
           <div>
             <label className="block text-sm font-bold text-muted-foreground mb-1.5">
-              店舗電話番号 <span className="text-destructive">*</span>
+              店舗電話番号 <span className="text-muted-foreground/60 font-normal">（任意）</span>
             </label>
             <input
-              required
               type="tel"
               value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
@@ -882,7 +879,7 @@ export default function StoreOnboarding() {
               inputMode="tel"
             />
             <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              この店舗専用の電話番号です。決済審査・トラブル対応に使用されます。
+              入力されている場合は決済審査・トラブル対応の連絡先として使用します。空欄でも申請できます。
             </p>
           </div>
 
