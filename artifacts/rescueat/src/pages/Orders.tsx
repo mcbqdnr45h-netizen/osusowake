@@ -91,7 +91,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
 
   const issueDateStr = (() => {
     const d = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
-    return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
   })();
 
   // ── 決済方法の正確な表示 (Apple Pay / Google Pay / カード判別) ────────────
@@ -348,9 +348,12 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
             </div>
 
             {/* ── 番号・発行日 ─────────── */}
-            <div className="flex justify-between text-xs text-gray-500 mb-4 font-sans">
-              <span>No. {orderId}</span>
-              <span>発行日: {issueDateStr}</span>
+            <div
+              className="flex justify-between text-xs text-gray-500 mb-4 font-sans tabular-nums"
+              style={{ fontFamily: 'var(--app-font-sans)', fontVariantNumeric: 'lining-nums tabular-nums' }}
+            >
+              <span className="whitespace-nowrap">No. {orderId}</span>
+              <span className="whitespace-nowrap">発行日: {issueDateStr}</span>
             </div>
 
             {/* ── 宛名 ─────────────────── */}
@@ -386,7 +389,10 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
 
             {/* ── 内訳テーブル ─────────── */}
             <div className="mb-5">
-              <table className="w-full text-sm border-collapse font-sans">
+              <table
+                className="w-full text-sm border-collapse font-sans tabular-nums"
+                style={{ fontFamily: 'var(--app-font-sans)', fontVariantNumeric: 'lining-nums tabular-nums' }}
+              >
                 <thead>
                   <tr className="border-b-2 border-gray-800">
                     <th className="text-left py-1.5 text-xs text-gray-600 font-bold">項目</th>
@@ -396,55 +402,58 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                 <tbody>
                   <tr className="border-b border-gray-200">
                     <td className="py-1.5 text-gray-700">小計（税抜）</td>
-                    <td className="py-1.5 text-right text-gray-700">¥{preTax.toLocaleString()}</td>
+                    <td className="py-1.5 text-right text-gray-700 whitespace-nowrap">¥{preTax.toLocaleString()}</td>
                   </tr>
                   <tr className="border-b border-gray-200">
                     <td className="py-1.5 text-gray-600">
-                      消費税（軽減税率 8%）
-                      <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-bold">食品</span>
+                      <span className="whitespace-nowrap">消費税（軽減税率 8%）</span>
+                      <span className="ml-1 inline-block align-middle text-[10px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-bold whitespace-nowrap">食品</span>
                     </td>
-                    <td className="py-1.5 text-right text-gray-600">¥{taxAmount.toLocaleString()}</td>
+                    <td className="py-1.5 text-right text-gray-600 whitespace-nowrap">¥{taxAmount.toLocaleString()}</td>
                   </tr>
                   <tr className="border-b-2 border-gray-800 font-bold">
                     <td className="py-2 text-gray-900">合計（税込）</td>
-                    <td className="py-2 text-right text-gray-900">¥{total.toLocaleString()}</td>
+                    <td className="py-2 text-right text-gray-900 whitespace-nowrap">¥{total.toLocaleString()}</td>
                   </tr>
                 </tbody>
               </table>
-              <p className="text-[10px] text-gray-400 font-sans mt-1.5">
+              <p className="text-[10px] text-gray-400 font-sans mt-1.5" style={{ fontFamily: 'var(--app-font-sans)' }}>
                 ※ 軽減税率（8%）対象：食料品
               </p>
             </div>
 
             {/* ── 商品・注文情報 ────────── */}
-            <div className="bg-gray-50 rounded-lg px-4 py-3 mb-5 font-sans text-xs text-gray-600 space-y-1 border border-gray-200">
-              <div className="flex justify-between">
-                <span>ご注文番号</span>
-                <span className="font-mono font-bold text-gray-800">{orderId}</span>
+            <div
+              className="bg-gray-50 rounded-lg px-4 py-3 mb-5 font-sans text-xs text-gray-600 space-y-1 border border-gray-200 tabular-nums"
+              style={{ fontFamily: 'var(--app-font-sans)', fontVariantNumeric: 'lining-nums tabular-nums' }}
+            >
+              <div className="flex justify-between gap-3">
+                <span className="shrink-0">ご注文番号</span>
+                <span className="font-mono font-bold text-gray-800 whitespace-nowrap">{orderId}</span>
               </div>
-              <div className="flex justify-between">
-                <span>お買上げ店舗</span>
-                <span className="font-bold text-gray-800">{storeName}</span>
+              <div className="flex justify-between gap-3">
+                <span className="shrink-0">お買上げ店舗</span>
+                <span className="font-bold text-gray-800 text-right">{storeName}</span>
               </div>
-              <div className="flex justify-between">
-                <span>商品名</span>
-                <span className="font-bold text-gray-800 text-right max-w-[60%]">{bagTitle}</span>
+              <div className="flex justify-between gap-3">
+                <span className="shrink-0">商品名</span>
+                <span className="font-bold text-gray-800 text-right">{bagTitle}</span>
               </div>
-              <div className="flex justify-between">
-                <span>数量</span>
-                <span className="font-bold text-gray-800">{reservation.quantity}個</span>
+              <div className="flex justify-between gap-3">
+                <span className="shrink-0">数量</span>
+                <span className="font-bold text-gray-800 whitespace-nowrap">{reservation.quantity}個</span>
               </div>
-              <div className="flex justify-between">
-                <span>お支払い方法</span>
-                <span className="font-bold text-gray-800">{paymentMethodLabel}</span>
+              <div className="flex justify-between gap-3">
+                <span className="shrink-0">お支払い方法</span>
+                <span className="font-bold text-gray-800 text-right whitespace-nowrap">{paymentMethodLabel}</span>
               </div>
               {/* インボイス制度: 適格請求書発行事業者登録番号 (T + 13桁) を入力済み店舗のみ表示。
                   発行元欄は廃止 (店舗名は上部「店舗」 行で既に表示済み)。 一般領収書として
                   発行元名称の記載義務はなく、 国税庁 NTA 公表サイト Web-API 連携も不要。 */}
               {(reservation.store as any)?.qualifiedInvoiceNumber && (
-                <div className="flex justify-between">
-                  <span>登録番号</span>
-                  <span className="font-mono tracking-wide font-bold text-gray-800">
+                <div className="flex justify-between gap-3">
+                  <span className="shrink-0">登録番号</span>
+                  <span className="font-mono tracking-wide font-bold text-gray-800 whitespace-nowrap">
                     {(reservation.store as any).qualifiedInvoiceNumber}
                   </span>
                 </div>
