@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Receipt, ShoppingBag, CheckCircle2, XCircle,
   Clock, Store, Printer, Share2, ChevronRight, X,
-  QrCode, Leaf,
+  QrCode, Leaf, FileDown, Loader2,
 } from 'lucide-react';
 
 type ReservationStatus = 'pending' | 'confirmed' | 'picked_up' | 'cancelled' | 'no_show';
@@ -71,6 +71,7 @@ function formatDateShort(dateStr?: string | null) {
 function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () => void }) {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const [savingPdf, setSavingPdf] = useState(false);
   const status    = (reservation.status as ReservationStatus) || 'pending';
   const orderId   = `ORD-${String(reservation.id).padStart(8, '0')}`;
   const total     = Math.round(reservation.totalPrice);
@@ -223,6 +224,48 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
           variant: 'destructive',
         });
       }
+    }
+  }
+
+  // ── 領収書を PDF にして保存／共有（スマホ＝iOS共有シート、PC＝ダウンロード）──
+  //   PDF生成ライブラリは遅延ロード（起動速度に影響させない）。
+  //   Tailwind v4 の oklch 色に対応するため html2canvas-pro を使用。
+  async function handleSavePdf() {
+    const el = document.getElementById('receipt-printable');
+    if (!el || savingPdf) return;
+    setSavingPdf(true);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas-pro'),
+        import('jspdf'),
+      ]);
+      const canvas = await html2canvas(el as HTMLElement, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const margin = 24;
+      const imgW = pageW - margin * 2;
+      const imgH = (canvas.height / canvas.width) * imgW;
+      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
+      const fileName = `osusowake-receipt-${orderId}.pdf`;
+      const file = new File([pdf.output('blob')], fileName, { type: 'application/pdf' });
+      const nav = navigator as any;
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file], title: 'おすそわけ 電子領収書' });
+      } else {
+        pdf.save(fileName);
+      }
+    } catch (e: any) {
+      // 共有キャンセル(AbortError)は無視。それ以外は通知。
+      if (e?.name !== 'AbortError') {
+        toast({ title: 'PDFの作成に失敗しました。もう一度お試しください。', variant: 'destructive' });
+      }
+    } finally {
+      setSavingPdf(false);
     }
   }
 
@@ -416,20 +459,28 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
           </div>
 
           {/* ── アクションボタン（常に表示・印刷時は非表示）── */}
-          <div className="px-6 pb-6 flex gap-3 shrink-0 print:hidden border-t border-gray-100 pt-4 bg-white">
+          <div className="px-6 pb-6 flex gap-2 shrink-0 print:hidden border-t border-gray-100 pt-4 bg-white">
             <button
               onClick={handleShare}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
             >
               <Share2 className="w-4 h-4" />
               シェア
             </button>
             <button
+              onClick={handleSavePdf}
+              disabled={savingPdf}
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors disabled:opacity-60"
+            >
+              {savingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+              PDF保存
+            </button>
+            <button
               onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-900 text-white font-bold text-sm hover:bg-gray-800 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-gray-900 text-white font-bold text-sm hover:bg-gray-800 transition-colors"
             >
               <Printer className="w-4 h-4" />
-              印刷・保存
+              印刷
             </button>
           </div>
         </motion.div>
