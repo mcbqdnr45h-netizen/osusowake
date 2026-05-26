@@ -89,9 +89,14 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
   const storeName     = reservation.store?.name  || '店舗名';
   const bagTitle = normalizeBrand(reservation.bag?.title) || 'おすそわけバッグ';
 
+  // 半角数字 → 全角数字。漢字と em が揃って高さズレを解消する
+  // (Noto Sans JP/Hiragino Sans でも半角数字は ~75-80% em で漢字より低く見えるため)
+  const toZenkakuDigits = (s: string | number) =>
+    String(s).replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0xfee0));
+
   const issueDateStr = (() => {
     const d = reservation.createdAt ? new Date(reservation.createdAt) : new Date();
-    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    return `${toZenkakuDigits(d.getFullYear())}年${toZenkakuDigits(d.getMonth() + 1)}月${toZenkakuDigits(d.getDate())}日`;
   })();
 
   // ── 決済方法の正確な表示 (Apple Pay / Google Pay / カード判別) ────────────
@@ -413,7 +418,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                   </tr>
                   <tr className="border-b border-gray-200">
                     <td className="py-1.5 text-gray-600">
-                      <span className="whitespace-nowrap">消費税（軽減税率 8%）</span>
+                      <span className="whitespace-nowrap">消費税（軽減税率 ８％）</span>
                       <span className="ml-1 inline-block align-middle text-[10px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-bold whitespace-nowrap">食品</span>
                     </td>
                     <td className="py-1.5 text-right text-gray-600 whitespace-nowrap">¥{taxAmount.toLocaleString()}</td>
@@ -425,7 +430,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                 </tbody>
               </table>
               <p className="text-[10px] text-gray-400 mt-1.5">
-                ※ 軽減税率（8%）対象：食料品
+                ※ 軽減税率（８％）対象：食料品
               </p>
             </div>
 
@@ -445,7 +450,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
               </div>
               <div className="flex justify-between gap-3">
                 <span className="shrink-0">数量</span>
-                <span className="font-bold text-gray-800 whitespace-nowrap">{reservation.quantity}個</span>
+                <span className="font-bold text-gray-800 whitespace-nowrap">{toZenkakuDigits(reservation.quantity)}個</span>
               </div>
               <div className="flex justify-between gap-3">
                 <span className="shrink-0">お支払い方法</span>
