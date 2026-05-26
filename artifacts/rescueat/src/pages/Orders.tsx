@@ -253,6 +253,13 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
         import('html2canvas-pro'),
         import('jspdf'),
       ]);
+      // Google Fonts (Noto Sans JP) は unicode-range で subset 分割されているため、
+      // 領収書に含まれる漢字の subset が WebView 起動直後で未ロードのことがある。
+      // 未ロード状態で html2canvas が走ると、漢字だけ system font (Mincho 系) に
+      // フォールバックして数字との高さが揃わない。確実にロード完了まで待つ。
+      if ((document as any).fonts?.ready) {
+        try { await (document as any).fonts.ready; } catch {}
+      }
       const canvas = await html2canvas(clone, {
         scale: 2,
         backgroundColor: '#ffffff',
