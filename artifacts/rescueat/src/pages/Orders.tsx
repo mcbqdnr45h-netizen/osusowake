@@ -234,23 +234,35 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
     const el = document.getElementById('receipt-printable');
     if (!el || savingPdf) return;
     setSavingPdf(true);
+    // ★ #receipt-printable は overflow-y-auto なので、画面外の下部(注文情報/登録番号/
+    //   フッター)がそのままだと撮れず PDF が途中で切れる。オフスクリーンに「全高」の
+    //   クローンを置いてキャプチャする（元の表示はフラッシュさせない）。
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.style.cssText = el.getAttribute('style') || '';
+    clone.style.position = 'fixed';
+    clone.style.left = '-10000px';
+    clone.style.top = '0';
+    clone.style.width = `${el.offsetWidth}px`;
+    clone.style.maxHeight = 'none';
+    clone.style.height = 'auto';
+    clone.style.overflow = 'visible';
+    clone.style.background = '#ffffff';
+    document.body.appendChild(clone);
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import('html2canvas-pro'),
         import('jspdf'),
       ]);
-      const canvas = await html2canvas(el as HTMLElement, {
+      const canvas = await html2canvas(clone, {
         scale: 2,
         backgroundColor: '#ffffff',
         useCORS: true,
       });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const margin = 24;
-      const imgW = pageW - margin * 2;
-      const imgH = (canvas.height / canvas.width) * imgW;
-      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
+      // PDFページを領収書サイズにフィット（A4固定だと大量の余白が出るため）
+      const wPx = canvas.width / 2;
+      const hPx = canvas.height / 2;
+      const pdf = new jsPDF({ unit: 'px', format: [wPx, hPx], orientation: hPx >= wPx ? 'portrait' : 'landscape' });
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, wPx, hPx);
       const fileName = `osusowake-receipt-${orderId}.pdf`;
       const file = new File([pdf.output('blob')], fileName, { type: 'application/pdf' });
       const nav = navigator as any;
@@ -265,6 +277,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
         toast({ title: 'PDFの作成に失敗しました。もう一度お試しください。', variant: 'destructive' });
       }
     } finally {
+      document.body.removeChild(clone);
       setSavingPdf(false);
     }
   }
