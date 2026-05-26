@@ -75,12 +75,29 @@ function writeCachedProfile(p: PublicUser | null) {
   }
 }
 
+// ★ Supabase が localStorage に保存しているセッションを同期読み (storageKey は supabase.ts 参照)。
+//    起動直後に user / session を即復元 → AuthLoadingScreen を出さずに済む。
+//    バックグラウンドで initAuth が走り、 トークン期限切れなら自動リフレッシュされる。
+function readCachedSupabaseSession(): { user: User | null; session: Session | null } {
+  try {
+    const raw = localStorage.getItem('rescueat-auth-token');
+    if (!raw) return { user: null, session: null };
+    const parsed = JSON.parse(raw);
+    const sess = (parsed?.currentSession ?? parsed) as Session | null;
+    return { user: sess?.user ?? null, session: sess };
+  } catch { return { user: null, session: null }; }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser]       = useState<User | null>(null);
-  // ★ 起動時に localStorage からキャッシュを即読み込み (role が即決定される → ナビが正しく出る)
+  // ★ 起動時のキャッシュ復元: Supabase セッション (localStorage) + Profile キャッシュ
+  //    両方揃ってる「リピート起動」 では isLoading=false で開始し、 AuthLoadingScreen
+  //    (フルスクリーンの「読み込み中…」) を完全にスキップする。
+  //    バックグラウンドで initAuth が走って token refresh / 最新 profile 取得は継続。
   const [profile, setProfile] = useState<PublicUser | null>(() => readCachedProfile());
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading]         = useState(true);
+  const cachedSupabase = readCachedSupabaseSession();
+  const [user, setUser]       = useState<User | null>(cachedSupabase.user);
+  const [session, setSession] = useState<Session | null>(cachedSupabase.session);
+  const [isLoading, setIsLoading]         = useState(!(cachedSupabase.user && profile));
   const [isAdmin, setIsAdmin]             = useState(false);
   const [pendingAdminMfa, setPendingAdminMfa] = useState(false);
   const isAdminRef    = useRef(false);
