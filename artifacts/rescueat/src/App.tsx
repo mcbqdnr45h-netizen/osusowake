@@ -25,13 +25,19 @@ import SearchPage from "./pages/SearchPage";
 import Welcome from "./pages/Welcome";
 import NotFound from "./pages/not-found";
 
+// ── ボトムナビ タブ系ページも eager import に統合 ──
+// 理由: React.lazy + Suspense は import 解決済みでも一瞬 fallback (PageSkeleton)
+//       が描画されることがあり、 タブ移動するたび毎回スケルトンがチラつく。
+//       これらは hot path (ユーザがほぼ毎回開く) なので、 初回バンドルに含めて
+//       chunk 化を解除 → タブ間移動が完全 zero-flash になる。
+import MyPage from "./pages/MyPage";
+import MyReservations from "./pages/MyReservations";
+import FavoritesPage from "./pages/FavoritesPage";
+import BagDetail from "./pages/BagDetail";
+
 // ── 残りのページはすべて lazy import（コード分割でバンドルを小型化）──
 // ★ 高頻度ページは import 関数を抽出 → PrefetchOnAuth で事前ロードに利用
-const importBagDetail = () => import("./pages/BagDetail");
-const BagDetail          = React.lazy(importBagDetail);
 const Checkout           = React.lazy(() => import("./pages/Checkout"));
-const importMyReservations = () => import("./pages/MyReservations");
-const MyReservations     = React.lazy(importMyReservations);
 const importStoreDashboard = () => import("./pages/StoreDashboard");
 const StoreDashboard     = React.lazy(importStoreDashboard);
 const importStoreOwnerDashboard = () => import("./pages/StoreOwnerDashboard");
@@ -41,10 +47,6 @@ const importStoreBagsPage = () => import("./pages/StoreBagsPage");
 const StoreBagsPage      = React.lazy(importStoreBagsPage);
 const importStoreSalesPage = () => import("./pages/StoreSalesPage");
 const StoreSalesPage     = React.lazy(importStoreSalesPage);
-const importFavoritesPage = () => import("./pages/FavoritesPage");
-const FavoritesPage      = React.lazy(importFavoritesPage);
-const importMyPage = () => import("./pages/MyPage");
-const MyPage             = React.lazy(importMyPage);
 // RegisterStore は廃止 — /register-store は /store-onboarding へリダイレクト
 function RegisterStoreRedirect() {
   const [, navigate] = useLocation();
@@ -187,12 +189,8 @@ const __idle = (cb: () => void) => {
   else setTimeout(cb, 200);
 };
 __idle(() => {
-  // bottom-nav タブ系 (高優先)
-  importMyPage().catch(() => {});
-  importFavoritesPage().catch(() => {});
-  importMyReservations().catch(() => {});
-  // よく使うサブページ
-  importBagDetail().catch(() => {});
+  // bottom-nav タブ系 / BagDetail はメインバンドル同梱に変更済み (eager import)
+  // 残りはサブページ群のみ prefetch
   importOrders().catch(() => {});
   // 店舗オーナー系 (低優先 — さらに遅延)
   setTimeout(() => {
