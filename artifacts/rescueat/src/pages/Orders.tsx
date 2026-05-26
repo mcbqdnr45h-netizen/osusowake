@@ -339,19 +339,19 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
           <div
             id="receipt-printable"
             className="px-6 pb-4 flex-1 overflow-y-auto overflow-x-hidden"
-            style={{ fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif' }}
+            style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif", fontVariantNumeric: 'lining-nums tabular-nums' }}
           >
             {/* ── タイトル ─────────────── */}
             <div className="text-center mb-5 border-b-2 border-t-2 border-gray-800 py-3">
-              <h2 className="text-2xl font-bold tracking-[0.4em] text-gray-900">領　収　書</h2>
-              <p className="text-[10px] text-gray-400 font-sans tracking-wider mt-0.5">OFFICIAL RECEIPT</p>
+              <h2
+                className="text-2xl font-bold tracking-[0.4em] text-gray-900"
+                style={{ fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif' }}
+              >領　収　書</h2>
+              <p className="text-[10px] text-gray-400 tracking-wider mt-0.5">OFFICIAL RECEIPT</p>
             </div>
 
             {/* ── 番号・発行日 ─────────── */}
-            <div
-              className="flex justify-between text-xs text-gray-500 mb-4 font-sans tabular-nums"
-              style={{ fontFamily: 'var(--app-font-sans)', fontVariantNumeric: 'lining-nums tabular-nums' }}
-            >
+            <div className="flex justify-between text-xs text-gray-500 mb-4 tabular-nums">
               <span className="whitespace-nowrap">No. {orderId}</span>
               <span className="whitespace-nowrap">発行日: {issueDateStr}</span>
             </div>
@@ -373,8 +373,11 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                 className="border-4 border-gray-800 rounded px-5 py-4 text-center relative"
                 style={{ boxShadow: 'inset 0 0 0 2px white, inset 0 0 0 3px #1f2937' }}
               >
-                <p className="text-[11px] text-gray-500 font-sans mb-1 tracking-widest">合計金額（税込）</p>
-                <p className="text-2xl font-bold tracking-[0.15em] text-gray-900">
+                <p className="text-[11px] text-gray-500 mb-1 tracking-widest">合計金額（税込）</p>
+                <p
+                  className="text-2xl font-bold tracking-[0.15em] text-gray-900"
+                  style={{ fontFamily: '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif' }}
+                >
                   一　金　<span className="text-3xl text-gray-900">{total.toLocaleString()}</span>　円　也
                 </p>
               </div>
@@ -389,10 +392,7 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
 
             {/* ── 内訳テーブル ─────────── */}
             <div className="mb-5">
-              <table
-                className="w-full text-sm border-collapse font-sans tabular-nums"
-                style={{ fontFamily: 'var(--app-font-sans)', fontVariantNumeric: 'lining-nums tabular-nums' }}
-              >
+              <table className="w-full text-sm border-collapse tabular-nums">
                 <thead>
                   <tr className="border-b-2 border-gray-800">
                     <th className="text-left py-1.5 text-xs text-gray-600 font-bold">項目</th>
@@ -417,16 +417,13 @@ function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () 
                   </tr>
                 </tbody>
               </table>
-              <p className="text-[10px] text-gray-400 font-sans mt-1.5" style={{ fontFamily: 'var(--app-font-sans)' }}>
+              <p className="text-[10px] text-gray-400 mt-1.5">
                 ※ 軽減税率（8%）対象：食料品
               </p>
             </div>
 
             {/* ── 商品・注文情報 ────────── */}
-            <div
-              className="bg-gray-50 rounded-lg px-4 py-3 mb-5 font-sans text-xs text-gray-600 space-y-1 border border-gray-200 tabular-nums"
-              style={{ fontFamily: 'var(--app-font-sans)', fontVariantNumeric: 'lining-nums tabular-nums' }}
-            >
+            <div className="bg-gray-50 rounded-lg px-4 py-3 mb-5 text-xs text-gray-600 space-y-1 border border-gray-200 tabular-nums">
               <div className="flex justify-between gap-3">
                 <span className="shrink-0">ご注文番号</span>
                 <span className="font-mono font-bold text-gray-800 whitespace-nowrap">{orderId}</span>
