@@ -287,7 +287,10 @@ export default function MyReservations() {
       >
         <h1 className="text-xl font-display font-bold text-foreground mb-4 px-4">マイバック</h1>
 
-        {isLoading ? (
+        {/* userId が null (Supabase Auth セッション解決前) の間は query が enabled:false で
+            isLoading=false になるため、 そのまま render すると一瞬「まだ購入履歴がありません」が
+            出てしまう。 userId 未確定の間もスケルトンを出して空状態のチラつきを防ぐ。 */}
+        {(isLoading || userId === null) ? (
           <div className="divide-y divide-border/40">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="px-4 py-3.5 flex items-center gap-3">
