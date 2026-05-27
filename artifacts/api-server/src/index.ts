@@ -440,6 +440,29 @@ async function runMigrations() {
     `);
     console.log('[migration] stores.show_on_map ✅');
 
+    // ── stores.lat / stores.lng を real → double precision へ昇格 ──────────────
+    //   real (float32) は ~7桁有効精度しかなく、 経度 135.59024 のような Osaka 域の
+    //   値が ~0.0001°(~10m) 単位で量子化されて「ピンが隣の建物に表示」 バグの原因に
+    //   なっていた。 double precision (float64) なら ~15桁精度で sub-mm まで保てる。
+    //   既存行は real のまま保存されていた精度劣化値が float64 化されるだけで
+    //   精度復元はされないため、 オーナーが再保存したタイミングで正確化される。
+    {
+      const r = await client.query(`
+        SELECT data_type
+          FROM information_schema.columns
+         WHERE table_schema='public' AND table_name='stores' AND column_name='lat'
+         LIMIT 1
+      `);
+      const current = r.rows[0]?.data_type;
+      if (current && current !== 'double precision') {
+        await client.query(`ALTER TABLE stores ALTER COLUMN lat TYPE double precision USING lat::double precision`);
+        await client.query(`ALTER TABLE stores ALTER COLUMN lng TYPE double precision USING lng::double precision`);
+        console.log(`[migration] stores.lat/lng: ${current} → double precision ✅`);
+      } else {
+        console.log('[migration] stores.lat/lng: 既に double precision ✅');
+      }
+    }
+
     // ── sales_leads テーブル ─────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS sales_leads (

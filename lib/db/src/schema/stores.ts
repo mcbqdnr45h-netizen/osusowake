@@ -1,4 +1,4 @@
-import { pgTable, serial, text, real, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, real, doublePrecision, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -29,8 +29,12 @@ export const storesTable = pgTable("stores", {
   address: text("address").notNull(),
   city: text("city").notNull(),
   category: storeCategoryEnum("category").notNull().default("other"),
-  lat: real("lat").notNull(),
-  lng: real("lng").notNull(),
+  // ★ lat/lng は double precision (float64) で保存する。
+  //    real (float32) だと ~7桁有効精度しかなく、 経度 135.59024 のような値が
+  //    ~0.0001°(~10m) 単位で量子化される → 「ピンを保存したら隣の建物に表示」
+  //    バグの根本原因。 float64 なら ~15桁精度で sub-mm 精度を保てる。
+  lat: doublePrecision("lat").notNull(),
+  lng: doublePrecision("lng").notNull(),
   imageUrl: text("image_url"),
   // ★ 地図ピン用カスタムアイコン (URL)。未設定時はカテゴリ絵文字ピンへフォールバック。
   iconUrl: text("icon_url"),
