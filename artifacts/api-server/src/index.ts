@@ -620,6 +620,15 @@ async function runMigrations() {
     `);
     console.log('[migration] reservations.merchandise_amount ✅');
 
+    // ── users.notif_email_orders: 店舗オーナーの注文メール通知 OPT-OUT カラム ──
+    //    Push 通知の補完として送るメールを「うざい」と感じる店舗が外せるようにする。
+    //    default=true (新規 / 既存ユーザーは届く)、 false にすると emails 送らない。
+    await client.query(`
+      ALTER TABLE public.users
+      ADD COLUMN IF NOT EXISTS notif_email_orders BOOLEAN NOT NULL DEFAULT true;
+    `);
+    console.log('[migration] users.notif_email_orders ✅');
+
     // ── users.notif_daily_engagement: 毎日エンゲージメント通知 OPT-OUT 用カラム
     await client.query(`
       ALTER TABLE public.users

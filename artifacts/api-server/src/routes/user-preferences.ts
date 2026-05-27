@@ -148,4 +148,57 @@ router.get("/user/notification-preference", requireAuth, async (req, res) => {
   }
 });
 
+// ── 店舗オーナー: 注文メール通知 ON/OFF ──────────────────────────────────────
+//   Web Push 補完として送ってるメールを「Push 来てるからメール邪魔」と感じる
+//   店舗向けの opt-out スイッチ。 OFF にすると emails.ts:sendOrderEmailToStoreOwnerById
+//   が事前チェックして送信スキップする。
+router.patch("/user/email-order-preference", requireAuth, async (req, res) => {
+  try {
+    const meId = req.authUser!.id;
+    const body = (req.body ?? {}) as { notifEmailOrders?: unknown };
+    if (typeof body.notifEmailOrders !== "boolean") {
+      return res.status(400).json({
+        error: "invalid_body",
+        message: "notifEmailOrders (boolean) is required",
+      });
+    }
+
+    const { error } = await supabaseAdmin
+      .from("users")
+      .update({ notif_email_orders: body.notifEmailOrders })
+      .eq("id", meId);
+
+    if (error) {
+      console.error("[PATCH /user/email-order-preference] supabase error:", error.message);
+      return res.status(500).json({ error: "internal_error", message: "設定の保存に失敗しました" });
+    }
+
+    return res.json({ notifEmailOrders: body.notifEmailOrders });
+  } catch (err: any) {
+    console.error("[PATCH /user/email-order-preference] error:", err?.message ?? err);
+    return res.status(500).json({ error: "internal_error", message: "設定の保存に失敗しました" });
+  }
+});
+
+router.get("/user/email-order-preference", requireAuth, async (req, res) => {
+  try {
+    const meId = req.authUser!.id;
+    const { data, error } = await supabaseAdmin
+      .from("users")
+      .select("notif_email_orders")
+      .eq("id", meId)
+      .maybeSingle();
+    if (error) {
+      console.error("[GET /user/email-order-preference] supabase error:", error.message);
+      return res.status(500).json({ error: "internal_error", message: "設定の取得に失敗しました" });
+    }
+    // null (旧ユーザー) は true 扱い (デフォルト届く)
+    const val = (data as { notif_email_orders?: boolean | null } | null)?.notif_email_orders;
+    return res.json({ notifEmailOrders: val !== false });
+  } catch (err: any) {
+    console.error("[GET /user/email-order-preference] error:", err?.message ?? err);
+    return res.status(500).json({ error: "internal_error", message: "設定の取得に失敗しました" });
+  }
+});
+
 export default router;

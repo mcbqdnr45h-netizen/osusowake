@@ -256,6 +256,40 @@ export default function Settings() {
     }
   }
 
+  // ── 店舗オーナー: 注文メール通知 ON/OFF (サーバー永続化) ─────────────────────
+  //    Web Push 補完として送ってる注文メールが「うざい」店舗向けの opt-out。
+  const [notifEmailOrders, setNotifEmailOrders] = useState(true);
+  useEffect(() => {
+    if (!user || !isStoreOwner) return;
+    const base = ((import.meta as any).env?.VITE_API_BASE as string)
+      || ((import.meta.env.BASE_URL as string) || '').replace(/\/$/, '');
+    import('@/lib/authed-fetch').then(({ authedFetch }) =>
+      authedFetch(`${base}/api/user/email-order-preference`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d && typeof d.notifEmailOrders === 'boolean') setNotifEmailOrders(d.notifEmailOrders); })
+        .catch(() => {})
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isStoreOwner]);
+
+  async function handleNotifEmailOrdersToggle(val: boolean) {
+    setNotifEmailOrders(val);
+    try {
+      const { authedFetch } = await import('@/lib/authed-fetch');
+      const base = ((import.meta as any).env?.VITE_API_BASE as string)
+        || ((import.meta.env.BASE_URL as string) || '').replace(/\/$/, '');
+      const res = await authedFetch(`${base}/api/user/email-order-preference`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifEmailOrders: val }),
+      });
+      if (!res.ok) throw new Error('save_failed');
+    } catch {
+      setNotifEmailOrders(!val);
+      toast({ title: '設定の保存に失敗しました', variant: 'destructive' });
+    }
+  }
+
   // ★ ランキング opt-out 関連の hook / state / handler は RankingPage 側に集約 (重複削減)
 
   const [editingProfile, setEditingProfile] = useState(false);
@@ -697,6 +731,18 @@ export default function Settings() {
                     <p className="text-xs text-muted-foreground">審査結果・Stripe関連の重要通知</p>
                   </div>
                   <Toggle value={notifAdmin} onChange={v => handleToggle('notifAdmin', v)} />
+                </div>
+
+                {/* ── 注文メール通知 (Push 補完) ON/OFF ───────────────────── */}
+                <div className="flex items-center gap-3.5 px-4 min-h-[56px] border-t border-border/60">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                    <Mail className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">注文時のメール通知</p>
+                    <p className="text-xs text-muted-foreground">Push が届かない時の補完。 登録メアドに自動送信</p>
+                  </div>
+                  <Toggle value={notifEmailOrders} onChange={handleNotifEmailOrdersToggle} />
                 </div>
               </>
             ) : (

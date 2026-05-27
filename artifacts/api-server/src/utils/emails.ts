@@ -209,6 +209,21 @@ export async function sendOrderEmailToStoreOwnerById(args: {
   orderId?:     number | string | null;
 }): Promise<boolean> {
   try {
+    // ★ 店舗オーナーの注文メール opt-out チェック (Settings で OFF にしてれば送らない)
+    //    旧ユーザー (カラム null) は true 扱いで送る (デフォルト送信)。
+    const { data: prefRow, error: prefErr } = await supabaseAdmin
+      .from("users")
+      .select("notif_email_orders")
+      .eq("id", args.ownerId)
+      .maybeSingle();
+    if (!prefErr && prefRow) {
+      const wants = (prefRow as { notif_email_orders?: boolean | null }).notif_email_orders;
+      if (wants === false) {
+        console.log(`[email] 店舗オーナー opt-out のため注文メール送信スキップ ownerId=${args.ownerId}`);
+        return false;
+      }
+    }
+
     const { data, error } = await supabaseAdmin.auth.admin.getUserById(args.ownerId);
     if (error || !data?.user?.email) {
       console.warn(`[email] 店舗オーナーのメールが取得できず注文メール送信スキップ ownerId=${args.ownerId}`);
