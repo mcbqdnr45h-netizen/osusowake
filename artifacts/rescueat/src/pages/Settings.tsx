@@ -740,7 +740,6 @@ export default function Settings() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-foreground">注文時のメール通知</p>
-                    <p className="text-xs text-muted-foreground">Push が届かない時用。 登録メアドに送信 (希望者のみ ON)</p>
                   </div>
                   <Toggle value={notifEmailOrders} onChange={handleNotifEmailOrdersToggle} />
                 </div>
