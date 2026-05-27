@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { escapeHtml } from "../lib/escape.js";
+import { supabaseAdmin } from "../lib/supabase.js";
 
 function getResend(): { resend: Resend; from: string } | null {
   const key = process.env.RESEND_API_KEY;
@@ -97,4 +98,135 @@ export async function sendStoreApprovalEmail(params: {
 
   console.log(`[email] ✅ 店舗承認メール送信: ${params.ownerEmail} (${params.storeName})`);
   return true;
+}
+
+/**
+ * 店舗オーナーに「注文が入りました」メールを送信する。
+ * Web Push が来ない環境 (ブラウザのみで利用中・通知拒否中など) のための補完通知。
+ * 呼び出し元で send 失敗を握り潰せるよう例外は投げず boolean を返す。
+ */
+export async function sendStoreOrderNotificationEmail(params: {
+  ownerEmail: string;
+  storeName:  string;
+  bagTitle:   string;
+  quantity:   number;
+  pickupCode: string | null;
+  pickupStart?: string | null;
+  pickupEnd?:   string | null;
+  totalPrice?:  number | null;
+  orderId?:     number | string | null;
+}): Promise<boolean> {
+  const r = getResend();
+  if (!r) {
+    console.warn("[email] RESEND_API_KEY not set — 店舗注文メールをスキップ");
+    return false;
+  }
+
+  const appUrl = process.env.APP_URL ?? "https://osusowakejapan.org";
+  const pickupTime = params.pickupStart && params.pickupEnd
+    ? `${params.pickupStart} 〜 ${params.pickupEnd}`
+    : "（バッグ情報をご確認ください）";
+  const priceLine = typeof params.totalPrice === "number"
+    ? `<tr><td style="padding:8px 0;color:#666;">お支払い額</td><td style="padding:8px 0;text-align:right;font-weight:bold;color:#111;">¥${params.totalPrice.toLocaleString()}</td></tr>`
+    : "";
+  const orderIdStr = params.orderId != null
+    ? `ORD-${String(params.orderId).padStart(8, "0")}`
+    : "—";
+
+  const { error } = await r.resend.emails.send({
+    from:    `おすそわけ <${r.from}>`,
+    to:      params.ownerEmail,
+    subject: `【おすそわけ】${params.storeName} にご注文が入りました🛍️`,
+    html: `
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f0;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#F26419 0%,#E04E00 100%);padding:32px;text-align:center;">
+      <div style="font-size:42px;margin-bottom:8px;">🛍️</div>
+      <h1 style="color:#fff;font-size:22px;font-weight:900;margin:0;">ご注文が入りました</h1>
+      <p style="color:rgba(255,255,255,0.9);font-size:13px;margin:8px 0 0;">${escapeHtml(params.storeName)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="color:#333;font-size:14px;line-height:1.7;margin:0 0 20px;">
+        おすそわけバッグが購入されました。<br>
+        受取時間までにご準備をお願いします。
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#666;width:38%;">注文番号</td><td style="padding:8px 0;text-align:right;font-family:monospace;color:#111;">${escapeHtml(orderIdStr)}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;">商品</td><td style="padding:8px 0;text-align:right;font-weight:bold;color:#111;">${escapeHtml(params.bagTitle)}</td></tr>
+        <tr><td style="padding:8px 0;color:#666;">数量</td><td style="padding:8px 0;text-align:right;font-weight:bold;color:#111;">${params.quantity} 個</td></tr>
+        <tr><td style="padding:8px 0;color:#666;">受取時間</td><td style="padding:8px 0;text-align:right;color:#111;">${escapeHtml(pickupTime)}</td></tr>
+        ${priceLine}
+      </table>
+      <div style="background:#fff8f3;border:2px dashed #F26419;border-radius:14px;padding:18px;margin:24px 0;text-align:center;">
+        <p style="color:#F26419;font-size:11px;font-weight:900;margin:0 0 6px;letter-spacing:0.08em;">PICKUP CODE</p>
+        <p style="color:#111;font-size:28px;font-weight:900;letter-spacing:0.2em;font-family:monospace;margin:0;">${escapeHtml(params.pickupCode ?? "---")}</p>
+        <p style="color:#666;font-size:11px;margin:8px 0 0;">お客様がご来店時にこのコードを提示します</p>
+      </div>
+      <div style="text-align:center;margin:24px 0 12px;">
+        <a href="${appUrl}/store/orders" style="display:inline-block;background:linear-gradient(135deg,#F26419,#E04E00);color:#fff;font-size:15px;font-weight:900;padding:14px 36px;border-radius:12px;text-decoration:none;">
+          注文一覧を見る →
+        </a>
+      </div>
+      <p style="color:#999;font-size:11px;line-height:1.6;margin:20px 0 0;text-align:center;">
+        本メールは Web プッシュ通知が届かない環境でも確実にお知らせするため自動配信されています。<br>
+        通知設定の変更は店舗ダッシュボードから行えます。
+      </p>
+    </div>
+    <div style="background:#f5f5f0;padding:16px 32px;text-align:center;">
+      <p style="color:#aaa;font-size:10px;margin:0;">おすそわけ — お店の余ったおいしさを、あなたへ。</p>
+    </div>
+  </div>
+</body>
+</html>
+    `.trim(),
+  });
+
+  if (error) {
+    console.error("[email] 店舗注文メール送信失敗:", error);
+    return false;
+  }
+  console.log(`[email] ✅ 店舗注文メール送信: ${params.ownerEmail} (${params.storeName} / pickup=${params.pickupCode ?? "—"})`);
+  return true;
+}
+
+/**
+ * 店舗オーナーの ID から auth.users を引いてメール送信まで一気にやるラッパー。
+ * 呼び出し側の payment.ts / stripe-webhook.ts でボイラープレートが減る。
+ * 失敗しても投げず、 ログだけ吐いて false を返す (push 通知をブロックさせない)。
+ */
+export async function sendOrderEmailToStoreOwnerById(args: {
+  ownerId: string;
+  storeName: string;
+  bagTitle: string;
+  quantity: number;
+  pickupCode: string | null;
+  pickupStart?: string | null;
+  pickupEnd?:   string | null;
+  totalPrice?:  number | null;
+  orderId?:     number | string | null;
+}): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(args.ownerId);
+    if (error || !data?.user?.email) {
+      console.warn(`[email] 店舗オーナーのメールが取得できず注文メール送信スキップ ownerId=${args.ownerId}`);
+      return false;
+    }
+    return await sendStoreOrderNotificationEmail({
+      ownerEmail: data.user.email,
+      storeName:  args.storeName,
+      bagTitle:   args.bagTitle,
+      quantity:   args.quantity,
+      pickupCode: args.pickupCode,
+      pickupStart: args.pickupStart ?? null,
+      pickupEnd:   args.pickupEnd ?? null,
+      totalPrice:  args.totalPrice ?? null,
+      orderId:     args.orderId ?? null,
+    });
+  } catch (e) {
+    console.error("[email] sendOrderEmailToStoreOwnerById 例外:", e);
+    return false;
+  }
 }

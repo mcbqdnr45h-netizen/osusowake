@@ -78,9 +78,18 @@ export function PlaceSearchMap({ lat, lng, onPlace, onPinMove }: Props) {
         const center = hasInitial ? { lat: lat!, lng: lng! } : OSAKA;
         const map = new gm.Map(mapDivRef.current, {
           center,
-          zoom: hasInitial ? 16 : 12,
-          disableDefaultUI: true,
+          // ピン編集用途では建物単位まで寄れるよう初期 zoom を 18 (~10m/inch) にする。
+          // 以前は 16 だった (~80m/inch) ため、 少しのドラッグで 100m 動くと苦情あり。
+          zoom: hasInitial ? 18 : 13,
+          maxZoom: 21,            // Google Maps の最大 (建物の輪郭がはっきり見える)
+          // disableDefaultUI を解除し、 ズームボタンだけ表示する。
+          // pinch-to-zoom が効きにくい環境 (iPad の片手操作・PC ブラウザ) でも
+          // +/- ボタンで建物単位まで寄せられるようにする。
+          zoomControl: true,
           mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          rotateControl: false,
           gestureHandling: 'greedy',
           clickableIcons: false,
           styles: [

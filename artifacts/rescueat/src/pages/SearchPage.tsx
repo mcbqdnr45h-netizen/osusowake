@@ -732,7 +732,17 @@ export default function SearchPage() {
       // ★ カテゴリ・検索ワード・在庫・エリア のいずれかで絞り込み中はマップマーカーも連動
       //   sort は表示順だけなので除外 (sort 変えただけで店舗が消えたら困る)
       const hasMarkerFilter = !!liveQuery || !!category || inStockOnly || areaSearchActive;
-      return !hasMarkerFilter || filteredStoreIds.has(s.id);
+      if (!hasMarkerFilter) return true;
+      // バッグ一致店舗は無条件 OK
+      if (filteredStoreIds.has(s.id)) return true;
+      // バッグ未出品・別カテゴリでも、 店舗自体のカテゴリが一致すればマップ上は表示する。
+      //   (店舗オーナー視点: パン屋なのに「パン・スイーツ」フィルタで自店が消えるバグ対策)
+      //   ただし category フィルタ単独のときに限る — 検索ワード/在庫/エリア絞り込み中は
+      //   その条件と AND になるので、 店舗カテゴリ一致だけでは通さない。
+      if (category && !liveQuery && !inStockOnly && !areaSearchActive) {
+        return normalizeCategory((s as any).category) === category;
+      }
+      return false;
     });
   }, [stores, liveQuery, category, inStockOnly, areaSearchActive, filteredStoreIds]);
 

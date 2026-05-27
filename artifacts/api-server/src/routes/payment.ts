@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { reservationsTable, surpriseBagsTable, storesTable, cartReservationsTable, notificationsTable } from "@workspace/db/schema";
 import { eq, sql, and, ne } from "drizzle-orm";
 import { sendPushToUser } from "../lib/push.js";
+import { sendOrderEmailToStoreOwnerById } from "../utils/emails";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { requireAuth } from "../middlewares/auth.js";
 import { isReviewDemoOwner } from "../lib/app-review.js";
@@ -825,6 +826,19 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
           await db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: updated.storeId });
         }
         await sendPushToUser(store.ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${updated.id}`, url: "/store/orders" });
+        // Web Push が届かない環境 (ブラウザのみ / 通知拒否 / iOS PWA 未追加) の補完として
+        // 店舗オーナーへ注文メールを送信。 例外は内部で握り潰されるので await のみで OK。
+        await sendOrderEmailToStoreOwnerById({
+          ownerId:    store.ownerId,
+          storeName:  store.name ?? "店舗",
+          bagTitle:   bag?.title ?? "おすそわけ袋",
+          quantity:   updated.quantity,
+          pickupCode: updated.pickupCode,
+          pickupStart: bag?.pickupStart ?? null,
+          pickupEnd:   bag?.pickupEnd ?? null,
+          totalPrice:  updated.totalPrice,
+          orderId:     updated.id,
+        });
       }
 
       // ユーザー（購入者）への購入完了通知
@@ -1117,6 +1131,7 @@ router.get("/checkout/verify", async (req, res) => {
         userId: reservationsTable.userId,
         bagId: reservationsTable.bagId,
         storeId: reservationsTable.storeId,
+        quantity: reservationsTable.quantity,
         totalPrice: reservationsTable.totalPrice,
         merchandiseAmount: reservationsTable.merchandiseAmount,
         paymentStatus: reservationsTable.paymentStatus,
@@ -1353,6 +1368,17 @@ router.get("/checkout/verify", async (req, res) => {
             await db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: reservationFull.storeId ?? undefined });
           }
           await sendPushToUser(ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${reservationId}`, url: "/store/orders" });
+          await sendOrderEmailToStoreOwnerById({
+            ownerId,
+            storeName:  reservationFull.storeName ?? "店舗",
+            bagTitle:   reservationFull.bagTitle ?? "おすそわけ袋",
+            quantity:   reservationFull.quantity ?? 1,
+            pickupCode: reservationFull.pickupCode ?? null,
+            pickupStart: reservationFull.pickupStart ?? null,
+            pickupEnd:   reservationFull.pickupEnd ?? null,
+            totalPrice:  reservationFull.totalPrice ?? null,
+            orderId:     reservationId,
+          });
         }
 
         if (buyerUserId) {

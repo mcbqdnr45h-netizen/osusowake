@@ -3,7 +3,7 @@ import { db, pool } from "@workspace/db";
 import { storesTable, notificationsTable, surpriseBagsTable, reservationsTable, cartReservationsTable } from "@workspace/db/schema";
 import { eq, sql, and, ne } from "drizzle-orm";
 import { Resend } from "resend";
-import { sendStoreApprovalEmail } from "../utils/emails";
+import { sendStoreApprovalEmail, sendOrderEmailToStoreOwnerById } from "../utils/emails";
 import { sendPushToUser } from "../lib/push.js";
 import { getAllAdminUsers } from "../lib/admin.js";
 
@@ -609,7 +609,11 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
             .from(surpriseBagsTable)
             .leftJoin(reservationsTable, eq(reservationsTable.id, row.id))
             .where(eq(surpriseBagsTable.id, reservationsTable.bagId)).limit(1),
-          db.select({ userId: reservationsTable.userId })
+          db.select({
+              userId: reservationsTable.userId,
+              quantity: reservationsTable.quantity,
+              totalPrice: reservationsTable.totalPrice,
+            })
             .from(reservationsTable).where(eq(reservationsTable.id, row.id)).limit(1),
         ]);
 
@@ -630,6 +634,18 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
             await db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: row.storeId });
           }
           await sendPushToUser(store.ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${row.id}`, url: "/store/orders" });
+          // Web Push 補完: ブラウザのみ利用中・通知拒否中のオーナーに必ず届くようメール併用
+          await sendOrderEmailToStoreOwnerById({
+            ownerId:    store.ownerId,
+            storeName:  store.name ?? "店舗",
+            bagTitle:   bag?.title ?? "おすそわけ袋",
+            quantity:   reservation?.quantity ?? 1,
+            pickupCode: row.pickupCode ?? null,
+            pickupStart: bag?.pickupStart ?? null,
+            pickupEnd:   bag?.pickupEnd ?? null,
+            totalPrice:  reservation?.totalPrice ?? null,
+            orderId:     row.id,
+          });
         }
 
         // ユーザー（購入者）通知
