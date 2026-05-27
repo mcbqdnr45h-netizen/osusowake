@@ -733,14 +733,14 @@ export default function Settings() {
                   <Toggle value={notifAdmin} onChange={v => handleToggle('notifAdmin', v)} />
                 </div>
 
-                {/* ── 注文メール通知 (Push 補完) ON/OFF ───────────────────── */}
+                {/* ── 注文メール通知 (デフォルト OFF・ ON にした店舗のみ受信) ── */}
                 <div className="flex items-center gap-3.5 px-4 min-h-[56px] border-t border-border/60">
                   <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
                     <Mail className="w-4 h-4 text-amber-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-foreground">注文時のメール通知</p>
-                    <p className="text-xs text-muted-foreground">Push が届かない時の補完。 登録メアドに自動送信</p>
+                    <p className="text-xs text-muted-foreground">Push が届かない時用。 登録メアドに送信 (希望者のみ ON)</p>
                   </div>
                   <Toggle value={notifEmailOrders} onChange={handleNotifEmailOrdersToggle} />
                 </div>

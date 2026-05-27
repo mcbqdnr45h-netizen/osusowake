@@ -620,14 +620,34 @@ async function runMigrations() {
     `);
     console.log('[migration] reservations.merchandise_amount ✅');
 
-    // ── users.notif_email_orders: 店舗オーナーの注文メール通知 OPT-OUT カラム ──
-    //    Push 通知の補完として送るメールを「うざい」と感じる店舗が外せるようにする。
-    //    default=true (新規 / 既存ユーザーは届く)、 false にすると emails 送らない。
+    // ── users.notif_email_orders: 店舗オーナーの注文メール通知 OPT-IN カラム ─
+    //    Push が来てる店舗にとっては「メール邪魔」なので、 デフォルト OFF。
+    //    Settings → 通知 → 注文時のメール通知 を ON にした店舗だけ受信する。
+    //
+    //    歴史: 当初 OPT-OUT (default=true) で導入したが、 直後に「邪魔」の声があり
+    //          反転。 反転当時、 明示的に ON にした店舗は 0 件のため、 既存行も含めて
+    //          安全に一括 false に倒せる。 二度目以降の起動では (a) DEFAULT が既に
+    //          false (b) 一括 UPDATE は既に走っており、 ユーザが手動 ON した行を
+    //          上書きしない。
     await client.query(`
       ALTER TABLE public.users
-      ADD COLUMN IF NOT EXISTS notif_email_orders BOOLEAN NOT NULL DEFAULT true;
+      ADD COLUMN IF NOT EXISTS notif_email_orders BOOLEAN NOT NULL DEFAULT false;
     `);
-    console.log('[migration] users.notif_email_orders ✅');
+    // 既に true で作られた列があればデフォルトを false に揃える (新規 row 用)
+    await client.query(`ALTER TABLE public.users ALTER COLUMN notif_email_orders SET DEFAULT false;`);
+    // 一度だけ実行: opt-out 時代に true で初期化された行を false にリセット。
+    // 冪等にするため一時テーブルに「反転済みフラグ」を保存する。
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM app_settings WHERE key = 'notif_email_orders_default_flipped'
+        ) THEN
+          UPDATE public.users SET notif_email_orders = false WHERE notif_email_orders = true;
+          INSERT INTO app_settings (key, value) VALUES ('notif_email_orders_default_flipped', 'true');
+        END IF;
+      END $$;
+    `);
+    console.log('[migration] users.notif_email_orders (default OFF) ✅');
 
     // ── users.notif_daily_engagement: 毎日エンゲージメント通知 OPT-OUT 用カラム
     await client.query(`
