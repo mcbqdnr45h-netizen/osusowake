@@ -257,8 +257,11 @@ export default function Settings() {
   }
 
   // ── 店舗オーナー: 注文メール通知 ON/OFF (サーバー永続化) ─────────────────────
-  //    Web Push 補完として送ってる注文メールが「うざい」店舗向けの opt-out。
-  const [notifEmailOrders, setNotifEmailOrders] = useState(true);
+  //    デフォルト OFF (opt-in)。 ロード完了まで初期値で render するとサーバの値が
+  //    返ってきた瞬間にトグルが OFF→ON / ON→OFF とスライドして見える (チラつき)。
+  //    対策: notifEmailOrdersLoaded フラグで、 fetch 完了までトグル自体を出さない。
+  const [notifEmailOrders, setNotifEmailOrders] = useState(false);
+  const [notifEmailOrdersLoaded, setNotifEmailOrdersLoaded] = useState(false);
   useEffect(() => {
     if (!user || !isStoreOwner) return;
     const base = ((import.meta as any).env?.VITE_API_BASE as string)
@@ -266,8 +269,11 @@ export default function Settings() {
     import('@/lib/authed-fetch').then(({ authedFetch }) =>
       authedFetch(`${base}/api/user/email-order-preference`)
         .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d && typeof d.notifEmailOrders === 'boolean') setNotifEmailOrders(d.notifEmailOrders); })
-        .catch(() => {})
+        .then(d => {
+          if (d && typeof d.notifEmailOrders === 'boolean') setNotifEmailOrders(d.notifEmailOrders);
+          setNotifEmailOrdersLoaded(true);
+        })
+        .catch(() => { setNotifEmailOrdersLoaded(true); })
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, isStoreOwner]);
@@ -740,8 +746,12 @@ export default function Settings() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-foreground">注文時のメール通知</p>
+                    <p className="text-xs text-muted-foreground">登録メールアドレスに、 注文が入った際にメールが届きます</p>
                   </div>
-                  <Toggle value={notifEmailOrders} onChange={handleNotifEmailOrdersToggle} />
+                  {/* ロード完了まで非表示にしてトグルのチラつきを防ぐ */}
+                  {notifEmailOrdersLoaded && (
+                    <Toggle value={notifEmailOrders} onChange={handleNotifEmailOrdersToggle} />
+                  )}
                 </div>
               </>
             ) : (
