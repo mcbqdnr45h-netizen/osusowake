@@ -19,6 +19,15 @@ const config: CapacitorConfig = {
     backgroundColor: '#FBF8F4',
   },
 
+  android: {
+    // iOS と同じく WebView 背景色をスプラッシュ色に揃える (リモート URL ロード中の白画面防止)
+    backgroundColor: '#FBF8F4',
+    // HTTPS のみで配信するため mixed content 不要 (デフォルト無効を明示)
+    allowMixedContent: false,
+    // 入力イベントを Web 側へ委譲する標準挙動
+    captureInput: true,
+  },
+
   plugins: {
     SplashScreen: {
       // ★ 起動スプラッシュを 30 秒 (実質、ずっと) 表示し続ける。

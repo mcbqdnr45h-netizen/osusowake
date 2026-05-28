@@ -12,5 +12,16 @@ ios/App/App.xcodeproj/xcuserdata/
 ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
 ios/.DS_Store
 
-# Android（未使用）
-android/
+# Android Capacitor — ビルド生成物・keystore は除外 (ソースは git 管理)
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+android/app/release/
+android/app/debug/
+# ⚠️ keystore / Firebase credentials は絶対 commit させない
+android/*.keystore
+android/*.jks
+android/key.properties
+android/app/google-services.json

@@ -15,7 +15,11 @@
     "cap:add-ios": "npx cap add ios",
     "ios:setup": "bash scripts/ios-setup.sh",
     "ios:update": "pnpm run build:cap && npx cap copy ios",
-    "ios:run": "pnpm run build:cap && npx cap run ios"
+    "ios:run": "pnpm run build:cap && npx cap run ios",
+    "cap:sync-android": "pnpm run build:cap && npx cap sync android",
+    "cap:open-android": "npx cap open android",
+    "android:update": "pnpm run build:cap && npx cap copy android",
+    "android:run": "pnpm run build:cap && npx cap run android"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
@@ -88,6 +92,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.3.0",
     "@capacitor/ios": "^8.3.0",
