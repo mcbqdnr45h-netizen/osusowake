@@ -1359,12 +1359,25 @@ export default function StripeBankSetup() {
             stripeStatus={getGroupStatus('dob')}>
             <div className="grid grid-cols-3 gap-3">
               <Field label="年" required>
-                <input type="number" value={dobYear} onChange={e => setDobYear(e.target.value)}
-                  placeholder="1985" min={1920} max={new Date().getFullYear() - 18}
-                  required inputMode="numeric" className={inputClass} />
+                {/* autoComplete="bday-year" + maxLength=4 で iOS Keychain / Safari 履歴の
+                    誤推測 (1003455 のような 7 桁が勝手に入るバグ) を防止。
+                    onChange でも 4 桁以下のみ受け付けるよう slice する保険を入れる。 */}
+                <input
+                  type="number"
+                  value={dobYear}
+                  onChange={e => setDobYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="1985"
+                  min={1920}
+                  max={new Date().getFullYear() - 18}
+                  maxLength={4}
+                  required
+                  inputMode="numeric"
+                  autoComplete="bday-year"
+                  className={inputClass}
+                />
               </Field>
               <Field label="月" required>
-                <select value={dobMonth} onChange={e => setDobMonth(e.target.value)} required className={selectClass}>
+                <select value={dobMonth} onChange={e => setDobMonth(e.target.value)} required autoComplete="bday-month" className={selectClass}>
                   <option value="">月</option>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                     <option key={m} value={m}>{m}月</option>
@@ -1372,7 +1385,7 @@ export default function StripeBankSetup() {
                 </select>
               </Field>
               <Field label="日" required>
-                <select value={dobDay} onChange={e => setDobDay(e.target.value)} required className={selectClass}>
+                <select value={dobDay} onChange={e => setDobDay(e.target.value)} required autoComplete="bday-day" className={selectClass}>
                   <option value="">日</option>
                   {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
                     <option key={d} value={d}>{d}日</option>
