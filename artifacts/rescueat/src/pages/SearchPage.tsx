@@ -737,14 +737,32 @@ export default function SearchPage() {
       if (filteredStoreIds.has(s.id)) return true;
       // バッグ未出品・別カテゴリでも、 店舗自体のカテゴリが一致すればマップ上は表示する。
       //   (店舗オーナー視点: パン屋なのに「パン・スイーツ」フィルタで自店が消えるバグ対策)
-      //   ただし category フィルタ単独のときに限る — 検索ワード/在庫/エリア絞り込み中は
+      //   ただし category フィルタ単独のときに限る — 検索ワード/在庫絞り込み中は
       //   その条件と AND になるので、 店舗カテゴリ一致だけでは通さない。
-      if (category && !liveQuery && !inStockOnly && !areaSearchActive) {
-        return normalizeCategory((s as any).category) === category;
+      if (category && !liveQuery && !inStockOnly) {
+        const matchesCategory = normalizeCategory((s as any).category) === category;
+        if (!matchesCategory) return false;
+        // エリア検索中も併用するなら、 さらに店舗位置が表示範囲内かもチェック
+        if (areaSearchActive && mapBounds) {
+          const lat = (s as any).lat, lng = (s as any).lng;
+          if (lat == null || lng == null) return false;
+          return lat >= mapBounds.south && lat <= mapBounds.north &&
+                 lng >= mapBounds.west  && lng <= mapBounds.east;
+        }
+        return true;
+      }
+      // エリア検索のみ (カテゴリ/テキスト/在庫なし) の場合は、 バッグの有無に関わらず
+      //   店舗の物理位置で判定。 「このエリアの店舗一覧」 として直感的。
+      //   (店舗オーナー視点: バッグ未出品でも自店がマップ表示エリア内なら消えない)
+      if (areaSearchActive && mapBounds && !category && !liveQuery && !inStockOnly) {
+        const lat = (s as any).lat, lng = (s as any).lng;
+        if (lat == null || lng == null) return false;
+        return lat >= mapBounds.south && lat <= mapBounds.north &&
+               lng >= mapBounds.west  && lng <= mapBounds.east;
       }
       return false;
     });
-  }, [stores, liveQuery, category, inStockOnly, areaSearchActive, filteredStoreIds]);
+  }, [stores, liveQuery, category, inStockOnly, areaSearchActive, mapBounds, filteredStoreIds]);
 
   const isFiltering       = !!liveQuery || category !== '' || inStockOnly || sort !== 'default' || areaSearchActive;
   const activeFilterCount = [category !== '', inStockOnly, sort !== 'default'].filter(Boolean).length;
