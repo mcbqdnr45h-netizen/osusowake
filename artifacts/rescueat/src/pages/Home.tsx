@@ -803,6 +803,31 @@ export default function Home() {
           onTouchStart={dismissKeyboard}
           onClick={() => showSort && setShowSort(false)}
         >
+          {/* ── ローンチ告知 (7/1 出品開始)。 JST 7/1 00:00 で自動非表示 ───────── */}
+          {/*    判定は JST 基準: 「UTC + 9h」 < 2026-07-01 ならまだ表示。            */}
+          {/*    7/1 を過ぎたら以下のブロックごと無視されるため別途片付け不要。      */}
+          {(() => {
+            const launchTs = Date.parse('2026-07-01T00:00:00+09:00'); // JST 0時
+            return Date.now() < launchTs;
+          })() && (
+            <div className="mx-3 mt-3 rounded-2xl overflow-hidden shadow-sm" style={{
+              background: 'linear-gradient(135deg, #F26419 0%, #E04E00 100%)',
+            }}>
+              <div className="px-4 py-3.5 flex items-start gap-3">
+                <div className="shrink-0 w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Megaphone className="w-4.5 h-4.5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-black text-white/90 tracking-[0.15em] uppercase">Coming Soon</p>
+                  <p className="text-sm font-black text-white leading-tight mt-0.5">7月1日（火）から出品スタート</p>
+                  <p className="text-[11px] text-white/95 leading-relaxed mt-1">
+                    お店からの「おすそわけバッグ」販売が 7月1日 開始予定です。 お楽しみに！
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── お知らせバナー ── */}
           <AnimatePresence>
             {announcement && !annDismissed && (
