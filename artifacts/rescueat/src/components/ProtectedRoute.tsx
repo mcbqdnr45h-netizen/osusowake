@@ -4,11 +4,41 @@ import { motion } from 'framer-motion';
 import logoUrl from '@/lib/logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyStoresContext } from '@/contexts/MyStoresContext';
-import { logNav } from '@/lib/nav-debug';
+import { logNav, getNavEvents } from '@/lib/nav-debug';
 import {
   Loader2, Ticket, Heart, User, ArrowRight, Shield, Clock, Sparkles,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
+
+// ── 一時的な認証診断パネル ──────────────────────────────────────────────
+// iOS で「無言でログイン画面に戻る」原因を実機で掴むための観測専用 UI。
+// 直近の auth イベント列を画面に出すだけで、挙動は一切変えない。原因特定後に削除。
+function AuthDebugTrail() {
+  const [hidden, setHidden] = useState(false);
+  const events = getNavEvents();
+  if (hidden || events.length === 0) return null;
+  const now = Date.now();
+  return (
+    <div
+      onClick={() => setHidden(true)}
+      style={{
+        position: 'fixed', left: 6, right: 6, bottom: 6, zIndex: 99999,
+        maxHeight: '38vh', overflowY: 'auto', background: 'rgba(20,18,16,0.92)',
+        color: '#fff', fontSize: 10, lineHeight: 1.45, padding: '8px 10px',
+        borderRadius: 10, fontFamily: 'monospace', whiteSpace: 'pre-wrap',
+      }}
+    >
+      <div style={{ fontWeight: 700, marginBottom: 4, opacity: 0.8 }}>
+        auth trail (tap to hide) — 最新が下
+      </div>
+      {events.map((e, i) => (
+        <div key={i}>
+          {`-${((now - e.t) / 1000).toFixed(1)}s ${e.msg} ${e.extra ? JSON.stringify(e.extra) : ''}`}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function AuthLoadingScreen() {
   return (
@@ -21,6 +51,7 @@ function AuthLoadingScreen() {
         <Loader2 className="w-5 h-5 animate-spin text-primary" />
         <p className="text-xs text-muted-foreground font-medium tracking-wide">読み込み中…</p>
       </div>
+      <AuthDebugTrail />
     </div>
   );
 }
@@ -42,6 +73,7 @@ function GuestPlaceholderScreen() {
 
   return (
     <Layout showBottomNav>
+      <AuthDebugTrail />
       {/* ── 背景：ブランドカラーのソフトグラデーション + 浮遊する装飾光 ── */}
       <div
         className="relative flex-1 min-h-0 flex flex-col items-center justify-center px-5 py-3 overflow-y-auto overflow-x-hidden"

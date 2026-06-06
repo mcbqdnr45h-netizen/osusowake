@@ -58,6 +58,17 @@ function fixModernCss() {
         if (stripped && stripped !== decl.value.trim()) decl.value = stripped;
       });
 
+      // (a2) Dynamic viewport units. dvh/svh/lvh need Chrome 108+; below that the
+      // whole declaration is invalid and dropped, so full-height containers collapse
+      // to 0. The map page's root uses `h-dvh` (Layout), so the map gets 0 height and
+      // renders blank on old WebViews. Emit a `vh` fallback BEFORE each dynamic-unit
+      // declaration: old engines use vh, modern engines override with the dvh value
+      // that follows — so modern rendering is unchanged.
+      root.walkDecls((decl) => {
+        const fallback = decl.value.replace(/(\d)(?:dvh|svh|lvh)\b/g, "$1vh");
+        if (fallback !== decl.value) decl.cloneBefore({ value: fallback });
+      });
+
       // (b) Opacity color fallbacks.
       const bySelector = new Map<string, postcss.Rule[]>();
       root.each((node) => {

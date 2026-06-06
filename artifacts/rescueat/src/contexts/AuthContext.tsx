@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, type PublicUser } from '@/lib/supabase';
+import { recordEvent } from '@/lib/nav-debug';
 
 interface AuthContextValue {
   user: User | null;
@@ -292,6 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
 
         // ── 診断ログ: どの auth event がいつ来たか追跡 ──
+        recordEvent(`auth:${event}`, { hasSession: !!session, hasUser: !!session?.user });
         // eslint-disable-next-line no-console
         console.log(`[auth] event=${event} hasSession=${!!session} hasUser=${!!session?.user} (${new Date().toLocaleTimeString()})`);
 
@@ -340,10 +342,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // ★ refreshSession 自体が TOKEN_REFRESHED を発火 → onAuthStateChange
           //   経由で fetchProfile が走るので、ここでは fetchProfile を呼ばない
           //   (二重 fetch によるチラつき防止)。session/user の更新は listener 側に委譲。
+          recordEvent('resume:refreshSession:start');
           try {
-            const { error } = await supabase.auth.refreshSession();
+            const { data, error } = await supabase.auth.refreshSession();
+            recordEvent('resume:refreshSession:done', {
+              ok: !error,
+              hasSession: !!data?.session,
+              err: error?.message,
+            });
             if (error) console.warn('[AuthContext] resume refreshSession error:', error.message);
           } catch (err) {
+            recordEvent('resume:refreshSession:throw', { err: String(err) });
             console.warn('[AuthContext] resume refresh failed:', err);
           }
         });
@@ -616,6 +625,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const errData = await roleRes.json().catch(() => ({}));
             // ロールが合わない場合はサインアウトしてエラーを返す
             if (roleRes.status === 403) {
+              recordEvent('signIn:update-role:403(forceRole)', { forceRole });
               await supabase.auth.signOut();
               fetchingRef.current = false;
               return { error: errData?.message ?? 'ログインできませんでした', role: null };
@@ -755,6 +765,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    recordEvent('signOut(user-initiated)');
     sessionStorage.removeItem('adminUserMode');
     sessionStorage.removeItem('adminMfaVerifiedAt');
     sessionStorage.removeItem(PENDING_STORE_OWNER_KEY);
