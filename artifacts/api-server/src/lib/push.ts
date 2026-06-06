@@ -1,7 +1,8 @@
 import webpush from 'web-push';
 import apn from '@parse/node-apn';
+import admin from 'firebase-admin';
 import { db } from '@workspace/db';
-import { webPushSubscriptionsTable, apnsRegistrationsTable } from '@workspace/db/schema';
+import { webPushSubscriptionsTable, apnsRegistrationsTable, fcmRegistrationsTable } from '@workspace/db/schema';
 import { eq } from 'drizzle-orm';
 
 const vapidPublicKey  = process.env.VAPID_PUBLIC_KEY;
@@ -28,6 +29,28 @@ function normalizeApnsKey(raw: string): string {
 
   const chunks = body.match(/.{1,64}/g)?.join('\n') ?? body;
   return `-----BEGIN PRIVATE KEY-----\n${chunks}\n-----END PRIVATE KEY-----`;
+}
+
+// ── Firebase Cloud Messaging (FCM, Android) 初期化 ────────────────────────────
+//   FIREBASE_SERVICE_ACCOUNT は Firebase コンソール (プロジェクト設定 →
+//   サービスアカウント →「新しい秘密鍵の生成」) でダウンロードした JSON 文字列
+//   をそのまま Fly secret に入れる。 base64 化等は不要。
+//   未設定でも APNs / Web Push と独立に動作する (Android push だけ無効化される)。
+let fcmApp: admin.app.App | null = null;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const cred = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    // private_key 内の \n リテラルを実改行に戻す (Fly secret は文字列化されるため)
+    if (typeof cred.private_key === 'string') {
+      cred.private_key = cred.private_key.replace(/\\n/g, '\n');
+    }
+    fcmApp = admin.initializeApp({ credential: admin.credential.cert(cred) }, 'osusowake-fcm');
+    console.log('[push] FCM configured ✅');
+  } catch (err: any) {
+    console.error('[push] FCM 初期化失敗 (FIREBASE_SERVICE_ACCOUNT の JSON 不正):', err?.message ?? err);
+  }
+} else {
+  console.warn('[push] FIREBASE_SERVICE_ACCOUNT が未設定 – Android FCM は無効');
 }
 
 if (process.env.APNS_PRIVATE_KEY && process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID) {
@@ -286,11 +309,58 @@ function shouldSkipDuplicate(userId: string, tag: string | undefined): boolean {
   return false;
 }
 
+async function sendFcmPushToUser(userId: string, payload: PushPayload): Promise<void> {
+  if (!fcmApp) return;
+  const tokens = await db
+    .select({ token: fcmRegistrationsTable.deviceToken, id: fcmRegistrationsTable.id })
+    .from(fcmRegistrationsTable)
+    .where(eq(fcmRegistrationsTable.userId, userId));
+  if (tokens.length === 0) return;
+
+  await Promise.allSettled(tokens.map(async (row) => {
+    try {
+      await fcmApp!.messaging().send({
+        token: row.token,
+        notification: { title: payload.title, body: payload.body },
+        // data 経由でも届けて、 アプリ前面時にもアプリ内ハンドリングできるようにする
+        data: {
+          ...(payload.tag ? { tag: payload.tag } : {}),
+          ...(payload.url ? { url: payload.url } : {}),
+          ...Object.fromEntries(
+            Object.entries(payload.data ?? {}).map(([k, v]) => [k, String(v)]),
+          ),
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            tag:       payload.tag,
+            clickAction: 'FCM_PLUGIN_ACTIVITY', // Capacitor Push が拾うアクション
+          },
+        },
+      });
+    } catch (err: any) {
+      const code: string = err?.errorInfo?.code ?? err?.code ?? '';
+      // 失効トークンは DB から掃除する
+      if (
+        code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-argument' ||
+        code === 'messaging/invalid-registration-token'
+      ) {
+        await db.delete(fcmRegistrationsTable).where(eq(fcmRegistrationsTable.id, row.id)).catch(() => {});
+        console.log(`[push] FCM 失効トークン削除 user=${userId.slice(0, 8)} id=${row.id}`);
+      } else {
+        console.warn(`[push] FCM 送信失敗 user=${userId.slice(0, 8)} code=${code}:`, err?.message ?? err);
+      }
+    }
+  }));
+}
+
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
   if (shouldSkipDuplicate(userId, payload.tag)) return;
   await Promise.allSettled([
     sendWebPushToUser(userId, payload),
     sendApnsPushToUser(userId, payload),
+    sendFcmPushToUser(userId, payload),
   ]);
 }
 

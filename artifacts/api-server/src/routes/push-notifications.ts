@@ -1,13 +1,13 @@
 /**
- * APNs デバイストークン管理 API
+ * APNs / FCM デバイストークン管理 API
  *
- * POST /api/push/device-token   — APNs トークンを登録 / 更新
+ * POST /api/push/device-token   — トークンを登録 / 更新 (platform で iOS=APNs / Android=FCM 振り分け)
  * DELETE /api/push/device-token — ログアウト時にトークンを削除
  */
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/auth.js";
 import { db } from "@workspace/db";
-import { apnsRegistrationsTable } from "@workspace/db/schema";
+import { apnsRegistrationsTable, fcmRegistrationsTable } from "@workspace/db/schema";
 import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
@@ -38,45 +38,47 @@ router.get("/push/me/registrations", requireAuth, async (req, res) => {
 router.post("/push/device-token", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser!.id;
-    const body = (req.body ?? {}) as { deviceToken?: unknown };
+    const body = (req.body ?? {}) as { deviceToken?: unknown; platform?: unknown };
 
     if (typeof body.deviceToken !== "string" || body.deviceToken.trim().length === 0) {
       return res.status(400).json({ error: "invalid_body", message: "deviceToken が必要です" });
     }
 
     const deviceToken = body.deviceToken.trim();
+    // platform="android" の時だけ FCM テーブル。 それ以外 (ios / 省略) は APNs (旧フロント互換)
+    const isAndroid = body.platform === "android";
+    const table = isAndroid ? fcmRegistrationsTable : apnsRegistrationsTable;
+    const label = isAndroid ? "FCM" : "APNs";
 
-    // ★ 重複通知の根本対策:
-    //   (1) 同じユーザーの「他の deviceToken」を全削除 (トークン rotation 時に
-    //       古い行が残ると APNs が同じ端末に2回送ってしまう)
-    //   (2) 同じ deviceToken の「他のユーザー」も全削除 (端末ハンドオフ時)
-    //   その後で新しい (userId, deviceToken) を upsert。
+    // ★ 重複通知の根本対策 (APNs と同じロジックを FCM にも適用):
+    //   (1) 同じユーザーの「他の deviceToken」を全削除 → 端末トークン rotation 対策
+    //   (2) 同じ deviceToken の「他のユーザー」も全削除 → 端末ハンドオフ対策
     await db
-      .delete(apnsRegistrationsTable)
+      .delete(table)
       .where(
         and(
-          eq(apnsRegistrationsTable.userId, userId),
-          sql`${apnsRegistrationsTable.deviceToken} <> ${deviceToken}`,
+          eq(table.userId, userId),
+          sql`${table.deviceToken} <> ${deviceToken}`,
         ),
       );
     await db
-      .delete(apnsRegistrationsTable)
+      .delete(table)
       .where(
         and(
-          eq(apnsRegistrationsTable.deviceToken, deviceToken),
-          sql`${apnsRegistrationsTable.userId} <> ${userId}`,
+          eq(table.deviceToken, deviceToken),
+          sql`${table.userId} <> ${userId}`,
         ),
       );
 
     await db
-      .insert(apnsRegistrationsTable)
+      .insert(table)
       .values({ userId, deviceToken })
       .onConflictDoUpdate({
-        target: [apnsRegistrationsTable.userId, apnsRegistrationsTable.deviceToken],
+        target: [table.userId, table.deviceToken],
         set: { updatedAt: sql`now()` },
       });
 
-    console.log(`[push] device token registered for user ${userId.slice(0, 8)}... (古いトークン掃除済)`);
+    console.log(`[push] ${label} device token registered for user ${userId.slice(0, 8)}... (古いトークン掃除済)`);
     return res.json({ ok: true });
   } catch (err: any) {
     console.error("[POST /push/device-token] error:", err?.message ?? err);
@@ -88,21 +90,22 @@ router.delete("/push/device-token", requireAuth, async (req, res) => {
   try {
     const userId = req.authUser!.id;
     const body = (req.body ?? {}) as { deviceToken?: unknown };
+    const hasToken = typeof body.deviceToken === "string" && body.deviceToken.trim().length > 0;
 
-    if (typeof body.deviceToken !== "string" || body.deviceToken.trim().length === 0) {
-      await db
-        .delete(apnsRegistrationsTable)
-        .where(eq(apnsRegistrationsTable.userId, userId));
+    // ログアウト時は両プラットフォームから一気に削除する (端末乗り換えにも対応)
+    if (!hasToken) {
+      await db.delete(apnsRegistrationsTable).where(eq(apnsRegistrationsTable.userId, userId));
+      await db.delete(fcmRegistrationsTable).where(eq(fcmRegistrationsTable.userId, userId));
       console.log(`[push] all device tokens removed for user ${userId.slice(0, 8)}...`);
     } else {
-      await db
-        .delete(apnsRegistrationsTable)
-        .where(
-          and(
-            eq(apnsRegistrationsTable.userId, userId),
-            eq(apnsRegistrationsTable.deviceToken, body.deviceToken.trim()),
-          ),
-        );
+      const tok = (body.deviceToken as string).trim();
+      // どちらに入ってるか分からないので両方試す (DELETE は冪等)
+      await db.delete(apnsRegistrationsTable).where(
+        and(eq(apnsRegistrationsTable.userId, userId), eq(apnsRegistrationsTable.deviceToken, tok)),
+      );
+      await db.delete(fcmRegistrationsTable).where(
+        and(eq(fcmRegistrationsTable.userId, userId), eq(fcmRegistrationsTable.deviceToken, tok)),
+      );
       console.log(`[push] specific device token removed for user ${userId.slice(0, 8)}...`);
     }
 

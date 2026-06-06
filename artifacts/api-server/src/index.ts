@@ -290,6 +290,22 @@ async function runMigrations() {
     `);
     console.log('[migration] apns_registrations table ✅');
 
+    // ── fcm_registrations テーブル (Android push 用) ──────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS fcm_registrations (
+        id           SERIAL PRIMARY KEY,
+        user_id      TEXT NOT NULL,
+        device_token TEXT NOT NULL,
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, device_token)
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS fcm_user_id_idx ON fcm_registrations (user_id);
+    `);
+    console.log('[migration] fcm_registrations table ✅');
+
     // ── store_status enum に suspended を追加 ─────────────────────────────────
     await client.query(`ALTER TYPE store_status ADD VALUE IF NOT EXISTS 'suspended'`);
     console.log('[migration] store_status suspended ✅');

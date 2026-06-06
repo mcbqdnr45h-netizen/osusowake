@@ -9,4 +9,5 @@ export * from "./cartReservations";
 export * from "./announcements";
 export * from "./webPushSubscriptions";
 export * from "./apnsRegistrations";
+export * from "./fcmRegistrations";
 export * from "./salesLeads";

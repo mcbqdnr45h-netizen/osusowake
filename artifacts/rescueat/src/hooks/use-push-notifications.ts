@@ -71,12 +71,13 @@ export function usePushNotifications() {
         const regListener = await PushNotifications.addListener(
           'registration',
           async (token) => {
-            console.log('[push] APNs device token received:', token.value.slice(0, 10) + '...', 'POST先=', `${BASE}/api/push/device-token`);
+            const platform = Capacitor.getPlatform(); // 'ios' | 'android' | 'web'
+            console.log(`[push] ${platform === 'android' ? 'FCM' : 'APNs'} device token received:`, token.value.slice(0, 10) + '...', 'POST先=', `${BASE}/api/push/device-token`);
             try {
               const res = await authedFetch(`${BASE}/api/push/device-token`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deviceToken: token.value }),
+                body: JSON.stringify({ deviceToken: token.value, platform }),
               });
               if (res.ok) {
                 registered.current = true;
