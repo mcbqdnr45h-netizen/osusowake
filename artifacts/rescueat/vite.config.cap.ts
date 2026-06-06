@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import type { Plugin } from "vite";
+import { flattenCascadeLayers } from "./vite-flatten-layers";
 
 function removeCrossorigin(): Plugin {
   return {
@@ -53,6 +54,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      flattenCascadeLayers(),
       removeCrossorigin(),
     ],
     resolve: {

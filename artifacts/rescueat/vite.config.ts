@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { flattenCascadeLayers } from "./vite-flatten-layers";
 
 // PORT/BASE_PATH は dev/preview サーバー起動時のみ必須。
 // `vite build` 時には不要なので、欠落していても build が通るようデフォルトを与える。
@@ -53,6 +54,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    flattenCascadeLayers(),
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
