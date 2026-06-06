@@ -44,6 +44,13 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: false,
       fadeOutDuration: 200,
+      // ★ Android 固有: 画像のスケーリング方式。
+      //    デフォルト (FIT_XY) だと resources/splash.png の中央ロゴが画面いっぱいに引き
+      //    伸ばされて巨大化する (iOS と同じ画像を使っても見え方が違うため別途指定が必要)。
+      //    CENTER_INSIDE = アスペクト比保持で画面内に収める → 周囲は backgroundColor で
+      //    塗りつぶされ、 ロゴが適正サイズで中央に表示される。
+      androidScaleType: 'CENTER_INSIDE',
+      androidSplashResourceName: 'splash',
     },
     StatusBar: {
       style: 'DEFAULT',
