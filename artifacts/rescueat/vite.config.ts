@@ -76,9 +76,28 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
   },
   root: path.resolve(import.meta.dirname),
+  // ★ Tailwind v4 は oklch() / color-mix() / @property を多用するが、 これらは
+  //    Chrome 111+ / Safari 15.4+ でしかサポートされない。 古い Android Chrome や
+  //    System WebView (Chromium 90 台) で開くと色が解釈できず CSS ルール全体が
+  //    スキップ → レイアウト崩壊する事例が発生。
+  //    Lightning CSS で oklch → hex / color-mix → rgb 等の fallback を事前展開する。
+  css: {
+    transformer: 'lightningcss',
+    lightningcss: {
+      // Chrome 90+ / Safari 14+ / Firefox 88+ / Android 5 以降をターゲットに自動 transpile
+      targets: {
+        chrome:  90 << 16,
+        safari:  14 << 16,
+        firefox: 88 << 16,
+        android: 5  << 16,
+      },
+    },
+  },
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // ★ CSS のミニファイも Lightning CSS に任せる (上の transformer と同じターゲットで)
+    cssMinify: 'lightningcss',
     // ⚠️ manualChunks は「真っ白事故」を避けるため使わない方針。
     //   過去に id.includes("/react/") で framer-motion 内部の react path を
     //   誤マッチさせ、 React copy が複数 chunk に分散して hooks エラー →

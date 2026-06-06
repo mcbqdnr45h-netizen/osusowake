@@ -63,9 +63,23 @@ export default defineConfig(({ mode }) => {
       dedupe: ["react", "react-dom"],
     },
     root: path.resolve(import.meta.dirname),
+    // ★ vite.config.ts と同じ理由で古い Android WebView 対応のため
+    //    Lightning CSS で oklch() / color-mix() を transpile する。
+    css: {
+      transformer: 'lightningcss',
+      lightningcss: {
+        targets: {
+          chrome:  90 << 16,
+          safari:  14 << 16,
+          firefox: 88 << 16,
+          android: 5  << 16,
+        },
+      },
+    },
     build: {
       outDir: path.resolve(import.meta.dirname, "dist-cap"),
       emptyOutDir: true,
+      cssMinify: 'lightningcss',
       rollupOptions: {
         input: path.resolve(import.meta.dirname, "index.cap.html"),
       },

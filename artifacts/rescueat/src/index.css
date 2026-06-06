@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+/* ★ Google Fonts は index.html で <link> として読込済み (preconnect 付きで高速)。
+   ここで @import するとビルド時に Lightning CSS が外部 URL を fetch しに行こうとして失敗する。 */
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
