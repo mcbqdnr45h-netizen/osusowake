@@ -39,10 +39,26 @@ function withAlpha(color: string, alpha: number): string | null {
   return `${base}(${inner} / ${a})`;
 }
 
-function fixOpacityFallbacks() {
+function fixModernCss() {
   return {
-    postcssPlugin: "fix-opacity-fallbacks",
+    postcssPlugin: "fix-modern-css",
     OnceExit(root: Root) {
+      // (a) Gradient interpolation. Tailwind v4 bakes `in oklab` into the
+      // gradient direction (`--tw-gradient-position: to right in oklab`), so the
+      // resolved `linear-gradient(to right in oklab, ...)` is unparsable below
+      // Chrome 111 — the whole gradient is dropped. That blanks every decorative
+      // gradient AND makes `bg-clip-text text-transparent` gradient text invisible
+      // (the missing word in the "ログインして、◯◯を。" hero). Strip the
+      // interpolation hint so gradients fall back to sRGB, which every engine
+      // supports and which renders identically on modern engines too.
+      root.walkDecls("--tw-gradient-position", (decl) => {
+        const stripped = decl.value
+          .replace(/\s*\bin okl(?:ab|ch)\b/g, "")
+          .trim();
+        if (stripped && stripped !== decl.value.trim()) decl.value = stripped;
+      });
+
+      // (b) Opacity color fallbacks.
       const bySelector = new Map<string, postcss.Rule[]>();
       root.each((node) => {
         if (node.type === "rule") {
@@ -75,12 +91,12 @@ function fixOpacityFallbacks() {
     },
   };
 }
-fixOpacityFallbacks.postcss = true;
+fixModernCss.postcss = true;
 
 async function transformCss(css: string, from: string): Promise<string> {
   const flattened = (await postcss([cascadeLayers()]).process(css, { from }))
     .css;
-  return (await postcss([fixOpacityFallbacks()]).process(flattened, { from }))
+  return (await postcss([fixModernCss()]).process(flattened, { from }))
     .css;
 }
 
