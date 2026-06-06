@@ -15,8 +15,13 @@ import { Layout } from '@/components/Layout';
 // 直近の auth イベント列を画面に出すだけで、挙動は一切変えない。原因特定後に削除。
 function AuthDebugTrail() {
   const [hidden, setHidden] = useState(false);
+  // 通常ユーザーには出さない。URL に `#authdbg` を付けた時だけ表示する。
+  // 記録 (recordEvent) は裏で常時続くので、再発時に #authdbg で確認できる。
+  const enabled =
+    typeof window !== 'undefined' &&
+    window.location.hash.toLowerCase().includes('authdbg');
   const events = getNavEvents();
-  if (hidden || events.length === 0) return null;
+  if (!enabled || hidden || events.length === 0) return null;
   const now = Date.now();
   return (
     <div
