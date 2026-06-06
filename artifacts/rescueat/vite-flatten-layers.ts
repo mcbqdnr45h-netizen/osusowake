@@ -1,16 +1,89 @@
 import type { Plugin } from "vite";
 import { createHash } from "node:crypto";
-import postcss from "postcss";
+import postcss, { type Root } from "postcss";
 import cascadeLayers from "@csstools/postcss-cascade-layers";
 
-// Tailwind v4 wraps every generated rule in CSS cascade layers (@layer) and
-// guards its modern color output behind @supports(color-mix(...)) — emitting
-// old-browser fallbacks for everything else. Android System WebView < Chromium 99
-// (used by the LINE in-app browser and the Capacitor Android app) does not support
-// @layer, so it drops EVERY layered rule, fallbacks included, and the page renders
-// completely unstyled. Standalone Chrome on the same device is newer and works.
-// Flatten @layer into specificity-equivalent plain CSS after bundling so the styles
-// apply on those WebViews; modern browsers render identically.
+// Old Android System WebView (Chromium < 99, used by the LINE in-app browser and
+// the Capacitor Android app) chokes on two things Tailwind v4 emits. Standalone
+// Chrome on the same device is newer and renders fine, which masks both bugs.
+//
+//  1. @layer (cascade layers, Chrome 99+): Tailwind wraps EVERY rule in a layer,
+//     so an unsupporting WebView drops all of them — including Tailwind's own
+//     old-browser fallbacks — and the page renders as unstyled HTML.
+//
+//  2. color-mix() opacity (Chrome 111+): Tailwind expresses `/<alpha>` color
+//     modifiers (e.g. `bg-primary/10`) as `color-mix(... 10%, transparent)` behind
+//     an @supports guard, with a SOLID, fully-opaque color as the fallback. On old
+//     WebViews every translucent tint therefore renders as a solid block (the giant
+//     red blobs on the bottom-nav active indicator and the filter toggle).
+//
+// This plugin post-processes the bundled CSS to (1) flatten @layer into
+// specificity-equivalent plain rules and (2) rewrite the solid opacity fallbacks
+// into real alpha colors. It only ever touches the fallbacks old engines use —
+// the @supports(color-mix) rules that modern engines (desktop/mobile Chrome, iOS
+// WKWebView, updated Android) actually apply are left byte-for-byte unchanged, so
+// the web and iOS apps render identically to before.
+
+// `hsl(var(--x))` / `hsl(h s% l%)` / `rgb(...)` / white / black -> same color with alpha.
+// Returns null for colors we can't safely add alpha to (currentColor, hex, named).
+function withAlpha(color: string, alpha: number): string | null {
+  const a = Math.round(alpha * 1000) / 1000;
+  const trimmed = color.trim();
+  if (trimmed.toLowerCase() === "white") return `rgb(255 255 255 / ${a})`;
+  if (trimmed.toLowerCase() === "black") return `rgb(0 0 0 / ${a})`;
+  const fn = trimmed.match(/^(hsla?|rgba?)\((.*)\)$/i);
+  if (!fn) return null;
+  const inner = fn[2].trim();
+  if (inner.includes("/")) return null; // already has an alpha channel
+  const base = fn[1].replace(/a$/i, "");
+  return `${base}(${inner} / ${a})`;
+}
+
+function fixOpacityFallbacks() {
+  return {
+    postcssPlugin: "fix-opacity-fallbacks",
+    OnceExit(root: Root) {
+      const bySelector = new Map<string, postcss.Rule[]>();
+      root.each((node) => {
+        if (node.type === "rule") {
+          const list = bySelector.get(node.selector);
+          if (list) list.push(node);
+          else bySelector.set(node.selector, [node]);
+        }
+      });
+
+      root.walkAtRules("supports", (supports) => {
+        if (!supports.params.includes("color-mix")) return;
+        supports.walkDecls((decl) => {
+          const m = decl.value.match(
+            /^color-mix\(in [\w-]+,\s*(.+?)\s+([\d.]+)%,\s*transparent\)\s*$/,
+          );
+          if (!m) return;
+          const alphaColor = withAlpha(m[1], parseFloat(m[2]) / 100);
+          if (!alphaColor) return;
+          const parentRule = decl.parent;
+          if (!parentRule || parentRule.type !== "rule") return;
+          const fallbacks = bySelector.get(parentRule.selector);
+          if (!fallbacks) return;
+          for (const rule of fallbacks) {
+            rule.walkDecls(decl.prop, (fb) => {
+              if (fb.value === m[1].trim()) fb.value = alphaColor;
+            });
+          }
+        });
+      });
+    },
+  };
+}
+fixOpacityFallbacks.postcss = true;
+
+async function transformCss(css: string, from: string): Promise<string> {
+  const flattened = (await postcss([cascadeLayers()]).process(css, { from }))
+    .css;
+  return (await postcss([fixOpacityFallbacks()]).process(flattened, { from }))
+    .css;
+}
+
 export function flattenCascadeLayers(): Plugin {
   return {
     name: "flatten-cascade-layers",
@@ -27,18 +100,16 @@ export function flattenCascadeLayers(): Plugin {
             : Buffer.from(file.source).toString("utf8");
         if (!css.includes("@layer")) continue;
 
-        const flattened = (
-          await postcss([cascadeLayers()]).process(css, { from: file.fileName })
-        ).css;
-        file.source = flattened;
+        const transformed = await transformCss(css, file.fileName);
+        file.source = transformed;
 
-        // Vite derives the asset hash from the pre-flatten content, so a
+        // Vite derives the asset hash from the pre-transform content, so a
         // config-only change (like adding this plugin) reuses the old filename
         // and lets clients keep a stale, broken copy cached under the immutable
-        // `Cache-Control: max-age=31536000`. Re-hash from the flattened content
+        // `Cache-Control: max-age=31536000`. Re-hash from the transformed content
         // so the URL changes whenever the actually-served CSS changes.
         const hash = createHash("sha256")
-          .update(flattened)
+          .update(transformed)
           .digest("hex")
           .slice(0, 8);
         const newName = file.fileName.replace(/-[^-/]+\.css$/, `-${hash}.css`);
