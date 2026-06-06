@@ -172,7 +172,9 @@ function StoreBottomSheet({
     }
   }, [onClose]);
 
-  const sheetH = expanded ? '92dvh' : '60dvh';
+  // vh を使う (dvh は Chrome 108+ 専用 → 古い WebView では無効になり、シートの高さが
+  // 指定されず本文の高さまで伸びて「全画面でドバッと出る」状態になる)。vh は全エンジン対応。
+  const sheetH = expanded ? '92vh' : '60vh';
 
   return (
     <>

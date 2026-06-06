@@ -499,11 +499,9 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                   <div className={`relative flex items-center justify-center w-12 h-8 rounded-full transition-all duration-200
                     ${isActive ? 'bg-primary/10' : ''}`}>
                     {isActive && (
-                      <motion.div
-                        layoutId="bottom-nav-dot"
-                        className="absolute -top-[8px] left-1/2 -translate-x-1/2 w-6 h-[3px] bg-primary rounded-full"
-                        transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-                      />
+                      // layoutId の共有レイアウトアニメ(FLIP)は古い Android WebView で
+                      // 位置を誤計算してバーが横にズレる。静的配置にして全エンジンで中央固定。
+                      <div className="absolute -top-[8px] left-1/2 -translate-x-1/2 w-6 h-[3px] bg-primary rounded-full" />
                     )}
                     <Icon
                       className={`w-[26px] h-[26px] transition-all duration-200

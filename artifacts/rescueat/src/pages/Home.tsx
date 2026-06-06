@@ -256,10 +256,15 @@ function useUserCity() {
         clearTimeout(fallbackTimer);
         try {
           const { latitude, longitude } = pos.coords;
+          // AbortSignal.timeout() は Chrome 103+ 専用。古い Android WebView では未定義で
+          // 即例外になり逆ジオコーディングが落ちる → 都市名が出ず「あなたの街」固定になる。
+          // 全エンジンで動く AbortController + setTimeout に置き換える。
+          const ctrl = new AbortController();
+          const abortTimer = setTimeout(() => ctrl.abort(), 4000);
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=ja`,
-            { headers: { 'User-Agent': 'TabeRosu/1.0' }, signal: AbortSignal.timeout(4000) }
-          );
+            { signal: ctrl.signal }
+          ).finally(() => clearTimeout(abortTimer));
           const data = await res.json();
           const addr = data.address || {};
           setCity(addr.city || addr.town || addr.village || addr.county || addr.state || null);

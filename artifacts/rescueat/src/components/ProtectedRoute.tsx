@@ -89,19 +89,15 @@ function GuestPlaceholderScreen() {
             'linear-gradient(180deg, hsl(var(--background)) 0%, hsl(30 30% 98%) 100%)',
         }}
       >
-        {/* 装飾光1 */}
-        <motion.div
+        {/* 装飾光 — scale アニメ(transform+will-change)があると古い Android WebView で
+            合成レイヤー化して filter:blur が無効になり「ぼけてない赤丸」になるため静的化。 */}
+        <div
           aria-hidden
           className="absolute -top-16 -right-12 w-56 h-56 rounded-full bg-primary/15 blur-3xl pointer-events-none"
-          animate={{ scale: [1, 1.08, 1], opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         />
-        {/* 装飾光2 */}
-        <motion.div
+        <div
           aria-hidden
           className="absolute -bottom-20 -left-12 w-64 h-64 rounded-full bg-rose-200/30 blur-3xl pointer-events-none"
-          animate={{ scale: [1, 1.12, 1], opacity: [0.6, 0.9, 0.6] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
         />
 
         {/* ── ロゴ（光るリング付き）─── */}
