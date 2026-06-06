@@ -69,6 +69,14 @@ function fixModernCss() {
         if (fallback !== decl.value) decl.cloneBefore({ value: fallback });
       });
 
+      // (a3) text-wrap: balance/pretty (Chrome 114+) is silently ignored below 114,
+      // so a multi-line heading wraps differently on old WebViews than on modern
+      // engines — a subtle size/position drift. Drop it so every engine uses normal
+      // wrapping and headings break identically everywhere.
+      root.walkDecls("text-wrap", (decl) => {
+        if (/\b(balance|pretty)\b/.test(decl.value)) decl.remove();
+      });
+
       // (b) Opacity color fallbacks.
       const bySelector = new Map<string, postcss.Rule[]>();
       root.each((node) => {
