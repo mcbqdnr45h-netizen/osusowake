@@ -50,7 +50,7 @@ export default function GetApp() {
       <img
         src={ICON_URL}
         alt="おすそわけ"
-        className="w-24 h-24 rounded-[22%] object-cover shadow-lg ring-1 ring-black/5 mb-5"
+        className="w-24 h-24 rounded-[22%] object-cover mb-5"
       />
       <h1 className="text-2xl font-black text-foreground mb-2">おすそわけ</h1>
       <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mb-8">
