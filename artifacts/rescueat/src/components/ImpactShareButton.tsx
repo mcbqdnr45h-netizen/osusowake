@@ -7,7 +7,8 @@ type Props = {
   co2Saved: number;
 };
 
-const APP_URL = 'https://osusowakejapan.org/';
+// 成果シェアも端末判定の取得ページへ (iPhone→App Store / Android→Play / PC→Web)。
+const APP_URL = 'https://osusowakejapan.org/get';
 
 // ★ URL を含めない本文 (Web Share API 用)
 //   text + url を両方渡すと iOS Safari など多くの実装が末尾に url を自動追加し、
