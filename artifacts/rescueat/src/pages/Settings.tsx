@@ -207,12 +207,12 @@ export default function Settings() {
   const { toast } = useToast();
   const { saved, save } = useLocalSettings(userId);
 
-  // display_name は Supabase から。fallback: メールの@前
+  // display_name は Supabase から。★ メールの@前を初期値にしない
+  //   (この欄はランキングで公開される＝メールアドレスが漏れるため)。未設定なら空。
   const initialDisplayName =
     profile?.display_name ||
-    user?.email?.split('@')[0] ||
     saved.displayName ||
-    'ゲストユーザー';
+    '';
 
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [email, setEmail] = useState(user?.email ?? saved.email);
@@ -323,9 +323,8 @@ export default function Settings() {
   useEffect(() => {
     if (profile?.display_name) {
       setDisplayName(profile.display_name);
-    } else if (user?.email) {
-      setDisplayName(user.email.split('@')[0]);
     }
+    // ★ ニックネーム未設定時にメールの@前を入れない (公開名にメールが漏れるため空のまま)。
     if (user?.email) setEmail(user.email);
   }, [profile?.display_name, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -652,27 +651,6 @@ export default function Settings() {
                           className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                           placeholder="example@email.com"
                         />
-                      </div>
-                    </div>
-
-                    {/* Favorite genres */}
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground mb-2">お気に入りジャンル</label>
-                      <div className="flex flex-wrap gap-2">
-                        {GENRES.map(g => (
-                          <button
-                            key={g}
-                            type="button"
-                            onClick={() => toggleGenre(g)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all
-                              ${favoriteGenres.includes(g)
-                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                : 'bg-card text-foreground border-border hover:bg-secondary'
-                              }`}
-                          >
-                            {g}
-                          </button>
-                        ))}
                       </div>
                     </div>
 
