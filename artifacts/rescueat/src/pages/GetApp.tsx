@@ -4,20 +4,16 @@ import { Apple, Smartphone, ArrowRight } from 'lucide-react';
 
 // アプリ取得の振り分けページ (友だち共有リンクの飛び先)。
 // 端末を判定して iPhone→App Store / Android→Play / それ以外→Web に誘導する。
-// ボタン用 (https。Safari で手動タップ時のフォールバック)
 const APP_STORE_URL = 'https://apps.apple.com/jp/app/id6763268307';
 const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.yuhi.osusowake';
 const WEB_URL = 'https://osusowakejapan.org';
-// 自動リダイレクト用 (ネイティブスキーム。https だと LINE 等のアプリ内ブラウザで
-// App Store の "Web ページ" が開くだけで App Store アプリに飛ばないため、
-// itms-apps:// / market:// で App Store / Play アプリを直接開く)。
+// ネイティブスキーム: タップで App Store / Play アプリを直接開く。
+// (https だと LINE 等のアプリ内ブラウザで Web ページが開くだけになる)
 const APP_STORE_APP = 'itms-apps://apps.apple.com/jp/app/id6763268307';
 const PLAY_STORE_APP = 'market://details?id=com.yuhi.osusowake';
 
 // ★ Android 版を Google Play で公開したら true に変更する。
-//   公開前に Play リンクへ飛ばすと「アイテムが見つかりません」になるため、
-//   公開までは Android ユーザーも Web アプリへ誘導する。
 const ANDROID_PUBLISHED = false;
 
 type OS = 'ios' | 'android' | 'other';
@@ -31,23 +27,23 @@ function detectOS(): OS {
 
 export default function GetApp() {
   const os = detectOS();
+  const isIos = os === 'ios';
   const playReady = os === 'android' && ANDROID_PUBLISHED;
+  const storeDevice = isIos || playReady;
 
-  // 対象端末はストアアプリへ即リダイレクト（ネイティブスキームで App Store /
-  // Play アプリを直接開く。中間の Web ページを挟まない）。
-  const storeTarget = os === 'ios' ? APP_STORE_APP : playReady ? PLAY_STORE_APP : null;
+  // ベストエフォートの自動リダイレクト (Safari 等では効く。アプリ内ブラウザは
+  // タップ無しのスキーム遷移をブロックするため、下の大ボタンが確実な導線)。
   React.useEffect(() => {
-    if (storeTarget) window.location.href = storeTarget;
-  }, [storeTarget]);
+    if (isIos) window.location.href = APP_STORE_APP;
+    else if (playReady) window.location.href = PLAY_STORE_APP;
+  }, [isIos, playReady]);
 
-  const primary =
-    os === 'ios'
-      ? { href: APP_STORE_URL, label: 'App Store でインストール', icon: Apple }
-      : playReady
-        ? { href: PLAY_STORE_URL, label: 'Google Play でインストール', icon: Smartphone }
-        : { href: WEB_URL, label: 'ブラウザで今すぐ使う', icon: ArrowRight };
-
-  const PrimaryIcon = primary.icon;
+  const cta = isIos
+    ? { href: APP_STORE_APP, label: 'App Store でインストール', icon: Apple }
+    : playReady
+      ? { href: PLAY_STORE_APP, label: 'Google Play でインストール', icon: Smartphone }
+      : { href: WEB_URL, label: 'ブラウザで今すぐ使う', icon: ArrowRight };
+  const CtaIcon = cta.icon;
 
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center px-6 py-10 bg-gradient-to-br from-orange-50 via-background to-rose-50 text-center">
@@ -64,31 +60,38 @@ export default function GetApp() {
       </p>
 
       <a
-        href={primary.href}
-        className="w-full max-w-xs flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold py-4 rounded-2xl shadow-md active:scale-[0.98] transition-transform"
+        href={cta.href}
+        className="w-full max-w-xs flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-md active:scale-[0.98] transition-transform"
       >
-        <PrimaryIcon className="w-5 h-5" />
-        {primary.label}
+        <CtaIcon className="w-5 h-5" />
+        {cta.label}
       </a>
 
-      {/* どの端末でも Web で使えるよう常に出す導線 */}
-      {primary.href !== WEB_URL && (
+      {/* iOS: スキームが開かない環境向けに https の保険リンク */}
+      {isIos && (
         <a
-          href={WEB_URL}
-          className="mt-4 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+          href={APP_STORE_URL}
+          className="mt-3 text-xs text-muted-foreground underline underline-offset-4"
         >
-          またはブラウザでそのまま使う →
+          開かない場合はこちら（App Store）
         </a>
       )}
 
-      {/* iPhone ユーザーには Android 近日公開を、Android ユーザーには現状 Web を案内 */}
-      {os === 'ios' && !ANDROID_PUBLISHED && (
-        <p className="mt-8 text-xs text-muted-foreground/70">Android 版は近日公開予定です</p>
-      )}
+      {/* どの端末でも Web で使える導線 */}
+      <a
+        href={WEB_URL}
+        className="mt-4 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+      >
+        またはブラウザでそのまま使う →
+      </a>
+
       {os === 'android' && !ANDROID_PUBLISHED && (
         <p className="mt-8 text-xs text-muted-foreground/70">
           Android アプリは近日公開予定。今はブラウザでご利用いただけます
         </p>
+      )}
+      {!storeDevice && os === 'ios' && (
+        <p className="mt-8 text-xs text-muted-foreground/70">Android 版は近日公開予定です</p>
       )}
     </div>
   );
