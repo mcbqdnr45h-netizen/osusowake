@@ -1,6 +1,6 @@
 import React from 'react';
 import logoUrl from '@/lib/logo';
-import { Apple, Smartphone, ArrowRight } from 'lucide-react';
+import { Apple, Smartphone, ArrowRight, ExternalLink } from 'lucide-react';
 
 // アプリ取得の振り分けページ (友だち共有リンクの飛び先)。
 // 端末を判定して iPhone→App Store / Android→Play / それ以外→Web に誘導する。
@@ -9,40 +9,36 @@ const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.yuhi.osusowake';
 const WEB_URL = 'https://osusowakejapan.org';
 // ネイティブスキーム: タップで App Store / Play アプリを直接開く。
-// (https だと LINE 等のアプリ内ブラウザで Web ページが開くだけになる)
 const APP_STORE_APP = 'itms-apps://apps.apple.com/jp/app/id6763268307';
 const PLAY_STORE_APP = 'market://details?id=com.yuhi.osusowake';
+// LINE のアプリ内ブラウザは App Store スキームを弾く。openExternalBrowser=1 を付けると
+// LINE が標準ブラウザ(Safari)で開き直す → そこでは App Store が正常に開く。
+const EXTERNAL_GET = `${WEB_URL}/get?openExternalBrowser=1`;
 
 // ★ Android 版を Google Play で公開したら true に変更する。
 const ANDROID_PUBLISHED = false;
 
-type OS = 'ios' | 'android' | 'other';
-function detectOS(): OS {
-  if (typeof navigator === 'undefined') return 'other';
-  const ua = navigator.userAgent || '';
-  if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
-  if (/Android/i.test(ua)) return 'android';
-  return 'other';
-}
-
 export default function GetApp() {
-  const os = detectOS();
-  const isIos = os === 'ios';
-  const playReady = os === 'android' && ANDROID_PUBLISHED;
-  const storeDevice = isIos || playReady;
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+  const inLine = /Line\//i.test(ua);
+  const isIos = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const playReady = isAndroid && ANDROID_PUBLISHED;
 
-  // ベストエフォートの自動リダイレクト (Safari 等では効く。アプリ内ブラウザは
-  // タップ無しのスキーム遷移をブロックするため、下の大ボタンが確実な導線)。
+  // 自動遷移: LINE内なら Safari へ逃がす / それ以外のストア端末はストアアプリへ。
   React.useEffect(() => {
-    if (isIos) window.location.href = APP_STORE_APP;
+    if (inLine) window.location.href = EXTERNAL_GET;
+    else if (isIos) window.location.href = APP_STORE_APP;
     else if (playReady) window.location.href = PLAY_STORE_APP;
-  }, [isIos, playReady]);
+  }, [inLine, isIos, playReady]);
 
-  const cta = isIos
-    ? { href: APP_STORE_APP, label: 'App Store でインストール', icon: Apple }
-    : playReady
-      ? { href: PLAY_STORE_APP, label: 'Google Play でインストール', icon: Smartphone }
-      : { href: WEB_URL, label: 'ブラウザで今すぐ使う', icon: ArrowRight };
+  const cta = inLine
+    ? { href: EXTERNAL_GET, label: 'Safari で開いてインストール', icon: ExternalLink }
+    : isIos
+      ? { href: APP_STORE_APP, label: 'App Store でインストール', icon: Apple }
+      : playReady
+        ? { href: PLAY_STORE_APP, label: 'Google Play でインストール', icon: Smartphone }
+        : { href: WEB_URL, label: 'ブラウザで今すぐ使う', icon: ArrowRight };
   const CtaIcon = cta.icon;
 
   return (
@@ -67,8 +63,14 @@ export default function GetApp() {
         {cta.label}
       </a>
 
-      {/* iOS: スキームが開かない環境向けに https の保険リンク */}
-      {isIos && (
+      {inLine && (
+        <p className="mt-3 text-xs text-muted-foreground max-w-xs">
+          ※ LINE内ではApp Storeが開けないため、Safariで開き直します
+        </p>
+      )}
+
+      {/* iOS(非LINE): スキームが開かない環境向けに https の保険リンク */}
+      {isIos && !inLine && (
         <a
           href={APP_STORE_URL}
           className="mt-3 text-xs text-muted-foreground underline underline-offset-4"
@@ -77,7 +79,6 @@ export default function GetApp() {
         </a>
       )}
 
-      {/* どの端末でも Web で使える導線 */}
       <a
         href={WEB_URL}
         className="mt-4 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
@@ -85,12 +86,12 @@ export default function GetApp() {
         またはブラウザでそのまま使う →
       </a>
 
-      {os === 'android' && !ANDROID_PUBLISHED && (
+      {isAndroid && !ANDROID_PUBLISHED && (
         <p className="mt-8 text-xs text-muted-foreground/70">
           Android アプリは近日公開予定。今はブラウザでご利用いただけます
         </p>
       )}
-      {!storeDevice && os === 'ios' && (
+      {isIos && !ANDROID_PUBLISHED && (
         <p className="mt-8 text-xs text-muted-foreground/70">Android 版は近日公開予定です</p>
       )}
     </div>

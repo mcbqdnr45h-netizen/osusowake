@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const SITE_URL = 'https://osusowakejapan.org';
 // 友だち共有は端末判定の取得ページへ (iPhone→App Store / Android→Play / PC→Web)。
-const GET_URL = 'https://osusowakejapan.org/get';
+// ?openExternalBrowser=1 = LINE で開いた時に標準ブラウザ(Safari)で開かせる指示。
+// これが無いと LINE 内ブラウザが App Store スキームを弾いてストアに飛べない。
+const GET_URL = 'https://osusowakejapan.org/get?openExternalBrowser=1';
 const SHARE_TEXT_USER = 'おすそわけで地域の閉店前の食品をおトクにゲット🍞 私もこのアプリ使ってます！';
 const SHARE_TEXT_STORE = '飲食店・食料品店の方へ📣 「おすそわけ」で売れ残りそうな食品を販売できます。月額・初期費用は¥0、売れた時だけ手数料が発生する完全成果報酬制です。';
 
