@@ -4,10 +4,16 @@ import { Apple, Smartphone, ArrowRight } from 'lucide-react';
 
 // アプリ取得の振り分けページ (友だち共有リンクの飛び先)。
 // 端末を判定して iPhone→App Store / Android→Play / それ以外→Web に誘導する。
-const APP_STORE_URL = 'https://apps.apple.com/app/id6763268307';
+// ボタン用 (https。Safari で手動タップ時のフォールバック)
+const APP_STORE_URL = 'https://apps.apple.com/jp/app/id6763268307';
 const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.yuhi.osusowake';
 const WEB_URL = 'https://osusowakejapan.org';
+// 自動リダイレクト用 (ネイティブスキーム。https だと LINE 等のアプリ内ブラウザで
+// App Store の "Web ページ" が開くだけで App Store アプリに飛ばないため、
+// itms-apps:// / market:// で App Store / Play アプリを直接開く)。
+const APP_STORE_APP = 'itms-apps://apps.apple.com/jp/app/id6763268307';
+const PLAY_STORE_APP = 'market://details?id=com.yuhi.osusowake';
 
 // ★ Android 版を Google Play で公開したら true に変更する。
 //   公開前に Play リンクへ飛ばすと「アイテムが見つかりません」になるため、
@@ -27,8 +33,9 @@ export default function GetApp() {
   const os = detectOS();
   const playReady = os === 'android' && ANDROID_PUBLISHED;
 
-  // 対象端末はストアへ即リダイレクト（中間の Web ページを挟まず直行）。
-  const storeTarget = os === 'ios' ? APP_STORE_URL : playReady ? PLAY_STORE_URL : null;
+  // 対象端末はストアアプリへ即リダイレクト（ネイティブスキームで App Store /
+  // Play アプリを直接開く。中間の Web ページを挟まない）。
+  const storeTarget = os === 'ios' ? APP_STORE_APP : playReady ? PLAY_STORE_APP : null;
   React.useEffect(() => {
     if (storeTarget) window.location.href = storeTarget;
   }, [storeTarget]);
