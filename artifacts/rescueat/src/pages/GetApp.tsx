@@ -1,8 +1,8 @@
 import React from 'react';
 import { Download, ArrowRight, ExternalLink } from 'lucide-react';
 
-// 正方形のアプリアイコン (縦長の logo.jpg だと角に白余白が出るため差し替え)。
-const ICON_URL = '/icons/icon-512.webp';
+// iOS と同じフルブリードのアプリアイコン (icon-512.webp は四隅が黒いため差し替え)。
+const ICON_URL = '/app-icon.png';
 
 // アプリ取得の振り分けページ (友だち共有リンクの飛び先)。
 // 端末を判定して iPhone→App Store / Android→Play / それ以外→Web に誘導する。
@@ -27,10 +27,12 @@ export default function GetApp() {
   const isAndroid = /Android/i.test(ua);
   const playReady = isAndroid && ANDROID_PUBLISHED;
 
-  // 自動遷移: LINE内なら Safari へ逃がす / それ以外のストア端末はストアアプリへ。
+  // 自動遷移: ストア端末はストアアプリへ (best effort)。
+  // LINE 内は自動だと弾かれる&ループの恐れがあるため、下の「Safariで開く」ボタン
+  // (ユーザー操作) に委ねる。
   React.useEffect(() => {
-    if (inLine) window.location.href = EXTERNAL_GET;
-    else if (isIos) window.location.href = APP_STORE_APP;
+    if (inLine) return;
+    if (isIos) window.location.href = APP_STORE_APP;
     else if (playReady) window.location.href = PLAY_STORE_APP;
   }, [inLine, isIos, playReady]);
 
