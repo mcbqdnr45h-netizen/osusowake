@@ -1,8 +1,8 @@
 import React from 'react';
 import { Download, ArrowRight, ExternalLink } from 'lucide-react';
 
-// iOS と同じフルブリードのアプリアイコン (icon-512.webp は四隅が黒いため差し替え)。
-const ICON_URL = '/app-icon.png';
+// iOS と同じフルブリードのアプリアイコン (513KB PNG は読込が遅く一瞬崩れるため軽量 webp に)。
+const ICON_URL = '/app-icon.webp';
 
 // アプリ取得の振り分けページ (友だち共有リンクの飛び先)。
 // 端末を判定して iPhone→App Store / Android→Play / それ以外→Web に誘導する。
