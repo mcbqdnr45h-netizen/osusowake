@@ -3,6 +3,8 @@ import { Share2, Copy, Check, MessageCircle, Twitter, Facebook } from 'lucide-re
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SITE_URL = 'https://osusowakejapan.org';
+// 友だち共有は端末判定の取得ページへ (iPhone→App Store / Android→Play / PC→Web)。
+const GET_URL = 'https://osusowakejapan.org/get';
 const SHARE_TEXT_USER = 'おすそわけで地域の閉店前の食品をおトクにゲット🍞 私もこのアプリ使ってます！';
 const SHARE_TEXT_STORE = '飲食店・食料品店の方へ📣 「おすそわけ」で売れ残りそうな食品を販売できます。月額・初期費用は¥0、売れた時だけ手数料が発生する完全成果報酬制です。';
 
@@ -15,7 +17,9 @@ export function ShareAppCard({ variant = 'user' }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   const text = variant === 'store' ? SHARE_TEXT_STORE : SHARE_TEXT_USER;
-  const fullText = `${text}\n${SITE_URL}`;
+  // 店舗募集は Web(登録導線)、友だち招待はアプリ取得ページへ。
+  const shareUrl = variant === 'store' ? SITE_URL : GET_URL;
+  const fullText = `${text}\n${shareUrl}`;
 
   const tryNativeShare = async () => {
     if (typeof navigator !== 'undefined' && 'share' in navigator) {
@@ -23,7 +27,7 @@ export function ShareAppCard({ variant = 'user' }: Props) {
         await navigator.share({
           title: 'おすそわけ',
           text,
-          url: SITE_URL,
+          url: shareUrl,
         });
         return true;
       } catch {
@@ -57,8 +61,8 @@ export function ShareAppCard({ variant = 'user' }: Props) {
   };
 
   const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(fullText)}`;
-  const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(SITE_URL)}`;
-  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SITE_URL)}`;
+  const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
 
   return (
     <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-orange-200 rounded-2xl p-4 shadow-sm">
