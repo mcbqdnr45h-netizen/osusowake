@@ -3,9 +3,10 @@ import { Share2, Copy, Check, MessageCircle, Twitter, Facebook } from 'lucide-re
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SITE_URL = 'https://osusowakejapan.org';
-// 友だち共有は端末判定の取得ページへ (iPhone→App Store / Android→Play / PC→Web)。
-// リンクは短く保ち、LINE 内ブラウザ対策は /get ページの「Safariで開く」ボタンで担保。
-const GET_URL = 'https://osusowakejapan.org/get';
+// 共有は端末判定の取得ページへ (iPhone→App Store / Android→Play / PC→Web)。
+// ?openExternalBrowser=1 = LINE でタップした瞬間に Safari で開かせる指示。
+// これにより中間ページを挟まず直接 Safari→App Store へ飛べる(シームレス)。
+const GET_URL = 'https://osusowakejapan.org/get?openExternalBrowser=1';
 const SHARE_TEXT_USER = 'おすそわけで地域の閉店前の食品をおトクにゲット🍞 私もこのアプリ使ってます！';
 const SHARE_TEXT_STORE = '飲食店・食料品店の方へ📣 「おすそわけ」で売れ残りそうな食品を販売できます。月額・初期費用は¥0、売れた時だけ手数料が発生する完全成果報酬制です。';
 
@@ -18,8 +19,8 @@ export function ShareAppCard({ variant = 'user' }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   const text = variant === 'store' ? SHARE_TEXT_STORE : SHARE_TEXT_USER;
-  // 店舗募集は Web(登録導線)、友だち招待はアプリ取得ページへ。
-  const shareUrl = variant === 'store' ? SITE_URL : GET_URL;
+  // 友だち招待も店舗募集も、アプリ取得ページ(端末判定→App Store/Play/Web)へ統一。
+  const shareUrl = GET_URL;
   const fullText = `${text}\n${shareUrl}`;
 
   const tryNativeShare = async () => {
