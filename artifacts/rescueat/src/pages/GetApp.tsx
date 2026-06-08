@@ -27,14 +27,21 @@ export default function GetApp() {
   const isAndroid = /Android/i.test(ua);
   const playReady = isAndroid && ANDROID_PUBLISHED;
 
-  // 自動遷移: ストア端末はストアアプリへ (best effort)。
-  // LINE 内は自動だと弾かれる&ループの恐れがあるため、下の「Safariで開く」ボタン
-  // (ユーザー操作) に委ねる。
+  // 既に openExternalBrowser 付きで開かれているか (LINE 用・無限ループ防止)。
+  const hasExtParam =
+    typeof window !== 'undefined' &&
+    /openExternalBrowser=1/.test(window.location.search);
+
   React.useEffect(() => {
-    if (inLine) return;
+    if (inLine) {
+      // LINE 内なら openExternalBrowser 付き URL へ遷移して Safari で開かせる。
+      // 既に付与済みなら再遷移しない (効かなかった場合は下のボタンで誘導)。
+      if (!hasExtParam) window.location.href = EXTERNAL_GET;
+      return;
+    }
     if (isIos) window.location.href = APP_STORE_APP;
     else if (playReady) window.location.href = PLAY_STORE_APP;
-  }, [inLine, isIos, playReady]);
+  }, [inLine, isIos, playReady, hasExtParam]);
 
   const cta = inLine
     ? { href: EXTERNAL_GET, label: 'Safari で開いてインストール', icon: ExternalLink }
