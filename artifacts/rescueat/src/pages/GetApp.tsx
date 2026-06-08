@@ -1,6 +1,8 @@
 import React from 'react';
-import logoUrl from '@/lib/logo';
-import { Apple, Smartphone, ArrowRight, ExternalLink } from 'lucide-react';
+import { Download, ArrowRight, ExternalLink } from 'lucide-react';
+
+// 正方形のアプリアイコン (縦長の logo.jpg だと角に白余白が出るため差し替え)。
+const ICON_URL = '/icons/icon-512.webp';
 
 // アプリ取得の振り分けページ (友だち共有リンクの飛び先)。
 // 端末を判定して iPhone→App Store / Android→Play / それ以外→Web に誘導する。
@@ -35,18 +37,18 @@ export default function GetApp() {
   const cta = inLine
     ? { href: EXTERNAL_GET, label: 'Safari で開いてインストール', icon: ExternalLink }
     : isIos
-      ? { href: APP_STORE_APP, label: 'App Store でインストール', icon: Apple }
+      ? { href: APP_STORE_APP, label: 'App Store でインストール', icon: Download }
       : playReady
-        ? { href: PLAY_STORE_APP, label: 'Google Play でインストール', icon: Smartphone }
+        ? { href: PLAY_STORE_APP, label: 'Google Play でインストール', icon: Download }
         : { href: WEB_URL, label: 'ブラウザで今すぐ使う', icon: ArrowRight };
   const CtaIcon = cta.icon;
 
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center px-6 py-10 bg-gradient-to-br from-orange-50 via-background to-rose-50 text-center">
       <img
-        src={logoUrl}
+        src={ICON_URL}
         alt="おすそわけ"
-        className="w-24 h-24 rounded-3xl object-cover shadow-lg ring-1 ring-black/5 mb-5"
+        className="w-24 h-24 rounded-[22%] object-cover shadow-lg ring-1 ring-black/5 mb-5"
       />
       <h1 className="text-2xl font-black text-foreground mb-2">おすそわけ</h1>
       <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mb-8">
