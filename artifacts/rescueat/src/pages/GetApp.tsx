@@ -27,6 +27,12 @@ export default function GetApp() {
   const os = detectOS();
   const playReady = os === 'android' && ANDROID_PUBLISHED;
 
+  // 対象端末はストアへ即リダイレクト（中間の Web ページを挟まず直行）。
+  const storeTarget = os === 'ios' ? APP_STORE_URL : playReady ? PLAY_STORE_URL : null;
+  React.useEffect(() => {
+    if (storeTarget) window.location.href = storeTarget;
+  }, [storeTarget]);
+
   const primary =
     os === 'ios'
       ? { href: APP_STORE_URL, label: 'App Store でインストール', icon: Apple }
