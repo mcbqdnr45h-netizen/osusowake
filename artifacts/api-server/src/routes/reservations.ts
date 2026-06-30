@@ -264,6 +264,37 @@ export async function releaseExpiredCartReservations(): Promise<void> {
     console.error("[cart-reservations] cleanup error:", err);
   }
 }
+
+/**
+ * 決済されないまま放置された予約（pending かつ unpaid）を一定時間後に自動キャンセルする。
+ * - 仮押さえ廃止後、 未払い予約は在庫を押さえない → キャンセルしても在庫・売上に影響なし。
+ * - 未払い = 一度も課金されていない（Stripe は決済成功時のみ課金）→ お金は一切動かない。
+ * - 30分以上経過したものだけ対象にし、 決済処理中（数秒で確定）とのレースを回避。
+ * - 念のため未完了の Stripe PaymentIntent も cancel し、 後から課金されないようにする
+ *   （課金成立済みなら cancel は失敗するだけで無害。 ただし30分後なら webhook 確定済みのはず）。
+ */
+export async function cancelStaleUnpaidReservations(): Promise<void> {
+  try {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000);
+    const stale = await db
+      .select({ id: reservationsTable.id, paymentIntentId: reservationsTable.paymentIntentId })
+      .from(reservationsTable)
+      .where(and(
+        eq(reservationsTable.status, "pending"),
+        eq(reservationsTable.paymentStatus, "unpaid"),
+        lt(reservationsTable.createdAt, cutoff),
+      ));
+    if (stale.length === 0) return;
+    const ids = stale.map((r) => r.id);
+    await db.update(reservationsTable).set({ status: "cancelled" }).where(inArray(reservationsTable.id, ids));
+    await Promise.all(
+      stale.map((r) => r.paymentIntentId).filter((p): p is string => !!p).map((p) => cancelStripePI(p)),
+    );
+    console.log(`[reservations] auto-cancelled ${ids.length} stale unpaid (>30min) reservations`);
+  } catch (err) {
+    console.error("[reservations] cancelStaleUnpaidReservations error:", err);
+  }
+}
 import {
   ListReservationsQueryParams,
   CreateReservationBody,
@@ -279,6 +310,8 @@ const router: IRouter = Router();
 function isBagExpired(bag: {
   pickupEnd: string | null;
   pickupStart: string | null;
+  pickupEnd2?: string | null;
+  pickupNextDay?: boolean | null;
   createdAt: Date;
   storeOwnerId?: string | null;
 }): boolean {
@@ -295,16 +328,27 @@ function isBagExpired(bag: {
   // ★ pickupEnd=null: 出品日が今日でなければ期限切れ (bags.ts isBagExpired と統一)
   if (!bag.pickupEnd) return createdStr !== todayStr;
 
+  // ★ 2部制(受取2枠): 期限は「最後の枠の終わり」= pickupEnd2 があればそちら（一覧の bagVisibleSql と一致させる）。
+  const effEnd = bag.pickupEnd2 || bag.pickupEnd;
+
+  // ★ 翌日受取（前日出品 pickupNextDay）: 今日出品→受取は明日でまだ有効 / 昨日出品→今日が受取日
+  //   (effEnd 超過で期限切れ) / それ以前→期限切れ。 これが無く前日出品バッグが購入不可だった。
+  if (bag.pickupNextDay) {
+    if (createdStr === todayStr)     return false;
+    if (createdStr === yesterdayStr) return currentTime > effEnd;
+    return true;
+  }
+
   const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
 
   if (isOvernightBag) {
     if (createdStr === todayStr)      return false; // 今日出品 → 翌日 pickupEnd まで有効
-    if (createdStr === yesterdayStr)  return currentTime > bag.pickupEnd; // 昨日出品
+    if (createdStr === yesterdayStr)  return currentTime > effEnd; // 昨日出品
     return true;
   }
 
   if (createdStr !== todayStr) return true;
-  return currentTime > bag.pickupEnd;
+  return currentTime > effEnd;
 }
 
 function generatePickupCode(id: number): string {
@@ -435,6 +479,20 @@ router.post("/reservations", requireAuth, async (req, res) => {
   try {
     const body = CreateReservationBody.parse(req.body);
 
+    // 数量の健全性チェック: 生成zod(openapi)は number() のみで下限/整数を縛れないため
+    //   ここで明示的に 1〜99 の整数に制限する。 これが無いと負数で在庫が増殖し
+    //   (payment.ts の stockCount - quantity)、合計金額もマイナスになり得る。
+    if (
+      !Number.isInteger(body.quantity) ||
+      body.quantity < 1 ||
+      body.quantity > 99
+    ) {
+      return res.status(400).json({
+        error: "bad_request",
+        message: "数量は1〜99の整数で指定してください",
+      });
+    }
+
     // ── トランザクション内で在庫確認 + デクリメントを原子的に実行 ──
     let reservationId: number | null = null;
 
@@ -465,11 +523,14 @@ router.post("/reservations", requireAuth, async (req, res) => {
       }
 
       // ── 収益モデル ─────────────────────────────────────────────────
-      // merchandiseAmount = 商品代金 (店舗 25% 手数料の課金ベース)
+      // merchandiseAmount = 商品代金 (店舗 20% 手数料の課金ベース)
       // totalPrice        = ユーザー支払合計 = round10(merch * 1.05)
       //                     (5% システム利用料を加算し、10円単位で四捨五入)
       const merchandiseAmount = bag.discountedPrice * body.quantity;
-      const totalPrice = computeUserTotal(merchandiseAmount);
+      // ★ 合計 = 「1個あたりの買い手価格(5%込・10円切上げ)」× 個数。
+      //   表示単価 × 個数 = 合計 になり「¥60×2なのに¥110」の違和感を解消（透明性優先）。
+      //   店の取り分ベース merchandiseAmount は従来どおり 単価×個数。
+      const totalPrice = computeUserTotal(bag.discountedPrice) * body.quantity;
       const parsed = insertReservationSchema.parse({
         // 認可: body.userId は信用しない。常に認証ユーザの ID で予約を作る。
         userId: req.authUser!.id,
@@ -733,6 +794,7 @@ router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res)
           kind: "ok";
           existing: typeof reservationsTable.$inferSelect;
           wasPaid: boolean;
+          byStoreOwner: boolean; // 店舗オーナーがキャンセルした（買い手本人でなく店）
         };
 
     const lockResult: CancelLockResult = await db.transaction(async (tx) => {
@@ -743,8 +805,21 @@ router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res)
         .for("update");
 
       if (!existing) return { kind: "not_found" };
+
+      // 買い手本人 OR このバッグの店舗オーナー なら許可。
+      //   店が「店頭で売り切れた → オンライン注文を渡せない」時に、 店側からキャンセル＋返金できるようにする。
+      let byStoreOwner = false;
       if (existing.userId !== req.authUser!.id) {
-        return { kind: "forbidden", ownerId: existing.userId };
+        const [owner] = await tx
+          .select({ ownerId: storesTable.ownerId })
+          .from(surpriseBagsTable)
+          .innerJoin(storesTable, eq(storesTable.id, surpriseBagsTable.storeId))
+          .where(eq(surpriseBagsTable.id, existing.bagId))
+          .limit(1);
+        if (!owner || !owner.ownerId || owner.ownerId !== req.authUser!.id) {
+          return { kind: "forbidden", ownerId: existing.userId };
+        }
+        byStoreOwner = true;
       }
       if (existing.status === "cancelled") {
         return { kind: "already_cancelled" };
@@ -762,7 +837,7 @@ router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res)
         })
         .where(eq(reservationsTable.id, reservationId));
 
-      return { kind: "ok", existing, wasPaid };
+      return { kind: "ok", existing, wasPaid, byStoreOwner };
     });
 
     if (lockResult.kind === "not_found") {
@@ -779,7 +854,7 @@ router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res)
       return;
     }
 
-    const { existing, wasPaid } = lockResult;
+    const { existing, wasPaid, byStoreOwner } = lockResult;
     console.log(`[cancel] ✅ reservation=${reservationId} user=${existing.userId} wasPaid=${wasPaid} pi=${existing.paymentIntentId ?? "none"}`);
 
     // ② Stripe 全額返金 — wasPaid だけでなく PI が存在すれば必ず試行する。
@@ -828,7 +903,9 @@ router.post("/reservations/:reservationId/cancel", requireAuth, async (req, res)
     //   paid 遷移時に行うため、 cancel→succeeded レース (wasPaid=false + refundSucceeded)
     //   では webhook 側が already_cancelled 分岐に入って在庫減算をスキップしている。
     //   ここで復元すると在庫が水増しされるので、 wasPaid のみを条件とする。
-    if (wasPaid) {
+    //   ★ 店舗オーナー発のキャンセル(byStoreOwner)では在庫を戻さない: 店頭で売り切れて
+    //     渡せない→返金、 のケースなので物理在庫はもう無い。 戻すと別の客が買えて二重トラブルになる。
+    if (wasPaid && !byStoreOwner) {
       try {
         await db
           .update(surpriseBagsTable)
