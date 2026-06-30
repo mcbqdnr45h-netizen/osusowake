@@ -154,8 +154,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: payload.body || 'お知らせがあります',
-    icon: '/images/logo.png',
-    badge: '/images/logo.png',
+    icon: '/images/logo-192.png',
+    badge: '/images/logo-192.png',
     tag: payload.tag || 'osusowake',
     data: { url: payload.url || '/' },
     actions: [

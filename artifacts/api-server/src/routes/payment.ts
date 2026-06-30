@@ -68,8 +68,8 @@ async function logBypassAudit(opts: {
 }
 
 // ─── 手数料定数 ─────────────────────────────────────────────────────────────
-// プラットフォーム手数料率（店舗側）: 25%（固定）。商品代金 (merchandise) に対して課金。
-const PLATFORM_FEE_RATE = 0.25;
+// プラットフォーム手数料率（店舗側）: 20%（固定）。商品代金 (merchandise) に対して課金。
+const PLATFORM_FEE_RATE = 0.20;
 // Stripe 決済手数料率（JPY カード平均 3.6%）。実際にStripeから引かれるのは
 // 顧客支払合計 (totalAmountJpy = ユーザー支払額) に対する 3.6%。
 const STRIPE_FEE_RATE = 0.036;
@@ -224,6 +224,7 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
         storeId:           reservationsTable.storeId,
         paymentIntentId:   reservationsTable.paymentIntentId,
         status:            reservationsTable.status,
+        quantity:          reservationsTable.quantity,
       })
       .from(reservationsTable)
       .where(eq(reservationsTable.id, body.reservationId));
@@ -238,6 +239,29 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
       console.warn(`[SECURITY] /payment/create-intent: reservation ${reservation.id} owner=${reservation.userId} requester=${req.authUser!.id}`);
       res.status(403).json({ error: "forbidden", message: "この予約を操作する権限がありません" });
       return;
+    }
+
+    // ★ 課金前の在庫プリチェック ──────────────────────────────────────────
+    //   既に完売/非公開/キャンセル済みなら、 課金させずにここで弾く。
+    //   → 「決済→自動返金」の無駄（Stripe 手数料・買い手の混乱）を防ぐ。
+    //   決済処理中の数秒で売り切れる稀なレースは /payment/confirm 側の自動返金が保険。
+    //   ※ 既に paid の予約は再課金しないようスキップ（冪等）。
+    if ((reservation.status as string) === "cancelled") {
+      res.status(409).json({ error: "cancelled", message: "この予約はキャンセルされています（決済は行われていません）" });
+      return;
+    }
+    if (reservation.paymentStatus !== "paid") {
+      const [bagRow] = await db
+        .select({ stock: surpriseBagsTable.stockCount, isActive: surpriseBagsTable.isActive })
+        .from(surpriseBagsTable)
+        .where(eq(surpriseBagsTable.id, reservation.bagId));
+      if (!bagRow || !bagRow.isActive || bagRow.stock < reservation.quantity) {
+        // 売り切れ確定 → この予約はもう成立しないので即キャンセルし、
+        //   「未決済の予約があります」バナーに残り続けないようにする（在庫・課金とも無関係）。
+        await db.update(reservationsTable).set({ status: "cancelled" }).where(eq(reservationsTable.id, reservation.id));
+        res.status(409).json({ error: "out_of_stock", message: "申し訳ありません、 売り切れました（決済は行われていません）" });
+        return;
+      }
     }
 
     // ━━ App Store 審査用 決済バイパス ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -373,7 +397,7 @@ router.post("/payment/create-intent", requireAuth, async (req, res) => {
           reservationId:      String(reservation.id),
           store_id:           String(store?.id ?? reservation.storeId),
           store_name:         store?.name ?? "不明な店舗",
-          platformFeeRate:    "25%",
+          platformFeeRate:    "20%",
           userServiceFeeRate: "5%",
           merchandiseAmount:  String(merchandise),         // 商品代金（25%課金ベース）
           platformRevenue:    String(platformRevenue),     // = total - floor(merch × 0.75)
@@ -828,17 +852,21 @@ router.post("/payment/confirm", requireAuth, async (req, res) => {
         await sendPushToUser(store.ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${updated.id}`, url: "/store/orders" });
         // Web Push が届かない環境 (ブラウザのみ / 通知拒否 / iOS PWA 未追加) の補完として
         // 店舗オーナーへ注文メールを送信。 例外は内部で握り潰されるので await のみで OK。
-        await sendOrderEmailToStoreOwnerById({
-          ownerId:    store.ownerId,
-          storeName:  store.name ?? "店舗",
-          bagTitle:   bag?.title ?? "おすそわけ袋",
-          quantity:   updated.quantity,
-          pickupCode: updated.pickupCode,
-          pickupStart: bag?.pickupStart ?? null,
-          pickupEnd:   bag?.pickupEnd ?? null,
-          totalPrice:  updated.totalPrice,
-          orderId:     updated.id,
-        });
+        // ★ confirm/verify/webhook の三重発火で重複メールを送らないよう、DB通知と同じ
+        //   冪等ガード内で送る（DB通知行が「一度だけ」マーカーになり、再起動後も有効）。
+        if (existingOwner.length === 0) {
+          await sendOrderEmailToStoreOwnerById({
+            ownerId:    store.ownerId,
+            storeName:  store.name ?? "店舗",
+            bagTitle:   bag?.title ?? "おすそわけ袋",
+            quantity:   updated.quantity,
+            pickupCode: updated.pickupCode,
+            pickupStart: bag?.pickupStart ?? null,
+            pickupEnd:   bag?.pickupEnd ?? null,
+            totalPrice:  updated.totalPrice,
+            orderId:     updated.id,
+          });
+        }
       }
 
       // ユーザー（購入者）への購入完了通知
@@ -966,7 +994,7 @@ router.post("/checkout/session", requireAuth, async (req, res) => {
       store_id:             String(store?.id ?? reservation.storeId),
       store_name:           store?.name ?? "不明な店舗",
       chargeMode:           "separate_charges_and_transfers",
-      platformFeeRate:      "25%",
+      platformFeeRate:      "20%",
       userServiceFeeRate:   "5%",
       merchandiseAmount:    String(merchandise),
       platformRevenue:      String(platformRevenue),
@@ -1368,6 +1396,7 @@ router.get("/checkout/verify", async (req, res) => {
             await db.insert(notificationsTable).values({ userId: ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: reservationFull.storeId ?? undefined });
           }
           await sendPushToUser(ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${reservationId}`, url: "/store/orders" });
+          if (existingOwner.length === 0) {
           await sendOrderEmailToStoreOwnerById({
             ownerId,
             storeName:  reservationFull.storeName ?? "店舗",
@@ -1379,6 +1408,7 @@ router.get("/checkout/verify", async (req, res) => {
             totalPrice:  reservationFull.totalPrice ?? null,
             orderId:     reservationId,
           });
+          }
         }
 
         if (buyerUserId) {

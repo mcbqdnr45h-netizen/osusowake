@@ -34,10 +34,9 @@ interface FailRecord { count: number; blockedUntil: number | null }
 const failedAttempts = new Map<string, FailRecord>();
 
 function getClientIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (Array.isArray(forwarded)) return forwarded[0];
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return req.socket?.remoteAddress ?? "unknown";
+  // Express の trust proxy=1 が Fly の付与する実クライアントIPを req.ip に解決する。
+  //   X-Forwarded-For の左端を自前で読むと攻撃者が偽装してIPブロック/レート制限を回避できるため使わない。
+  return req.ip ?? req.socket?.remoteAddress ?? "unknown";
 }
 
 function isIpBlocked(ip: string): boolean {
@@ -185,7 +184,7 @@ router.get("/admin/metrics", requireAdmin, async (req, res) => {
     `);
     const m = gmvResult.rows[0] as any;
     const gmv = Number(m?.gmv ?? 0);
-    const platformFee = Math.round(gmv * 0.25);
+    const platformFee = Math.round(gmv * 0.20);
 
     // ── 2. 店舗統計 ──
     const storeStats = await db.execute(sql`
@@ -1453,6 +1452,12 @@ router.get("/admin/vapid-public-key", requireAdmin, async (_req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY ?? null });
 });
 
+// ── GET /push/vapid-public-key (public) ─────────────────────────────────────────
+// Webプッシュ購読(フロント)が applicationServerKey に使う公開鍵。 公開鍵なので認証不要。
+router.get("/push/vapid-public-key", (_req, res) => {
+  res.json({ key: process.env.VAPID_PUBLIC_KEY ?? null });
+});
+
 // ── GET /settings (public) ─────────────────────────────────────────────────────
 router.get("/settings", async (_req, res) => {
   try {
@@ -1929,12 +1934,12 @@ router.get("/admin/export/sales-summary.csv", requireAdmin, async (_req, res) =>
         COUNT(*) FILTER (WHERE r.status = 'picked_up')::int AS picked_up_count,
         COUNT(*) FILTER (WHERE r.status = 'cancelled')::int AS cancelled_count,
         COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')),0)::numeric AS gmv,
-        ROUND(COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')),0) * 0.25)::numeric AS platform_fee
+        ROUND(COALESCE(SUM(r.total_price) FILTER (WHERE r.status IN ('confirmed','picked_up')),0) * 0.20)::numeric AS platform_fee
       FROM reservations r JOIN stores s ON s.id = r.store_id
       GROUP BY 1, s.id, s.name
       ORDER BY 1 DESC, gmv DESC
     `);
-    const headers = ["月","店舗ID","店舗名","予約数","受取数","キャンセル数","GMV(円)","手数料収益25%(円)"];
+    const headers = ["月","店舗ID","店舗名","予約数","受取数","キャンセル数","GMV(円)","手数料収益20%(円)"];
     const rows = result.rows.map((x: any) => [
       x.month, x.store_id, x.store_name,
       x.reservation_count, x.picked_up_count, x.cancelled_count,

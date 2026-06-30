@@ -111,7 +111,10 @@ export function usePushNotifications() {
           (action) => {
             const url = (action.notification.data as Record<string, string>)?.url;
             if (url && url !== '/') {
-              window.location.hash = url;
+              // wouter はパスベースのルーティング。 location.hash を変えても遷移しない。
+              //   pushState + popstate で実際に画面遷移させる（iOS push タップのディープリンク復活）。
+              window.history.pushState(null, '', url);
+              window.dispatchEvent(new PopStateEvent('popstate'));
             }
           },
         );

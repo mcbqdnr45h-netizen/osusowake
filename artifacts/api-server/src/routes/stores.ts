@@ -6,6 +6,7 @@ import { supabaseAdmin } from "../lib/supabase";
 import { escapeHtml } from "../lib/escape.js";
 import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
 import { requireAdmin } from "./admin.js";
+import { bagVisibleSql } from "../lib/bag-visibility.js";
 import {
   ListStoresQueryParams,
   CreateStoreBody,
@@ -262,25 +263,9 @@ const storeSelectFields = {
   holiday: storesTable.holiday,
   pickupHours: storesTable.pickupHours,
   rejectionReason: storesTable.rejectionReason,
+  // ★ 可視条件は共有SQL(lib/bag-visibility.ts)に一本化。 2部制(受取2枠)の期限延長もそこで対応。
   totalBagsAvailable: sql<number>`COALESCE(SUM(CASE
-    WHEN ${surpriseBagsTable.isActive} = true
-      AND (
-        ${surpriseBagsTable.pickupEnd} IS NULL
-        OR (
-          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
-          AND ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
-          AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
-        )
-        OR (
-          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
-          AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
-        )
-        OR (
-          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day'
-          AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
-          AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
-        )
-      )
+    WHEN ${surpriseBagsTable.isActive} = true AND ${bagVisibleSql}
     THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
 
@@ -319,25 +304,18 @@ const publicStoreSelectFields = {
   holiday: storesTable.holiday,
   pickupHours: storesTable.pickupHours,
   createdAt: storesTable.createdAt,
+  // 本日完売 (social proof): 今日 JST に作られたバッグが在庫0なら true。
+  //   ★ 決済で在庫0になると isActive=false になる (totalBagsAvailable からは消える) ため、
+  //     ここは isActive を見ない (= 完売済み非アクティブも拾う)。
+  //     前日出品 (pickupNextDay) のバッグは作成日が前日なので「今日 or 昨日 JST 作成」を対象にする。
+  soldOutToday: sql<boolean>`COALESCE(BOOL_OR(
+    ${surpriseBagsTable.stockCount} <= 0
+    AND DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')
+        >= DATE(NOW() AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day'
+  ), false)`.as("soldOutToday"),
+  // ★ 可視条件は共有SQL(lib/bag-visibility.ts)に一本化。 2部制(受取2枠)の期限延長もそこで対応。
   totalBagsAvailable: sql<number>`COALESCE(SUM(CASE
-    WHEN ${surpriseBagsTable.isActive} = true
-      AND (
-        ${surpriseBagsTable.pickupEnd} IS NULL
-        OR (
-          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
-          AND ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
-          AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
-        )
-        OR (
-          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo')
-          AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
-        )
-        OR (
-          DATE(${surpriseBagsTable.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') = DATE(NOW() AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day'
-          AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
-          AND ${surpriseBagsTable.pickupEnd} >= TO_CHAR(NOW() AT TIME ZONE 'Asia/Tokyo', 'HH24:MI')
-        )
-      )
+    WHEN ${surpriseBagsTable.isActive} = true AND ${bagVisibleSql}
     THEN ${surpriseBagsTable.stockCount} ELSE 0 END), 0)`.as("totalBagsAvailable"),
 };
 
@@ -354,8 +332,15 @@ router.get("/stores", async (req, res) => {
     //     show_on_map=false を同時に設定するため、自動的にマップから消える。
     const stores = await db
       .select(publicStoreSelectFields)
+      // ★ 性能: マーカーの個数集計(totalBagsAvailable / soldOutToday)は「今日/昨日作成」のバッグしか
+      //   対象にならない(bagVisibleSql の全CASE が created today/yesterday 前提)。 なので結合自体を
+      //   直近2日のバッグに絞る → 過去の全履歴バッグを結合しなくなり集計が激速化(結果は同一)。
+      //   これが無いと店ごとに数百件の古いバッグを結合してJST変換集計し、 /api/stores が1秒超になっていた。
       .from(storesTable)
-      .leftJoin(surpriseBagsTable, eq(storesTable.id, surpriseBagsTable.storeId))
+      .leftJoin(surpriseBagsTable, and(
+        eq(storesTable.id, surpriseBagsTable.storeId),
+        sql`${surpriseBagsTable.createdAt} >= NOW() - INTERVAL '2 days'`,
+      ))
       .where(sql`${storesTable.isActive} = true AND (
         coalesce(${storesTable.showOnMap}, false) = true
         OR (${storesTable.status} = 'approved' AND coalesce(${storesTable.stripeChargesEnabled}, false) = true)
@@ -842,7 +827,10 @@ router.post("/stores/upload-document", requireAuth, async (req, res) => {
     const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
     const buffer = Buffer.from(match[2], "base64");
 
-    const filePath = `${userId}/${Date.now()}-${fileType}.${ext}`;
+    // fileType はクライアント入力。 そのままパスに使うと "../" 等でバケット内の
+    //   他ユーザ領域へ書き込めてしまうため、 英数とハイフン/アンダースコアのみ許可。
+    const safeFileType = String(fileType).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40) || "doc";
+    const filePath = `${userId}/${Date.now()}-${safeFileType}.${ext}`;
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from("store-documents")
@@ -1675,7 +1663,7 @@ router.put("/stores/:storeId", requireAuth, requireStoreOwner, async (req, res) 
 });
 
 // GET /api/stores/:storeId/today-sales
-// 今日の売上（手数料25%控除後の店舗受取額）を Stripe Transfers から取得
+// 今日の売上（手数料20%控除後の店舗受取額）を Stripe Transfers から取得
 router.get("/stores/:storeId/today-sales", requireAuth, requireStoreOwner, async (req, res) => {
   try {
     const storeId = parseInt(String(req.params.storeId));
@@ -1724,15 +1712,15 @@ router.get("/stores/:storeId/today-sales", requireAuth, requireStoreOwner, async
     // JPY: amountは円単位
     const net = transfers.data.reduce((sum, t) => sum + t.amount, 0);
     // 正確な逆算（新収益モデル）:
-    //   店舗受取 = floor(merch × 0.75) - round(userTotal × 0.036)
+    //   店舗受取 = floor(merch × 0.80) - round(userTotal × 0.036)
     //   userTotal ≈ merch × 1.05 のため
-    //   店舗受取 ≈ merch × 0.75 - merch × 1.05 × 0.036 = merch × 0.7122
-    //   → 商品代金 (merch) ≈ 店舗受取 / 0.7122
-    // ※ ここで返す `gross` は「商品代金合計」（25% 課金ベース）の概算値。
+    //   店舗受取 ≈ merch × 0.80 - merch × 1.05 × 0.036 = merch × 0.7622
+    //   → 商品代金 (merch) ≈ 店舗受取 / 0.7622
+    // ※ ここで返す `gross` は「商品代金合計」（20% 課金ベース）の概算値。
     //   ユーザー支払合計は別 (商品代金 + 5%システム利用料) なので店舗には開示しない。
-    const STORE_RATE = 1 - 0.25 - 1.05 * 0.036; // ≒ 0.7122
+    const STORE_RATE = 1 - 0.20 - 1.05 * 0.036; // ≒ 0.7622
     const gross       = net > 0 ? Math.round(net / STORE_RATE) : 0;
-    const platformFee = gross - net; // = プラットフォーム手数料(25%) + Stripe手数料(3.6%)
+    const platformFee = gross - net; // = プラットフォーム手数料(20%) + Stripe手数料(3.6%)
 
     res.json({
       gross,
@@ -2184,8 +2172,14 @@ router.get("/stores/:storeId/connect/balance", requireAuth, requireStoreOwner, a
       ).catch(() => null),
     ]);
 
-    const pending   = balance.pending.reduce((s, b) => s + b.amount, 0);
-    const available = balance.available.reduce((s, b) => s + b.amount, 0);
+    const rawPending   = balance.pending.reduce((s, b) => s + b.amount, 0);
+    const rawAvailable = balance.available.reduce((s, b) => s + b.amount, 0);
+    // ★ 送金中ペイアウト等で Stripe は pending をマイナス計上することがある（available と相殺され
+    //   net = available + pending が実際の手元残高）。 そのまま出すと店主に「保留中 ¥-1,391」と
+    //   負の数が見えて誤解を招く。 負の pending を available に反映し、 表示は 0 未満にしない。
+    //   （例: pending=-1391, available=1391 → 保留中¥0 / 振込可能¥0、 送金中¥1,391は履歴で表示）
+    const pending   = Math.max(0, rawPending);
+    const available = Math.max(0, rawAvailable + Math.min(0, rawPending));
 
     // 次回ペイアウト日を計算
     const schedule = (account.settings as any)?.payouts?.schedule as {

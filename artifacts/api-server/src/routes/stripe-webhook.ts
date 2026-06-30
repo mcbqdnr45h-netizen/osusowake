@@ -634,18 +634,21 @@ router.post("/stripe-webhook", async (req: Request, res: Response) => {
             await db.insert(notificationsTable).values({ userId: store.ownerId, type: "bag_sold", title: ownerTitle, body: ownerBody, storeId: row.storeId });
           }
           await sendPushToUser(store.ownerId, { title: ownerTitle, body: ownerBody, tag: `bag-sold-${row.id}`, url: "/store/orders" });
-          // Web Push 補完: ブラウザのみ利用中・通知拒否中のオーナーに必ず届くようメール併用
-          await sendOrderEmailToStoreOwnerById({
-            ownerId:    store.ownerId,
-            storeName:  store.name ?? "店舗",
-            bagTitle:   bag?.title ?? "おすそわけ袋",
-            quantity:   reservation?.quantity ?? 1,
-            pickupCode: row.pickupCode ?? null,
-            pickupStart: bag?.pickupStart ?? null,
-            pickupEnd:   bag?.pickupEnd ?? null,
-            totalPrice:  reservation?.totalPrice ?? null,
-            orderId:     row.id,
-          });
+          // Web Push 補完: ブラウザのみ利用中・通知拒否中のオーナーに必ず届くようメール併用。
+          //   ★ confirm/verify/webhook の三重発火で重複送信しないよう DB通知と同じ冪等ガード内で送る。
+          if (existingOwner.length === 0) {
+            await sendOrderEmailToStoreOwnerById({
+              ownerId:    store.ownerId,
+              storeName:  store.name ?? "店舗",
+              bagTitle:   bag?.title ?? "おすそわけ袋",
+              quantity:   reservation?.quantity ?? 1,
+              pickupCode: row.pickupCode ?? null,
+              pickupStart: bag?.pickupStart ?? null,
+              pickupEnd:   bag?.pickupEnd ?? null,
+              totalPrice:  reservation?.totalPrice ?? null,
+              orderId:     row.id,
+            });
+          }
         }
 
         // ユーザー（購入者）通知
