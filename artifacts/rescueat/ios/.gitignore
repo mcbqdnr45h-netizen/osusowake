@@ -12,6 +12,11 @@ capacitor-cordova-ios-plugins
 App/App/capacitor.config.json
 App/App/config.xml
 
-# SPM — Package.resolved は cap sync ごとに originHash が変わるため commit しない。
-# Xcode Cloud が自動解決する（committed ファイルがあると automatic resolution が無効化される）。
-App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+# SPM — Package.resolved は commit する（CI再現性のため）。
+# CIは automatic dependency resolution が無効なため、committed の resolved が必須。
+# 未commitだと CI がキャッシュの古い resolved を見て
+#   "an out-of-date resolved file was detected ... not allowed when automatic
+#    dependency resolution is disabled" で失敗する。
+# 依存を追加/更新（cap sync 等）したら:
+#   xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme App
+# で resolved を更新して commit すること。
