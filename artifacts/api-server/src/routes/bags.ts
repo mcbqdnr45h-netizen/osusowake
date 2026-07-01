@@ -7,6 +7,7 @@ import { sendPushToUsers } from "../lib/push.js";
 import { requireAuth, requireStoreOwner } from "../middlewares/auth.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { getReviewDemoOwnerIds, isReviewDemoOwner } from "../lib/app-review.js";
+import { bagVisibleSql } from "../lib/bag-visibility.js";
 import {
   ListStoreBagsParams,
   CreateBagParams,
@@ -29,6 +30,8 @@ const router: IRouter = Router();
 export function isBagExpired(bag: {
   pickupEnd: string | null;
   pickupStart: string | null;
+  pickupEnd2?: string | null;
+  pickupNextDay?: boolean | null;
   createdAt: Date;
   store?: { ownerId?: string | null } | null;
   storeOwnerId?: string | null;
@@ -53,22 +56,35 @@ export function isBagExpired(bag: {
     return createdStr !== todayStr;
   }
 
-  const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
+  // ★ 2部制(受取2枠): 期限は「最後の枠の終わり」= pickupEnd2 があればそちら（一覧の bagVisibleSql と一致）。
+  const effEnd = bag.pickupEnd2 || bag.pickupEnd;
+
+  // ★ 翌日受取（前日出品 pickupNextDay）: 今日出品→受取は明日でまだ有効 / 昨日出品→今日が受取日 / それ以前→期限切れ。
+  if (bag.pickupNextDay) {
+    if (createdStr === todayStr)     return false;
+    if (createdStr === yesterdayStr) return currentTime > effEnd;
+    return true;
+  }
+
+  // ★ 深夜またぎ判定は「最後の枠の終わり」(effEnd) で行う。 2部制で2枠目が日跨ぎ
+  //   (例: 11:00-14:00, 22:00-02:00) の場合、 slot1 の pickupEnd だけ見ると日跨ぎを
+  //   見落とし、 同日の effEnd 超過で早期に期限切れ扱いして 2枠目が消えるバグになる。
+  const isOvernightBag = bag.pickupStart != null && effEnd < bag.pickupStart;
 
   if (isOvernightBag) {
     if (createdStr === todayStr) {
-      // 今日出品した深夜またぎバッグ → 翌日の pickupEnd まで有効
+      // 今日出品した深夜またぎバッグ → 翌日の effEnd まで有効
       return false;
     } else if (createdStr === yesterdayStr) {
       // 昨日出品した深夜またぎバッグ → 今日の pickupEnd を過ぎたら期限切れ
-      return currentTime > bag.pickupEnd;
+      return currentTime > effEnd;
     }
     return true; // 2日以上前は期限切れ
   }
 
   // 通常バッグ
   if (createdStr !== todayStr) return true;
-  return currentTime > bag.pickupEnd;
+  return currentTime > effEnd;
 }
 
 // 受取時間が過ぎていないか判定するSQL条件（JST基準）
@@ -105,40 +121,11 @@ const REVIEW_OWNER_IDS_SQL = sql.raw(
   })(),
 );
 
+// ★ 可視条件は共有 SQL に一本化 (lib/bag-visibility.ts)。 ここは「審査用デモ店バイパス(CASE 0)」を
+//   OR で足すだけ。 2部制(受取2枠)の期限延長も共有側で対応済み。
 const notExpiredCondition = sql`(
-  (
-    -- CASE 0: App Store 審査用デモ店舗 → 常に表示（日付・時刻バイパス）
-    ${storesTable.ownerId} = ANY(${REVIEW_OWNER_IDS_SQL})
-  )
-
-  OR (
-    -- CASE 1: 受取時間制限なし → 今日作成 (JST) なら表示
-    ${surpriseBagsTable.pickupEnd} IS NULL
-    AND ${CREATED_JST} = ${TODAY_JST}
-  )
-
-  OR (
-    -- CASE 2: 通常バッグ → 今日作成 (JST) かつ pickupEnd が現在時刻以降
-    ${surpriseBagsTable.pickupEnd} IS NOT NULL
-    AND ${surpriseBagsTable.pickupEnd} >= ${surpriseBagsTable.pickupStart}
-    AND ${CREATED_JST} = ${TODAY_JST}
-    AND ${surpriseBagsTable.pickupEnd} >= ${NOW_TIME}
-  )
-
-  OR (
-    -- CASE 3a: 深夜またぎ・今日作成 → 常に表示（pickupEnd 到達まで翌日も継続）
-    ${surpriseBagsTable.pickupEnd} IS NOT NULL
-    AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
-    AND ${CREATED_JST} = ${TODAY_JST}
-  )
-
-  OR (
-    -- CASE 3b: 深夜またぎ・昨日作成 → 今日の pickupEnd がまだ来ていないなら表示
-    ${surpriseBagsTable.pickupEnd} IS NOT NULL
-    AND ${surpriseBagsTable.pickupEnd} < ${surpriseBagsTable.pickupStart}
-    AND ${CREATED_JST} = ${TODAY_JST} - INTERVAL '1 day'
-    AND ${surpriseBagsTable.pickupEnd} >= ${NOW_TIME}
-  )
+  (${storesTable.ownerId} = ANY(${REVIEW_OWNER_IDS_SQL}))
+  OR ${bagVisibleSql}
 )`;
 
 // ★ 公開エンドポイント用 store 公開フィールド (bags 結合用 — PII 完全除外)
@@ -194,11 +181,14 @@ router.get("/bags", async (_req, res) => {
         stockCount: surpriseBagsTable.stockCount,
         pickupStart: surpriseBagsTable.pickupStart,
         pickupEnd: surpriseBagsTable.pickupEnd,
+        pickupStart2: surpriseBagsTable.pickupStart2,
+        pickupEnd2: surpriseBagsTable.pickupEnd2,
         imageUrl: surpriseBagsTable.imageUrl,
         category: surpriseBagsTable.category,
         itemType: surpriseBagsTable.itemType,
         isActive: surpriseBagsTable.isActive,
         createdAt: surpriseBagsTable.createdAt,
+        pickupNextDay: surpriseBagsTable.pickupNextDay,
         // ★ PII 除外: storesTable 全カラムではなく公開フィールドのみ取得
         store: publicStoreCols,
         storeAvgRating: sql<number | null>`(SELECT ROUND(AVG(r.rating)::numeric, 1) FROM reviews r WHERE r.store_id = ${storesTable.id})`,
@@ -241,10 +231,13 @@ router.get("/bags/:bagId", async (req, res) => {
         stockCount: surpriseBagsTable.stockCount,
         pickupStart: surpriseBagsTable.pickupStart,
         pickupEnd: surpriseBagsTable.pickupEnd,
+        pickupStart2: surpriseBagsTable.pickupStart2,
+        pickupEnd2: surpriseBagsTable.pickupEnd2,
         imageUrl: surpriseBagsTable.imageUrl,
         category: surpriseBagsTable.category,
         isActive: surpriseBagsTable.isActive,
         createdAt: surpriseBagsTable.createdAt,
+        pickupNextDay: surpriseBagsTable.pickupNextDay,
         // ★ PII 除外: storesTable 全カラムではなく公開フィールドのみ
         store: publicStoreCols,
         // ★ オーナーID は内部の isBagExpired (デモ店舗判定) でのみ使用 ―
@@ -264,6 +257,8 @@ router.get("/bags/:bagId", async (req, res) => {
     if (isBagExpired({
       pickupEnd: bag.pickupEnd,
       pickupStart: bag.pickupStart,
+      pickupEnd2: bag.pickupEnd2,
+      pickupNextDay: bag.pickupNextDay,
       createdAt: bag.createdAt,
       storeOwnerId: bag.storeOwnerId,
     })) {
@@ -358,6 +353,12 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
       return res.status(400).json({ error: "bad_request", message: "受取終了時間（pickupEnd）は必須です" });
     }
 
+    // 2部制(受取2枠): CreateBagBody(生成zod)に無い任意フィールドなので req.body から直接読む。
+    //   両方が HH:MM の時だけ採用（片方だけは無効＝1枠扱い）。
+    const rawBody = (req.body ?? {}) as Record<string, unknown>;
+    const hhmm = (v: unknown): v is string => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+    const has2ndWindow = hhmm(rawBody.pickupStart2) && hhmm(rawBody.pickupEnd2);
+
     // Stripe 最低決済額チェック（50円未満は決済エラーになる）
     if (Number(body.discountedPrice) < 50) {
       return res.status(400).json({
@@ -375,6 +376,8 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
       stockCount: Number(body.stockCount),
       pickupStart: body.pickupStart ?? null,
       pickupEnd: body.pickupEnd ?? null,
+      pickupStart2: has2ndWindow ? String(rawBody.pickupStart2) : null,
+      pickupEnd2: has2ndWindow ? String(rawBody.pickupEnd2) : null,
       imageUrl: body.imageUrl ?? null,
       category: body.category ?? null,
       allergyInfo: body.allergyInfo ?? null,
@@ -383,6 +386,9 @@ router.post("/stores/:storeId/bags", requireAuth, requireStoreOwner, async (req,
       //   従来 INSERT で itemType を渡しておらず、 DB default('bag') にフォールバックしていたため、
       //   店舗側が「単品商品」を選んでも常に「バッグ」 として保存されていた (本番バグ修正)。
       itemType: body.itemType ?? 'bag',
+      // ★ 翌日受取（前日の夜に出品）。 手動出品でも「明日の朝 受取」のバッグを夜に出せるように。
+      //   CreateBagBody(生成zod)に無い任意フィールドなので rawBody から直接読む。
+      pickupNextDay: rawBody.pickupNextDay === true,
       isActive: true,
     }).returning();
 
@@ -643,6 +649,8 @@ router.patch("/stores/:storeId/bags/:bagId", requireAuth, requireStoreOwner, asy
           createdAt: surpriseBagsTable.createdAt,
           pickupStart: surpriseBagsTable.pickupStart,
           pickupEnd: surpriseBagsTable.pickupEnd,
+          pickupEnd2: surpriseBagsTable.pickupEnd2,
+          pickupNextDay: surpriseBagsTable.pickupNextDay,
         })
         .from(surpriseBagsTable)
         .where(and(
@@ -666,17 +674,25 @@ router.patch("/stores/:storeId/bags/:bagId", requireAuth, requireStoreOwner, asy
 
         let isExpired = false;
         if (bagCheck.pickupEnd) {
-          const isOvernight = bagCheck.pickupStart != null && bagCheck.pickupEnd < bagCheck.pickupStart;
-          if (isOvernight) {
+          // 2部制(受取2枠): 期限は「最後の枠の終わり」= pickupEnd2 があればそちら。
+          const effEnd = bagCheck.pickupEnd2 || bagCheck.pickupEnd;
+          // 深夜またぎ判定は最後の枠(effEnd)基準（2部制で2枠目が日跨ぎのケースを取りこぼさない）。
+          const isOvernight = bagCheck.pickupStart != null && effEnd < bagCheck.pickupStart;
+          if (bagCheck.pickupNextDay) {
+            // 翌日受取(前日出品): 今日出品→受取は明日でまだ有効 / 昨日出品→今日が受取日 / それ以前→期限切れ
+            if (createdStr === todayStr) isExpired = false;
+            else if (createdStr === yesterdayStr) isExpired = currentTime > effEnd;
+            else isExpired = true;
+          } else if (isOvernight) {
             if (createdStr === todayStr) {
               isExpired = false;
             } else if (createdStr === yesterdayStr) {
-              isExpired = currentTime > bagCheck.pickupEnd;
+              isExpired = currentTime > effEnd;
             } else {
               isExpired = true;
             }
           } else {
-            isExpired = (createdStr !== todayStr) || (currentTime > bagCheck.pickupEnd);
+            isExpired = (createdStr !== todayStr) || (currentTime > effEnd);
           }
         } else {
           // pickupEnd 未設定: 出品日が今日でなければ期限切れ (フロント getBagStatus と同等)

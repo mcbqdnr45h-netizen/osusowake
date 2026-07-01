@@ -16,6 +16,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import { useAppSettings } from "@/hooks/use-app-settings";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
+import { useWebPush } from "@/hooks/use-web-push";
+import { useSwipeBack } from "@/hooks/use-swipe-back";
 import MaintenancePage from "./pages/MaintenancePage";
 import { listStores, getListStoresQueryKey, listAllBags, getListAllBagsQueryKey, listReservations, getListReservationsQueryKey } from "@workspace/api-client-react";
 
@@ -498,6 +500,10 @@ function MaintenanceGate({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  // 左端スワイプで戻る（iOS標準ジェスチャの再現）。SPA だとネイティブの
+  // エッジスワイプが効かないので全画面で有効化する。
+  useSwipeBack();
+
   // 起動時に「前回の印刷で残ってしまった osusowake-print-root」 を削除する。
   // iOS Safari など afterprint が発火しないブラウザで stuck し、
   // 商品詳細ページなどの下部に領収書 DOM が見えてしまう問題への保険。
@@ -634,7 +640,8 @@ function SplashHider() {
 
 function PrefetchOnAuth() {
   const { user } = useAuth();
-  usePushNotifications();
+  usePushNotifications(); // ネイティブ(iOS/Android アプリ)の Capacitor push
+  useWebPush();           // Web版(Android Chrome / PC / iOS PWA)の Webプッシュ購読
   useEffect(() => {
     if (!user?.id) return;
     const params = { userId: user.id };

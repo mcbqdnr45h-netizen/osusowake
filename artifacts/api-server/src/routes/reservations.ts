@@ -339,10 +339,11 @@ function isBagExpired(bag: {
     return true;
   }
 
-  const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
+  // ★ 深夜またぎ判定は最後の枠(effEnd)基準。 2部制で2枠目が日跨ぎ(例 22:00-02:00)でも取りこぼさない。
+  const isOvernightBag = bag.pickupStart != null && effEnd < bag.pickupStart;
 
   if (isOvernightBag) {
-    if (createdStr === todayStr)      return false; // 今日出品 → 翌日 pickupEnd まで有効
+    if (createdStr === todayStr)      return false; // 今日出品 → 翌日 effEnd まで有効
     if (createdStr === yesterdayStr)  return currentTime > effEnd; // 昨日出品
     return true;
   }

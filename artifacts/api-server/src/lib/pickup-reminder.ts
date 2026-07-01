@@ -26,6 +26,8 @@ export async function sendPickupReminders(): Promise<void> {
         storeName:     storesTable.name,
         pickupStart:   surpriseBagsTable.pickupStart,
         pickupEnd:     surpriseBagsTable.pickupEnd,
+        pickupEnd2:    surpriseBagsTable.pickupEnd2,
+        pickupNextDay: surpriseBagsTable.pickupNextDay,
         createdAt:     reservationsTable.createdAt,
       })
       .from(reservationsTable)
@@ -53,12 +55,20 @@ export async function sendPickupReminders(): Promise<void> {
       //   (status は confirmed のまま残る)に翌日また「あと1時間」と誤通知していた。
       //   予約作成日(JST)を受取日とし、pickupEnd(日跨ぎなら翌日)を過ぎていたら skip。
       const createdJST    = new Date(row.createdAt.getTime() + JST_OFFSET);
-      const pickupDateStr = createdJST.toISOString().slice(0, 10); // JST の受取日 YYYY-MM-DD
-      if (row.pickupEnd) {
-        const [eh, em] = row.pickupEnd.split(':').map(Number);
-        const overnight = (eh * 60 + em) <= pickupMins; // end <= start → 日跨ぎ窓
+      // 受取日(JST)。 前日出品(pickupNextDay)は受取が翌日なので +1 日する。
+      //   これが無いと翌日受取の予約が「受取窓 終了済み」と誤判定され、 リマインダーが
+      //   一切飛ばなかった（endMs を出品日基準で計算 → 翌朝には常に過去扱い）。
+      const pickupBase    = row.pickupNextDay
+        ? new Date(createdJST.getTime() + 24 * 60 * 60 * 1000)
+        : createdJST;
+      const pickupDateStr = pickupBase.toISOString().slice(0, 10); // JST の受取日 YYYY-MM-DD
+      // 2部制(受取2枠): 受取窓の終わりは「最後の枠の終わり」= pickupEnd2 があればそちら。
+      const effEnd = row.pickupEnd2 || row.pickupEnd;
+      if (effEnd) {
+        const [eh, em] = effEnd.split(':').map(Number);
+        const overnight = (eh * 60 + em) <= pickupMins; // 最後の枠end <= 最初のstart → 日跨ぎ窓
         // JST 壁時計を UTC として解釈したエポックで now(JST) と比較する
-        let endMs = new Date(`${pickupDateStr}T${row.pickupEnd}:00Z`).getTime();
+        let endMs = new Date(`${pickupDateStr}T${effEnd}:00Z`).getTime();
         if (overnight) endMs += 24 * 60 * 60 * 1000;
         if (nowJST.getTime() >= endMs) continue; // 受取窓 終了済み → 送らない
       } else if (pickupDateStr !== nowJST.toISOString().slice(0, 10)) {

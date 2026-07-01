@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import * as geo from '@/lib/geo';
 import { Layout } from '@/components/Layout';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import {
@@ -14,6 +15,7 @@ import {
   SlidersHorizontal, ChevronDown, X, PackageOpen, Loader2, Map as MapIcon,
   Globe, Clock, ArrowLeft, ShoppingBag, Megaphone, Star, Percent, Sparkles,
 } from 'lucide-react';
+import { getPickupDateLabel } from '@/lib/utils';
 import { NotificationsBell } from '@/components/NotificationsBell';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
@@ -248,10 +250,10 @@ function useUserCity() {
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (!navigator.geolocation) { setLoading(false); setDenied(true); return; }
+    if (!geo.isSupported()) { setLoading(false); setDenied(true); return; }
     const fallbackTimer = setTimeout(() => { setLoading(false); setDenied(true); }, GEO_TIMEOUT_MS + 500);
 
-    navigator.geolocation.getCurrentPosition(
+    geo.getCurrentPosition(
       async (pos) => {
         clearTimeout(fallbackTimer);
         try {
@@ -301,6 +303,9 @@ export default function Home() {
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sortBtnRef = useRef<HTMLButtonElement>(null);
+  // ★ 「現在地ON」→設定アプリで許可→アプリ復帰、 の流れで権限変更を取り込むためのフラグ。
+  //   WebView は開いたまま設定を変えても geolocation 権限のキャッシュを更新しないため。
+  const pendingGrantRef = useRef(false);
   const [sortMenuPos, setSortMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   const { settings: appSettings } = useAppSettings();
@@ -344,7 +349,7 @@ export default function Home() {
     if (!reservations) return null;
     return reservations.find(r => r.status === 'pending' && r.paymentStatus !== 'paid') ?? null;
   }, [reservations]);
-  const { city: userCity, loading: geoLoading, denied: geoDenied, retry: retryGeo } = useUserCity();
+  const { city: userCity, loading: geoLoading, retry: retryGeo } = useUserCity();
   const { coords: userCoords, loading: gpsLoading, denied: gpsDenied } = useUserLocation();
 
   // 「現在地ON」ボタン: GPS と都市名の両方を再取得
@@ -358,6 +363,9 @@ export default function Home() {
       // 拒否 or タイムアウト
       // Capacitor ネイティブアプリ (iOS/Android) かをまず判定 (iPadOS は UA で iPad を装わないため必須)
       const isNative = Capacitor.isNativePlatform();
+      // ★ ネイティブで設定アプリへ誘導した場合、 アプリ復帰時に権限変更を取り込めるよう
+      //   フラグを立てる (下の appStateChange ハンドラで再取得→ダメならリロード)。
+      if (isNative) pendingGrantRef.current = true;
       // iOS Safari/PWA 判定 (iPadOS は UA に "Mac" が入りタッチ端末になる為、補助的に touch も見る)
       const ua = navigator.userAgent;
       const isIosWeb = /iPad|iPhone|iPod/.test(ua) ||
@@ -374,6 +382,26 @@ export default function Home() {
       });
     }
   }, [retryGeo, toast]);
+
+  // ★ 設定アプリで位置情報を許可した後、 アプリに戻ってきた瞬間に権限を反映させる。
+  //   WebView は開いたままだと geolocation 権限のキャッシュを更新しないため、
+  //   (1) まず再取得を試み、 成功すればそのまま反映、
+  //   (2) それでも拒否ならページをリロードして WebView に権限を読み直させる。
+  //   pendingGrantRef が true (= 直前に「現在地ON」が失敗して設定誘導した) のときだけ動く。
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let remove: (() => void) | undefined;
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('appStateChange', async ({ isActive }) => {
+        if (!isActive || !pendingGrantRef.current) return;
+        pendingGrantRef.current = false;
+        const coords = await requestGpsManually();
+        if (coords) retryGeo();
+        else window.location.reload();
+      }).then((h) => { remove = () => { h.remove(); }; });
+    }).catch(() => { /* @capacitor/app 未利用環境では何もしない */ });
+    return () => { remove?.(); };
+  }, [retryGeo]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -500,6 +528,8 @@ export default function Home() {
   const urgentBags = useMemo(() => {
     const filtered = sortedVisibleBags.filter(b => {
       if (b.stockCount <= 0) return false;
+      // 明日受け取りは専用セクションに出すので「もうすぐ終わる」からは除外
+      if (getPickupDateLabel((b as { createdAt?: string }).createdAt, (b as { pickupNextDay?: boolean }).pickupNextDay).isTomorrow) return false;
       const rem = remainingMs(b.pickupEnd);
       return rem >= 0 && rem <= URGENT_WINDOW_MS;
     });
@@ -510,12 +540,21 @@ export default function Home() {
 
   // ── ② 今日のおすすめ ── デフォルト時は日次シードシャッフルで全店舗公平に露出
   const recommendedBags = useMemo(() => {
-    const filtered = sortedVisibleBags.filter(b => b.stockCount > 0);
+    const filtered = sortedVisibleBags.filter(b => b.stockCount > 0 &&
+      !getPickupDateLabel((b as { createdAt?: string }).createdAt, (b as { pickupNextDay?: boolean }).pickupNextDay).isTomorrow);
     if (sortKey === 'default') {
       return seededShuffle(filtered, dailySeed).slice(0, 8);
     }
     return applySortKey(filtered).slice(0, 8);
   }, [sortedVisibleBags, applySortKey, sortKey, dailySeed]);
+
+  // ── 明日の受け取り ── 翌日受け取りの出品（定期出品の前日公開分など）をまとめる
+  const tomorrowBags = useMemo(() => {
+    return sortedVisibleBags.filter(b =>
+      b.stockCount > 0 &&
+      getPickupDateLabel((b as { createdAt?: string }).createdAt, (b as { pickupNextDay?: boolean }).pickupNextDay).isTomorrow,
+    );
+  }, [sortedVisibleBags]);
 
   // ── ③ 現在地から近いお店 ── （距離順固定、ソート適用なし）
   const { nearbyBags, distMap } = useMemo(() => {
@@ -640,7 +679,7 @@ export default function Home() {
     ? '現在地を確認中...'
     : userCity
       ? `${userCity}のおすそわけ`
-      : geoDenied ? '全国の注目おすそわけ' : (appSettings.catchphrase || 'あなたの街のおすそわけ');
+      : gpsDenied ? '全国の注目おすそわけ' : (appSettings.catchphrase || 'あなたの街のおすそわけ');
 
   return (
     <Layout hideFooter>
@@ -657,7 +696,7 @@ export default function Home() {
                   className="flex items-center gap-1.5 flex-1 min-w-0">
                   {geoLoading
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
-                    : geoDenied
+                    : gpsDenied
                       ? <Globe className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                       : <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
                   }
@@ -824,7 +863,7 @@ export default function Home() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black text-white/90 tracking-[0.15em] uppercase">Coming Soon</p>
-                  <p className="text-sm font-black text-white leading-tight mt-0.5">7月1日（火）から出品スタート</p>
+                  <p className="text-sm font-black text-white leading-tight mt-0.5">7月1日（水）から出品スタート</p>
                   <p className="text-[11px] text-white/95 leading-relaxed mt-1">
                     お店からの「おすそわけバッグ」販売が 7月1日 開始予定です。 お楽しみに！
                   </p>
@@ -954,8 +993,12 @@ export default function Home() {
                 transition={{ duration: 0.15 }}
                 className="pb-6"
               >
-                {/* 全国モードバナー */}
-                {!geoLoading && (geoDenied || gpsDenied) && <NationwideBanner onAllow={handleAllowLocation} />}
+                {/* 全国モードバナー
+                    ★ 表示判定は GPS 座標の有無のみで行う。 以前は都市名の逆ジオコーディング
+                    (Nominatim) の失敗 (geoDenied) でもバナーが残り、 位置情報 ON・GPS 取得済みでも
+                    Nominatim がレート制限で落ちると「現在地ON」が効かない状態になっていた。
+                    都市名はあくまで表示用ラベルであり、 位置機能の有効/無効は GPS で判断する。 */}
+                {!gpsLoading && gpsDenied && !userCoords && <NationwideBanner onAllow={handleAllowLocation} />}
 
                 {/* ① もうすぐ終わるおすそわけ */}
                 {(isLoadingBags || urgentBags.length > 0) && (
@@ -1026,6 +1069,18 @@ export default function Home() {
                       count={morningBags.length}
                     />
                     <HorizScrollRow bags={morningBags.slice(0, 6)} loading={false} />
+                  </div>
+                )}
+
+                {/* 明日の受け取り（今日の出品を優先するため、 themed セクションの下に配置） */}
+                {tomorrowBags.length > 0 && (
+                  <div className="pt-1 pb-2">
+                    <SectionHeader
+                      icon={<Moon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                      title="🌙 明日の受け取り"
+                      count={tomorrowBags.length}
+                    />
+                    <HorizScrollRow bags={tomorrowBags.slice(0, 6)} loading={false} />
                   </div>
                 )}
 
@@ -1106,7 +1161,7 @@ export default function Home() {
                         transition={{ type: 'spring', stiffness: 200 }}
                         className="w-20 h-20 bg-gradient-to-br from-primary/15 to-amber-200/40 rounded-3xl flex items-center justify-center mb-4"
                       >
-                        <span className="text-4xl select-none">{geoDenied ? '🗾' : '🎁'}</span>
+                        <span className="text-4xl select-none">{gpsDenied ? '🗾' : '🎁'}</span>
                       </motion.div>
                       <h3 className="text-base font-black text-foreground mb-1.5">
                         {inStockOnly ? '現在受付中のおすそわけはありません' : '今日のおすそわけを準備中'}

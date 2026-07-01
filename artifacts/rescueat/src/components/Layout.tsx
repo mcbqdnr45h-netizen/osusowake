@@ -412,7 +412,7 @@ export function Layout({ children, showBottomNav = true, hideFooter = false, hid
                 © 2026 おすそわけ. All rights reserved.
               </p>
               <p className="text-[11px] text-muted-foreground/40">
-                初期費用・月額0円。成果報酬型（手数料25%）
+                初期費用・月額0円。成果報酬型（手数料20%）
               </p>
             </div>
           </div>

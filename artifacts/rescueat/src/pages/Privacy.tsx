@@ -15,6 +15,14 @@ export default function Privacy() {
           トップへ戻る
         </Link>
 
+        <PrivacyBody />
+      </div>
+    </Layout>
+  );
+}
+
+export function PrivacyBody() {
+  return (
         <article>
           <h1 className="text-2xl font-black text-foreground mb-1">プライバシーポリシー</h1>
           <p className="text-xs text-muted-foreground mb-8">最終更新日：2026年3月26日</p>
@@ -137,8 +145,6 @@ export default function Privacy() {
             <p>おすそわけ 事務局</p>
           </div>
         </article>
-      </div>
-    </Layout>
   );
 }
 

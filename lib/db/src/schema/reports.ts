@@ -12,7 +12,7 @@ export const reportTypeEnum = pgEnum("report_type", [
 
 export const reportsTable = pgTable("reports", {
   id: serial("id").primaryKey(),
-  storeId: integer("store_id").notNull().references(() => storesTable.id),
+  storeId: integer("store_id").notNull().references(() => storesTable.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull(),
   reportType: reportTypeEnum("report_type").notNull(),
   comment: text("comment"),

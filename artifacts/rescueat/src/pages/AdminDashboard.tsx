@@ -853,7 +853,7 @@ export default function AdminDashboard() {
                   <div className="mb-4">
                     <p className="text-[11px] text-white/60 font-medium mb-0.5">累計流通額 (GMV)</p>
                     <p className="text-5xl font-black text-white tracking-tight">¥{fmt(metrics.gmv)}</p>
-                    <p className="text-xs text-white/60 mt-1">手数料収益 (25%): <span className="text-white/90 font-bold">¥{fmt(metrics.platformFee)}</span></p>
+                    <p className="text-xs text-white/60 mt-1">手数料収益 (20%): <span className="text-white/90 font-bold">¥{fmt(metrics.platformFee)}</span></p>
                   </div>
 
                   {/* 5つのビッグ数値 */}

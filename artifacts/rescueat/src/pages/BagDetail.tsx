@@ -3,7 +3,7 @@ import { useRoute, useLocation } from 'wouter';
 import { Layout } from '@/components/Layout';
 import { useGetBag, useCreateReservation, getListAllBagsQueryKey, getGetBagQueryKey } from '@workspace/api-client-react';
 import { getCategoryImage, getCategoryIcon, getImageFromName } from '@/lib/category-utils';
-import { formatPickupTime } from '@/lib/utils';
+import { formatPickupTime, pickupWindowsLabel, getPickupDateLabel } from '@/lib/utils';
 import { normalizeBrand } from '@/lib/brand-text';
 import { Clock, MapPin, AlertCircle, ChevronLeft, Minus, Plus, Info, Flag, X, ChevronDown, Star, MessageSquare, Heart, Navigation, Phone, CalendarDays, Timer, UtensilsCrossed, Store, Sparkles, TrendingDown, Package } from 'lucide-react';
 import { useUserId } from '@/hooks/use-user';
@@ -266,7 +266,7 @@ export default function BagDetail() {
 
   // 受取時間が過ぎているか判定（JST基準・深夜またぎ対応）
   const isExpired = React.useMemo(() => {
-    if (!bag?.pickupEnd) return false;
+    if (!bag) return false; // 読み込み中
     const nowJST       = new Date(Date.now() + 9 * 60 * 60 * 1000);
     const createdJST   = new Date(new Date(bag.createdAt as string).getTime() + 9 * 60 * 60 * 1000);
     const todayStr     = nowJST.toISOString().slice(0, 10);
@@ -274,17 +274,33 @@ export default function BagDetail() {
     const createdStr   = createdJST.toISOString().slice(0, 10);
     const currentTime  = nowJST.toISOString().slice(11, 16);
 
+    // ★ pickupEnd 未設定: 出品日(JST)が今日でなければ期限切れ（他の全判定と統一。
+    //   以前はここで一律 false を返し、 一覧/購入(410)と詳細表示が食い違っていた）。
+    if (!bag.pickupEnd) return createdStr !== todayStr;
+
+    // 2部制(受取2枠): 期限は「最後の枠の終わり」= pickupEnd2 があればそちら。
+    const effEnd = (bag as { pickupEnd2?: string | null }).pickupEnd2 || bag.pickupEnd;
+
+    // ★ 翌日受取（前日出品 pickupNextDay）: 今日出品→受取は明日なのでまだ有効。
+    //   昨日出品→今日が受取日（pickupEnd を過ぎたら期限切れ）。 それ以前→期限切れ。
+    //   これが無く、 前日出品バッグの詳細が「受取時間が終了しました」と誤表示されていた（2026-06-30 報告）。
+    if ((bag as { pickupNextDay?: boolean }).pickupNextDay) {
+      if (createdStr === todayStr)     return false;
+      if (createdStr === yesterdayStr) return currentTime > effEnd;
+      return true;
+    }
+
     // 深夜またぎバッグ（例: pickupStart=23:00, pickupEnd=01:00）
     const isOvernightBag = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
     if (isOvernightBag) {
       if (createdStr === todayStr)     return false;           // 今日出品 → 翌日まで有効
-      if (createdStr === yesterdayStr) return currentTime > bag.pickupEnd; // 昨日出品
+      if (createdStr === yesterdayStr) return currentTime > effEnd; // 昨日出品
       return true;
     }
 
     // 通常バッグ
     if (createdStr !== todayStr) return true;
-    return currentTime > bag.pickupEnd;
+    return currentTime > effEnd;
   }, [bag]);
 
   const { data: reviewData } = useQuery<ReviewData>({
@@ -716,9 +732,14 @@ export default function BagDetail() {
                       <Clock className="w-4 h-4 text-amber-600 dark:text-amber-300" strokeWidth={2.4} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-bold text-muted-foreground/90 uppercase tracking-[0.1em] mb-0.5">受取時間</div>
+                      <div className="text-[11px] font-bold text-muted-foreground/90 uppercase tracking-[0.1em] mb-0.5 flex items-center gap-1.5">
+                        受取時間
+                        {getPickupDateLabel((bag as { createdAt?: string }).createdAt, (bag as { pickupNextDay?: boolean }).pickupNextDay).isTomorrow && (
+                          <span className="normal-case tracking-normal text-[10px] font-black text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full">🌙 明日受け取り</span>
+                        )}
+                      </div>
                       <div className="text-sm font-bold text-foreground tabular-nums">
-                        {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
+                        {(() => { const p = getPickupDateLabel((bag as { createdAt?: string }).createdAt, (bag as { pickupNextDay?: boolean }).pickupNextDay).prefix; return (p ? p + ' ' : '') + pickupWindowsLabel(bag.pickupStart, bag.pickupEnd, (bag as { pickupStart2?: string | null }).pickupStart2, (bag as { pickupEnd2?: string | null }).pickupEnd2); })()}
                       </div>
                     </div>
                   </div>
@@ -1135,7 +1156,7 @@ export default function BagDetail() {
                   <span className="relative flex items-center gap-2">
                     <span>購入する</span>
                     <span className="text-white/95 font-black tabular-nums" style={{ fontFeatureSettings: '"tnum"' }} data-sshide>
-                      ¥{getDisplayPrice(bag.discountedPrice * quantity).toLocaleString()}
+                      ¥{(getDisplayPrice(bag.discountedPrice) * quantity).toLocaleString()}
                     </span>
                   </span>
                 )}

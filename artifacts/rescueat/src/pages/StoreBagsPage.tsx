@@ -32,6 +32,10 @@ export default function StoreBagsPage() {
       enabled: !!storeId,
       staleTime: 0,             // 常に古いと見なし必ず再取得チェック
       refetchOnMount: 'always', // 画面に戻るたびサーバーから最新取得
+      // ★ 自動更新: 他端末での出品/停止・売れ行きを最大10秒で反映（複数端末同時運用対策）。
+      //   これが無く、 出品管理ページだけステータスが同期しないバグがあった（2026-06-30 濱島さん報告）。
+      refetchInterval: 10_000,
+      refetchOnWindowFocus: true,
     },
   });
   const createBag = useCreateBag();
@@ -466,7 +470,7 @@ export default function StoreBagsPage() {
                 {form.discountedPrice > 0 && (() => {
                   const price       = form.discountedPrice;
                   const userPrice   = getDisplayPrice(price);
-                  const platFee     = Math.floor(price * 0.25);
+                  const platFee     = Math.floor(price * 0.20);
                   const stripeFee   = Math.round(price * 0.036);
                   const shopAmount  = price - platFee - stripeFee;
                   return (
@@ -482,7 +486,7 @@ export default function StoreBagsPage() {
                       </div>
                       <div className="mt-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5 space-y-1">
                         <div className="flex justify-between text-[11px] text-muted-foreground">
-                          <span>おすそわけ 手数料 (25%)</span>
+                          <span>おすそわけ 手数料 (20%)</span>
                           <span>-¥{platFee.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-[11px] text-muted-foreground">

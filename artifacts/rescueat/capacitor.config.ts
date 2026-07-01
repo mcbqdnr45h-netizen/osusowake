@@ -24,8 +24,12 @@ const config: CapacitorConfig = {
     backgroundColor: '#FBF8F4',
     // HTTPS のみで配信するため mixed content 不要 (デフォルト無効を明示)
     allowMixedContent: false,
-    // 入力イベントを Web 側へ委譲する標準挙動
-    captureInput: true,
+    // ★★★ 絶対に true にするな ★★★
+    //   captureInput: true は WebView の onCreateInputConnection で BaseInputConnection を
+    //   返させる設定で、 これは IME の composing text (かな→漢字変換) を一切サポートしない。
+    //   結果 Android で日本語が入力できなくなる (ハードウェアキーボード専用の設定)。
+    //   デフォルト false が正しい。 ソフトキーボードで日本語入力するには false 必須。
+    captureInput: false,
   },
 
   plugins: {
@@ -34,6 +38,8 @@ const config: CapacitorConfig = {
       //    React マウント + 認証確定後に SplashHider が明示的に hide する。
       //    launchShowDuration: 0 は launchAutoHide: false より優先され、
       //    スプラッシュが即非表示 → WebView ロード中の白画面が長時間出る原因。
+      //    iOS のスプラッシュは LaunchScreen.storyboard (中央ロゴ Splash) を使う。
+      //    起動直後からロゴが出て、 React マウント時に SplashHider が hide する。
       launchShowDuration: 30000,
       launchAutoHide: false,
       launchFadeOutDuration: 200,

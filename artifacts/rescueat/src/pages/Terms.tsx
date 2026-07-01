@@ -15,6 +15,14 @@ export default function Terms() {
           トップへ戻る
         </Link>
 
+        <TermsBody />
+      </div>
+    </Layout>
+  );
+}
+
+export function TermsBody() {
+  return (
         <article>
           <h1 className="text-2xl font-black text-foreground mb-1">利用規約</h1>
           <p className="text-xs text-muted-foreground mb-8">最終更新日：2026年4月29日</p>
@@ -140,8 +148,6 @@ export default function Terms() {
             </p>
           </div>
         </article>
-      </div>
-    </Layout>
   );
 }
 

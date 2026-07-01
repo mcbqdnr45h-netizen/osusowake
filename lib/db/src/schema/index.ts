@@ -11,3 +11,4 @@ export * from "./webPushSubscriptions";
 export * from "./apnsRegistrations";
 export * from "./fcmRegistrations";
 export * from "./salesLeads";
+export * from "./recurringListings";

@@ -21,7 +21,7 @@ export function CategoryPicker({
     <div>
       <div className="flex items-center gap-2 mb-2">
         <label className="text-xs font-bold text-muted-foreground">
-          ラベル
+          カテゴリ
           {required
             ? <span className="ml-1 text-destructive font-normal text-[10px]">（必須）</span>
             : <span className="text-muted-foreground/60 font-normal">（任意）</span>

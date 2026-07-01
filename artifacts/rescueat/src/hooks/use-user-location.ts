@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import * as geo from '@/lib/geo';
 
 export interface UserCoords {
   lat: number;
@@ -40,14 +41,14 @@ function tryAutoGps(): void {
   if (autoGpsRequested) return;
   autoGpsRequested = true;
 
-  if (!navigator.geolocation) {
-    // ブラウザが位置情報API非対応 → 即時 denied
+  if (!geo.isSupported()) {
+    // 位置情報API非対応 → 即時 denied
     setGpsStatus('denied');
     return;
   }
 
   // 8秒タイムアウト付きで GPS 取得を試みる
-  navigator.geolocation.getCurrentPosition(
+  geo.getCurrentPosition(
     (pos) => {
       const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       cachedCoords = ll;
@@ -70,13 +71,13 @@ function tryAutoGps(): void {
  */
 export function requestGpsManually(): Promise<UserCoords | null> {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) {
+    if (!geo.isSupported()) {
       setGpsStatus('denied');
       resolve(null);
       return;
     }
     setGpsStatus('loading');
-    navigator.geolocation.getCurrentPosition(
+    geo.getCurrentPosition(
       (pos) => {
         const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         cachedCoords = ll;

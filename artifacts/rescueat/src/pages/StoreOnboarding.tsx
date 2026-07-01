@@ -707,7 +707,7 @@ export default function StoreOnboarding() {
               <Leaf className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <div className="flex-1">
                 <div className="font-black text-foreground">完全成果報酬型</div>
-                <div className="text-muted-foreground">初期費用・月額0円。売れた分だけ手数料25%</div>
+                <div className="text-muted-foreground">初期費用・月額0円。売れた分だけ手数料20%</div>
               </div>
             </div>
           )}

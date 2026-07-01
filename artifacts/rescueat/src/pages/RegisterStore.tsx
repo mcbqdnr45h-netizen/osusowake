@@ -232,7 +232,7 @@ export default function RegisterStore() {
             <div className="text-sm">
               <div className="font-bold text-foreground mb-1">完全成果報酬型</div>
               <div className="text-muted-foreground leading-relaxed">
-                <span className="font-bold text-foreground">初期費用・月額0円</span>。売れた場合のみ手数料25%。売れなければ完全無料です。
+                <span className="font-bold text-foreground">初期費用・月額0円</span>。売れた場合のみ手数料20%。売れなければ完全無料です。
               </div>
             </div>
           </div>

@@ -104,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdminRef    = useRef(false);
   const fetchingRef   = useRef(false);
   const adminLoginAt  = useRef<number | null>(null);
+  const mfaPromptActiveRef = useRef(false); // mfa_required イベントの多重 OTP 送信を防ぐ
   // ★ initAuth 完走まで onAuthStateChange の fetchProfile を抑止する
   //    (adminCheck → fetchProfile の順序を全経路で保証 → adminUserMode role 上書きのレース回避)
   const initInProgressRef = useRef(true);
@@ -127,6 +128,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  // サーバが mfa_required を返した時（MFA 期限切れ / サーバ再起動でサーバ側 MFA 消失）に
+  // OTP を再要求する。 authed-fetch.ts が 'admin-mfa-required' イベントを発火する。
+  //   ★ AdminDashboard は複数の admin API を並列で叩くため、 イベントも連続発火する。
+  //     mfaPromptActiveRef で多重 OTP 送信（メール連投）を防ぐ。
+  useEffect(() => {
+    function onMfaRequired() {
+      // ダッシュボードは isAdmin のまま下に残し、 モーダルを上に重ねる（再認証で復帰）。
+      setPendingAdminMfa(true);
+      sessionStorage.removeItem('adminMfaVerifiedAt');
+      if (mfaPromptActiveRef.current) return; // 既に OTP 送信済み → 再送しない
+      mfaPromptActiveRef.current = true;
+      supabase.auth.getSession().then(({ data }) => {
+        const token = data.session?.access_token;
+        if (token) {
+          fetch(`${getApiBase()}/api/auth/admin-otp/send`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => {});
+        }
+      });
+    }
+    window.addEventListener('admin-mfa-required', onMfaRequired);
+    return () => window.removeEventListener('admin-mfa-required', onMfaRequired);
+  }, []);
 
   // 管理者判定をサーバー API に委譲（メールをクライアントに露出させない）
   async function checkIsAdmin(token: string): Promise<boolean> {
@@ -756,6 +782,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAdminRef.current = true;
       setIsAdmin(true);
       setPendingAdminMfa(false);
+      mfaPromptActiveRef.current = false; // 次の mfa_required で再び OTP 送信できるよう解除
       adminLoginAt.current = Date.now();
       sessionStorage.setItem('adminMfaVerifiedAt', Date.now().toString());
       return { error: null };
@@ -768,6 +795,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     recordEvent('signOut(user-initiated)');
     sessionStorage.removeItem('adminUserMode');
     sessionStorage.removeItem('adminMfaVerifiedAt');
+    mfaPromptActiveRef.current = false;
     sessionStorage.removeItem(PENDING_STORE_OWNER_KEY);
     // ★ ログアウト時に前ユーザーのローカルデータを完全消去 (新規アカウントに前店舗の写真/店名が残る不具合の根本対策)
     try {

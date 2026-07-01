@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import logoUrl from '@/lib/logo';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthShell, AuthPrimaryButton } from '@/components/AuthShell';
+import { LegalSheet, type LegalDoc } from '@/components/LegalSheet';
 
 export default function SignUp() {
   const [, navigate] = useLocation();
@@ -30,6 +31,12 @@ export default function SignUp() {
   const [shakeKey,        setShakeKey]        = useState(0);
   const [done,            setDone]            = useState(false);
   const [needsConfirm,    setNeedsConfirm]    = useState(false);
+  const [legalDoc,        setLegalDoc]        = useState<LegalDoc | null>(null);
+
+  // ★ Android System WebView の日本語 IME 対策。変換確定前 (composition 中) は
+  //   制御 input への state 反映でかな入力が中断されることがあるため、確定後にも
+  //   確実に値を取り込む。
+  const composingRef = useRef(false);
 
   useEffect(() => {
     setName(''); setPhone(''); setEmail('');
@@ -215,7 +222,7 @@ export default function SignUp() {
                 {[
                   '余剰食品を手軽に出品・管理',
                   '売上は毎月25日に自動振込',
-                  'プラットフォーム手数料は25%のみ',
+                  'プラットフォーム手数料は20%のみ',
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-foreground font-medium">
                     <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -236,8 +243,13 @@ export default function SignUp() {
                 <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                   <User className="w-4 h-4 text-muted-foreground/60" />
                 </div>
-                <input type="text" value={name} onChange={e => { setName(e.target.value); setError(''); }}
-                  placeholder="山田 太郎" className={inputBase} autoComplete="name" disabled={isLoading} required />
+                <input type="text" value={name}
+                  onChange={e => { setName(e.target.value); setError(''); }}
+                  onCompositionStart={() => { composingRef.current = true; }}
+                  onCompositionEnd={e => { composingRef.current = false; setName((e.target as HTMLInputElement).value); }}
+                  placeholder="山田 太郎" className={inputBase}
+                  autoComplete="name" autoCapitalize="off" autoCorrect="off" spellCheck={false}
+                  enterKeyHint="next" disabled={isLoading} required />
               </div>
               {!isStore && (
                 <p className="text-[11px] text-muted-foreground/70 mt-1.5 leading-snug">
@@ -363,10 +375,18 @@ export default function SignUp() {
                 )}
               </div>
               <p className="text-sm text-foreground leading-relaxed">
-                <Link href="/terms" onClick={e => e.stopPropagation()} className="font-bold text-primary underline underline-offset-2">利用規約</Link>
-                {' '}および{' '}
-                <Link href="/privacy" onClick={e => e.stopPropagation()} className="font-bold text-primary underline underline-offset-2">プライバシーポリシー</Link>
-                に同意します
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setLegalDoc('terms'); }}
+                  className="font-bold text-primary underline underline-offset-2 whitespace-nowrap"
+                >利用規約</button>
+                <span className="whitespace-nowrap">{' '}および{' '}</span>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setLegalDoc('privacy'); }}
+                  className="font-bold text-primary underline underline-offset-2 whitespace-nowrap"
+                >プライバシーポリシー</button>
+                <span className="whitespace-nowrap">に同意します</span>
               </p>
             </motion.div>
 
@@ -393,6 +413,10 @@ export default function SignUp() {
           </form>
         </motion.div>
       </AnimatePresence>
+
+      {/* ★ 利用規約 / プライバシーポリシーはモーダルで表示。画面遷移しないので
+          入力中のフォーム内容が消えない (iOS / Android 完全同一挙動)。 */}
+      <LegalSheet doc={legalDoc} onClose={() => setLegalDoc(null)} />
     </AuthShell>
   );
 }

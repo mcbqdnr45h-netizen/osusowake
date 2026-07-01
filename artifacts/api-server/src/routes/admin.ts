@@ -7,6 +7,7 @@ import {
 import { eq, sql, desc, isNotNull, inArray } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import { escapeHtml } from "../lib/escape.js";
+import { isAdminMfaValid } from "../lib/admin-mfa";
 import {
   isUserAdmin,
   getAllAdminUserIds,
@@ -142,6 +143,15 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     recordFailedAttempt(ip);
     console.warn(`[SECURITY] ⚠️ Unauthorized admin access attempt: ${user.email} from ${ip}`);
     res.status(403).json({ error: "forbidden", message: "管理者権限が必要です" });
+    return;
+  }
+
+  // ③.5 MFA(OTP) 検証 — DB role=admin だけでは不十分。 OTP を通したセッションのみ許可する。
+  //   （これが無いと OTP はフロント表示だけの飾りで、 admin JWT 直叩きで素通りできた）
+  //   未検証/期限切れは mfa_required を返し、 フロントが OTP を再要求する。
+  if (!isAdminMfaValid(user.id)) {
+    console.warn(`[SECURITY] 🔐 Admin without valid MFA: ${user.email} from ${ip}`);
+    res.status(403).json({ error: "mfa_required", message: "2段階認証が必要です。確認コードを入力してください。" });
     return;
   }
 

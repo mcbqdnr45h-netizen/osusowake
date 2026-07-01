@@ -68,6 +68,16 @@ function formatDateShort(dateStr?: string | null) {
   return d.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// ── 6桁受取コード（OrderTicket.tsx の toDisplayCode と同一ロジック）──────────
+//   pickupCode が6桁数字ならそれを、旧 RES-XXXX データは予約IDから確定的に導出。
+//   ★ 濱島さん報告（2026-07）: 接客中にお客様が受取コードを探せず困る → 購入履歴の
+//     各カードにも6桁コードを大きく表示して、すぐ見つけられるようにする。
+function toDisplayCode(pickupCode: string | null | undefined, reservationId: number): string {
+  if (pickupCode && /^\d{6}$/.test(pickupCode)) return pickupCode;
+  const n = ((reservationId * 48271 + 23456) % 900000) + 100000;
+  return String(n);
+}
+
 function ReceiptModal({ reservation, onClose }: { reservation: any; onClose: () => void }) {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -682,6 +692,21 @@ export default function Orders() {
                       {/* Chevron — 外側に独立させてクリッピングを防ぐ */}
                       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                     </div>
+
+                    {/* ── 受取コード（未受取＝pending/confirmed のみ大きく表示）──
+                        濱島さん報告対応: お店で提示する6桁コードを購入履歴からすぐ見つけられるように。
+                        受取完了・キャンセルは提示不要なので出さない。 */}
+                    {(status === 'pending' || status === 'confirmed') && (
+                      <div className="mx-4 mb-3 -mt-1 flex items-center justify-between gap-2 bg-primary/5 border border-primary/20 rounded-xl px-3 py-2">
+                        <span className="flex items-center gap-1.5 text-[11px] font-bold text-primary/80 shrink-0">
+                          <QrCode className="w-3.5 h-3.5" />
+                          お店に見せる受取コード
+                        </span>
+                        <span className="font-mono font-black text-xl tracking-[0.25em] text-primary tabular-nums whitespace-nowrap">
+                          {toDisplayCode((r as any).pickupCode, r.id)}
+                        </span>
+                      </div>
+                    )}
                   </motion.button>
                 );
               })}

@@ -29,18 +29,21 @@ function getMerchandise(r: Reservation): number {
 }
 
 function groupByDay(reservations: Reservation[]) {
+  // ★ キーは "yyyy-MM-dd"（年込み）で集計。 文字列ソート=日付の時系列順になる。
+  //   旧実装は "M/d" キー＋ソート無しで、 挿入順（予約処理順）で並んでバラバラだった。
   const map: Record<string, number> = {};
   reservations
     .filter(r => r.status === 'picked_up')
     .forEach(r => {
       try {
-        const day = format(parseISO(r.createdAt), 'M/d');
-        map[day] = (map[day] ?? 0) + getMerchandise(r);
+        const key = format(parseISO(r.createdAt), 'yyyy-MM-dd');
+        map[key] = (map[key] ?? 0) + getMerchandise(r);
       } catch {}
     });
   return Object.entries(map)
-    .map(([date, revenue]) => ({ date, revenue }))
-    .slice(-7);
+    .sort(([a], [b]) => a.localeCompare(b))   // 日付 昇順（古い→新しい）
+    .slice(-7)                                 // 直近7日分
+    .map(([key, revenue]) => ({ date: format(parseISO(key), 'M/d'), revenue }));
 }
 
 export default function StoreSalesPage() {
@@ -90,7 +93,10 @@ export default function StoreSalesPage() {
   }
 
   const all = reservations as Reservation[];
-  const pickedUp = all.filter(r => r.status === 'picked_up');
+  // ★ 受取済みを「新しい順」に確実にソート（APIの返却順に依存しない）。
+  const pickedUp = all
+    .filter(r => r.status === 'picked_up')
+    .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')); // createdAt(ISO) 降順
   const todayPickedUp = pickedUp.filter(r => { try { return isToday(parseISO(r.createdAt)); } catch { return false; } });
   const monthStart = startOfMonth(new Date());
   const monthPickedUp = pickedUp.filter(r => {
@@ -206,7 +212,7 @@ export default function StoreSalesPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {[...pickedUp].reverse().map(res => (
+              {pickedUp.map(res => (
                 <div key={res.id} className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center gap-3">
                   <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
                   <div className="flex-1 min-w-0">

@@ -71,5 +71,20 @@ export async function authedFetch(
     }
   }
 
+  // ★ 管理 MFA 期限切れ/サーバ再起動でサーバ側 MFA が失われたケース。
+  //   sessionStorage は「検証済み」のままでも、 サーバが mfa_required を返したら
+  //   フラグを消して OTP 再要求イベントを発火する（AuthContext が拾って再認証へ）。
+  if (res.status === 403) {
+    try {
+      const data = await res.clone().json();
+      if (data?.error === 'mfa_required') {
+        sessionStorage.removeItem('adminMfaVerifiedAt');
+        window.dispatchEvent(new CustomEvent('admin-mfa-required'));
+      }
+    } catch {
+      /* JSON でない 403 は無視 */
+    }
+  }
+
   return res;
 }

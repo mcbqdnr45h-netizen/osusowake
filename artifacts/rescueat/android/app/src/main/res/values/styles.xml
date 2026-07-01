@@ -17,6 +17,12 @@
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <!-- 旧 (Android 11 以下) 用フォールバック -->
         <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ システムスプラッシュ: 背景を #FBF8F4 に揃えてグレーを消す。
+             アイコンはランチャーアイコン (おすそわけロゴ) が自動で中央に出る。
+             スプラッシュ後はノーアクションバーテーマへ遷移。 -->
+        <item name="android:windowSplashScreenBackground">@color/splashBg</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>

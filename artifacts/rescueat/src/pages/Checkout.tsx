@@ -582,6 +582,13 @@ export default function Checkout() {
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
               <p className="font-bold">決済の準備に失敗しました</p>
               <p className="text-xs mt-1">{intentError}</p>
+              <button
+                type="button"
+                onClick={() => navigate(`${BASE}/`)}
+                className="mt-3 w-full bg-primary text-white font-black py-3 rounded-xl text-sm active:scale-[0.98] transition-transform"
+              >
+                ホームに戻る
+              </button>
             </div>
           ) : reviewBypass ? (
             <ReviewBypassPaymentForm

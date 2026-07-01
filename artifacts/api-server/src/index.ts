@@ -1,8 +1,9 @@
 import app from "./app";
 import { pool } from "@workspace/db";
-import { releaseExpiredCartReservations } from "./routes/reservations";
+import { releaseExpiredCartReservations, cancelStaleUnpaidReservations } from "./routes/reservations";
 import { sendPickupReminders } from "./lib/pickup-reminder.js";
 import { runDailyEngagementNotifications } from "./lib/daily-engagement.js";
+import { publishDueRecurringListings } from "./lib/recurring-publisher.js";
 
 // ── 起動時マイグレーション（冪等・全て Supabase PostgreSQL 対象）──────────────
 async function runMigrations() {
@@ -627,7 +628,7 @@ async function runMigrations() {
     console.log('[migration] stripe_webhook_events table ✅');
 
     // ── reservations.merchandise_amount: 商品代金（5%システム利用料を加算する前の金額）
-    //    新収益モデル (ユーザー側 5% システム利用料 + 店舗側 25% プラットフォーム手数料) で
+    //    新収益モデル (ユーザー側 5% システム利用料 + 店舗側 20% プラットフォーム手数料) で
     //    必要となる、totalPrice (ユーザー支払合計) とは別に保持する商品代金カラム。
     //    旧データは NULL のままで、コードは totalPrice をフォールバックとして扱う。
     await client.query(`
@@ -805,4 +806,14 @@ runMigrations().then(() => {
   setInterval(() => {
     runDailyEngagementNotifications().catch(() => {});
   }, 60_000);
+
+  // 定期出品（店が設定した公開時刻になったら翌日分を自動公開）を1分ごとにチェック
+  setInterval(() => {
+    publishDueRecurringListings().catch(() => {});
+  }, 60_000);
+
+  // 未決済のまま放置された予約（pending+unpaid・30分超）を5分ごとに自動キャンセル
+  setInterval(() => {
+    cancelStaleUnpaidReservations().catch(() => {});
+  }, 5 * 60_000);
 });

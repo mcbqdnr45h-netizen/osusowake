@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
+import * as geo from '@/lib/geo';
 import { MapView, MapBounds, MapViewHandle } from '@/components/Map';
 import { BagCard, BagCardSkeleton } from '@/components/BagCard';
 import {
@@ -19,6 +20,7 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Link } from 'wouter';
 import { getCategoryIcon, getCategoryImage, getCategoryLabel, normalizeCategory } from '@/lib/category-utils';
 import { normalizeBrand } from '@/lib/brand-text';
+import { pickupWindowsLabel } from '@/lib/utils';
 import { useUserLocation, updateCachedCoords, haversineMeters, metersToWalkMinutes, formatDistanceLabel } from '@/hooks/use-user-location';
 import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 
@@ -121,6 +123,11 @@ function StoreBottomSheet({
   });
   const bagCount = store.totalBagsAvailable ?? storeBags.filter(b => b.stockCount > 0).length;
   const hasBags  = bagCount > 0;
+  // 本日完売: 在庫ありは無いが「今日(JST)出して売り切れた」＝人気の証明 (社会的証明)。
+  //   ★ 完売バッグは決済で isActive=false になり /api/bags (この bags) からは消える。
+  //     よってフロントの bags 配列では判定不能 → バックエンド /stores の soldOutToday を使う。
+  //     (store オブジェクトに soldOutToday: boolean が付いてくる)
+  const soldOutToday = !hasBags && Boolean((store as { soldOutToday?: boolean }).soldOutToday);
 
   const distanceLabel = useMemo(() => {
     if (!userPos || !store.lat || !store.lng) return null;
@@ -261,7 +268,7 @@ function StoreBottomSheet({
                     />
                   </div>
                 )}
-                <h2 className="text-white font-black text-2xl leading-tight tracking-tight line-clamp-1 drop-shadow-sm flex-1 min-w-0">
+                <h2 className="text-white font-black text-xl leading-tight tracking-tight line-clamp-2 drop-shadow-sm flex-1 min-w-0 [overflow-wrap:anywhere]">
                   {store.name}
                 </h2>
               </div>
@@ -334,6 +341,11 @@ function StoreBottomSheet({
                   style={{ background: 'linear-gradient(135deg,#F8854A,#D44A00)' }}>
                   <ShoppingBag className="w-3.5 h-3.5" />出品中 · {bagCount}個あり
                 </span>
+              ) : soldOutToday ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black text-white"
+                  style={{ background: 'linear-gradient(135deg,#FB7185,#E11D48)' }}>
+                  🔥 本日完売
+                </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-muted-foreground rounded-full text-xs font-bold">
                   😴 現在出品なし
@@ -370,7 +382,7 @@ function StoreBottomSheet({
                             decoding="async"
                             className="w-full h-full object-cover"
                           />
-                          {!isSoldOut && (
+                          {!isSoldOut && discountPct > 0 && (
                             <span className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 rounded-md">
                               {discountPct}% OFF
                             </span>
@@ -385,11 +397,11 @@ function StoreBottomSheet({
                           <p className="font-black text-sm text-foreground leading-tight line-clamp-1 mb-1">{normalizeBrand(bag.title)}</p>
                           <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-1.5">
                             <Clock className="w-3 h-3 shrink-0" />
-                            <span>受取 {bag.pickupStart}–{bag.pickupEnd}</span>
+                            <span>受取 {pickupWindowsLabel(bag.pickupStart, bag.pickupEnd, (bag as { pickupStart2?: string | null }).pickupStart2, (bag as { pickupEnd2?: string | null }).pickupEnd2)}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div>
-                              <span className="text-[10px] text-muted-foreground line-through mr-1">¥{getDisplayPrice(bag.originalPrice).toLocaleString()}</span>
+                              {discountPct > 0 && <span className="text-[10px] text-muted-foreground line-through mr-1">¥{getDisplayPrice(bag.originalPrice).toLocaleString()}</span>}
                               <span className="text-base font-black text-primary">¥{getDisplayPrice(bag.discountedPrice).toLocaleString()}</span>
                               {isSoldOut
                                 ? <span className="text-[10px] text-muted-foreground font-bold ml-1">完売</span>
@@ -414,6 +426,12 @@ function StoreBottomSheet({
                   })}
                 </div>
               </>
+            ) : soldOutToday ? (
+              <div className="text-center py-8 bg-rose-50 rounded-2xl border border-dashed border-rose-200">
+                <p className="text-2xl mb-2">🔥</p>
+                <p className="text-sm font-black text-rose-600">本日分は完売しました</p>
+                <p className="text-xs text-muted-foreground mt-1">人気のお店です。次回は早めにチェックを！</p>
+              </div>
             ) : (
               <div className="text-center py-8 bg-secondary/50 rounded-2xl border border-dashed border-border">
                 <ShoppingBag className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
@@ -534,12 +552,12 @@ export default function SearchPage() {
       setUserPos({ lat: cachedCoords.lat, lng: cachedCoords.lng });
       return;
     }
-    if (!navigator.geolocation) {
+    if (!geo.isSupported()) {
       return;
     }
     // iOS Safari 対策: ナビタブのクリック直後にマウントされるため、
     // ユーザー操作の延長として geolocation が許可される
-    navigator.geolocation.getCurrentPosition(
+    geo.getCurrentPosition(
       (pos) => {
         const ll: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         updateCachedCoords({ lat: ll[0], lng: ll[1] });
@@ -613,7 +631,16 @@ export default function SearchPage() {
   );
   const { data: stores } = useListStores(
     undefined,
-    { query: { queryKey: getListStoresQueryKey(), staleTime: 60_000 } }
+    {
+      query: {
+        queryKey: getListStoresQueryKey(),
+        staleTime: 60_000,
+        // ★ マップを開くたびにキャッシュを即表示しつつ裏で最新を再取得（個数バッジの更新が60秒遅れるのを解消）。
+        //   refetchOnMount だけだと staleTime 内は再取得しないため 'always' で必ず裏更新する。
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
+      },
+    }
   );
 
   // 検索実行（キーボードを閉じる + ローダー演出）

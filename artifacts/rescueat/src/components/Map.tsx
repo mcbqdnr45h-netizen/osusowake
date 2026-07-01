@@ -7,6 +7,7 @@ import { LocateFixed, AlertTriangle, Layers } from 'lucide-react';
 
 import { loadGoogleMapsScript, GM_AUTH_FAILURE_EVENT } from '@/lib/maps-loader';
 import { updateCachedCoords, TAKATSUKI_STATION } from '@/hooks/use-user-location';
+import * as geo from '@/lib/geo';
 
 // ── バッグ情報（ピン色判定用）────────────────────────────────────────────────
 export interface BagMapInfo {
@@ -14,24 +15,6 @@ export interface BagMapInfo {
   stockCount: number;
   pickupStart?: string | null;
   pickupEnd?: string | null;
-}
-
-// ── 受取時間内かどうかを判定（深夜またぎ対応）─────────────────────────────────
-function isInPickupWindow(start?: string | null, end?: string | null): boolean {
-  if (!start || !end) return true; // 時間制限なし → 常に表示
-  const now      = new Date();
-  const nowMins  = now.getHours() * 60 + now.getMinutes();
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  const startMins = sh * 60 + sm;
-  const endMins   = eh * 60 + em;
-  if (endMins >= startMins) {
-    // 通常ウィンドウ（例: 18:00〜20:00）
-    return nowMins >= startMins && nowMins <= endMins;
-  } else {
-    // 深夜またぎ（例: 22:00〜02:00）
-    return nowMins >= startMins || nowMins <= endMins;
-  }
 }
 
 // ── Google マップ「標準スタイル」 をそのまま使う ─────────────────────────
@@ -486,20 +469,22 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     return result;
   }, [listingStores]);
 
-  // ── アクティブ店舗ID Set (O(店舗数 × バッグ数) を O(店舗数 + バッグ数) に短縮) ──
-  //   bags を1回スキャンして「在庫あり + 受取時間内」の store.id を Set 化。
-  //   以後の判定は Set.has() (O(1)) で済むため、店舗・バッグが多くても CPU を喰わない。
+  // ── アクティブ店舗ID Set ──
+  //   bags は既にサーバー側で「有効な出品」(notExpiredCondition: 翌日受け取り含む) に
+  //   絞り込まれている。 よって在庫あり (= 出品中) ならオレンジピンにする。
+  //   以前は「受取時間内」も条件にしていたため、 夜に出した翌朝受け取り(定期出品)が
+  //   受取時間外と判定されグレーのままだった → 在庫のみで判定して「出品中=オレンジ」に統一。
   const activeStoreIdSet = useMemo(() => {
     const s = new Set<number | string>();
     for (const b of bags) {
-      if (b.stockCount > 0 && isInPickupWindow(b.pickupStart, b.pickupEnd)) {
+      if (b.stockCount > 0) {
         s.add(b.store.id);
       }
     }
     return s;
   }, [bags]);
 
-  // ── アクティブ店舗（オレンジピン: 在庫あり + 受取時間内）────────────────────
+  // ── アクティブ店舗（オレンジピン: 出品中 = 在庫あり）────────────────────
   const activeListingStores = useMemo(
     () => listingStores.filter(s => activeStoreIdSet.has(s.id)),
     [listingStores, activeStoreIdSet]
@@ -970,9 +955,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   //   GPS ボタンタップ時のみパンする (handleLocate) ので地図が勝手に動くことはない。
   useEffect(() => {
     if (status !== 'ready') return;
-    if (!navigator.geolocation) return;
+    if (!geo.isSupported()) return;
 
-    const id = navigator.geolocation.watchPosition(
+    const id = geo.watchPosition(
       (pos) => {
         const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         updateCachedCoords(ll);
@@ -987,7 +972,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     return () => {
       if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+        geo.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
     };
@@ -1000,12 +985,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       mapRef.current?.setZoom(15);
       return;
     }
-    if (!navigator.geolocation) {
+    if (!geo.isSupported()) {
       console.warn('[Map] geolocation not supported');
       return;
     }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
+    geo.getCurrentPosition(
       (pos) => {
         const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         updateCachedCoords(ll);
@@ -1036,15 +1021,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
   }, [mapType, status]);
 
-  // ── 表示範囲内のアクティブ店舗数（凡例カウント）─────────────────────────────
-  // 「おすそわけ受付中 ○店」はオレンジ（在庫あり + 受取時間内）の店舗のみ数える
-  const visibleListingCount = useMemo(() => {
-    if (!visibleBounds) return activeListingStores.length;
-    const { north, south, east, west } = visibleBounds;
-    return activeListingStores.filter(s =>
-      s.lat >= south && s.lat <= north && s.lng >= west && s.lng <= east
-    ).length;
-  }, [activeListingStores, visibleBounds]);
+  // ── 「おすそわけ受付中 ○店」のカウント ──────────────────────────────────────
+  // ★ 地図の表示範囲に関係なく「今 受付中(オレンジ=在庫あり+受取時間内)の店の総数」を表示する。
+  //   以前は visibleBounds で画面内だけ数えていたため、 オレンジピンを画面に入れない限り
+  //   カウントが増えず「受付中が増えない/遅い」という誤解を招いていた（2026-06-30 報告）。
+  //   「受付外」側は元から全店ベースなので、 受付中も総数に揃えて不整合も解消。
+  const visibleListingCount = useMemo(() => activeListingStores.length, [activeListingStores]);
 
   return (
     <div className="w-full h-full relative">

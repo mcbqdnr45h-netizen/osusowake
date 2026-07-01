@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 起動スプラッシュ背景。 Web #__splash / Capacitor splash と同色に揃え、
+         Android 12+ システムスプラッシュのグレー背景を防ぐ。 -->
+    <color name="splashBg">#FBF8F4</color>
+</resources>

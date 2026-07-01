@@ -2,6 +2,18 @@
 .github
 .gitignore
 attached_assets
+# ★ ローカル専用の巨大ディレクトリ/ファイルをビルドコンテキストから除外（2026-06-25: .local が2.2GBで転送が詰まった）
+.local
+.config
+.claude
+**/src.old
+*.bak
+*.pptx
+*.aab
+*.zip
+*.db
+set-secrets.py
+set-fly-secrets.py
 **/node_modules
 **/dist
 **/dist-cap

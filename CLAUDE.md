@@ -14,7 +14,7 @@
   Fly app **`osusowake-api`**（region `sin`）で**単一オリジン配信**（Express が `STATIC_DIR` から SPA を配信＋`/api`）。
 - **DB**: Supabase PostgreSQL（project ref `dqybzbsdqpbfpimapnwx`）+ Drizzle ORM。接続は Session pooler / 5432。
 - **Push**: Web Push (VAPID) + iOS APNs（Key ID `6Z6R988BSK` / Team `24P8637Y9A`、`.p8` は Fly secret）。
-- **決済**: Stripe（Connect destination charge、店舗25%手数料 / ユーザー5%）。
+- **決済**: Stripe（Connect destination charge、店舗20%手数料 / ユーザー5%）。
   `pk_live` は Fly secret `STRIPE_PUBLISHABLE_KEY` ＋ Dockerfile ARG（`VITE_STRIPE_PK`）に設定済。`sk_live` は Fly secret。
   ※ Checkout は pk を**ランタイムで `/api/stripe/public-config` から取得**する（焼込み値ではない）。
 - **monorepo**: pnpm workspace（`artifacts/*` + `lib/*`）。

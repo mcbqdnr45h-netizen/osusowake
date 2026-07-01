@@ -56,7 +56,7 @@ function toJSTDateStrBag(utcIso: string): string {
 }
 
 export function getBagStatus(
-  bag: { isActive: boolean; stockCount: number; pickupEnd: string | null; pickupStart?: string | null; createdAt: string },
+  bag: { isActive: boolean; stockCount: number; pickupEnd: string | null; pickupStart?: string | null; pickupEnd2?: string | null; pickupNextDay?: boolean; createdAt: string },
   now: Date,
 ): BagRealStatus {
   if (!bag.isActive) return 'inactive';
@@ -69,24 +69,37 @@ export function getBagStatus(
 
   if (bag.pickupEnd) {
     const currentTime = jstNow.toISOString().slice(11, 16);
+    // ★ 2部制(受取2枠): 期限は「最後の枠の終わり」= pickupEnd2 があればそちら（一覧の bagVisibleSql と一致）。
+    const effEnd = bag.pickupEnd2 || bag.pickupEnd;
 
-    // 深夜またぎ判定（例: pickupStart="22:00", pickupEnd="01:00"）
-    const isOvernight = bag.pickupStart != null && bag.pickupEnd < bag.pickupStart;
+    // 深夜またぎ判定は最後の枠(effEnd)基準（例: 単枠 22:00-01:00／2部制 11:00-14:00,22:00-02:00）。
+    // slot1 の pickupEnd だけ見ると2部制2枠目の日跨ぎを取りこぼし、同日に消える（一覧 bagVisibleSql と一致させる）。
+    const isOvernight = bag.pickupStart != null && effEnd < bag.pickupStart;
 
-    if (isOvernight) {
+    if (bag.pickupNextDay) {
+      // 翌日受取（前日出品）: 今日出品→受取は明日なのでまだ有効。
+      //   昨日出品→今日が受取日（effEnd を過ぎたら期限切れ）。 それ以前→期限切れ。
+      if (createdStr !== todayStr) {
+        if (createdStr === yesterdayStr) {
+          if (currentTime > effEnd) return 'expired';
+        } else {
+          return 'expired';
+        }
+      }
+    } else if (isOvernight) {
       if (createdStr === todayStr) {
         // 今日出品 → 翌日の pickupEnd まで有効
         return bag.stockCount === 0 ? 'soldout' : 'active';
       } else if (createdStr === yesterdayStr) {
-        // 昨日出品 → 翌日（今日）の pickupEnd を過ぎたら期限切れ
-        if (currentTime > bag.pickupEnd) return 'expired';
+        // 昨日出品 → 翌日（今日）の effEnd を過ぎたら期限切れ
+        if (currentTime > effEnd) return 'expired';
       } else {
         return 'expired'; // 2日以上前
       }
     } else {
-      // 通常バッグ：今日出品 かつ pickupEnd 未達ならアクティブ
+      // 通常バッグ：今日出品 かつ effEnd 未達ならアクティブ
       if (createdStr !== todayStr) return 'expired';
-      if (currentTime > bag.pickupEnd) return 'expired';
+      if (currentTime > effEnd) return 'expired';
     }
   } else {
     // pickupEnd 未設定バッグ：出品日（JST）が今日でなければ期限切れとみなす

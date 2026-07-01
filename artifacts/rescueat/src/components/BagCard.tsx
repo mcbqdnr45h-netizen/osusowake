@@ -11,7 +11,7 @@ import {
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryIcon, getCategoryImage, getImageFromName } from '@/lib/category-utils';
-import { formatPickupTime } from '@/lib/utils';
+import { formatPickupTime, pickupWindowsLabel, getPickupDateLabel } from '@/lib/utils';
 import { useUserLocation, haversineMeters, formatDistanceLabel } from '@/hooks/use-user-location';
 import { getDisplayPrice, getDisplayDiscountPercent } from '@/lib/price-display';
 import { useToast } from '@/hooks/use-toast';
@@ -94,6 +94,7 @@ function CompactCardBody({
     ? distM < 50 ? 'すぐそこ' : distM < 1000 ? `${Math.round(distM / 10) * 10}m` : `${(distM / 1000).toFixed(1)}km`
     : null;
   const distMinutes = distM != null ? Math.round(distM / 67) : 99;
+  const pickupDay = getPickupDateLabel((bag as { createdAt?: string }).createdAt, (bag as { pickupNextDay?: boolean }).pickupNextDay);
 
   return (
     <div className="flex flex-col gap-[3px]">
@@ -107,7 +108,7 @@ function CompactCardBody({
           <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground shrink-0">
             <Clock className="w-2.5 h-2.5 shrink-0" />
             <span className="leading-none whitespace-nowrap">
-              {formatPickupTime(bag.pickupStart, bag.pickupEnd)}
+              {(pickupDay.prefix ? pickupDay.prefix + ' ' : '') + formatPickupTime(bag.pickupStart, bag.pickupEnd)}
             </span>
           </div>
         )}
@@ -187,6 +188,7 @@ function FullCardBody({
   fanBurst: boolean;
   onSoldOutFan: (e: React.MouseEvent) => void;
 }) {
+  const pickupDay = getPickupDateLabel((bag as { createdAt?: string }).createdAt, (bag as { pickupNextDay?: boolean }).pickupNextDay);
   return (
     <>
       {/* 商品タイトル */}
@@ -243,7 +245,7 @@ function FullCardBody({
           <div className="flex items-center justify-between mb-3 gap-2">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 px-2.5 py-1.5 rounded-lg">
               <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="font-semibold">受取 {formatPickupTime(bag.pickupStart, bag.pickupEnd)}</span>
+              <span className="font-semibold">受取 {(pickupDay.prefix ? pickupDay.prefix + ' ' : '') + pickupWindowsLabel(bag.pickupStart, bag.pickupEnd, (bag as { pickupStart2?: string | null }).pickupStart2, (bag as { pickupEnd2?: string | null }).pickupEnd2)}</span>
             </div>
             <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg
               ${isLowStock ? 'bg-rose-50 text-rose-600 font-semibold' : 'text-muted-foreground bg-muted/60 font-semibold'}`}>

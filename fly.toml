@@ -6,6 +6,10 @@ primary_region = "sin"
 [env]
   NODE_ENV = "production"
   PORT = "8080"
+  # 定期出品（毎日自動公開）の利用可否。
+  #   "all" = 全「承認済み」店に開放（本番運用）。
+  #   または店舗IDのカンマ区切り（例 "135,200"）でパイロット/キルスイッチに切替可能。
+  RECURRING_PILOT_STORE_IDS = "all"
 
 [http_service]
   internal_port = 8080

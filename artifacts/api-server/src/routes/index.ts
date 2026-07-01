@@ -15,6 +15,7 @@ import pushNotificationsRouter from "./push-notifications";
 import adminRouter from "./admin";
 import authRouter from "./auth";
 import stripeWebhookRouter from "./stripe-webhook";
+import recurringRouter from "./recurring";
 import { supabaseAdmin, supabaseAnon } from "../lib/supabase.js";
 import { validateNickname, normalizeNickname } from "../lib/nickname-validator.js";
 import { Resend } from "resend";
@@ -37,6 +38,7 @@ router.use(favoritesRouter);
 router.use(rankingRouter);
 router.use(userPreferencesRouter);
 router.use(pushNotificationsRouter);
+router.use(recurringRouter);
 
 // ── POST /auth/forgot-password ── ブランドメール送信（Resend 経由）──────────
 router.post("/auth/forgot-password", async (req, res) => {

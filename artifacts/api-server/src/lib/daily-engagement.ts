@@ -8,6 +8,7 @@ import {
 import { eq, gt, and, sql } from 'drizzle-orm';
 import { sendPushToUsers } from './push.js';
 import { supabaseAdmin } from './supabase.js';
+import { bagVisibleSql } from './bag-visibility.js';
 
 /**
  * 毎日2回（昼前 11:30・夕方 17:30 JST）全登録ユーザーにエンゲージメント通知を送る。
@@ -47,7 +48,7 @@ function nowJST() {
   return { hour: d.getUTCHours(), minute: d.getUTCMinutes(), dateStr: d.toISOString().slice(0, 10) };
 }
 
-/** 現在アクティブな出品バッグ数を返す */
+/** 現在「お客様に実際に表示中」の出品バッグ数を返す。 */
 async function countActiveBags(): Promise<number> {
   const result = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -58,6 +59,9 @@ async function countActiveBags(): Promise<number> {
         eq(surpriseBagsTable.isActive, true),
         gt(surpriseBagsTable.stockCount, 0),
         eq(storesTable.status, 'approved'),
+        eq(storesTable.isActive, true), // ★ /api/bags と同じ: 一時停止(isActive=false)の店のバッグは数えない
+        // ★ お客様に実際に表示中(notExpired)のものだけ数える。 共有SQLに一本化(lib/bag-visibility.ts)。
+        bagVisibleSql,
       ),
     );
   return result[0]?.count ?? 0;

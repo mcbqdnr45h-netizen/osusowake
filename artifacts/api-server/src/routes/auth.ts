@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabase";
 import { validateNickname, normalizeNickname } from "../lib/nickname-validator";
+import { markAdminMfaVerified } from "../lib/admin-mfa";
 import { Resend } from "resend";
 import { promises as dnsPromises } from "node:dns";
 
@@ -542,8 +543,11 @@ router.post("/auth/admin-otp/verify", async (req: Request, res: Response) => {
   }
 
   adminOtpStore.delete(email);
+  // ★ サーバ側に MFA 検証済みを記録 → requireAdmin がこれを必須化する（実効化の要）。
+  const verifiedAt = Date.now();
+  const expiresAt = markAdminMfaVerified(user.id);
   console.log("[admin-otp/verify] Admin MFA verified successfully");
-  res.json({ ok: true, verifiedAt: Date.now() });
+  res.json({ ok: true, verifiedAt, expiresAt });
 });
 
 // ── DELETE /api/user/account ──────────────────────────────────────────────────

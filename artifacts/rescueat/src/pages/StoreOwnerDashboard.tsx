@@ -726,7 +726,7 @@ export default function StoreOwnerDashboard() {
                 <span>{todaySales.count}件</span>
               </div>
               <p className="mt-2 text-[10px] text-primary-foreground/60 leading-relaxed">
-                ※ 商品代金合計から プラットフォーム手数料 25% と Stripe決済手数料を控除した金額が、お客様への入金予定額です
+                ※ 商品代金合計から プラットフォーム手数料 20% と Stripe決済手数料を控除した金額が、お客様への入金予定額です
               </p>
               {!todaySales.connected && (
                 <div className="mt-3 bg-white/10 rounded-xl px-3 py-2 text-xs font-bold">

@@ -93,7 +93,7 @@ function TokushoModal({ onClose }: { onClose: () => void }) {
             { label: '支払時期', value: '予約確定時に即時決済' },
             { label: '商品の引渡し時期', value: '各店舗の受取時間内にご来店の上、お受け取りください' },
             { label: 'キャンセル・返品規定', value: '商品の性質上、購入確定後のキャンセル・返品・交換はお受けできません。ただし、店舗側の都合による商品提供不可の場合は全額返金いたします。' },
-            { label: '手数料', value: '初期費用・月額費用：0円。販売成立時のみ、販売金額の25%を手数料として申し受けます。' },
+            { label: '手数料', value: '初期費用・月額費用：0円。販売成立時のみ、販売金額の20%を手数料として申し受けます。' },
             { label: '個人情報の取扱い', value: '収集した個人情報は、サービス提供・改善の目的のみに使用し、第三者への提供は行いません。' },
           ].map(({ label, value }) => (
             <div key={label} className="border-b border-border/50 pb-4 last:border-0 last:pb-0">

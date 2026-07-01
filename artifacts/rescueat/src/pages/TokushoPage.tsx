@@ -17,7 +17,7 @@ const ROWS: { label: string; value: React.ReactNode }[] = [
   { label: '商品の引渡し時期', value: '購入完了後、電子チケット（QRコード）を即時発行。各店舗指定の受取時間内にご来店いただき商品を受け取ってください' },
   { label: '返品・キャンセルについて', value: '食品の特性上、注文確定後のキャンセル・返品・返金は原則お受けできません。ただし、商品未提供・システムエラーによる二重決済など当社の責に帰すべき事由がある場合はこの限りではありません' },
   { label: '動作環境', value: 'iOS / Android の最新ブラウザ（Safari / Chrome）推奨' },
-  { label: '手数料', value: <>購入者にご請求する金額はアプリに表示される販売価格そのもの（<span className="font-bold">サービス手数料込みの総額表示</span>）です。販売店舗からは出品時に登録した販売額の <span className="font-bold">25%</span> を当プラットフォーム手数料として申し受けます（決済代行手数料は別途控除されます）。</> },
+  { label: '手数料', value: <>購入者にご請求する金額はアプリに表示される販売価格そのもの（<span className="font-bold">サービス手数料込みの総額表示</span>）です。販売店舗からは出品時に登録した販売額の <span className="font-bold">20%</span> を当プラットフォーム手数料として申し受けます（決済代行手数料は別途控除されます）。</> },
 ];
 
 export default function TokushoPage() {
