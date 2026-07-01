@@ -58,3 +58,17 @@ Thumbs.db
 *.pem
 *.key
 secrets.json
+# Fly/Supabase secret 投入スクリプト（キー直書き・絶対コミット禁止）
+set-secrets.py
+set-fly-secrets.py
+set-*secret*.py
+
+# Backups / 生成ゴミ
+*.bak
+*.old
+src.old/
+
+# Local tooling / 作業ファイル
+.claude/
+.config/
+plan.md
