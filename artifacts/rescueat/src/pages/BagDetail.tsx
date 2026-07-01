@@ -849,11 +849,7 @@ export default function BagDetail() {
                 {bag.store.address && (
                   <div className="px-4 py-3.5">
                     <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                        ((bag.store as any).lat && (bag.store as any).lng)
-                          ? `${(bag.store as any).lat},${(bag.store as any).lng}`
-                          : bag.store.address
-                      )}`}
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bag.store.address)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-start gap-3 mb-3 -mx-2 px-2 py-1.5 rounded-xl hover:bg-muted/60 active:bg-muted transition-colors"
@@ -864,19 +860,21 @@ export default function BagDetail() {
                         <div className="text-sm text-primary font-bold leading-relaxed underline underline-offset-2 decoration-primary/40">{bag.store.address}</div>
                       </div>
                     </a>
-                    {(bag.store as any).lat != null && (bag.store as any).lng != null && (
-                      <div className="rounded-2xl overflow-hidden border border-border/60 shadow-sm bg-muted/30">
-                        <iframe
-                          src={`https://www.google.com/maps?q=${(bag.store as any).lat},${(bag.store as any).lng}&z=16&output=embed`}
-                          width="100%"
-                          height="180"
-                          style={{ border: 0, display: 'block' }}
-                          loading="lazy"
-                          referrerPolicy="no-referrer-when-downgrade"
-                          title={`${bag.store.name}の地図`}
-                        />
-                      </div>
-                    )}
+                    {/* 埋込地図・タップ先ともに「表示している住所」を基準にする。
+                        登録ピン(lat/lng)は店が手動でズレた位置に置ける(draggable)ため、
+                        住所と食い違うと「住所を押したら別の場所が開く」不整合になる。
+                        住所テキスト基準に統一し、表示住所＝プレビュー＝タップ先を必ず一致させる。 */}
+                    <div className="rounded-2xl overflow-hidden border border-border/60 shadow-sm bg-muted/30">
+                      <iframe
+                        src={`https://www.google.com/maps?q=${encodeURIComponent(bag.store.address)}&z=16&output=embed`}
+                        width="100%"
+                        height="180"
+                        style={{ border: 0, display: 'block' }}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title={`${bag.store.name}の地図`}
+                      />
+                    </div>
                   </div>
                 )}
 
